@@ -1,0 +1,54 @@
+<resources>
+    <!-- Full-screen, no action bar, sunset colour behind the game while it loads. -->
+    <style name="AppTheme" parent="@android:style/Theme.Material.NoActionBar.Fullscreen">
+        <item name="android:windowBackground">@color/loading</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <style name="GameText">
+        <item name="android:fontFamily">sans-serif-black</item>
+        <item name="android:textColor">#FFFFFFFF</item>
+        <item name="android:shadowColor">#99000000</item>
+        <item name="android:shadowDy">2</item>
+        <item name="android:shadowRadius">4</item>
+    </style>
+
+    <style name="PanelText">
+        <item name="android:fontFamily">sans-serif-black</item>
+        <item name="android:textColor">#FF5B3415</item>
+    </style>
+
+    <style name="GameButton">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">54dp</item>
+        <item name="android:minWidth">150dp</item>
+        <item name="android:paddingStart">26dp</item>
+        <item name="android:paddingEnd">26dp</item>
+        <item name="android:fontFamily">sans-serif-black</item>
+        <item name="android:textSize">20sp</item>
+        <item name="android:textColor">#FFFFFFFF</item>
+        <item name="android:shadowColor">#80A04000</item>
+        <item name="android:shadowDy">2</item>
+        <item name="android:shadowRadius">2</item>
+        <item name="android:background">@drawable/bg_button_primary</item>
+        <item name="android:stateListAnimator">@null</item>
+        <item name="android:letterSpacing">0.06</item>
+        <item name="android:drawablePadding">8dp</item>
+        <item name="android:gravity">center</item>
+    </style>
+
+    <style name="GameButton.Secondary">
+        <item name="android:textColor">#FFB45F1A</item>
+        <item name="android:shadowColor">#00000000</item>
+        <item name="android:background">@drawable/bg_button_secondary</item>
+    </style>
+
+    <style name="RoundButton">
+        <item name="android:layout_width">46dp</item>
+        <item name="android:layout_height">46dp</item>
+        <item name="android:padding">11dp</item>
+        <item name="android:scaleType">fitCenter</item>
+        <item name="android:background">@drawable/bg_round</item>
+    </style>
+</resources>

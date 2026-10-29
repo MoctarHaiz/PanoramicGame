@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #0a0a0a; }
+      #root {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        font-family: nunito, sans-serif;
+      }
+      .scene { overflow: hidden; background: #1a1208; }
+      .fill-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+      /* ---------- Scene 1: logo -> title card ---------- */
+      #logo-card { position: absolute; inset: 0; background: #F2890E; display: flex; align-items: center; justify-content: center; }
+      #logo-card img { width: 46%; }
+      #title-card-1 { position: absolute; inset: 0; opacity: 0; }
+
+      /* ---------- Scene 2: gameplay ---------- */
+      .sky-bg {
+        position: absolute; top: 0; left: 0; width: 100%; height: 650px;
+        background-image: url('assets/images/background/bg0.png');
+        background-size: cover; background-position: center;
+      }
+      .ground {
+        position: absolute; left: 0; right: 0; bottom: 0; height: 430px;
+        background: linear-gradient(180deg, #8f5a2e 0%, #6b4226 55%, #4a2d18 100%);
+        border-top: 18px solid #6fbf3e;
+      }
+      .ground::after {
+        content: ""; position: absolute; top: -34px; left: 0; right: 0; height: 18px;
+        background: repeating-linear-gradient(90deg, #86d454 0 40px, #6fbf3e 40px 80px);
+      }
+      #hero-wrap { position: absolute; left: 860px; bottom: 430px; width: 300px; height: 450px; transform-origin: bottom center; }
+      #hero-sprite { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+      #ring {
+        position: absolute; left: 1120px; bottom: 600px; width: 64px; height: 64px;
+        border-radius: 50%; border: 13px solid #FFD27A; box-shadow: 0 0 0 3px #B5700E inset;
+        opacity: 0;
+      }
+      .gesture-icon { position: absolute; opacity: 0; }
+      #swipe-icon { left: 760px; bottom: 560px; width: 90px; height: 120px; }
+      #swipe-icon svg { width: 100%; height: 100%; }
+      #tap-icon { left: 1170px; bottom: 640px; width: 110px; height: 110px; }
+      #tap-icon svg { width: 100%; height: 100%; }
+
+      /* ---------- Scene 3: cross-platform ---------- */
+      #scene3-content { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 36px; }
+      .devices-row { display: flex; align-items: flex-end; gap: 70px; }
+      .device { opacity: 0; display: flex; flex-direction: column; align-items: center; }
+      .device-body { background: #2b2b26; border-radius: 28px; padding: 14px; box-shadow: 0 18px 40px rgba(0,0,0,0.45); }
+      .device.phone .device-body { width: 230px; height: 440px; border-radius: 34px; }
+      .device.browser .device-body { width: 480px; height: 320px; border-radius: 14px; padding: 10px; }
+      .device-screen { position: relative; width: 100%; height: 100%; border-radius: 18px; overflow: hidden; background: #4FB6E8; }
+      .device.browser .device-screen { border-radius: 8px; }
+      .browser-chrome { height: 28px; background: #e9e4d8; display: flex; align-items: center; gap: 6px; padding: 0 10px; border-radius: 8px 8px 0 0; }
+      .browser-chrome span { width: 9px; height: 9px; border-radius: 50%; background: #c9c2b0; display: inline-block; }
+      .mini-sky { position: absolute; top: 0; left: 0; right: 0; height: 64%; background-image: url('assets/images/background/bg0.png'); background-size: cover; background-position: center; }
+      .mini-ground { position: absolute; left: 0; right: 0; bottom: 0; height: 36%; background: linear-gradient(180deg, #8f5a2e 0%, #4a2d18 100%); border-top: 6px solid #6fbf3e; }
+      .mini-hero { position: absolute; bottom: 10%; left: 38%; width: 34%; image-rendering: pixelated; }
+      .device-caption { margin-top: 22px; color: #FFF8EC; text-align: center; }
+      .device-caption .big-readout { font-size: 44px; font-weight: 800; }
+      .device-caption .small-label { font-size: 26px; font-weight: 600; opacity: 0.9; }
+      #cross-caption { opacity: 0; color: #FFF8EC; font-size: 40px; font-weight: 700; text-align: center;
+        background: rgba(59,42,26,0.55); padding: 14px 36px; border-radius: 18px; }
+
+      /* ---------- Scene 4: hero pack ---------- */
+      #hero-closeup { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+        background: radial-gradient(circle at 50% 40%, #FFD27A 0%, #F2994A 60%, #c9762c 100%); opacity: 0; }
+      .hero-big { width: 420px; image-rendering: pixelated; }
+      /* position derived from the real hero_pack head anchor for panoramic1.png (0.693, 0.257),
+         against the .hero-big box centered in a 1920x1080 frame: left 750px top 225px, 420x630px */
+      #face-overlay { position: absolute; left: 966px; top: 312px; width: 150px; height: 150px; border-radius: 50%; opacity: 0; }
+      #title-card-2 { position: absolute; inset: 0; opacity: 0; }
+      #name-mask { position: absolute; left: 39%; top: 30%; width: 26%; height: 15%; background: #f6f0e0; border-radius: 10px; opacity: 0; }
+      #name-text { position: absolute; left: 39%; top: 30%; width: 26%; height: 15%; display: flex; align-items: center; justify-content: center;
+        color: #3B2A1A; font-size: 64px; font-weight: 800; letter-spacing: 0.02em; }
+      #name-text span { opacity: 0; }
+      #birthday-scene { position: absolute; inset: 0; opacity: 0; }
+      #birthday-bg-color { position: absolute; inset: 0; background: linear-gradient(180deg, #FFD27A 0%, #F2994A 60%, #c9762c 100%); }
+      .stars-row { position: absolute; top: 230px; left: 0; right: 0; display: flex; justify-content: center; gap: 46px; }
+      .star { width: 110px; height: 110px; opacity: 0; }
+      #birthday-text { position: absolute; left: 0; right: 0; top: 540px; text-align: center; color: #3B2A1A; font-size: 68px; font-weight: 800;
+        text-shadow: 0 2px 0 #FFF8EC; opacity: 0; }
+
+      /* ---------- Scene 5: outro ---------- */
+      #title-card-3 { position: absolute; inset: 0; opacity: 0; }
+      .logo-small { position: absolute; left: 56px; bottom: 56px; width: 180px; opacity: 0; filter: drop-shadow(0 6px 14px rgba(0,0,0,0.4)); }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="brag" data-start="0" data-duration="19.6" data-width="1920" data-height="1080">
+
+      <!-- SCENE 1: logo -> title card -->
+      <div id="scene1" class="clip scene" data-start="0" data-duration="2.5" data-track-index="0">
+        <div id="logo-card"><img src="assets/images/HaizStudioSplash.png" alt="" /></div>
+        <div id="title-card-1"><img class="fill-img" src="assets/images/menu.png" alt="" /></div>
+      </div>
+
+      <!-- SCENE 2: real gameplay -->
+      <div id="scene2" class="clip scene" data-start="2.5" data-duration="4" data-track-index="0">
+        <div class="sky-bg"></div>
+        <div class="ground"></div>
+        <div id="hero-wrap"><img id="hero-sprite" src="assets/images/running/panoramic1.png" alt="" /></div>
+        <div id="ring"></div>
+        <div id="swipe-icon" class="gesture-icon">
+          <svg viewBox="0 0 90 120"><path d="M45 110 L45 20 M45 20 L18 48 M45 20 L72 48" stroke="#FFF8EC" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        </div>
+        <div id="tap-icon" class="gesture-icon">
+          <svg viewBox="0 0 110 110">
+            <circle cx="55" cy="55" r="18" fill="#FFF8EC"/>
+            <circle cx="55" cy="55" r="34" fill="none" stroke="#FFF8EC" stroke-width="7" opacity="0.75"/>
+            <circle cx="55" cy="55" r="50" fill="none" stroke="#FFF8EC" stroke-width="5" opacity="0.4"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- SCENE 3: same speed everywhere -->
+      <div id="scene3" class="clip scene" data-start="6.5" data-duration="4.3" data-track-index="0">
+        <div id="scene3-content">
+          <div class="devices-row">
+            <div class="device phone" id="device1">
+              <div class="device-body"><div class="device-screen">
+                <div class="mini-sky"></div><div class="mini-ground"></div>
+                <img class="mini-hero" src="assets/images/running/panoramic1.png" alt="" />
+              </div></div>
+              <div class="device-caption"><span class="big-readout"><span id="counter">0</span> updates/sec</span></div>
+            </div>
+            <div class="device phone" id="device2">
+              <div class="device-body"><div class="device-screen">
+                <div class="mini-sky"></div><div class="mini-ground"></div>
+                <img class="mini-hero" src="assets/images/running/panoramic1.png" alt="" />
+              </div></div>
+            </div>
+            <div class="device browser" id="device3">
+              <div class="device-body">
+                <div class="browser-chrome"><span></span><span></span><span></span></div>
+                <div class="device-screen">
+                  <div class="mini-sky"></div><div class="mini-ground"></div>
+                  <img class="mini-hero" src="assets/images/running/panoramic1.png" alt="" />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="cross-caption">Android, iOS and the web</div>
+        </div>
+      </div>
+
+      <!-- SCENE 4: hero-pack birthday reveal -->
+      <div id="scene4" class="clip scene" data-start="10.5" data-duration="5.8" data-track-index="0">
+        <div id="hero-closeup">
+          <img class="hero-big" src="assets/images/running/panoramic1.png" alt="" />
+          <div id="face-overlay">
+            <svg viewBox="0 0 150 150" width="100%" height="100%">
+              <circle cx="75" cy="75" r="72" fill="#F5C396" stroke="#B5700E" stroke-width="4"/>
+              <circle cx="52" cy="66" r="7" fill="#3B2A1A"/>
+              <circle cx="98" cy="66" r="7" fill="#3B2A1A"/>
+              <path d="M48 96 Q75 118 102 96" stroke="#3B2A1A" stroke-width="7" fill="none" stroke-linecap="round"/>
+            </svg>
+          </div>
+        </div>
+        <div id="title-card-2">
+          <img class="fill-img" src="assets/images/menu.png" alt="" />
+          <div id="name-mask"></div>
+          <div id="name-text"><span>E</span><span>m</span><span>m</span><span>a</span></div>
+        </div>
+        <div id="birthday-scene">
+          <div id="birthday-bg-color"></div>
+          <img id="birthday-bg" src="assets/images/levelEnd/levelEnd1.png" alt=""
+               style="position:absolute; right:-80px; bottom:-40px; width:70%; opacity:0.9;" />
+          <div class="stars-row">
+            <img class="star" id="star1" src="assets/images/gameOver/star1.png" alt="" />
+            <img class="star" id="star2" src="assets/images/gameOver/star2.png" alt="" />
+            <img class="star" id="star3" src="assets/images/gameOver/star3.png" alt="" />
+          </div>
+          <div id="birthday-text">Happy 7th Birthday, Emma!</div>
+        </div>
+      </div>
+
+      <!-- SCENE 5: outro -->
+      <div id="scene5" class="clip scene" data-start="16.0" data-duration="3.6" data-track-index="0">
+        <div id="title-card-3"><img class="fill-img" src="assets/images/menu.png" alt="" /></div>
+        <img class="logo-small" src="assets/images/HaizStudioSplash.png" alt="" />
+      </div>
+
+      <!-- AUDIO -->
+      <audio id="music" data-start="0" data-duration="19.6" data-track-index="10" data-volume="0.32"
+             src="assets/music/happy-beats-business-moves-vol-1-by-ende-dot-app.mp3"
+             data-automation='{"version":1,"lanes":[{"target":"volume","points":[
+               {"t":0,"v":0},{"t":0.3,"v":0.32},
+               {"t":1.8,"v":0.32},{"t":2.0,"v":0.14},
+               {"t":5.8,"v":0.14},{"t":6.1,"v":0.32},
+               {"t":6.3,"v":0.32},{"t":6.5,"v":0.14},
+               {"t":11.7,"v":0.14},{"t":12.0,"v":0.34},
+               {"t":13.0,"v":0.38},{"t":15.8,"v":0.38},
+               {"t":16.0,"v":0.14},{"t":19.3,"v":0.14},
+               {"t":19.6,"v":0.0}
+             ]}]}'></audio>
+
+      <audio id="vo1" data-audio-group="voiceover" data-start="2.0" data-duration="3.8" data-track-index="3" data-volume="1"
+             src="assets/voice/line1.wav"></audio>
+      <audio id="vo2" data-audio-group="voiceover" data-start="6.5" data-duration="5.2" data-track-index="3" data-volume="1"
+             src="assets/voice/line2.wav"></audio>
+      <audio id="vo3" data-audio-group="voiceover" data-start="16.0" data-duration="3.6" data-track-index="3" data-volume="1"
+             src="assets/voice/line3.wav"></audio>
+
+      <audio id="sfx-logo" data-start="0.03" data-duration="1.2" data-track-index="11" data-volume="0.8"
+             src="assets/sfx/impact/impactBell_heavy_000.ogg"></audio>
+      <!-- beat-grid: jump sfx at 4.02s (nearest beat to the swipe-up cue) -->
+      <audio id="sfx-jump" data-start="4.02" data-duration="0.27" data-track-index="12" data-volume="0.75"
+             src="assets/sfx/impact/impactWood_light_000.ogg"></audio>
+      <audio id="sfx-throw" data-start="4.9" data-duration="0.6" data-track-index="13" data-volume="0.7"
+             src="assets/sfx/casino/card-slide-3.ogg"></audio>
+
+      <audio id="sfx-drop1" data-start="6.5" data-duration="0.11" data-track-index="14" data-volume="0.75"
+             src="assets/sfx/interface/drop_001.ogg"></audio>
+      <audio id="sfx-drop2" data-start="7.0" data-duration="0.19" data-track-index="15" data-volume="0.75"
+             src="assets/sfx/interface/drop_002.ogg"></audio>
+      <audio id="sfx-drop3" data-start="7.5" data-duration="0.19" data-track-index="16" data-volume="0.75"
+             src="assets/sfx/interface/drop_003.ogg"></audio>
+
+      <audio id="sfx-key1" data-start="12.3" data-duration="0.3" data-track-index="17" data-volume="0.6"
+             src="assets/sfx/keyboard/keypress-001.wav"></audio>
+      <audio id="sfx-key2" data-start="12.45" data-duration="0.3" data-track-index="18" data-volume="0.6"
+             src="assets/sfx/keyboard/keypress-007.wav"></audio>
+      <audio id="sfx-key3" data-start="12.6" data-duration="0.3" data-track-index="19" data-volume="0.6"
+             src="assets/sfx/keyboard/keypress-013.wav"></audio>
+      <audio id="sfx-key4" data-start="12.75" data-duration="0.3" data-track-index="20" data-volume="0.6"
+             src="assets/sfx/keyboard/keypress-019.wav"></audio>
+
+      <!-- beat-grid: star arrivals at 13.51s, 14.02s, 14.52s -->
+      <audio id="sfx-star1" data-start="13.51" data-duration="0.21" data-track-index="21" data-volume="0.8"
+             src="assets/sfx/impact/impactGlass_light_001.ogg"></audio>
+      <audio id="sfx-star2" data-start="14.02" data-duration="0.21" data-track-index="22" data-volume="0.8"
+             src="assets/sfx/impact/impactGlass_light_002.ogg"></audio>
+      <audio id="sfx-star3" data-start="14.52" data-duration="0.21" data-track-index="23" data-volume="0.8"
+             src="assets/sfx/impact/impactGlass_light_003.ogg"></audio>
+    </div>
+
+    <script>
+      document.fonts.ready.then(() => {
+        const tl = gsap.timeline({ paused: true });
+
+        // ---------- helpers ----------
+        function runCycle(selector, startTime, duration, frameDur) {
+          frameDur = frameDur || 0.07;
+          const frames = 8;
+          const steps = Math.ceil(duration / frameDur);
+          for (let i = 0; i < steps; i++) {
+            const frame = (i % frames) + 1;
+            tl.set(selector, { attr: { src: `assets/images/running/panoramic${frame}.png` } }, startTime + i * frameDur);
+          }
+        }
+
+        // ================= SCENE 1: logo -> title card =================
+        tl.fromTo("#logo-card img", { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2)" }, 0);
+        tl.set("#logo-card", { opacity: 0 }, 1.0);
+        tl.set("#title-card-1", { opacity: 1 }, 1.0);
+
+        // ================= SCENE 2: real gameplay =================
+        // running before the jump
+        runCycle("#hero-sprite", 2.5, 1.52);
+
+        // swipe-up gesture + jump
+        tl.fromTo("#swipe-icon", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.25, ease: "power2.out" }, 4.02);
+        tl.to("#swipe-icon", { opacity: 0, duration: 0.2 }, 4.55);
+
+        const jumpFrames = [1, 4, 6, 9, 12, 15];
+        jumpFrames.forEach((f, i) => {
+          tl.set("#hero-sprite", { attr: { src: `assets/images/jump/panoramicjump${f}.png` } }, 4.02 + i * 0.1167);
+        });
+        tl.fromTo("#hero-wrap", { y: 0 }, { y: -150, duration: 0.35, ease: "power2.out" }, 4.02);
+        tl.to("#hero-wrap", { y: 0, duration: 0.35, ease: "power2.in" }, 4.37);
+
+        // tap gesture + ring throw
+        tl.fromTo("#tap-icon", { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.2, ease: "power2.out" }, 4.8);
+        tl.to("#tap-icon", { opacity: 0, duration: 0.2 }, 5.1);
+
+        const stickFrames = [0, 1, 2, 3, 4];
+        stickFrames.forEach((f, i) => {
+          tl.set("#hero-sprite", { attr: { src: `assets/images/stick/stick${f}.png` } }, 4.8 + i * 0.06);
+        });
+        tl.set("#hero-sprite", { attr: { src: "assets/images/running/panoramic1.png" } }, 5.15);
+
+        tl.set("#ring", { opacity: 1 }, 4.9);
+        tl.fromTo("#ring", { x: 0, y: 0, rotation: 0 }, { x: 560, y: -30, rotation: 540, duration: 0.6, ease: "power1.out" }, 4.9);
+        tl.to("#ring", { opacity: 0, duration: 0.2 }, 5.4);
+        // sfx-throw (whoosh) is placed at 4.9s to land on the ring's release, synced with the tap icon above
+
+        // resume running after the throw
+        runCycle("#hero-sprite", 5.5, 1.0);
+
+        // ================= SCENE 3: same speed everywhere =================
+        runCycle(".mini-hero", 6.5, 4.0);
+
+        tl.fromTo("#device1", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.35, ease: "back.out(1.6)" }, 6.5);
+        tl.fromTo("#device2", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.35, ease: "back.out(1.6)" }, 7.0);
+        tl.fromTo("#device3", { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.35, ease: "back.out(1.6)" }, 7.5);
+
+        const counterProxy = { val: 0 };
+        tl.to(counterProxy, {
+          val: 40, duration: 0.8, ease: "power1.out",
+          onUpdate: () => { document.getElementById("counter").textContent = Math.round(counterProxy.val); }
+        }, 8.1);
+
+        tl.fromTo("#cross-caption", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.3 }, 8.7);
+        // soft crossfade out of scene 3 into scene 4
+        tl.to("#scene3-content", { opacity: 0, duration: 0.3, ease: "power1.inOut" }, 10.5);
+
+        // ================= SCENE 4: hero-pack birthday reveal =================
+        // crossfade in: hero close-up
+        tl.fromTo("#hero-closeup", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 10.5);
+        tl.fromTo("#face-overlay", { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(1.8)" }, 10.8);
+
+        // crossfade: hero close-up -> title card with name
+        tl.to("#hero-closeup", { opacity: 0, duration: 0.3 }, 11.8);
+        tl.fromTo("#title-card-2", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 11.8);
+        tl.fromTo("#name-mask", { opacity: 0 }, { opacity: 1, duration: 0.2 }, 12.1);
+
+        const keyTimes = [12.3, 12.45, 12.6, 12.75];
+        keyTimes.forEach((t, i) => {
+          tl.set(`#name-text span:nth-child(${i + 1})`, { opacity: 1 }, t);
+        });
+
+        // hard cut to the birthday / level-complete scene (beat-locked: 13.51s)
+        tl.set("#title-card-2", { opacity: 0 }, 13.51);
+        tl.set("#birthday-scene", { opacity: 1 }, 13.51);
+
+        tl.fromTo("#star1", { opacity: 0, scale: 0.3, y: -20 }, { opacity: 1, scale: 1, y: 0, duration: 0.25, ease: "back.out(2.2)" }, 13.51); // beat-grid
+        tl.fromTo("#star2", { opacity: 0, scale: 0.3, y: -20 }, { opacity: 1, scale: 1, y: 0, duration: 0.25, ease: "back.out(2.2)" }, 14.02); // beat-grid
+        tl.fromTo("#star3", { opacity: 0, scale: 0.3, y: -20 }, { opacity: 1, scale: 1, y: 0, duration: 0.25, ease: "back.out(2.2)" }, 14.52); // beat-grid
+
+        tl.fromTo("#birthday-text", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.4 }, 14.0);
+
+        // soft crossfade out of scene 4 into scene 5 (strong-cue lock: 16.02s)
+        tl.to("#birthday-scene", { opacity: 0, duration: 0.3, ease: "power1.inOut" }, 16.0);
+
+        // ================= SCENE 5: outro =================
+        tl.fromTo("#title-card-3", { opacity: 0 }, { opacity: 1, duration: 0.3 }, 16.0); // beat-locked: 16.02s
+        tl.fromTo(".logo-small", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.3 }, 16.3);
+
+        window.__timelines["brag"] = tl;
+        tl.seek(0);
+      });
+    </script>
+  </body>
+</html>

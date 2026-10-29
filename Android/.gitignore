@@ -1,34 +1,28 @@
-# Gradle files
+# Gradle / Android Studio
 .gradle/
-*/build/
-!PanoramicGameResources
-
-# Local configuration file (sdk path, etc)
+build/
+/app/build/
+/app/release/
 local.properties
-
-# Log/OS Files
-*.log
-
-# Android Studio generated files and folders
+.idea/
+*.iml
+.kotlin/
 captures/
 .externalNativeBuild/
 .cxx/
+
+# Builds
 *.apk
-output.json
+*.aab
+output-metadata.json
 
-# IntelliJ
-*.iml
-.idea/
-misc.xml
-deploymentTargetDropDown.xml
-render.experimental.xml
-
-# Keystore files
+# Secrets: signing keys and Firebase config stay on your computer
 *.jks
 *.keystore
-
-# Google Services (e.g. APIs or Firebase)
+*.pepk
+keystore.properties
 google-services.json
 
-# Android Profiling
+# OS
+.DS_Store
 *.hprof

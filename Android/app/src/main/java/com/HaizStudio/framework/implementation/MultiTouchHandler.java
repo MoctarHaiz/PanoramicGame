@@ -1,7 +1,6 @@
 package com.HaizStudio.framework.implementation;
 
 import android.content.Context;
-import androidx.core.view.GestureDetectorCompat;
 import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
@@ -41,7 +40,7 @@ public class MultiTouchHandler implements TouchHandler, GestureDetector.OnGestur
         };
         touchEventPool = new Pool<TouchEvent>(factory, 100);
         view.setOnTouchListener(this);
-        mDetector = new GestureDetectorCompat(context, this);
+        mDetector = new GestureDetector(context, this);
         mDetector.setOnDoubleTapListener(this);
         this.scaleX = scaleX;
         this.scaleY = scaleY;
@@ -187,7 +186,7 @@ public class MultiTouchHandler implements TouchHandler, GestureDetector.OnGestur
     }
 
     private static final String DEBUG_TAG = "Gestures";
-    private GestureDetectorCompat mDetector;
+    private GestureDetector mDetector;
     private TouchType touchtype;
 
 

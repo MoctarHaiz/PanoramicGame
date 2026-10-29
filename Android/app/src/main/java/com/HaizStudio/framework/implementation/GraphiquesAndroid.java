@@ -41,7 +41,7 @@ public class GraphiquesAndroid implements Graphics {
         if (format == ImageFormat.RGB565)
             config = Config.RGB_565;
         else if (format == ImageFormat.ARGB4444)
-            config = Config.ARGB_4444;
+            config = Config.ARGB_8888; // Android decodes ARGB_4444 as ARGB_8888 anyway
         else
             config = Config.ARGB_8888;
 
@@ -74,8 +74,6 @@ public class GraphiquesAndroid implements Graphics {
         }
         if (bitmap.getConfig() == Config.RGB_565)
             format = ImageFormat.RGB565;
-        else if (bitmap.getConfig() == Config.ARGB_4444)
-            format = ImageFormat.ARGB4444;
         else
             format = ImageFormat.ARGB8888;
         return new ImageAndroid(bitmap, format);
@@ -87,7 +85,7 @@ public class GraphiquesAndroid implements Graphics {
         if (format == ImageFormat.RGB565)
             config = Config.RGB_565;
         else if (format == ImageFormat.ARGB4444)
-            config = Config.ARGB_4444;
+            config = Config.ARGB_8888; // Android decodes ARGB_4444 as ARGB_8888 anyway
         else
             config = Config.ARGB_8888;
 
@@ -122,8 +120,6 @@ public class GraphiquesAndroid implements Graphics {
         }
         if (bitmap.getConfig() == Config.RGB_565)
             format = ImageFormat.RGB565;
-        else if (bitmap.getConfig() == Config.ARGB_4444)
-            format = ImageFormat.ARGB4444;
         else
             format = ImageFormat.ARGB8888;
         return new ImageAndroid(bitmap, format);

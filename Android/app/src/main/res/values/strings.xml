@@ -1,20 +1,5 @@
 <resources>
-
-    <string name="app_name">PanoramicGame</string>
-
-
-
-
-    <string name="ID_ADMOB_APP_ID">ca-app-pub-6252973855685631~9782480278</string>
-
-    <string name="ID_ADMOB_TEST_BANNER">ca-app-pub-3940256099942544/6300978111</string>
-    <string name="ID_ADMOB_TEST_INTERSTITIAL">ca-app-pub-3940256099942544/1033173712</string>
-    <string name="ID_ADMOB_TEST_REWARDED">ca-app-pub-3940256099942544/5224354917</string>
-
-    <string name="ID_ADMOB_BANNER">ca-app-pub-6252973855685631/5308882795</string>
-    <string name="ID_ADMOB_INTERSTITIAL">ca-app-pub-6252973855685631/7987017025</string>
-    <string name="ID_ADMOB_REWARDED">ca-app-pub-6252973855685631/7237042133</string>
-
-    <string name="PACKAGE_NAME">com.HaizStudio.ChakaZulu</string>
+    <string name="app_name">Chaka Zulu</string>
     <string name="default_notification_channel_id" translatable="false">fcm_default_channel</string>
+    <string name="notification_channel_name">News</string>
 </resources>

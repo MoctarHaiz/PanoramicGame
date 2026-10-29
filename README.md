@@ -5,7 +5,8 @@ A 2D side-scrolling platformer by Haiz Studio, published on Google Play as
 
 | Folder | What it is |
 |---|---|
-| [`Android/`](Android/) | The original game: Java + Android Canvas, Android only. Kept as is for reference. |
+| [`Android/`](Android/) | The original game: Java + Android Canvas, Android only. Updated in 2026 for Android 16 and current Play requirements, see [`Android/README.md`](Android/README.md). |
+| [`Android3D/`](Android3D/) | The game rebuilt in full 3D (Java + OpenGL ES 3), Android only. See [`Android3D/README.md`](Android3D/README.md). |
 | [`flutter/`](flutter/) | The new version: Flutter + [Flame](https://flame-engine.org). One codebase for **Android, iOS and the web**. |
 
 ## The Flutter version

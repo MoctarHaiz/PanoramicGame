@@ -1,0 +1,4 @@
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true"><shape android:shape="rectangle"><solid android:color="#FFE7D2B0" /><corners android:radius="32dp" /><stroke android:width="3dp" android:color="#FFC9873C" /></shape></item>
+    <item><shape android:shape="rectangle"><solid android:color="#FFFFFFFF" /><corners android:radius="32dp" /><stroke android:width="3dp" android:color="#FFE59B45" /></shape></item>
+</selector>

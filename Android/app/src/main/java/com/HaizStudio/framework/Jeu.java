@@ -13,7 +13,6 @@ public interface Jeu {
 	Screen getInitScreen();
 	public Context getContext();
 	public void showInterstitial();
-	public void showRewarded();
 
 
 }

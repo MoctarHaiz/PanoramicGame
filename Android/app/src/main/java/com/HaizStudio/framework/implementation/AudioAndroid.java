@@ -2,14 +2,12 @@ package com.HaizStudio.framework.implementation;
 
 import java.io.IOException;
 
-import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
 import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.media.SoundPool;
-import android.os.Build;
 
 import com.HaizStudio.framework.Audio;
 import com.HaizStudio.framework.Music;
@@ -24,11 +22,7 @@ public class AudioAndroid implements Audio {
 		activity.setVolumeControlStream(AudioManager.STREAM_MUSIC);
 		this.assets = activity.getAssets();
 
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-			createNewSoundPool();
-		} else {
-			createOldSoundPool();
-		}
+		createNewSoundPool();
 	}
 
 
@@ -37,7 +31,6 @@ public class AudioAndroid implements Audio {
 
 	}
 
-	@TargetApi(Build.VERSION_CODES.LOLLIPOP)
 	protected void createNewSoundPool(){
 		AudioAttributes attributes = new AudioAttributes.Builder()
 				.setUsage(AudioAttributes.USAGE_GAME)
@@ -49,10 +42,6 @@ public class AudioAndroid implements Audio {
 				.build();
 	}
 
-	@SuppressWarnings("deprecation")
-	protected void createOldSoundPool(){
-		this.soundPool= new SoundPool(2,AudioManager.STREAM_MUSIC,0);
-	}
 
 
 

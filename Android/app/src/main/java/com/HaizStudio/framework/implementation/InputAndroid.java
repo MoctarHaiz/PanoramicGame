@@ -1,7 +1,6 @@
 package com.HaizStudio.framework.implementation;
 
 import android.content.Context;
-import android.os.Build.VERSION;
 import android.view.View;
 
 import com.HaizStudio.framework.Input;
@@ -12,8 +11,7 @@ public class InputAndroid implements Input {
     TouchHandler touchHandler;
 
     public InputAndroid(Context context, View view, float scaleX, float scaleY) {
-        if (Integer.parseInt(VERSION.SDK) > 5)
-            touchHandler = new MultiTouchHandler(context,view, scaleX, scaleY);
+        touchHandler = new MultiTouchHandler(context,view, scaleX, scaleY);
 
 
     }

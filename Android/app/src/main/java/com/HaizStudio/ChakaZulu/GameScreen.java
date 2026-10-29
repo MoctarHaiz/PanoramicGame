@@ -16,14 +16,10 @@ import com.HaizStudio.framework.Screen;
 import com.HaizStudio.framework.Sound;
 import com.HaizStudio.framework.implementation.ImageAndroid;
 import com.HaizStudio.framework.implementation.MultiTouchHandler;
-import com.google.android.gms.ads.rewarded.RewardItem;
-import com.google.android.gms.ads.rewarded.RewardedAdCallback;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
-
-import androidx.annotation.NonNull;
 
 public class GameScreen extends Screen {
 
@@ -168,13 +164,20 @@ public class GameScreen extends Screen {
     @Override
     public void update(float deltaTime) {
         List<TouchEvent> touchEvents = game.getInput().getTouchEvents();
+        //Back to the menu is requested from the UI thread, done here on the game thread
+        if (backToMenuRequested) {
+            nullify();
+            goToMainMenuScreen();
+            return;
+        }
+        //One state per update: a tap that pauses the game must not also resume it
         if (etat == EtatDuJeu.Pret)
             updateReady(touchEvents);
-        if (etat == EtatDuJeu.EnCours)
-            updateRunning(game.getInput(), deltaTime);
-        if (etat == EtatDuJeu.Pause)
+        else if (etat == EtatDuJeu.EnCours)
+            updateRunning(touchEvents, game.getInput(), deltaTime);
+        else if (etat == EtatDuJeu.Pause)
             updatePaused(touchEvents);
-        if (etat == EtatDuJeu.GameOver)
+        else if (etat == EtatDuJeu.GameOver)
             updateGameOver(touchEvents);
     }
 
@@ -193,11 +196,23 @@ public class GameScreen extends Screen {
     /**
      * The main running function of the game
      *
+     * @param touchEvents
      * @param input
      * @param deltaTime
      */
-    private void updateRunning(Input input, float deltaTime) {
+    private void updateRunning(List<TouchEvent> touchEvents, Input input, float deltaTime) {
 
+        //Pause button (top right). Touch events are in 960x640 game units, RECT_PAUSE in screen pixels.
+        RectF pauseArea = new RectF(Assets.RECT_PAUSE.left / Assets.scaleX, Assets.RECT_PAUSE.top / Assets.scaleY,
+                Assets.RECT_PAUSE.right / Assets.scaleX, Assets.RECT_PAUSE.bottom / Assets.scaleY);
+        pauseArea.inset(-32, -32);
+        for (TouchEvent event : touchEvents) {
+            if (event.type == TouchEvent.TOUCH_UP && Utils.inBounds(event, pauseArea)) {
+                input.isShootRequested(); // this tap is not a shot
+                pause();
+                return;
+            }
+        }
 
         //Handling the swipe behaviour
         MultiTouchHandler.Direction swipeDirection = input.getSwipeDirection();
@@ -472,21 +487,15 @@ public class GameScreen extends Screen {
     }
 
 
+    /**
+     * Paused: any tap continues the game (the back button goes to the menu).
+     */
     private void updatePaused(List<TouchEvent> touchEvents) {
-        int len = touchEvents.size();
-        for (int i = 0; i < len; i++) {
-            TouchEvent event = (TouchEvent) touchEvents.get(i);
+        for (TouchEvent event : touchEvents) {
             if (event.type == TouchEvent.TOUCH_UP) {
-                if (Utils.inBounds(event, Assets.RECT_PAUSE)) {
-                    if (!Utils.inBounds(event, 0, 0, 35, 35)) {
-                        resume();
-                    }
-                }
-
-                if (Utils.inBounds(event, 0, 240, 800, 240)) {
-                    nullify();
-                    goToMainMenuScreen();
-                }
+                game.getInput().isShootRequested(); // this tap is not a shot
+                etat = EtatDuJeu.EnCours;
+                return;
             }
         }
     }
@@ -495,30 +504,28 @@ public class GameScreen extends Screen {
         Assets.gameOverStarAnimation.update(15);
         Assets.gameOverBackGgroundAnimation.update(15);
 
-        //  if (Assets.ADS_SHOW_AFTER_X_GAMEOVER_COUNTER == Assets.ADS_SHOW_AFTER_X_GAMEOVER) {
-        //    Assets.ADS_SHOW_AFTER_X_GAMEOVER_COUNTER = 0;
-       // ((Jeu) game).showInterstitial();
-        //}
-        //Assets.ADS_SHOW_AFTER_X_GAMEOVER_COUNTER++;
+        //Ignore taps during the first second, so a player still tapping does not skip the screen
+        if (gameOverSince == 0)
+            gameOverSince = System.currentTimeMillis();
+        if (System.currentTimeMillis() - gameOverSince < 1000)
+            return;
 
-        ((Jeu) game).showRewarded();
-
-
-
-
-        int len = touchEvents.size();
-        for (int i = 0; i < len; i++) {
-            TouchEvent event = (TouchEvent) touchEvents.get(i);
+        for (TouchEvent event : touchEvents) {
             if (event.type == TouchEvent.TOUCH_DOWN) {
-                if (Utils.inBounds(event, 0, 0, Assets.WINDOW_WIDTH, Assets.WINDOW_HEIGHT)) {
-                    nullify();
-                    goToMainMenuScreen();
-                    return;
+                //Interstitial ad every few game overs, when leaving the game over screen
+                Assets.ADS_SHOW_AFTER_X_GAMEOVER_COUNTER++;
+                if (Assets.ADS_SHOW_AFTER_X_GAMEOVER_COUNTER >= Assets.ADS_SHOW_AFTER_X_GAMEOVER) {
+                    Assets.ADS_SHOW_AFTER_X_GAMEOVER_COUNTER = 0;
+                    game.showInterstitial();
                 }
+                nullify();
+                goToMainMenuScreen();
+                return;
             }
         }
-
     }
+
+    private long gameOverSince = 0;
 
     private void nullify() {
         // Set all variables to null. You will be recreating them in the
@@ -553,8 +560,10 @@ public class GameScreen extends Screen {
         //else
         if (etat == EtatDuJeu.EnCours)
             drawRunningUI(deltaTime, canvas);
-        else if (etat == EtatDuJeu.Pause)
-            drawPausedUI();
+        else if (etat == EtatDuJeu.Pause) {
+            drawRunningUI(deltaTime, canvas);  //Frozen game behind
+            drawPausedUI(canvas);
+        }
         else if (etat == EtatDuJeu.GameOver) {
             // drawRunningUI(canvas);  //Draw running UI behind
             drawGameOverUI(canvas);
@@ -573,12 +582,6 @@ public class GameScreen extends Screen {
         g.drawImage(Assets.levelEndHome, Assets.RECT_LEVEL_END_HOME);
         //g.drawImage(Assets.levelEnd1, Assets.RECT_LEVEL_END);
 
-
-        float xy = level1.getTilearray().get(1000).getTileX() + level1.getTilearray().get(1000).getSpeedX() * deltaTime;
-        float delta = (lastX - xy);
-        lastX = xy;
-        if (delta != 0)
-            //Log.i("lastX: ", " " + delta);
 
         for (int i = 0; i < level1.getTilearrayInScreen().size(); i++) {
             Tile t = (Tile) level1.getTilearrayInScreen().get(i);
@@ -634,7 +637,6 @@ public class GameScreen extends Screen {
 
     }
 
-    float lastX = 0;
 
     private void paintBackground(float deltaTime, Graphics g) {
 
@@ -751,13 +753,16 @@ public class GameScreen extends Screen {
     }
 
 
-    private void drawPausedUI() {
+    private void drawPausedUI(Canvas canvas) {
         Graphics g = game.getGraphics();
+        g.setCanvas(canvas);
         // Darken the entire screen so you can display the Paused screen.
         g.drawARGB(155, 0, 0, 0);
-        g.drawString("Continuer...", 400, 165, paint2);
-        g.drawString("Menu", 400, 360, paint2);
-
+        paint2.setColor(Color.WHITE);
+        paint2.setTextSize(Assets.WINDOW_HEIGHT / 8);
+        paint.setTextSize(Assets.WINDOW_HEIGHT / 18);
+        g.drawString("Pause", (int) Assets.WINDOW_WIDTH / 2, (int) (Assets.WINDOW_HEIGHT * 0.45f), paint2);
+        g.drawString("Tap to continue", (int) Assets.WINDOW_WIDTH / 2, (int) (Assets.WINDOW_HEIGHT * 0.6f), paint);
     }
 
 
@@ -792,10 +797,11 @@ public class GameScreen extends Screen {
 
     }
 
+    /**
+     * Back in the app: stay on the pause screen until the player taps.
+     */
     @Override
     public void resume() {
-        if (etat == EtatDuJeu.Pause)
-            etat = EtatDuJeu.EnCours;
     }
 
     @Override
@@ -805,8 +811,13 @@ public class GameScreen extends Screen {
 
     @Override
     public void backButton() {
-        pause();
+        if (etat == EtatDuJeu.EnCours)
+            pause();
+        else
+            backToMenuRequested = true;
     }
+
+    private volatile boolean backToMenuRequested = false;
 
     public static boolean inScreen(RectF r) {
         return r.intersect(new RectF(0, 0, Assets.WINDOW_WIDTH, Assets.WINDOW_HEIGHT));

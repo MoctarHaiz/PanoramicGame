@@ -34,11 +34,6 @@ public class Starting extends JeuAndroid {
 
     }
 
-    @Override
-    public void onBackPressed() {
-        getCurrentScreen().backButton();
-    }
-
     private static String convertStreamToString(InputStream is) {
 
         BufferedReader reader = new BufferedReader(new InputStreamReader(is));
@@ -64,15 +59,16 @@ public class Starting extends JeuAndroid {
     @Override
     public void onResume() {
         super.onResume();
-
-//        Assets.theme.play();
+        if (Assets.theme != null)
+            Assets.theme.play();
 
     }
 
     @Override
     public void onPause() {
         super.onPause();
-        Assets.theme.pause();
+        if (Assets.theme != null)
+            Assets.theme.pause();
 
     }
 

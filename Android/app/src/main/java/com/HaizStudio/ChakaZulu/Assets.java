@@ -9,13 +9,11 @@ package com.HaizStudio.ChakaZulu;
 
 import android.graphics.RectF;
 import android.os.Handler;
+import android.os.Looper;
 
 import com.HaizStudio.framework.Image;
 import com.HaizStudio.framework.Music;
 import com.HaizStudio.framework.Sound;
-import com.google.android.gms.ads.AdView;
-import com.google.android.gms.ads.InterstitialAd;
-import com.google.android.gms.ads.rewarded.RewardedAd;
 
 import java.util.ArrayList;
 
@@ -30,7 +28,7 @@ public class Assets {
     public static float LEVEL_HEIGHT;
 
     public static int spashScreenTime = 500;
-    public static Handler mWaitHandler = new Handler();
+    public static Handler mWaitHandler = new Handler(Looper.getMainLooper());
     public static float TILE_SIDE_WIDTH = 32;
     public static float TILE_SIDE_HEIGHT = 32;
     public static float WINDOW_WIDTH = TILE_SIDE_WIDTH * 30;//960=32*30;  Faux //32 is the tiles' side size
@@ -69,11 +67,8 @@ public class Assets {
     public static boolean showCover = false;
     public static int BACKGROUND_SPEED = -2;
 
-    //Ads
-    public static AdView mAdView;
-    public static InterstitialAd mInterstitialAd;
-    public static RewardedAd mRewardedAd;
-    public static int ADS_SHOW_AFTER_X_GAMEOVER = 5;
+    //Ads: an interstitial every few game overs
+    public static int ADS_SHOW_AFTER_X_GAMEOVER = 3;
     public static int ADS_SHOW_AFTER_X_GAMEOVER_COUNTER = 0;
 
 
@@ -81,6 +76,7 @@ public class Assets {
     public static int EnemyPesanteur = 4;
     public static int EnemyJumpSpeed = -10;
     public static float scaleY, scaleX;
+    private static boolean graphicsScaled = false;
 
     public static Animation
             PanoramicCurrentAnimation,
@@ -166,8 +162,8 @@ public class Assets {
         showCover = false;
         EnemyPesanteur = 4;
         EnemyJumpSpeed = -10;
-        Assets.LifePanState lifePanState = Assets.LifePanState.lifePan3;
-        Assets.BubbleState bubbleState = Assets.BubbleState.bubble1;
+        lifePanState = LifePanState.lifePan3;
+        bubbleState = BubbleState.bubble1;
 
         Panoramic = new Actor(RECT_PANORAMIC.width(), RECT_PANORAMIC.height(),-(int) Assets.WINDOW_HEIGHT / 20,-(int) Assets.WINDOW_HEIGHT / 10);
 
@@ -178,6 +174,12 @@ public class Assets {
      * Rescale graphics according to the device resolution
      */
     public static void reScaleGraphics(float scaleX, float scaleY) {
+        // Android can recreate the activity while these static values survive: scale only once.
+        if (graphicsScaled) {
+            Panoramic = new Actor(RECT_PANORAMIC.width(), RECT_PANORAMIC.height(), -(int) Assets.WINDOW_HEIGHT / 20, -(int) Assets.WINDOW_HEIGHT / 10);
+            return;
+        }
+        graphicsScaled = true;
 
         Assets.scaleX = scaleX;
         Assets.scaleY = scaleY;

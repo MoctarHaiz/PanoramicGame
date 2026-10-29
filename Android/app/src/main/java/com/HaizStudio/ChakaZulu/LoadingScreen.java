@@ -139,8 +139,10 @@ public class LoadingScreen extends Screen {
     }
 
     private void initPanoramic(Graphics g) {
-        //gassamah
-
+        // Lists are static: empty them in case the activity was recreated
+        Assets.personnage.clear();
+        Assets.personnageSaute.clear();
+        Assets.personnageSticked.clear();
 
         for (int i = 1; i <= 17; i++)
             Assets.personnage.add(g.newImage("running/panoramic" + i + ".png", ImageFormat.ARGB8888, Assets.RECT_PANORAMIC));

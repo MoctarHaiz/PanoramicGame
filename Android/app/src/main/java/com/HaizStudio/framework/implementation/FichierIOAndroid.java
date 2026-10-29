@@ -12,8 +12,6 @@ import com.HaizStudio.framework.FileIO;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.AssetManager;
-import android.os.Environment;
-import android.preference.PreferenceManager;
 
 public class FichierIOAndroid implements FileIO {
 
@@ -24,8 +22,8 @@ public class FichierIOAndroid implements FileIO {
 	public FichierIOAndroid (Context context) {
 		this.context = context;
 		this.assets = context.getAssets();
-		this.cheminDeStockageExterne = Environment.getExternalStorageDirectory()
-				.getAbsolutePath() + File.separator;
+		// App-private folder: no storage permission needed
+		this.cheminDeStockageExterne = context.getFilesDir().getAbsolutePath() + File.separator;
 
 	}
 
@@ -45,7 +43,7 @@ public class FichierIOAndroid implements FileIO {
 	}
 
 	public SharedPreferences getSharedPref() {
-		return PreferenceManager.getDefaultSharedPreferences(context);
+		return context.getSharedPreferences(context.getPackageName() + "_preferences", Context.MODE_PRIVATE);
 	}
 
 }
