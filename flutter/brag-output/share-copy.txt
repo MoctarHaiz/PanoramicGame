@@ -1,3 +1,0 @@
-We rebuilt our old Android-only platformer in Flutter so it runs at the exact same speed on every phone — fixed virtual screen, fixed 40 updates/second, no more "faster on some phones" bugs. Android, iOS, and the web, one codebase.
-
-Then we gave it a feature no other platformer has: a "hero pack" that puts your own kid's face and name on the hero, with a birthday message waiting at the end of the level.
