@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Real AdMob ids, used by release builds. Debug builds use Google's test ids
-     (src/debug/res/values/ads.xml) so you never click your own ads while testing. -->
-<resources>
-    <string name="admob_app_id" translatable="false">ca-app-pub-6252973855685631~9782480278</string>
-    <string name="admob_banner_id" translatable="false">ca-app-pub-6252973855685631/5308882795</string>
-    <string name="admob_interstitial_id" translatable="false">ca-app-pub-6252973855685631/7987017025</string>
-</resources>
