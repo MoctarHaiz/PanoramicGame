@@ -1,0 +1,33 @@
+# Godot
+.godot/
+*.translation
+export_credentials.cfg
+
+# Builds and local files
+build/*
+!build/.gdignore
+
+*.apk
+*.aab
+*.ipa
+
+# Secrets: signing keys and Firebase config stay on this computer
+signing/
+*.jks
+*.keystore
+keystore.properties
+config/google-services.json
+config/GoogleService-Info.plist
+
+# Generated art sources kept out of git (large)
+tools/art/gen/
+
+.DS_Store
+
+# Free models for the art tools (tools/art/README in hero_sprites.py says where to get them)
+tools/art/models/
+# Android build output (the template itself, patched for 120 Hz, is kept)
+android/build/build/
+android/build/.gradle/
+android/build/libs/
+android/build/res/values/strings.xml

@@ -1,0 +1,663 @@
+class_name World
+extends RefCounted
+## The rules of the 2017 game, without any drawing: Panoramic, the scrolling level, bandits, rings
+## and Red Bobs. Views read it; input calls jump(), down(), step_forward() and throw().
+##
+## The level was tuned on the old game's fixed 40 updates a second: walls up to exactly 10 tiles
+## can be climbed and the top of the screen can only be reached from some ledges. So the rules run
+## that same 40 Hz step (advance() takes real time and runs whole ticks); views interpolate between
+## ticks with `alpha`, so the picture is smooth at 60, 90 or 120 Hz.
+##
+## Units: the 960 x 640 design (30 x 20 tiles). The old code moved things by raw screen pixels per
+## tick, so its speed changed with the phone. These values are its pixels converted at the phone
+## the level was made on (the 2019 screenshots: a 1320 x 720 play area, so x / 1.375, y / 1.125).
+## Positions of Panoramic and the rings are in the play window (0..960, 0..640); bandits and tiles
+## use level coordinates; `scroll` is the level x at the window's left edge.
+
+signal jumped
+signal landed
+signal hung
+signal let_go
+signal crouched
+signal stepped
+signal thrown(ring: Ring)
+signal bandit_hit(bandit: Bandit, knocked_out: bool)
+signal bob_collected(col: int, row: int)
+signal hurt(bandit: Bandit, lives_left: int)
+signal fell(lives_left: int)  ## a fall that cost a life (not the last): he springs back up next
+signal sprang  ## out of the pit, back up towards the vine
+signal splashed(level_x: float, hero: bool)  ## Panoramic or a bandit dropped into a pool
+signal died(reason: StringName)
+signal won
+
+const TICK := 1.0 / 40.0
+const MAX_TICKS_PER_ADVANCE := 6  ## a long hitch doesn't run the game ahead in a burst
+const KX := 960.0 / 1320.0
+const KY := 640.0 / 720.0
+
+const TILE := Level.TILE
+const VIEW_W := 960.0  ## the play window the rules use (wider phones show more, nothing else)
+const VIEW_H := 640.0
+
+const SCROLL_SPEED := 8.0 * KX  ## old: tiles 8 px/tick (233 u/s)
+const BACKGROUND_FACTOR := 0.25  ## old: background 2 px/tick against the tiles' 8
+const GRAVITY := 3.0 * KY  ## old: speedY += 3 per tick (4,267 u/s²)
+const JUMP_SPEED := 720.0 / 20.0 * KY  ## old: VITESSESAUT = -WINDOW_HEIGHT / 20 (32 u/tick, 6.5 tiles high)
+const STEP := 15.0 * KX  ## old: VITESSEMOUVEMENT = 15 px per swipe right
+const MIN_X := 61.0 * KX  ## old: never left of x = 61 px
+## New: the old game let swipes walk him off the right of the screen (and out of the map). He now
+## stops at the middle of the play window, except on the run home.
+const MAX_X := VIEW_W / 2
+const HERO_SIZE := Vector2(64, 128)  ## old: RECT_PANORAMIC = 960 / 7.5 / 2 by 640 / 2.5 / 2
+const HERO_START := Vector2(150.0 * KX, 100.0 * KY)  ## old: centerX = 150, centerY = 100
+const LIVES := 3  ## old: lifePan3 -> lifePan2 -> lifePan1 -> game over
+const COVER_TICKS := 10  ## old: the brown cover shows 10 updates after a Red Bob
+## New: a swipe up made just before landing (the old game dropped it) jumps on landing.
+const JUMP_BUFFER := 6  ## ticks (0.15 s)
+## New: after a hit, a second in which bandits can't take another life (he flickers meanwhile).
+const MERCY_TICKS := 40
+## New: the old rules lifted him onto a ledge the tick his body touched its grass, up to 5 tiles at
+## once (a teleport on screen). He now climbs it over a few ticks; the same ledges are in reach.
+const CLIMB_SNAP := 20.0  ## units: a smaller lift (or one no bigger than his fall this tick) is a landing
+const CLIMB_SPEED := 36.0  ## units per tick at most; slower near the top
+## New, behind a switch (falls_cost_life, config/game_config.cfg [rules]; off: the 2017 rule): a
+## fall cost the whole run, hearts or not. With it on, it costs a life: he springs back up out of the
+## pit to the vine (safe while he rises and for a second after) and lets go over ground.
+const FALL_MERCY := 40  ## ticks of mercy after he is back on the vine
+const SPRING_X := 230.0  ## he springs back at least this far in (not under the hearts in the corner)
+## Hanging, the rules keep him at y 0 (half above the screen, as in 2017) but he is drawn hanging
+## under the vine from his staff, his centre this far down (HeroView's hanging pose).
+const VINE_DRAW_Y := 92.0
+## New: he lets go from there, where he is seen (the old game dropped him from y 1, so the picture
+## jumped up half his height before he fell). He lands about 2 ticks sooner. He throws from there
+## too (the old rings flew along the top edge, through the HUD, and could hit nothing).
+const LET_GO_Y := VINE_DRAW_Y
+const VINE_EASE := 200.0  ## units: the end of a rise to the vine is drawn easing into the hang
+
+const BANDIT_SIZE := Vector2(48.0 * KX, 96.0 * KY)  ## old: bandit image 48 x 96 px, not scaled
+const BANDIT_COUNT := 50  ## old: nbEnnemies, one every LEVEL_WIDTH / 50
+## New: none starts on the first screen (the first one hit 0.7 s after "Tap to start").
+const FIRST_BANDIT_X := VIEW_W
+const BANDIT_START_Y := VIEW_H - TILE * 3  ## old: WINDOW_HEIGHT - 3 tiles
+const BANDIT_RUN := 10.0 * KX  ## old: vitesseDeMouvement = 10 px/tick against the ground (291 u/s)
+const BANDIT_GRAVITY := 4.0 * KY  ## old: EnemyPesanteur = 4
+const BANDIT_HOP := 10.0 * KY  ## old: EnemyJumpSpeed = -10 when a wall stops them
+const BANDIT_HEALTH := 2  ## old: sante = 2, one ring takes one
+## New: the bandits and Panoramic are drawn a quarter larger than their 2017 boxes, the club held
+## out in front: a bandit that only hurt with its old box was seen running into him for 0.13 s
+## before the blow. It now hurts with its club's reach in front of it (to its left, the way it
+## runs), on first contact with his drawn body; its body (walls, ground, rings) keeps the old box.
+const CLUB_REACH := 56.0
+
+const RING_SPEED := 20.0 * KX  ## old: Projectile speedX = 20 px/tick (582 u/s)
+const RING_OFFSET := 40.0 * KX  ## old: thrown from centerX + 40
+const RING_HIT_SIZE := Vector2(34.0 * KX, 50.0 * KY)  ## old: r.set(x, y, x + 34, y + 50)
+const RING_WALL_SIZE := 64.0 / 5.0  ## old: RECT_FIRE = hero width / 5
+const SIDE_SHRINK := 10.0 * KX  ## old: wall tiles are tested 10 px smaller on the right and bottom
+
+const SURFACE_Y := (Level.ROWS - 2) * TILE + 6.0  ## the water line of the pools (play y)
+
+const SCROLL_END := Level.WIDTH - VIEW_W  ## old: the screen stops when the last screen is in view
+const HOME_X := 790.0  ## Panoramic is home when his centre passes this x of the last screen
+## New: the screen stopped dead at the last screen, and he then sprinted to the hut (a swipe step,
+## 11 units, every tick) and stopped dead in the doorway. Now the screen slows to a stop over its
+## last END_EASE units while he keeps his pace, he runs across at HOME_PACE and slows into the
+## doorway to the pace HeroView walks him in at.
+const END_EASE := 60.0  ## units of scroll
+const HOME_PACE := 9.0  ## units a tick
+const HOME_DOOR_PACE := 4.0  ## units a tick in the doorway
+
+enum State { RUNNING, DEAD, WON }
+
+
+class Bandit:
+	var x := 0.0  ## level x of the centre
+	var y := 0.0
+	var prev_x := 0.0
+	var prev_y := 0.0
+	var vy := 0.0
+	var health := BANDIT_HEALTH
+	var hurt := false  ## hit once: drawn hurt
+	var touched_hero := false  ## each bandit can take only one life
+	var gone := false
+	var active := false  ## has entered the play window (runs from then on)
+	var id := 0
+
+	func copy() -> Bandit:
+		var b := Bandit.new()
+		b.x = x; b.y = y; b.prev_x = prev_x; b.prev_y = prev_y; b.vy = vy; b.health = health; b.hurt = hurt
+		b.touched_hero = touched_hero; b.gone = gone; b.active = active; b.id = id
+		return b
+
+
+class Ring:
+	var x := 0.0  ## play-window x of the top left of its hit box
+	var y := 0.0
+	var prev_x := 0.0
+	var id := 0
+
+	func copy() -> Ring:
+		var r := Ring.new()
+		r.x = x; r.y = y; r.prev_x = prev_x; r.id = id
+		return r
+
+
+var level: Level
+var state := State.RUNNING
+var ticks := 0
+var scroll := 0.0
+var blocked := false  ## a wall is holding Panoramic: the level doesn't move
+var at_end := false  ## the last screen is in view: Panoramic runs home
+
+# Panoramic
+var x := HERO_START.x
+var y := HERO_START.y
+var vy := 0.0
+var jumping := false  ## old Saute: set by a jump, cleared by landing (a fall can still jump once)
+var crouching := false
+var hanging := false
+## Standing on a grass top. The old rules snap him onto the grass, then gravity pulls him 2.7 units
+## into it the next tick before the next snap, so the raw contact flickers every other tick: count
+## him grounded when the grass held him this tick or the one before.
+var on_ground := false
+var ground_y := 0.0  ## y he stands at when grounded (draw there, not in the flicker)
+var lives := LIVES
+var cover := 0  ## ticks left of the Red Bob glow
+var mercy := 0  ## ticks left in which bandits can't hurt him
+var climbing := false  ## pulling himself up onto a ledge (see CLIMB_SNAP)
+var land_speed := 0.0  ## units per tick he was falling at when he last landed (for sound and shake)
+var falls := 0  ## lives lost to falls
+var falls_cost_life := false  ## the switch above (GameScreen sets it from the config)
+var bobs := 0
+var knocked_out := 0
+var death_reason := &""
+
+var bandits: Array[Bandit] = []
+var rings: Array[Ring] = []
+
+## Previous tick, for drawing between ticks.
+var prev_x := x
+var prev_y := y
+var prev_scroll := 0.0
+var alpha := 0.0  ## 0..1: how far real time is past the last tick
+var _time := 0.0
+var _actions: Array[StringName] = []
+var _next_id := 0
+var _air_ticks := 99
+var _jump_buffer := 0  # ticks left of a jump asked for in the air
+var _climb_to := 0.0  # the y he is climbing up to
+var _home_pace := SCROLL_SPEED  # units a tick on the run home
+
+
+func _init(map: Level = null) -> void:
+	level = map if map else Level.load_default()
+	for i in range(1, BANDIT_COUNT + 1):
+		if i * Level.WIDTH / BANDIT_COUNT < FIRST_BANDIT_X:
+			continue
+		var b := Bandit.new()
+		b.x = i * Level.WIDTH / BANDIT_COUNT
+		b.y = BANDIT_START_Y
+		b.prev_x = b.x
+		b.prev_y = b.y
+		b.id = i
+		bandits.append(b)
+
+
+# ------------------------------------------------------------------ input (applied next tick)
+
+func jump() -> void:
+	_actions.append(&"jump")
+
+
+## Swipe down: let go of the top of the screen, or crouch.
+func down() -> void:
+	_actions.append(&"down")
+
+
+func step_forward() -> void:
+	_actions.append(&"right")
+
+
+func throw() -> void:
+	_actions.append(&"throw")
+
+
+# ------------------------------------------------------------------ time
+
+## Runs as many 40 Hz ticks as real time allows. Returns the number of ticks run.
+## `before_tick` (optional) is called before each tick: a bot gives its input there.
+func advance(delta: float, before_tick := Callable()) -> int:
+	_time += minf(delta, TICK * MAX_TICKS_PER_ADVANCE)
+	var n := 0
+	while _time >= TICK:
+		_time -= TICK
+		if before_tick.is_valid() and state == State.RUNNING:
+			before_tick.call(self)
+		tick()
+		n += 1
+	alpha = _time / TICK
+	return n
+
+
+func tick() -> void:
+	if state != State.RUNNING:
+		return
+	prev_x = x
+	prev_y = y
+	prev_scroll = scroll
+	for b in bandits:
+		b.prev_x = b.x
+		b.prev_y = b.y
+	for r in rings:
+		r.prev_x = r.x
+	ticks += 1
+	_apply_actions()
+	_update_rings()
+	_update_hero()
+	if state != State.RUNNING:
+		return
+	if cover > 0:
+		cover -= 1
+	if mercy > 0:
+		mercy -= 1
+	_update_bandits()
+	if state != State.RUNNING:
+		return
+	_collide_hero()
+
+
+func _apply_actions() -> void:
+	if _jump_buffer > 0 and not climbing:
+		_jump_buffer -= 1
+		if not jumping and not hanging:
+			_jump_buffer = 0
+			_jump()
+	for a in _actions:
+		match a:
+			&"jump":
+				if hanging:
+					pass  # already as high as he goes: nothing to do (the old game played a jump)
+				elif not jumping:  # old sauter(): one jump until the next landing
+					_jump()
+				else:
+					_jump_buffer = JUMP_BUFFER
+			&"down":
+				if hanging:  # old: setCenterY(centerY + 1), then gravity takes him
+					hanging = false
+					y = LET_GO_Y
+					prev_y = y
+					let_go.emit()
+				elif on_ground and not crouching:  # new: not in the air (he landed kneeling, stuck)
+					crouching = true
+					crouched.emit()
+			&"right":
+				crouching = false
+				_move_right()
+				stepped.emit()
+			&"throw":
+				var r := Ring.new()
+				r.x = x + RING_OFFSET
+				r.prev_x = r.x - RING_SPEED
+				r.y = VINE_DRAW_Y if hanging else y  # new: hanging, from his hand under the vine
+				r.id = _new_id()
+				rings.append(r)
+				thrown.emit(r)
+	_actions.clear()
+
+
+func _jump() -> void:
+	vy = -JUMP_SPEED
+	jumping = true
+	crouching = false
+	on_ground = false
+	jumped.emit()
+
+
+## Across the last screen to the hut: up to HOME_PACE, slowing into the doorway.
+func _run_home() -> void:
+	if crouching:
+		return
+	_home_pace = minf(minf(_home_pace + 0.4, HOME_PACE), HOME_DOOR_PACE + (HOME_X - x) * 0.06)
+	x = minf(x + maxf(_home_pace, HOME_DOOR_PACE), HOME_X + 1.0)
+
+
+func _move_right() -> void:
+	if not crouching:
+		var was := x
+		# On the run home he stops at the doorway, so a jump can't carry him past the hut.
+		x = minf(x + STEP, HOME_X + 1.0) if at_end else minf(x + STEP, maxf(MAX_X, x))
+		# New: not into a wall (the old game let a few swipes right walk him through one).
+		if _find(chest_rect(), Level.Kind.SIDE, SIDE_SHRINK).x >= 0 or _find(feet_rect(), Level.Kind.SIDE, SIDE_SHRINK).x >= 0:
+			x = was
+
+
+func _update_rings() -> void:
+	for r in rings.duplicate():
+		r.x += RING_SPEED
+		if r.x > VIEW_W:
+			rings.erase(r)
+			continue
+		var box := Rect2(r.x, r.y, RING_HIT_SIZE.x, RING_HIT_SIZE.y)
+		for b in bandits:
+			if b.gone or not b.active or not _hits(box, bandit_rect(b)):
+				continue
+			rings.erase(r)
+			b.hurt = true
+			b.health -= 1
+			if b.health <= 0:
+				b.gone = true
+				knocked_out += 1
+			bandit_hit.emit(b, b.gone)
+			break
+
+
+func _update_hero() -> void:
+	var feet := y + HERO_SIZE.y / 2
+	if climbing:  # gathers speed from the jump's, then eases onto the top
+		vy = -minf(minf(CLIMB_SPEED, absf(vy) + 10.0), maxf((y - _climb_to) * 0.6, 10.0))
+		y = maxf(y + vy, _climb_to)
+		if y <= _climb_to:
+			_land(_climb_to)
+			vy = GRAVITY  # settles into the grass next tick, like any landing
+	elif y <= 0.0:
+		if not hanging:
+			hanging = true
+			hung.emit()
+		jumping = false
+		y = 0.0
+		vy = 0.0
+	else:
+		y += vy
+		vy += GRAVITY
+	x = maxf(x, MIN_X)
+	if feet < SURFACE_Y and y + HERO_SIZE.y / 2 >= SURFACE_Y and water_at(scroll + x):
+		splashed.emit(scroll + x, true)
+	if chest_rect().position.y > VIEW_H:
+		_fall()
+
+
+## Out of the bottom of the screen: a life lost, then a spring back up to the vine (or the end).
+func _fall() -> void:
+	if not falls_cost_life:  # old: the run ends at once
+		_die(&"fall")
+		return
+	lives -= 1
+	falls += 1
+	if lives <= 0:
+		_die(&"fall")
+		return
+	fell.emit(lives)
+	x = maxf(x, SPRING_X)
+	prev_x = x
+	# from below the screen, just fast enough to reach the top (position first, then speed: the
+	# old integration rises v²/2g + v/2)
+	y = VIEW_H + HERO_SIZE.y / 2
+	vy = -(sqrt(GRAVITY * GRAVITY / 4.0 + 2.0 * GRAVITY * (y + 8.0)) - GRAVITY / 2.0)
+	jumping = true
+	crouching = false
+	climbing = false
+	_jump_buffer = 0
+	mercy = ceili(-vy / GRAVITY) + FALL_MERCY
+	sprang.emit()
+
+
+## A pool's surface at level x?
+func water_at(level_x: float) -> bool:
+	return level.kind_at(int(level_x / TILE), Level.ROWS - 2) == Level.Kind.WATER
+
+
+func _update_bandits() -> void:
+	var hero_chest := chest_rect()
+	var hero_feet := feet_rect()
+	for b in bandits:
+		if b.gone:
+			continue
+		var r := bandit_rect(b)
+		if not b.active:
+			if r.end.x > 0.0 and r.position.x < VIEW_W:
+				b.active = true
+			else:
+				continue
+		var top := _find(r, Level.Kind.TOP)
+		if top.x >= 0:
+			b.vy = 0.0
+			b.y = top.y * TILE - BANDIT_SIZE.y / 2
+		var wall := _find(r, Level.Kind.SIDE, SIDE_SHRINK)
+		if wall.x >= 0:  # old: pushed back to the right of the wall, with a hop
+			b.x = wall.x * TILE + TILE - SIDE_SHRINK + BANDIT_SIZE.x
+			b.vy = -BANDIT_HOP
+		r = bandit_rect(b)
+		if r.end.x < 0.0 or r.position.y > VIEW_H:
+			b.gone = true
+			continue
+		var feet := b.y + BANDIT_SIZE.y / 2
+		b.x -= BANDIT_RUN
+		b.y += b.vy
+		b.vy += BANDIT_GRAVITY
+		if feet < SURFACE_Y and b.y + BANDIT_SIZE.y / 2 >= SURFACE_Y and water_at(b.x):
+			splashed.emit(b.x, false)
+		r = bandit_rect(b)
+		var club := Rect2(r.position.x - CLUB_REACH, r.position.y, CLUB_REACH, r.size.y)
+		if _find(club, Level.Kind.SIDE, SIDE_SHRINK).x < 0:  # (never through a wall)
+			r = r.merge(club)
+		# old isCollidingWith: the chest, or the feet when Panoramic is behind and below its centre
+		var touches := _hits(r, hero_chest) or (_hits(r, hero_feet) and x >= b.x - scroll and y >= b.y)
+		if touches and not b.touched_hero:
+			b.touched_hero = true
+			if mercy > 0:
+				continue
+			mercy = MERCY_TICKS
+			lives -= 1
+			hurt.emit(b, lives)
+			if lives <= 0:
+				_die(&"bandit")
+				return
+
+
+func _collide_hero() -> void:
+	var top := _find(body_rect(), Level.Kind.TOP)
+	var stand := top.y * TILE - HERO_SIZE.y / 2
+	if top.x >= 0 and not climbing and y - stand > maxf(vy, 0.0) + CLIMB_SNAP:
+		climbing = true  # a ledge his body reached from below or beside it: he pulls himself up
+		_climb_to = stand
+		_air_ticks += 1
+	elif top.x >= 0 and not climbing:
+		_land(stand)
+	else:
+		_air_ticks += 1
+	on_ground = _air_ticks <= 1
+
+	var wall := _find(chest_rect(), Level.Kind.SIDE, SIDE_SHRINK)
+	if wall.x < 0:
+		wall = _find(feet_rect(), Level.Kind.SIDE, SIDE_SHRINK)
+	blocked = wall.x >= 0
+	if not blocked:
+		if scroll >= SCROLL_END:
+			scroll = SCROLL_END
+			at_end = true
+			_run_home()  # old: the screen stops, Panoramic keeps running (_move_right)
+		else:
+			var step := minf(SCROLL_SPEED, SCROLL_END - scroll)
+			if SCROLL_END - scroll < END_EASE:  # slowing: he takes up the rest of the pace
+				step = minf(maxf(SCROLL_SPEED * sqrt((SCROLL_END - scroll) / END_EASE), 0.5), SCROLL_END - scroll)
+				x += SCROLL_SPEED - step
+			scroll += step
+
+	var bob := _find(body_rect(), Level.Kind.BOB)
+	if bob.x >= 0:
+		level.clear(bob.x, bob.y)
+		bobs += 1
+		cover = COVER_TICKS
+		bob_collected.emit(bob.x, bob.y)
+
+	for r in rings.duplicate():
+		if _find(Rect2(r.x, r.y, RING_WALL_SIZE, RING_WALL_SIZE), Level.Kind.SIDE, SIDE_SHRINK).x >= 0:
+			rings.erase(r)
+
+	if at_end and x >= HOME_X and on_ground:
+		state = State.WON
+		won.emit()
+
+
+## On the grass at `stand` (his centre y): the end of a jump, a fall or a climb.
+func _land(stand: float) -> void:
+	if _air_ticks > 1:
+		land_speed = 0.0 if climbing else maxf(vy, 0.0)
+	climbing = false
+	jumping = false
+	vy = 0.0
+	y = stand
+	ground_y = y
+	if _air_ticks > 1:
+		landed.emit()
+	_air_ticks = 0
+
+
+func _die(reason: StringName) -> void:
+	state = State.DEAD
+	death_reason = reason
+	died.emit(reason)
+
+
+# ------------------------------------------------------------------ geometry
+
+func body_rect() -> Rect2:
+	return Rect2(x - HERO_SIZE.x / 2, y - HERO_SIZE.y / 2, HERO_SIZE.x, HERO_SIZE.y)
+
+
+func chest_rect() -> Rect2:
+	return Rect2(x - HERO_SIZE.x / 4, y - HERO_SIZE.y / 2, HERO_SIZE.x / 2, HERO_SIZE.y / 2)
+
+
+func feet_rect() -> Rect2:
+	return Rect2(x - HERO_SIZE.x / 4, y, HERO_SIZE.x / 2, HERO_SIZE.y / 2)
+
+
+## A bandit's box in the play window.
+func bandit_rect(b: Bandit) -> Rect2:
+	return Rect2(b.x - scroll - BANDIT_SIZE.x / 2, b.y - BANDIT_SIZE.y / 2, BANDIT_SIZE.x, BANDIT_SIZE.y)
+
+
+## Strict overlap, like Android's RectF.intersects (touching edges don't count).
+static func _hits(a: Rect2, b: Rect2) -> bool:
+	return a.position.x < b.end.x and b.position.x < a.end.x and a.position.y < b.end.y and b.position.y < a.end.y
+
+
+## The tile of `kind` that `rect` (play window) overlaps, as the old code found it: the last one in
+## column order, then row order. (-1, -1) if none. Wall tiles are tested `shrink` smaller.
+func _find(rect: Rect2, kind: int, shrink := 0.0) -> Vector2i:
+	var left := rect.position.x + scroll
+	var c0 := maxi(floori(left / TILE), 0)
+	var c1 := mini(floori((left + rect.size.x) / TILE), Level.COLS - 1)
+	var r0 := maxi(floori(rect.position.y / TILE), 0)
+	var r1 := mini(floori(rect.end.y / TILE), Level.ROWS - 1)
+	var found := Vector2i(-1, -1)
+	for c in range(c0, c1 + 1):
+		for r in range(r0, r1 + 1):
+			if level.kind_at(c, r) != kind:
+				continue
+			var tile := Rect2(c * TILE - scroll, r * TILE, TILE - shrink, TILE - shrink)
+			if _hits(rect, tile):
+				found = Vector2i(c, r)
+	return found
+
+
+## The 2017 run began with him falling from the sky; with the start card he waits on the grass.
+func stand_at_start() -> void:
+	y = 18 * TILE - HERO_SIZE.y / 2
+	prev_y = y
+	ground_y = y
+	vy = 0.0
+	_air_ticks = 0
+	on_ground = true
+
+
+# ------------------------------------------------------------------ for views and tests
+
+## Interpolated positions for drawing between ticks.
+func draw_scroll() -> float:
+	return lerpf(prev_scroll, scroll, alpha)
+
+
+func draw_hero() -> Vector2:
+	var p := Vector2(lerpf(prev_x, x, alpha), lerpf(prev_y, y, alpha))
+	if on_ground and not hanging:
+		p.y = minf(p.y, ground_y)
+	elif p.y < VINE_EASE and rising_to_vine():  # meets the hanging picture (VINE_DRAW_Y) at the top
+		p.y += VINE_DRAW_Y * pow(1.0 - maxf(p.y, 0.0) / VINE_EASE, 2.0)
+	return p
+
+
+## Whether the rise in progress ends hanging from the vine (the top of the screen).
+func rising_to_vine() -> bool:
+	if hanging or climbing or vy >= 0.0:
+		return false
+	var py := y
+	var v := vy
+	while v < 0.0:
+		py += v
+		v += GRAVITY
+		if py <= 0.0:
+			return true
+	return false
+
+
+## For views: the play x of the face of the first wall within `reach` ahead of x = `from`, at the
+## height of his body (centre y = `at_y`); -1 if none. `at_scroll` is the drawn scroll.
+func wall_ahead(from: float, at_y: float, reach: float, at_scroll: float) -> float:
+	var r0 := maxi(floori((at_y - HERO_SIZE.y / 2) / TILE), 0)
+	var r1 := mini(floori((at_y + HERO_SIZE.y / 2 - 1.0) / TILE), Level.ROWS - 1)
+	for c in range(maxi(floori((at_scroll + from) / TILE), 0), mini(floori((at_scroll + from + reach) / TILE), Level.COLS - 1) + 1):
+		for r in range(r0, r1 + 1):
+			if level.kind_at(c, r) == Level.Kind.SIDE:
+				return c * TILE - at_scroll
+	return -1.0
+
+
+## For views: the play x of the right face of the first wall within `reach` behind (left of) x =
+## `from`, between heights at_y ± half_h (a bandit pressed on a wall); -1 if none.
+func wall_behind(from: float, at_y: float, half_h: float, reach: float, at_scroll: float) -> float:
+	var r0 := maxi(floori((at_y - half_h) / TILE), 0)
+	var r1 := mini(floori((at_y + half_h - 1.0) / TILE), Level.ROWS - 1)
+	for c in range(mini(floori((at_scroll + from) / TILE), Level.COLS - 1), maxi(floori((at_scroll + from - reach) / TILE), 0) - 1, -1):
+		for r in range(r0, r1 + 1):
+			if level.kind_at(c, r) == Level.Kind.SIDE:
+				return (c + 1) * TILE - at_scroll
+	return -1.0
+
+
+## 0..1: how far into the level.
+func progress() -> float:
+	return clampf(scroll / SCROLL_END, 0.0, 1.0)
+
+
+## Stars for a finished level: 1 for getting home, 1 for half the Red Bobs, 1 for 80 % of them
+## without losing a life.
+func stars() -> int:
+	if state != State.WON:
+		return 0
+	var share := float(bobs) / maxf(level.bobs_total, 1)
+	return 1 + int(share >= 0.5) + int(share >= 0.8 and lives == LIVES)
+
+
+## A deep copy without signal connections (for the bot's look-ahead).
+func clone() -> World:
+	var w := World.new(level.copy())
+	w.state = state; w.ticks = ticks; w.scroll = scroll; w.blocked = blocked; w.at_end = at_end
+	w.x = x; w.y = y; w.vy = vy; w.jumping = jumping; w.crouching = crouching; w.hanging = hanging
+	w.on_ground = on_ground; w.ground_y = ground_y; w._air_ticks = _air_ticks; w._jump_buffer = _jump_buffer; w.lives = lives; w.cover = cover; w.mercy = mercy; w.bobs = bobs
+	w.climbing = climbing; w._climb_to = _climb_to; w.land_speed = land_speed; w.falls = falls; w._home_pace = _home_pace
+	w.falls_cost_life = falls_cost_life
+	w.knocked_out = knocked_out; w.death_reason = death_reason
+	w.bandits.clear()
+	for b in bandits:
+		w.bandits.append(b.copy())
+	for r in rings:
+		w.rings.append(r.copy())
+	w._next_id = _next_id
+	return w
+
+
+func _new_id() -> int:
+	_next_id += 1
+	return _next_id

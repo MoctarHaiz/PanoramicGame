@@ -1,0 +1,41 @@
+# macOS metadata
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Editor backups and temporary files
+*.swp
+*.swo
+*~
+*.tmp
+*.blend1
+*.blend2
+
+# Video files
+*.mp4
+*.mov
+*.m4v
+*.avi
+*.mkv
+*.webm
+*.wmv
+*.flv
+*.mpeg
+*.mpg
+*.3gp
+*.ogv
+*.m2ts
+*.mts
+*.mxf
+
+# Local editor and language caches
+.idea/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Godot and Gradle caches in any subproject
+**/.godot/
+**/.gradle/

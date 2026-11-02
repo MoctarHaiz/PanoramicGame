@@ -1,0 +1,75 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[admob]
+
+general/android/enable_r8_optimization=true
+
+[application]
+
+config/name="Chaka Zulu"
+config/description="Run, jump and hang with Panoramic across the savanna, collect the Red Bobs and get home."
+config/version="2.0.0"
+run/main_scene="res://src/main.tscn"
+config/quit_on_go_back=false
+config/features=PackedStringArray("4.7", "GL Compatibility")
+boot_splash/bg_color=Color(1, 1, 1, 1)
+boot_splash/show_image=false
+config/icon="res://assets/art/icons/icon_1024.png"
+
+[audio]
+
+general/default_playback_type.web=0
+
+[autoload]
+
+Config="*res://src/autoload/config.gd"
+Save="*res://src/autoload/save.gd"
+Ui="*res://src/ui/ui.gd"
+Device="*res://src/autoload/device.gd"
+Audio="*res://src/autoload/audio.gd"
+Haptics="*res://src/autoload/haptics.gd"
+Services="*res://src/autoload/services.gd"
+Nav="*res://src/autoload/nav.gd"
+
+[display]
+
+window/size/viewport_width=960
+window/size/viewport_height=640
+window/size/window_width_override=1170
+window/size/window_height_override=540
+window/stretch/mode="canvas_items"
+window/stretch/aspect="keep_height"
+window/handheld/orientation=4
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/admob/plugin.cfg", "res://addons/SharePlugin/plugin.cfg")
+
+[gui]
+
+timers/tooltip_delay_sec=0.0
+common/drop_mouse_on_gui_input_disabled=true
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=true
+
+[internationalization]
+
+locale/translations=PackedStringArray("res://localization/strings.en.translation", "res://localization/strings.fr.translation")
+
+[rendering]
+
+textures/canvas_textures/default_texture_filter=2
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
+environment/defaults/default_clear_color=Color(1, 1, 1, 1)

@@ -1,0 +1,110 @@
+{
+ "crouch": {
+  "size": [
+   213,
+   242
+  ],
+  "anchor": [
+   102.1,
+   241.0
+  ],
+  "mode": "feet",
+  "texture_scale": 2.0
+ },
+ "leap": {
+  "size": [
+   268,
+   331
+  ],
+  "anchor": [
+   171.1,
+   165.0
+  ],
+  "mode": "center",
+  "texture_scale": 2.0
+ },
+ "tuck": {
+  "size": [
+   228,
+   325
+  ],
+  "anchor": [
+   131.2,
+   162.0
+  ],
+  "mode": "center",
+  "texture_scale": 2.0
+ },
+ "kneel": {
+  "size": [
+   220,
+   235
+  ],
+  "anchor": [
+   113.8,
+   234.0
+  ],
+  "mode": "feet",
+  "texture_scale": 2.0
+ },
+ "run_a": {
+  "size": [
+   283,
+   361
+  ],
+  "anchor": [
+   147.2,
+   360.0
+  ],
+  "mode": "feet",
+  "texture_scale": 2.0
+ },
+ "run_b": {
+  "size": [
+   281,
+   356
+  ],
+  "anchor": [
+   156.4,
+   355.0
+  ],
+  "mode": "feet",
+  "texture_scale": 2.0
+ },
+ "leap_up": {
+  "size": [
+   284,
+   370
+  ],
+  "anchor": [
+   184.0,
+   0.0
+  ],
+  "mode": "top",
+  "texture_scale": 2.0
+ },
+ "stand_front": {
+  "size": [
+   300,
+   605
+  ],
+  "anchor": [
+   131.8,
+   604.0
+  ],
+  "mode": "feet",
+  "texture_scale": 2.0
+ },
+ "stand_side": {
+  "size": [
+   151,
+   594
+  ],
+  "anchor": [
+   85.8,
+   593.0
+  ],
+  "mode": "feet",
+  "texture_scale": 2.0
+ }
+}

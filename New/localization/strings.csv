@@ -1,0 +1,52 @@
+keys,en,fr
+PLAY,Play,Jouer
+PAUSED,Paused,Pause
+RESUME,Resume,Reprendre
+HOME,Home,Accueil
+PLAY_AGAIN,Play again,Rejouer
+GAME_OVER,Game over,Perdu !
+FELL,Panoramic fell!,Panoramic est tombé !
+CAUGHT,The bandits got Panoramic!,Les bandits ont eu Panoramic !
+HOME_REACHED,Home sweet home!,Enfin à la maison !
+RED_BOBS,Red Bobs,Red Bobs
+BANDITS,Bandits,Bandits
+DISTANCE,Distance,Distance
+LIVES,Lives,Vies
+BEST,Best,Record
+NEW_BEST,New best!,Nouveau record !
+SETTINGS,Settings,Réglages
+MUSIC,Music,Musique
+SOUNDS,Sounds,Sons
+VIBRATION,Vibration,Vibrations
+LANGUAGE,Language,Langue
+LANGUAGE_AUTO,Phone language,Langue du téléphone
+PRIVACY_POLICY,Privacy policy,Confidentialité
+AD_PRIVACY,Ad privacy,Choix publicitaires
+RATE,Rate the game,Noter le jeu
+ABOUT,About,À propos
+SHARE,Share,Partager
+TUTORIAL_JUMP,Swipe up to jump,Glisse vers le haut pour sauter
+TUTORIAL_THROW,Tap to throw a ring,Touche l'écran pour lancer un anneau
+TUTORIAL_HANG,Jump to the top of the screen to hang,Saute jusqu'en haut de l'écran pour t'accrocher
+TUTORIAL_LET_GO,Swipe down to let go,Glisse vers le bas pour lâcher
+TUTORIAL_STEP,Swipe right to step forward,Glisse vers la droite pour avancer
+TUTORIAL_GOT_IT,Got it!,C'est parti !
+TAP_TO_START,Tap to start,Touche pour commencer
+MENU_SUBTITLE,The adventures of Panoramic,Les aventures de Panoramic
+LANGUAGE_NAME,English,Français
+VERSION,Version %s,Version %s
+ABOUT_TEXT,"Chaka Zulu is a free game made by Haiz Studio. Run with Panoramic across the savanna, collect the Red Bobs, outsmart the bandits and find your way home. Thank you for playing! If you enjoy it, please rate the game: it helps a lot.","Chaka Zulu est un jeu gratuit créé par Haiz Studio. Cours avec Panoramic à travers la savane, ramasse les Red Bobs, déjoue les bandits et retrouve le chemin de la maison. Merci de jouer ! Si le jeu te plaît, pense à le noter : ça nous aide beaucoup."
+CREDITS,A game by Haiz Studio. Fonts: Fredoka and Quicksand (SIL Open Font License). Icons: Phosphor (MIT).,Un jeu de Haiz Studio. Polices : Fredoka et Quicksand (SIL Open Font License). Icônes : Phosphor (MIT).
+NOTHING_TO_RESTORE,No purchase to restore.,Aucun achat à restaurer.
+PURCHASE_PENDING,"Your purchase is pending, ads go away once it is paid.","Ton achat est en attente, les pubs partiront une fois payé."
+PURCHASE_THANKS,Thank you! Ads are gone.,Merci ! Plus de pubs.
+SIGN_IN_FAILED_IOS,Sign in to Game Center in Settings to see the leaderboard.,Connecte-toi à Game Center dans Réglages pour voir le classement.
+SIGN_IN_FAILED_ANDROID,Sign in to Google Play Games to see the leaderboard.,Connecte-toi à Google Play Jeux pour voir le classement.
+STORE_UNAVAILABLE,The store can't be reached right now.,La boutique est injoignable pour le moment.
+REMOVE_ADS,Remove ads,Supprimer les pubs
+RESTORE_PURCHASES,Restore purchases,Restaurer les achats
+LEADERBOARD,Leaderboard,Classement
+SHARE_TEXT,I collected %d Red Bobs in Chaka Zulu! Can you beat me?,J'ai ramassé %d Red Bobs dans Chaka Zulu ! Tu fais mieux ?
+SHARE_TEXT_ONE,I collected 1 Red Bob in Chaka Zulu! Can you beat me?,J'ai ramassé 1 Red Bob dans Chaka Zulu ! Tu fais mieux ?
+SHARE_CARD_LINE,Red Bobs,Red Bobs
+SHARE_CARD_CTA,Can you beat me?,Tu fais mieux ?

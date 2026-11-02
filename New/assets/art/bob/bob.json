@@ -1,0 +1,10 @@
+{
+ "frame": 128,
+ "frames": [
+  "smile",
+  "blink",
+  "joy",
+  "wink"
+ ],
+ "radius": 57.2
+}

@@ -1,0 +1,172 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="740" viewBox="0 0 600 740">
+  <!-- Panoramic, vector cartoon sample. Light from the upper left; dark outline #1a0f08.
+       Colours from the 2017 icon and sprites: skin #583818/#785828, scarf #f83808, guard #284878/#4888a8. -->
+  <defs>
+    <linearGradient id="skin" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8a5a2c"/>
+      <stop offset="0.55" stop-color="#65401c"/>
+      <stop offset="1" stop-color="#432812"/>
+    </linearGradient>
+    <linearGradient id="skinBack" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5e3a1a"/>
+      <stop offset="1" stop-color="#3a220e"/>
+    </linearGradient>
+    <radialGradient id="face" cx="0.62" cy="0.38" r="0.7">
+      <stop offset="0" stop-color="#8e5e30"/>
+      <stop offset="0.6" stop-color="#6a421e"/>
+      <stop offset="1" stop-color="#4a2c12"/>
+    </radialGradient>
+    <linearGradient id="hair" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2c2f3c"/>
+      <stop offset="0.5" stop-color="#121218"/>
+      <stop offset="1" stop-color="#050506"/>
+    </linearGradient>
+    <linearGradient id="horn" x1="0" y1="1" x2="0.4" y2="0">
+      <stop offset="0" stop-color="#5a3816"/>
+      <stop offset="1" stop-color="#b98348"/>
+    </linearGradient>
+    <linearGradient id="scarf" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff6a3a"/>
+      <stop offset="0.6" stop-color="#f83808"/>
+      <stop offset="1" stop-color="#a81c06"/>
+    </linearGradient>
+    <radialGradient id="guard" cx="0.35" cy="0.3" r="0.8">
+      <stop offset="0" stop-color="#b4d6ea"/>
+      <stop offset="0.35" stop-color="#4888a8"/>
+      <stop offset="1" stop-color="#1c3a68"/>
+    </radialGradient>
+    <linearGradient id="hide" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f6f2ea"/>
+      <stop offset="1" stop-color="#bdb4a4"/>
+    </linearGradient>
+    <linearGradient id="wood" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#c58d4c"/>
+      <stop offset="1" stop-color="#6e4518"/>
+    </linearGradient>
+    <clipPath id="skirtClip">
+      <path d="M288 470 L386 464 C396 495 402 520 404 545 L386 538 L372 554 L352 540 L334 558 L314 542 L294 558 L276 540 L260 550 C268 520 278 495 288 470 Z"/>
+    </clipPath>
+  </defs>
+
+  <ellipse cx="330" cy="708" rx="140" ry="14" fill="#000" opacity="0.18"/>
+
+  <!-- scarf tails, flowing back -->
+  <g stroke="#1a0f08" stroke-width="5" stroke-linejoin="round">
+    <path d="M300 292 C250 276 214 300 172 284 C142 272 120 288 92 300 C120 314 150 306 176 314 C216 326 256 314 300 320 Z" fill="url(#scarf)"/>
+    <path d="M298 312 C260 322 228 350 192 344 C170 340 150 352 136 366 C164 370 190 364 212 366 C246 368 272 342 304 332 Z" fill="#c8280a"/>
+  </g>
+
+  <!-- back arm with a ring -->
+  <path d="M268 334 L226 396 L206 448" fill="none" stroke="#1a0f08" stroke-width="42" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M268 334 L226 396 L206 448" fill="none" stroke="url(#skinBack)" stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="200" cy="470" r="24" fill="none" stroke="#1a0f08" stroke-width="15"/>
+  <circle cx="200" cy="470" r="24" fill="none" stroke="#3a7fb8" stroke-width="8"/>
+  <path d="M184 456 A24 24 0 0 1 206 447" fill="none" stroke="#bfe3ff" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="204" cy="452" r="15" fill="#4a2c12" stroke="#1a0f08" stroke-width="5"/>
+
+  <!-- back leg, pushing off -->
+  <path d="M298 500 L262 588" fill="none" stroke="#1a0f08" stroke-width="54" stroke-linecap="round"/>
+  <path d="M262 588 L200 626" fill="none" stroke="#1a0f08" stroke-width="44" stroke-linecap="round"/>
+  <path d="M298 500 L262 588" fill="none" stroke="url(#skinBack)" stroke-width="44" stroke-linecap="round"/>
+  <path d="M262 588 L200 626" fill="none" stroke="url(#skinBack)" stroke-width="34" stroke-linecap="round"/>
+  <path d="M206 612 C192 626 180 646 174 666 C182 674 194 672 198 662 C204 650 212 640 222 632 Z" fill="#3a220e" stroke="#1a0f08" stroke-width="5" stroke-linejoin="round"/>
+  <g fill="#e9e4da" stroke="#1a0f08" stroke-width="4" stroke-linejoin="round">
+    <path d="M244 596 C238 616 230 632 220 646 C236 640 246 626 252 612 C254 628 262 640 272 648 C268 630 270 612 280 598 Z"/>
+  </g>
+
+  <!-- torso -->
+  <path d="M258 322 C290 302 365 300 395 318 C412 345 410 380 398 410 C390 435 382 452 378 470 L296 476 C284 445 262 410 258 322 Z" fill="url(#skin)" stroke="#1a0f08" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M262 340 C272 400 286 440 298 472 L318 470 C300 430 286 390 282 336 Z" fill="#3e2410" opacity="0.35"/>
+  <g fill="none" stroke="#2a170a" stroke-width="4" stroke-linecap="round" opacity="0.55">
+    <path d="M320 372 C345 386 372 384 398 368"/>
+    <path d="M340 404 L344 424"/><path d="M368 402 L366 422"/><path d="M342 436 L345 454"/><path d="M364 434 L362 452"/>
+  </g>
+  <!-- bead necklace -->
+  <g stroke="#1a0f08" stroke-width="2.5">
+    <circle cx="300" cy="334" r="6" fill="#3a7fb8"/><circle cx="312" cy="342" r="6" fill="#f2efe6"/>
+    <circle cx="325" cy="348" r="6" fill="#3a7fb8"/><circle cx="339" cy="352" r="6.5" fill="#f83808"/>
+    <circle cx="353" cy="352" r="6" fill="#3a7fb8"/><circle cx="366" cy="348" r="6" fill="#f2efe6"/>
+    <circle cx="378" cy="341" r="6" fill="#3a7fb8"/>
+  </g>
+
+  <!-- front leg, landing (drawn under the skirt flap) -->
+  <path d="M350 496 L424 566" fill="none" stroke="#1a0f08" stroke-width="56" stroke-linecap="round"/>
+  <path d="M424 566 L404 656" fill="none" stroke="#1a0f08" stroke-width="46" stroke-linecap="round"/>
+  <path d="M350 496 L424 566" fill="none" stroke="url(#skin)" stroke-width="46" stroke-linecap="round"/>
+  <path d="M424 566 L404 656" fill="none" stroke="url(#skin)" stroke-width="36" stroke-linecap="round"/>
+  <path d="M410 586 C420 606 418 630 410 646" fill="none" stroke="#3e2410" stroke-width="6" stroke-linecap="round" opacity="0.4"/>
+  <path d="M388 652 C400 646 418 648 438 656 C456 662 468 672 462 684 C456 690 444 690 432 688 L398 688 C386 684 382 662 388 652 Z" fill="#5c3818" stroke="#1a0f08" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M440 676 L444 688 M450 674 L454 687" stroke="#2a170a" stroke-width="2.5" stroke-linecap="round"/>
+  <g fill="#f2efe6" stroke="#1a0f08" stroke-width="4" stroke-linejoin="round">
+    <path d="M402 578 C396 600 390 618 378 634 C396 628 406 612 412 598 C416 616 424 630 436 638 C432 618 434 598 442 584 Z"/>
+  </g>
+  <g stroke="#1a0f08" stroke-width="2.5"><circle cx="394" cy="646" r="5" fill="#f83808"/><circle cx="406" cy="649" r="5" fill="#3a7fb8"/><circle cx="418" cy="648" r="5" fill="#f2efe6"/></g>
+
+  <!-- hide skirt with beaded belt -->
+  <g clip-path="url(#skirtClip)">
+    <rect x="250" y="460" width="170" height="110" fill="url(#hide)"/>
+    <path d="M300 492 C312 486 324 494 320 506 C316 518 300 516 296 506 Z" fill="#5a3a1c"/>
+    <path d="M352 500 C368 494 384 504 378 520 C372 534 352 530 350 516 Z" fill="#5a3a1c"/>
+    <path d="M270 520 C280 514 292 522 288 534 C284 544 270 542 268 532 Z" fill="#5a3a1c"/>
+    <path d="M330 530 C340 526 350 534 344 544 C338 552 326 548 328 538 Z" fill="#5a3a1c"/>
+  </g>
+  <path d="M288 470 L386 464 C396 495 402 520 404 545 L386 538 L372 554 L352 540 L334 558 L314 542 L294 558 L276 540 L260 550 C268 520 278 495 288 470 Z" fill="none" stroke="#1a0f08" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M286 462 L388 456 L390 482 L286 488 Z" fill="#c8280a" stroke="#1a0f08" stroke-width="5" stroke-linejoin="round"/>
+  <g fill="#f2efe6"><rect x="296" y="466" width="8" height="12" rx="2"/><rect x="318" y="465" width="8" height="12" rx="2"/><rect x="340" y="463" width="8" height="12" rx="2"/><rect x="362" y="462" width="8" height="12" rx="2"/></g>
+  <g fill="#3a7fb8"><rect x="307" y="466" width="8" height="12" rx="2"/><rect x="329" y="464" width="8" height="12" rx="2"/><rect x="351" y="463" width="8" height="12" rx="2"/><rect x="373" y="461" width="8" height="12" rx="2"/></g>
+
+  <!-- neck and scarf wrap -->
+  <path d="M314 262 L350 262 L352 304 L312 304 Z" fill="#4e2f14" stroke="#1a0f08" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M296 286 C320 302 360 302 374 282 C384 296 382 314 370 324 C346 338 314 338 294 324 C288 312 290 296 296 286 Z" fill="url(#scarf)" stroke="#1a0f08" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M306 302 C324 314 352 314 368 300" fill="none" stroke="#a81c06" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- head -->
+  <path d="M290 160 C292 118 330 95 370 98 C410 102 430 135 428 180 C427 215 418 240 400 258 C385 272 362 280 345 279 C318 278 300 262 293 238 C288 220 288 190 290 160 Z" fill="url(#face)" stroke="#1a0f08" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M296 214 C300 246 318 270 346 278 C326 262 316 240 314 214 Z" fill="#3e2410" opacity="0.3"/>
+  <ellipse cx="302" cy="206" rx="14" ry="20" fill="#5a3616" stroke="#1a0f08" stroke-width="5"/>
+  <path d="M300 198 C306 202 306 212 300 216" fill="none" stroke="#2a170a" stroke-width="3" stroke-linecap="round"/>
+  <!-- eyes -->
+  <ellipse cx="360" cy="194" rx="17" ry="21" fill="#fbf7f2" stroke="#1a0f08" stroke-width="4"/>
+  <circle cx="366" cy="197" r="12" fill="#6b2f2f"/><circle cx="367" cy="198" r="6" fill="#120808"/>
+  <circle cx="371" cy="191" r="4" fill="#fff"/><circle cx="362" cy="204" r="2" fill="#fff" opacity="0.8"/>
+  <ellipse cx="409" cy="192" rx="11" ry="19" fill="#fbf7f2" stroke="#1a0f08" stroke-width="4"/>
+  <circle cx="413" cy="195" r="9" fill="#6b2f2f"/><circle cx="414" cy="196" r="4.5" fill="#120808"/>
+  <circle cx="416" cy="190" r="3" fill="#fff"/>
+  <g fill="none" stroke="#0c0806" stroke-linecap="round">
+    <path d="M338 166 C352 158 370 158 384 168" stroke-width="9"/>
+    <path d="M398 166 C408 160 418 162 426 170" stroke-width="8"/>
+    <path d="M420 206 C428 214 428 222 418 226" stroke-width="4"/>
+  </g>
+  <path d="M378 244 C392 254 406 252 414 240 C410 252 398 260 386 256 Z" fill="#3a140c" stroke="#1a0f08" stroke-width="4" stroke-linejoin="round"/>
+  <ellipse cx="392" cy="226" rx="14" ry="8" fill="#a5532c" opacity="0.25"/>
+
+  <!-- hair, swept back by the run -->
+  <path d="M300 82 C318 65 340 60 360 62 L345 85 C375 75 400 80 420 92 L392 100 C415 108 432 125 440 142 L410 132 C418 145 422 158 422 170 C410 150 390 138 368 132 C375 145 376 158 372 170 C360 150 345 140 325 135 C330 150 328 165 320 178 C312 160 305 150 296 145 C300 175 305 205 300 232 C270 222 250 202 228 206 L252 182 C225 176 205 160 186 162 L224 145 C198 130 188 112 176 98 L228 112 C222 90 228 70 236 54 L262 92 C268 70 285 55 300 48 Z" fill="url(#hair)" stroke="#1a0f08" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M296 78 C300 52 316 26 342 6 C338 36 328 60 320 84 Z" fill="url(#horn)" stroke="#1a0f08" stroke-width="5" stroke-linejoin="round"/>
+  <g fill="none" stroke="#4a5266" stroke-width="4" stroke-linecap="round" opacity="0.8">
+    <path d="M250 120 C270 112 290 112 306 120"/><path d="M226 168 C246 162 264 166 280 176"/>
+    <path d="M330 96 C350 92 372 94 392 104"/><path d="M262 82 C268 96 276 104 288 110"/>
+  </g>
+
+  <!-- staff -->
+  <path d="M430 560 L558 152" stroke="#1a0f08" stroke-width="20" stroke-linecap="round"/>
+  <path d="M430 560 L558 152" stroke="url(#wood)" stroke-width="11" stroke-linecap="round"/>
+  <g stroke="#f2efe6" stroke-width="12"><path d="M512 298 L515 288"/><path d="M462 458 L465 448"/></g>
+  <g fill="#f6f2ea" stroke="#1a0f08" stroke-width="4" stroke-linejoin="round">
+    <path d="M556 158 C538 150 518 158 506 176 C500 192 504 210 512 222 C516 206 522 196 530 190 C528 208 532 226 542 238 C544 220 546 206 552 196 C556 214 566 226 578 232 C574 214 574 196 572 182 C584 190 590 202 592 214 C598 196 594 176 580 164 C574 158 566 156 556 158 Z"/>
+  </g>
+  <g fill="none" stroke="#c9c0b0" stroke-width="3" stroke-linecap="round"><path d="M530 176 C526 186 524 196 524 204"/><path d="M558 176 C556 188 556 198 558 208"/></g>
+  <path d="M548 164 L566 168 L562 182 L546 178 Z" fill="#c8280a" stroke="#1a0f08" stroke-width="4" stroke-linejoin="round"/>
+
+  <!-- shoulder guard and front arm -->
+  <path d="M402 346 L446 412 L488 372" fill="none" stroke="#1a0f08" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M402 346 L446 412 L488 372" fill="none" stroke="url(#skin)" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M424 384 L440 368" stroke="#f2efe6" stroke-width="10"/>
+  <circle cx="490" cy="370" r="21" fill="#6a421e" stroke="#1a0f08" stroke-width="5"/>
+  <path d="M478 360 C486 356 496 358 502 364" fill="none" stroke="#2a170a" stroke-width="3" stroke-linecap="round"/>
+  <g stroke="#1a0f08" stroke-width="5" stroke-linejoin="round">
+    <path d="M368 336 C385 338 412 348 426 362 C424 378 410 386 398 386 C390 372 378 362 364 356 Z" fill="url(#guard)"/>
+    <path d="M356 314 C366 288 420 284 438 312 C444 334 434 350 420 354 C406 342 380 334 356 332 Z" fill="url(#guard)"/>
+  </g>
+  <path d="M376 304 C392 294 414 296 426 308" fill="none" stroke="#e2f2fc" stroke-width="5" stroke-linecap="round" opacity="0.9"/>
+</svg>

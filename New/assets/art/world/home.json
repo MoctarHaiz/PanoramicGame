@@ -1,0 +1,62 @@
+{
+ "home_hut": {
+  "size": [
+   332.0,
+   284.0
+  ],
+  "base": 2.0,
+  "door_x": 103.0,
+  "door_w": 80.0,
+  "door_h": 150.0,
+  "front_x": 143.0
+ },
+ "home_hut_small": {
+  "size": [
+   220.0,
+   230.0
+  ]
+ },
+ "home_hut_low": {
+  "size": [
+   288.0,
+   152.0
+  ],
+  "base": 2.0
+ },
+ "home_granary": {
+  "size": [
+   90.0,
+   150.0
+  ]
+ },
+ "home_fence": {
+  "size": [
+   512.0,
+   84.0
+  ]
+ },
+ "home_sign": {
+  "size": [
+   120.0,
+   130.0
+  ]
+ },
+ "home_pot": {
+  "size": [
+   44.0,
+   40.0
+  ]
+ },
+ "home_glow": {
+  "size": [
+   128.0,
+   128.0
+  ]
+ },
+ "home_yard": {
+  "size": [
+   220.0,
+   30.0
+  ]
+ }
+}
