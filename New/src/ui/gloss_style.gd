@@ -7,7 +7,10 @@ extends StyleBox
 ##
 ##   outline  ─ dark line all around (0 = none, as the older flat buttons)
 ##   edge     ─ the bevel: shows `depth` px under the face
-##   face     ─ top → bottom gradient, a light rim along its top, the gloss band and a spark
+##   frame    ─ optional: a lit ring around the face (the gold rim of top games' buttons), a thin
+##              dark line inside it
+##   face     ─ top → bottom gradient, a light rim along its top, the gloss band, a spark and a
+##              darker lip along its bottom (the face curves away from the light)
 
 const SEGMENTS := 10  # per rounded corner
 const FEATHER := 0.9
@@ -22,6 +25,11 @@ var rim := 0.0  ## a light edge along the top of the face (0..1 towards white)
 var outline := Color(0, 0, 0, 0)  ## dark line around the whole shape
 var outline_width := 0.0
 var spark := 0.0  ## a small white highlight at the top left of the face (0..1)
+var frame_width := 0.0  ## the lit ring around the face (0 = none)
+var frame_top := Color("ffe9a0")
+var frame_bottom := Color("f0a428")
+var frame_line := Color(0, 0, 0, 0)  ## the thin dark line between the ring and the face
+var lip := 0.0  ## darker band along the bottom of the face (0..1)
 var pressed := false
 var shadow := StyleBoxFlat.new()
 
@@ -48,17 +56,31 @@ func set_outline(colour: Color, width: float) -> GlossStyle:
 	return self
 
 
-## Where the face is drawn inside `rect` (the part that sinks when pressed).
-func face_rect(rect: Rect2) -> Rect2:
+## A lit ring around the face, `width` px, from `top` to `bottom`, with a thin dark `line` inside.
+func set_frame(width: float, top_colour: Color, bottom_colour: Color, line: Color) -> GlossStyle:
+	frame_width = width
+	frame_top = top_colour
+	frame_bottom = bottom_colour
+	frame_line = line
+	return self
+
+
+## Where the top surface (the ring and the face) is drawn inside `rect` (it sinks when pressed).
+func top_rect(rect: Rect2) -> Rect2:
 	var sink := _sink()
 	var w := outline_width
 	return Rect2(rect.position + Vector2(w, w + sink), rect.size - Vector2(w * 2, w * 2 + depth + sink))
 
 
+## Where the face is drawn inside `rect` (inside the ring, if any).
+func face_rect(rect: Rect2) -> Rect2:
+	return top_rect(rect).grow(-frame_width)
+
+
 ## Corner radius of the face inside `rect`.
 func face_radius(rect: Rect2) -> float:
 	var f := face_rect(rect)
-	return maxf(0.0, minf(_radius(rect) - outline_width, minf(f.size.x, f.size.y) / 2))
+	return maxf(0.0, minf(_radius(rect) - outline_width - frame_width, minf(f.size.x, f.size.y) / 2))
 
 
 func _sink() -> float:
@@ -81,6 +103,15 @@ func _draw(ci: RID, rect: Rect2) -> void:
 		body = body.grow(-w)
 	if depth > 0:
 		_rounded(ci, body, maxf(0.0, r - w), edge, edge.darkened(0.12))
+	if frame_width > 0:  # the ring: lit along its top, then the dark line inside it
+		var ring := top_rect(rect)
+		var rr := maxf(0.0, minf(r - w, minf(ring.size.x, ring.size.y) / 2))
+		_rounded(ci, ring, rr, frame_top.lerp(Color.WHITE, 0.45), frame_top.lerp(Color.WHITE, 0.45))
+		var lowered := Rect2(ring.position + Vector2(0, maxf(2.0, frame_width * 0.3)), ring.size - Vector2(0, maxf(2.0, frame_width * 0.3)))
+		_rounded(ci, lowered, minf(rr, lowered.size.y / 2), frame_top, frame_bottom)
+		if frame_line.a > 0:
+			var inner := ring.grow(-frame_width + maxf(1.5, frame_width * 0.22))
+			_rounded(ci, inner, maxf(0.0, rr - frame_width + 1.5), frame_line, frame_line)
 	var face := face_rect(rect)
 	var fr := face_radius(rect)
 	if rim > 0:  # a lighter crescent along the curved top edge, catching the light
@@ -90,6 +121,9 @@ func _draw(ci: RID, rect: Rect2) -> void:
 		_rounded(ci, lowered, minf(fr, lowered.size.y / 2), top, bottom)
 	else:
 		_rounded(ci, face, fr, top, bottom)
+	if lip > 0:  # the bottom of the face turns away from the light
+		var band := Rect2(face.position + Vector2(0, face.size.y * 0.6), Vector2(face.size.x, face.size.y * 0.4))
+		_clipped(ci, face, fr, band, Color(bottom.darkened(0.3), 0.0), Color(bottom.darkened(0.3), lip))
 	if gloss > 0:
 		if w > 0:  # outlined candy, two-tone: the top half lighter, with a crisp edge at the middle
 			var inset := maxf(fr * 0.16, face.size.x * 0.025)
@@ -121,6 +155,17 @@ static func rounded_points(rect: Rect2, r: float) -> PackedVector2Array:
 			var a := (c + float(i) / SEGMENTS) * PI / 2
 			pts.append(centres[c] + Vector2(cos(a), sin(a)) * r)
 	return pts
+
+
+## The part of `band` inside the rounded rectangle `rect` (radius r), with a vertical gradient.
+static func _clipped(ci: RID, rect: Rect2, r: float, band: Rect2, c_top: Color, c_bottom: Color) -> void:
+	var box := PackedVector2Array([band.position, Vector2(band.end.x, band.position.y), band.end,
+			Vector2(band.position.x, band.end.y)])
+	for poly in Geometry2D.intersect_polygons(rounded_points(rect, r), box):
+		var colours := PackedColorArray()
+		for p in poly:
+			colours.append(c_top.lerp(c_bottom, clampf((p.y - band.position.y) / maxf(band.size.y, 0.001), 0, 1)))
+		RenderingServer.canvas_item_add_polygon(ci, poly, colours)
 
 
 ## A filled, anti-aliased rounded rectangle with a vertical gradient, for code that draws itself.

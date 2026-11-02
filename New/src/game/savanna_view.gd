@@ -28,9 +28,9 @@ const STRIPS := {
 ## units), ground y, haze, foot haze, share of empty slots, haze colour (the far rows sink into the
 ## cool blue of distance, the near one into the warm air at the horizon).
 const TREE_ROWS := [
-	[0.11, 170.0, 70.0, 488.0, 0.5, 0.3, 0.35, Color(0.62, 0.68, 0.8)],
-	[0.2, 300.0, 132.0, 540.0, 0.2, 0.3, 0.45, Color(0.66, 0.7, 0.74)],
-	[0.31, 520.0, 250.0, 604.0, 0.06, 0.3, 0.4, Color(0.96, 0.78, 0.5)],
+	[0.11, 170.0, 70.0, 488.0, 0.62, 0.3, 0.35, Color(0.62, 0.68, 0.82)],
+	[0.2, 300.0, 132.0, 540.0, 0.34, 0.3, 0.45, Color(0.68, 0.72, 0.8)],
+	[0.31, 520.0, 250.0, 604.0, 0.1, 0.3, 0.4, Color(0.96, 0.78, 0.5)],
 ]
 const CLOUD_SCALE := 2.0  ## cloud_N.png are stored at half size (soft, no detail to lose)
 const FRONT_SCROLL := 1.35  ## the foreground grass moves faster than the ground
@@ -72,11 +72,11 @@ func _ready() -> void:
 	_painter(_draw_clouds)
 	_painter(_draw_strip.bind(&"far_mesas"), true)
 	_painter(_draw_band.bind(470.0, 110.0, 0.12))
-	_painter(_draw_strip.bind(&"far_hills"), true)
+	_painter(_draw_strip.bind(&"far_hills"), true).material = _haze([0, 0, 0, 0, 0.3, 0.0, 0, Color(0.64, 0.7, 0.84)])
 	_painter(_draw_trees.bind(0)).material = _haze(TREE_ROWS[0])
 	_painter(_draw_band.bind(528.0, 80.0, 0.2))
 	_painter(_draw_rays).material = add
-	_painter(_draw_strip.bind(&"mid_hills"), true)
+	_painter(_draw_strip.bind(&"mid_hills"), true).material = _haze([0, 0, 0, 0, 0.14, 0.0, 0, Color(0.8, 0.78, 0.72)])
 	_painter(_draw_trees.bind(1)).material = _haze(TREE_ROWS[1])
 	_painter(_draw_band.bind(588.0, 70.0, 0.14))
 	_painter(_draw_trees.bind(2)).material = _haze(TREE_ROWS[2])
@@ -214,7 +214,7 @@ func _draw_trees(ci: CanvasItem, row_index: int) -> void:
 			continue
 		var t := int(_hash(seed + 1) * _trees.size()) % _trees.size()
 		var tex := _trees[t]
-		var height: float = row[2] * (0.8 + _hash(seed + 2) * 0.4)
+		var height: float = row[2] * (0.65 + _hash(seed + 2) * 0.7)
 		if tex.get_height() > tex.get_width():  # baobabs: taller pictures, same tree scale
 			height *= 1.15
 		var anchor := _tree_anchor[t]
@@ -223,7 +223,7 @@ func _draw_trees(ci: CanvasItem, row_index: int) -> void:
 			height = row[2] * 0.42 * (0.8 + _hash(seed + 2) * 0.4)
 			anchor = tex.get_width() / 2.0
 		var k := height / tex.get_height()
-		var x := i * spacing + _hash(seed + 3) * spacing * 0.6 - offset
+		var x := i * spacing + _hash(seed + 3) * spacing * 0.9 - offset
 		var flip := _hash(seed + 4) < 0.5
 		var wide := 0.78 + _hash(seed + 6) * 0.55  # wider or narrower crowns: no two trees alike
 		var size := tex.get_size() * k * Vector2(wide, 1.0)

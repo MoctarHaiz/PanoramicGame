@@ -136,6 +136,7 @@ func _add_water() -> void:
 			m.shader = preload("res://src/game/water.gdshader")
 			m.set_shader_parameter("rect_size", rect.size)
 			m.set_shader_parameter("x_offset", rect.position.x)
+			m.set_shader_parameter("soil_tex", load("res://assets/art/world/soil.png"))
 			rect.material = m
 			rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			_level_root.add_child(rect)
@@ -222,6 +223,8 @@ func refresh(delta := 0.0) -> void:
 	_background.view_top = view_top
 	_level_root.position.x = -scroll
 	_ground.front.position.x = -scroll
+	_ground.ensure(scroll - view_left - 96.0, scroll - view_left + view_width + 96.0)
+	_ground.build_ahead(scroll - view_left + view_width)
 	_home.front.position.x = -scroll
 	_place_grade()
 	_watch_splashes(scroll)
@@ -319,6 +322,9 @@ func _place_bandits(scroll: float, delta: float) -> void:
 		var standing := absf(b.y - b.prev_y) < 4.0
 		var y := minf(b.prev_y, b.y) if standing else lerpf(b.prev_y, b.y, world.alpha)  # not the snap flicker
 		var x := lerpf(b.prev_x, b.x, world.alpha) - scroll
+		if not b.active:  # waiting: where its first tick will put it (out of a rock, on its grass)
+			x = b.wait_x - scroll
+			y = b.wait_y
 		# pressed on a wall (the rules let it 8 units from the face and shove it back on each touch):
 		# drawn with its club on the face, steady, not inside the wall and not jittering
 		var face := world.wall_behind(x, y, World.BANDIT_SIZE.y / 2, BanditView.REACH, scroll) if b.health > 0 else -1.0
@@ -328,8 +334,8 @@ func _place_bandits(scroll: float, delta: float) -> void:
 		v.show_state(standing)
 		# one still waiting out of the play window over a hole would stand on air: not drawn
 		if not b.active:
-			var feet_row := floori((b.y + World.BANDIT_SIZE.y / 2 + 4.0) / Level.TILE)
-			v.visible = world.level.kind_at(clampi(floori(b.x / Level.TILE), 0, Level.COLS - 1), clampi(feet_row, 0, Level.ROWS - 1)) == Level.Kind.TOP
+			var feet_row := floori((b.wait_y + World.BANDIT_SIZE.y / 2 + 4.0) / Level.TILE)
+			v.visible = world.level.kind_at(clampi(floori(b.wait_x / Level.TILE), 0, Level.COLS - 1), clampi(feet_row, 0, Level.ROWS - 1)) == Level.Kind.TOP
 		else:
 			v.visible = true
 

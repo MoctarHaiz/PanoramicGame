@@ -1,12 +1,14 @@
 class_name ToggleSwitch
 extends Control
-## An on/off switch in the interface's candy style: an outlined track, sunk in when off and green
-## when on, and a glossy white knob that slides with a spring.
+## An on/off switch in the interface's candy style: an outlined track sunk into the panel, green
+## with a tick when on, dark sand with a cross when off (the state reads without colour too), and
+## a white candy knob in a gold ring that slides over with a spring.
 
 signal toggled(on: bool)
 
-const TRACK_OFF := Color("dcd6f3")
-const TRACK_OFF_DEEP := Color("c4bbe8")
+const TRACK_OFF := Color("b58a5c")
+const TRACK_OFF_DEEP := Color("8a6038")
+const INK := Color("4a1e04")
 
 var on := false
 var _knob := 0.0  # 0 = off, 1 = on (animated)
@@ -14,7 +16,7 @@ var _tween: Tween
 
 
 func _init() -> void:
-	custom_minimum_size = Vector2(116, 66)
+	custom_minimum_size = Vector2(110, 58)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	size_flags_vertical = Control.SIZE_SHRINK_CENTER
 
@@ -56,18 +58,27 @@ func _draw() -> void:
 	var r := size.y / 2
 	var ow := 4.0
 	var rect := Rect2(Vector2.ZERO, size)
-	# The track: outlined, its inside darker at the top (sunk in), green when on.
-	var outline: Color = Ui.NIGHT.lerp(green.outline, k)
 	var ci := get_canvas_item()
-	GlossStyle.fill_rounded(ci, rect, r, outline, outline)
+	# the track: outlined, sunk in (its top in shade), green when on
+	GlossStyle.fill_rounded(ci, rect.grow(1.0), r + 1.0, Color(1, 1, 0.95, 0.7), Color(1, 1, 0.95, 0.7))
+	GlossStyle.fill_rounded(ci, rect, r, INK, INK)
 	var inside := rect.grow(-ow)
 	GlossStyle.fill_rounded(ci, inside, r - ow, TRACK_OFF_DEEP.lerp(green.edge, k), TRACK_OFF.lerp(green.bottom, k))
-	var lit := Rect2(inside.position + Vector2(0, 5), inside.size - Vector2(0, 5))
-	GlossStyle.fill_rounded(ci, lit, r - ow, TRACK_OFF.lerp(green.bottom, k), TRACK_OFF.lerp(green.top, k))
-	# The knob: a white candy ball with an outline and a shaded underside.
-	var knob_r := r - 3.0
+	var lit := Rect2(inside.position + Vector2(0, 6), inside.size - Vector2(0, 6))
+	GlossStyle.fill_rounded(ci, lit, r - ow, TRACK_OFF.lerp(green.bottom, k), TRACK_OFF.lerp(green.top, k).lerp(Color.WHITE, 0.1))
+	# the state's mark, on the side the knob has left: a tick (on) or a cross (off)
+	var mark := Ui.icon_texture("check-bold" if k > 0.5 else "x-bold")
+	var ms := size.y * 0.42
+	var mx := r * 0.95 if k > 0.5 else size.x - r * 0.95
+	draw_texture_rect(mark, Rect2(Vector2(mx - ms / 2, r - ms / 2), Vector2(ms, ms)), false,
+			Color(1, 1, 1, 0.95) if k > 0.5 else Color(INK, 0.55))
+	# the knob: a white candy ball in a gold ring, its shadow under it
+	var knob_r := r - 2.0
 	var centre := Vector2(lerpf(r, size.x - r, k), r)
-	draw_circle(centre + Vector2(0, 4), knob_r, Color(Ui.NIGHT, 0.25), true, -1, true)
-	draw_circle(centre, knob_r, outline, true, -1, true)
-	draw_circle(centre, knob_r - ow, Color("cfc6f2"), true, -1, true)
-	draw_circle(centre - Vector2(0, 3), knob_r - ow - 1.5, Color.WHITE, true, -1, true)
+	draw_circle(centre + Vector2(0, 4), knob_r, Color(Ui.NIGHT, 0.3), true, -1, true)
+	draw_circle(centre, knob_r, INK, true, -1, true)
+	draw_circle(centre, knob_r - 3.0, Color("e0961e"), true, -1, true)
+	draw_circle(centre - Vector2(0, 1.5), knob_r - 4.5, Color("ffe9a0"), true, -1, true)
+	draw_circle(centre, knob_r - 8.0, Color("efe2cf"), true, -1, true)
+	draw_circle(centre - Vector2(0, 2), knob_r - 9.5, Color.WHITE, true, -1, true)
+	draw_circle(centre - Vector2(knob_r * 0.28, knob_r * 0.32), knob_r * 0.18, Color(1, 1, 1, 0.9), true, -1, true)

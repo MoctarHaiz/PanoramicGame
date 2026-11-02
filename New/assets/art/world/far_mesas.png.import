@@ -3,19 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://kmt5lj0tkx7v"
-path="res://.godot/imported/far_mesas.png-941b132ef71e379c32d92adc90a8a2f0.ctex"
+path.s3tc="res://.godot/imported/far_mesas.png-941b132ef71e379c32d92adc90a8a2f0.s3tc.ctex"
+path.etc2="res://.godot/imported/far_mesas.png-941b132ef71e379c32d92adc90a8a2f0.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/art/world/far_mesas.png"
-dest_files=["res://.godot/imported/far_mesas.png-941b132ef71e379c32d92adc90a8a2f0.ctex"]
+dest_files=["res://.godot/imported/far_mesas.png-941b132ef71e379c32d92adc90a8a2f0.s3tc.ctex", "res://.godot/imported/far_mesas.png-941b132ef71e379c32d92adc90a8a2f0.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

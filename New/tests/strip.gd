@@ -6,10 +6,19 @@ extends Node
 ##     --out=build/strips/run.png [--frames=12] [--every=2] [--crop=x,y,w,h] [--cols=6]
 ##     [--moment="ticks >= 250"] [--bot] [--warm=30] [--act=throw@0,jump@10]
 ##     [--bandit=220] [--hurt=1] [--bobs=90] [--hang=1] [--scale=0.5] [--size=1280x720]
-##     [--at=2440] [--y=380] [--lives=1] [--falls=1]
+##     [--at=2440] [--y=380] [--lives=1] [--falls=1] [--film=DIR] [--layers=1]
 ## Each picture is drawn on demand (_draw_now): macOS skips drawing covered windows.
 ##
-## --crop is in design units (the 640-tall screen); --act gives actions at frame numbers
+## Film mode (--film=DIR): every kept frame is saved whole (DIR/0001.png, ...) instead of a sheet,
+## then made into DIR.mp4 if ffmpeg is installed (H.264, 60 / --every frames a second): a store
+## preview video, or a moment to step through. --frames=900 --every=2 --size=2868x1320 --bot is a
+## 30 s App Store preview at 30 fps. (Recorded at --fixed-fps 60, so the timing is exact.)
+## Layers mode (--layers=1): one frame, built up layer by layer (the world view's layers in drawing
+## order, the background's split into its own), one picture per layer added, to check depth, z-order
+## and what each layer brings; the names are printed and saved next to the sheet (.txt).
+##
+## --moment finds the first tick of the bot's recorded run (BotReplay, as tests/capture.gd) where the
+## condition holds; --crop is in design units (the 640-tall screen); --act gives actions at frame numbers
 ## (throw, jump, down, right, hurt, win, die, fall, menu, pause, resume); --bandit puts a bandit that many units ahead of
 ## Panoramic; --hurt=1 makes it already hit once; --warm runs that many frames before the strip;
 ## --at puts him at that level x (his centre; the bandits near it are sent away), --y at that height
@@ -29,16 +38,17 @@ func _ready() -> void:
 
 	var w := World.new()
 	w.stand_at_start()
-	if a.has("moment"):
-		var bot := Bot.new(1)
+	if a.has("moment"):  # the bot's recorded run (BotReplay), the same moments as tests/capture.gd
+		w = World.new()
+		var replay := BotReplay.recorded(1)
 		var e := Expression.new()
 		e.parse(a.moment, ["ticks", "scroll", "x", "y", "hanging", "at_end", "on_ground", "bobs"])
 		while w.state == World.State.RUNNING and w.ticks < 9000:
-			bot.act(w)
+			replay.act(w)
 			w.tick()
 			if e.execute([w.ticks, w.scroll, w.x, w.y, w.hanging, w.at_end, w.on_ground, w.bobs]):
 				break
-		w = w.clone()
+		w = BotReplay.snapshot(w)
 	if a.has("at"):
 		w.scroll = float(a.at) - w.x
 		w.prev_scroll = w.scroll
@@ -115,13 +125,26 @@ func _ready() -> void:
 		var c: PackedStringArray = a.crop.split(",")
 		crop = Rect2i(Vector2i(int(float(c[0]) * k), int(float(c[1]) * k)), Vector2i(int(float(c[2]) * k), int(float(c[3]) * k)))
 	var shots: Array[Image] = []
+	var film: String = a.get("film", "")
+	if not film.is_empty():
+		DirAccess.make_dir_recursive_absolute(film)
+	if a.has("layers"):
+		shots = await _layers(game, vp, crop, a.get("out", "build/strips/strip.png"))
+		frames = 0
 	for f in frames * every:
 		for act: String in acts.get(f, []):
 			_do(game, act)
 		_draw_now()
 		if f % every == 0:
-			shots.append(vp.get_texture().get_image().get_region(crop))
+			if film.is_empty():
+				shots.append(vp.get_texture().get_image().get_region(crop))
+			else:
+				vp.get_texture().get_image().get_region(crop).save_png("%s/%04d.png" % [film, f / every + 1])
 		await get_tree().process_frame
+	if not film.is_empty():
+		_film(film, 60.0 / every)
+		get_tree().quit()
+		return
 	var cols := mini(int(a.get("cols", "6")), shots.size())
 	var rows := ceili(shots.size() / float(cols))
 	var cw := crop.size.x
@@ -140,6 +163,64 @@ func _ready() -> void:
 	sheet.save_png(out)
 	print("strip saved: ", out, " ", sheet.get_size())
 	get_tree().quit()
+
+
+## Makes DIR.mp4 from the frames in DIR, if ffmpeg is installed.
+func _film(dir: String, fps: float) -> void:
+	var mp4 := dir.trim_suffix("/") + ".mp4"
+	var output := []
+	var code := OS.execute("ffmpeg", ["-y", "-loglevel", "error", "-framerate", str(fps), "-i", dir.path_join("%04d.png"),
+			"-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "16", "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2", mp4], output, true)
+	print("film saved: %s/ (frames)%s" % [dir, (", " + mp4) if code == 0 else " (no ffmpeg: no .mp4)"])
+
+
+## The frame built up one layer at a time: the world view's children in drawing order (the
+## background's own children each count as a layer), then the HUD and the rest of the screen.
+func _layers(game: Node, vp: SubViewport, crop: Rect2i, out: String) -> Array[Image]:
+	await get_tree().process_frame  # the start card, freed before the strip, is gone
+	game.process_mode = Node.PROCESS_MODE_DISABLED  # one moment, frozen (the world, the views, the HUD)
+	var layers: Array[CanvasItem] = []
+	for child in game.view.get_children():
+		if child is CanvasItem:
+			var parts: Array = child.get_children().filter(func(n: Node) -> bool: return n is CanvasItem)
+			if child is SavannaView and parts.size() > 1:
+				layers.append_array(parts)
+			else:
+				layers.append(child)
+	var screen := game.get_children().filter(func(n: Node) -> bool:
+		return n is CanvasItem and not n.is_ancestor_of(game.view) and not n.is_queued_for_deletion())
+	var shown := {}
+	for item: CanvasItem in layers + screen:
+		shown[item] = item.visible
+		item.visible = false
+	for i in 3:
+		await get_tree().process_frame
+	var names := PackedStringArray()
+	var shots: Array[Image] = []
+	for item: CanvasItem in layers + screen:
+		item.visible = shown[item]
+		names.append("%d %s%s" % [shots.size() + 1, _layer_name(item), "" if shown[item] else " (hidden)"])
+		await get_tree().process_frame
+		_draw_now()
+		shots.append(vp.get_texture().get_image().get_region(crop))
+	print("layers, left to right, top to bottom:\n  ", "\n  ".join(names))
+	DirAccess.make_dir_recursive_absolute(out.get_base_dir())
+	FileAccess.open(out.get_basename() + ".txt", FileAccess.WRITE).store_string("\n".join(names) + "\n")
+	return shots
+
+
+## What a layer is: its script or class, its name if it has one, and for a painter node the
+## function that draws it (SavannaView's Painter: "_draw_strip(far_mesas)").
+func _layer_name(item: CanvasItem) -> String:
+	var script: Script = item.get_script()
+	var what := script.resource_path.get_file() if script and not script.resource_path.is_empty() else item.get_class()
+	if not String(item.name).begins_with("@"):
+		what += " " + item.name
+	for p: Dictionary in item.get_property_list():
+		if p.type == TYPE_CALLABLE and item.get(p.name) is Callable and (item.get(p.name) as Callable).is_valid():
+			var fn: Callable = item.get(p.name)
+			what += " %s(%s)" % [fn.get_method(), ", ".join(fn.get_bound_arguments().map(func(v: Variant) -> String: return str(v)))]
+	return what
 
 
 func _do(game: Node, act: String) -> void:

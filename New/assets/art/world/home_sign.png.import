@@ -3,19 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://brnq5opqfl423"
-path="res://.godot/imported/home_sign.png-9dde23b867b7fe6dde9b049d3c48cdab.ctex"
+path.s3tc="res://.godot/imported/home_sign.png-9dde23b867b7fe6dde9b049d3c48cdab.s3tc.ctex"
+path.etc2="res://.godot/imported/home_sign.png-9dde23b867b7fe6dde9b049d3c48cdab.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/art/world/home_sign.png"
-dest_files=["res://.godot/imported/home_sign.png-9dde23b867b7fe6dde9b049d3c48cdab.ctex"]
+dest_files=["res://.godot/imported/home_sign.png-9dde23b867b7fe6dde9b049d3c48cdab.s3tc.ctex", "res://.godot/imported/home_sign.png-9dde23b867b7fe6dde9b049d3c48cdab.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

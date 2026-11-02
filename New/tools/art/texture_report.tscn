@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tools/art/texture_report.gd" id="1_tex"]
+
+[node name="TextureReport" type="Node"]
+script = ExtResource("1_tex")

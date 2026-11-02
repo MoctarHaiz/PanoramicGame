@@ -12,8 +12,9 @@ const FEET_SINK := 15.0 * World.KY  ## old tileAndFeetShading: the feet stand a 
 ## kept, so starting a run doesn't stall on decoding textures (about 0.3 s on a desktop at first).
 const PRELOAD_DIRS := ["res://assets/art/world", "res://assets/art/hero", "res://assets/art/bandit",
 		"res://assets/art/bob"]
-## Menu-only pictures (the menu loads them itself): not kept, so they leave memory with the menu.
-const MENU_ONLY := ["sunset_", "portrait"]
+## Menu-only pictures (the menu and the cards load them themselves): not kept, so they leave memory
+## with the menu.
+const MENU_ONLY := ["sunset_", "portrait", "hero_menu", "hero_win", "stand_"]
 
 static var _pending := PackedStringArray()
 static var _kept: Array[Resource] = []

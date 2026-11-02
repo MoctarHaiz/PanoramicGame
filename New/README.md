@@ -2,7 +2,7 @@
 
 The 2017 Android game, rebuilt with **Godot 4.7.2** (GDScript) for **Google Play and the App Store**:
 the same level and rules (run at the old 40 updates a second, so every jump reaches exactly as far as
-in 2017), Panoramic redrawn from the art made for this version, a painted savanna, new sounds, a real
+in 2017), Panoramic rendered from the user's 3D model, a painted savanna, new sounds, a real
 ending with stars, English and French, AdMob with Google's consent form and Apple's tracking prompt,
 and the phone's share sheet.
 
@@ -70,8 +70,11 @@ The AdMob **app** ids are in Project Settings › Admob (Google's sample ids unt
 
 | Tool | Makes |
 | --- | --- |
-| `tools/art/hero_sprites.py` | Panoramic's poses, cut out of `tools/art/ref/user/hero_sheet.png` (Real-ESRGAN ×4 + IS-Net) |
-| `tools/art/terrain.py` | the painted ground: soil, sandstone, cell shapes, grass caps and ends, roots, tufts |
+| `tools/art/blender/hero_render.py` | Panoramic's animations from the user's 3D model (`Making/Animation.blend`), re-lit for the savanna, new moves posed in Blender |
+| `tools/art/hero_atlas.py` | packs those frames into `assets/art/hero/hero_atlas_*.png` + `hero_frames.json`; the menu and card pictures |
+| `tools/art/blender/ring_render.py` | the throwing ring in 3D (8 frames of a turn) |
+| `tools/art/material.py` | lit, tiling soil and sandstone; the sandstone stacks (used by `terrain.py`) |
+| `tools/art/terrain.py` | the ground: soil, sandstone, stacks, cell shapes, grass caps and ends, roots, tufts |
 | `tools/art/savanna.py` | the sky, sun, god rays, clouds, far escarpments, hills, tall grass, motes, birds; the menu's sunset |
 | `tools/art/trees.py` | acacias and baobabs (background and props) |
 | `tools/art/props.py` | stump, shrubs, reeds, rocks, aloe, termite mound |

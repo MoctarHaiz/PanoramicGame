@@ -22,6 +22,17 @@ uniform int first_col = 0;
 
 varying vec2 level_pos;
 
+float hash(float n) {
+	return fract(sin(n * 127.1) * 43758.5453);
+}
+
+// smooth 1-D value noise, 0..1
+float noise(float x) {
+	float i = floor(x);
+	float f = fract(x);
+	return mix(hash(i), hash(i + 1.0), f * f * (3.0 - 2.0 * f));
+}
+
 void vertex() {
 	level_pos = VERTEX;
 }
@@ -30,13 +41,16 @@ void fragment() {
 	vec4 shape = texture(TEXTURE, UV);
 	ivec2 cell = ivec2(floor(level_pos / 32.0)) - ivec2(first_col, 0);
 	cell = clamp(cell, ivec2(0), textureSize(depth_tex, 0) - 1);
-	vec3 cells = floor(texelFetch(depth_tex, cell, 0).rgb * 255.0 + 0.5);
+	vec4 cells4 = floor(texelFetch(depth_tex, cell, 0) * 255.0 + 0.5);
+	vec3 cells = cells4.rgb;
+	float ledge = step(127.5, cells4.a);  // open below: the underside of a ledge
+	float to_foot = mod(cells4.a, 128.0) * 32.0 + 32.0 - mod(level_pos.y, 32.0);  // units of wall below
 	float depth = cells.r * 32.0 + mod(level_pos.y, 32.0);
 	float fx = mod(level_pos.x, 32.0);
 	float from_left = cells.g * 32.0 + fx;  // units of solid ground to the open air on the left
 	float from_right = cells.b * 32.0 + 32.0 - fx;
 	vec2 uv = level_pos / repeat_units;
-	vec3 soil = texture(soil_tex, uv).rgb;
+	vec3 soil = texture(soil_tex, uv, 0.7).rgb;  // (a little softer: the grain stays under the forms)
 	vec3 rock = texture(rock_tex, uv * 0.75 + vec2(0.37, 0.11)).rgb;
 	float wobble = texture(soil_tex, level_pos / 1400.0).r;  // slow variation for the soil-rock line
 	float to_rock = smoothstep(84.0, 150.0, depth + (wobble - 0.55) * 110.0);
@@ -51,15 +65,40 @@ void fragment() {
 	float away = 1.0 - smoothstep(0.0, min(64.0, width * 0.62), from_right);
 	float bounce = (1.0 - smoothstep(0.0, 7.0, from_right)) * 0.35;
 	float below_top = smoothstep(4.0, 30.0, depth);  // not on the grass lip
-	c *= mix(vec3(1.0), sun_tint, lit * 0.85 * below_top);
-	c *= mix(vec3(1.0), shade_tint, (away * 0.8 - bounce) * below_top);
-	// under the grass: a soft contact shadow, then the band of warm reflected light
-	float under = 1.0 - smoothstep(6.0, 26.0, depth);
-	c *= 1.0 - under * 0.42;
+	c *= mix(vec3(1.0), sun_tint, lit * 1.0 * below_top);
+	c *= mix(vec3(1.0), shade_tint * 0.82, (away * 0.95 - bounce) * below_top);
+	// under the grass: the overhanging lip's occlusion, deep and soft, then the soil comes back
+	float under = 1.0 - smoothstep(4.0, 40.0, depth);
+	c *= 1.0 - under * 0.55;
+	// New: a ledge's underside in its own shade (it was a flat brown band), and its ends taper
+	// under the grass (they were cut square): the earth recedes towards the bottom
+	float to_bottom = 32.0 - mod(level_pos.y, 32.0);
+	c *= mix(1.0, 0.55 + 0.45 * smoothstep(0.0, 16.0, to_bottom), ledge);
+	float taper = 0.0;
+	if (ledge > 0.5) {
+		float cut = max(depth - 12.0, 0.0) * 0.85 + noise(level_pos.y * 0.2 + float(cell.x)) * 3.0;
+		taper = cells.g < 0.5 ? 1.0 - smoothstep(cut - 0.7, cut + 0.7, from_left) : 0.0;
+		taper = max(taper, cells.b < 0.5 ? 1.0 - smoothstep(cut - 0.7, cut + 0.7, from_right) : 0.0);
+	}
+	// New: a wall's open sides are eroded (bulges and notches along its height, more towards its
+	// foot, none under the grass lip): no ruler-straight sides; the new edge gets a dark rim
+	float erode = 0.0;
+	float side_d = 99.0;
+	if (depth > 20.0 && width < 200.0) {
+		// deepest just under the grass lip (it overhangs) and up the middle, little at the foot
+		// (the wall stands wider on the ground)
+		float grow = smoothstep(20.0, 46.0, depth) * (0.25 + 0.75 * smoothstep(0.0, 90.0, to_foot));
+		float el = (0.3 + 0.45 * noise(level_pos.y * 0.03 + float(cell.x) * 1.7) + 0.25 * noise(level_pos.y * 0.11 + 9.0)) * 20.0 * grow;
+		float er = (0.3 + 0.45 * noise(level_pos.y * 0.035 + float(cell.x) * 2.3 + 40.0) + 0.25 * noise(level_pos.y * 0.12 + 3.0)) * 20.0 * grow;
+		side_d = min(from_left - el, from_right - er);
+		erode = (cells.g < 0.5 ? 1.0 - smoothstep(el - 0.6, el + 0.6, from_left) : 0.0);
+		erode = max(erode, cells.b < 0.5 ? 1.0 - smoothstep(er - 0.6, er + 0.6, from_right) : 0.0);
+	}
 	// edges: R above 0.5 is light (open left side), below is shade (open right, open bottom)
 	float l = shape.r - 0.5;
 	c = l > 0.0 ? mix(c, c * lit_colour * 1.45, l * 1.6) : c * (1.0 + l * 1.7);
 	c = mix(c, min(c * 1.35 + rim_colour * 0.12, vec3(1.0)), shape.b * 0.55);
 	c = mix(c, outline_colour, shape.g * 0.92);
-	COLOR = vec4(c, shape.a);
+	c = mix(c, outline_colour, (1.0 - smoothstep(0.0, 2.2, side_d)) * 0.8 * step(side_d, 98.0));
+	COLOR = vec4(c, shape.a * (1.0 - erode) * (1.0 - taper));
 }

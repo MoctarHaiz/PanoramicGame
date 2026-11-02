@@ -1,13 +1,15 @@
 class_name RingView
 extends Node2D
-## Panoramic's throwing ring, as on the hero sheet: a glowing blue ring that spins as it flies.
-## The ring is painted (assets/art/fx/ring.png, tools/art/ring.py: a lit torus of blue light), 40
-## units across, turning as it flies; around it a soft additive glow, a highlight racing round it,
-## a flash where it leaves his hand, a soft tapered streak of light behind it and now and then a
-## spark shed into the air.
+## Panoramic's throwing ring: a thick blue-steel ring with a glowing inner edge, rendered in 3D and
+## lit like him (assets/art/fx/ring_spin.png, tools/art/blender/ring_render.py: 8 frames of a half
+## turn), 40 units across, tumbling as it flies; around it a soft additive glow, a highlight racing
+## round it, a flash where it leaves his hand, a soft tapered streak of light behind it and now and
+## then a spark shed into the air.
 
 const RADIUS := 20.0
-const TEXTURE := preload("res://assets/art/fx/ring.png")
+const TEXTURE := preload("res://assets/art/fx/ring_spin.png")
+const SPIN_FRAMES := 8  ## ring_spin.png: a half turn, side by side
+const SPIN_FPS := 24.0
 const TRAIL := 12  ## positions kept for the streak (it sells the speed)
 const WIND_UP := 0.04  ## seconds hidden while his hand swings back (HeroView.THROW_TIME)
 const HOT := Color("e6f6ff")
@@ -46,18 +48,20 @@ func _process(delta: float) -> void:
 	_glow.queue_redraw()
 
 
-## The ring turns as it flies: squeezed sideways, then wide again.
+## How wide the ring shows as it turns (with ring_spin.png's frames: 1 face-on, ~0.2 edge-on).
 func _turn() -> float:
-	return 0.55 + 0.45 * absf(cos(_clock * 14.0))
+	return 0.2 + 0.8 * absf(cos(_clock * SPIN_FPS / SPIN_FRAMES * PI))
 
 
 func _draw() -> void:
 	if _clock < WIND_UP:
 		return
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2(_turn(), 1.0))
-	draw_texture_rect(TEXTURE, Rect2(-RADIUS, -RADIUS, RADIUS * 2, RADIUS * 2), false)
+	var f := int(_clock * SPIN_FPS) % SPIN_FRAMES
+	var px := TEXTURE.get_height()
+	draw_texture_rect_region(TEXTURE, Rect2(-RADIUS, -RADIUS, RADIUS * 2, RADIUS * 2), Rect2(f * px, 0, px, px))
 	var spin := _clock * 18.0
-	draw_arc(Vector2.ZERO, RADIUS * 0.7, spin, spin + 0.9, 12, Color(HOT, 0.85), 2.4, true)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2(_turn(), 1.0))
+	draw_arc(Vector2.ZERO, RADIUS * 0.62, spin, spin + 0.9, 12, Color(HOT, 0.7), 2.0, true)
 	draw_set_transform(Vector2.ZERO)
 
 

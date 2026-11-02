@@ -21,6 +21,11 @@ USER_ART = {"kind": "user-generated", "url_or_tool": "the user's own image gener
             "prompt_or_source_record": "tools/art/ref/user/hero_sheet.png, hero_portrait.jpg"}
 
 
+USER_3D = {"kind": "user-generated", "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rendered by tools/art/blender/hero_render.py",
+           "creator": "Haiz Studio", "license": "owned by Haiz Studio",
+           "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx"}
+
+
 def authored(tool: str) -> dict:
     return {"kind": "authored-procedural", "url_or_tool": tool, "creator": "Claude for Haiz Studio",
             "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
@@ -29,14 +34,17 @@ def authored(tool: str) -> dict:
 
 # folder (or file prefix) -> role, generator/source, alpha required, anchor, locks
 FAMILIES = [
-    ("hero/portrait", "hero portrait (menu, share card, icon source)", USER_ART | {"url_or_tool": "IS-Net cut-out of hero_portrait.jpg"}, True, "bottom-right", ["identity", "palette"]),
-    ("hero/", "Panoramic pose (cut out of the hero sheet, Real-ESRGAN x4 + IS-Net)", USER_ART | {"url_or_tool": "tools/art/hero_sprites.py"}, True, "per hero.json (feet / centre / staff tip)", ["identity", "proportions", "palette", "facing", "light-direction"]),
+    ("hero/hero_atlas_", "Panoramic's animation frames: the user's 3D model (Making/Animation.blend) re-lit and posed by tools/art/blender/hero_render.py, packed by tools/art/hero_atlas.py (hero_frames.json)", USER_3D, True, "per hero_frames.json (ground origin / hips / hands)", ["identity", "proportions", "palette", "facing", "light-direction"]),
+    ("hero/", "Panoramic for the interface (portrait, full-length menu hero, win pose, stands): renders of the user's 3D model (tools/art/hero_atlas.py)", USER_3D, True, "bottom-centre", ["identity", "palette"]),
     ("bandit/", "masked raider enemy sheet (run, dazed, knock-out, idle) and its club", authored("tools/art/bandit.py"), True, "bottom-centre at the boots", ["silhouette", "palette", "facing"]),
     ("bob/", "Red Bob collectible faces (smile, blink, joy, wink)", authored("tools/art/bob.py"), True, "centre", ["palette", "silhouette"]),
-    ("ui/logo", "CHAKA ZULU logo over a Zulu shield", authored("tools/art/logo.py"), True, "centre", ["palette"]),
+    ("ui/logo", "CHAKA ZULU logo: bevelled gold letters over a Zulu shield and crossed assegais", authored("tools/art/ui_logo.py"), True, "centre", ["palette"]),
+    ("ui/hero_", "Panoramic for the menu and results (cut from the user's 3D renders, Making/)", USER_ART | {"url_or_tool": "tools/art/ui_hero.py", "prompt_or_source_record": "Making/IdleFront/0001.png, Making/DieFront/0026.png"}, True, "bottom-centre at the boots", ["identity", "palette"]),
+    ("ui/head", "Panoramic's face in a disc (the HUD's way home), from the user's 3D render", USER_ART | {"url_or_tool": "tools/art/ui_hero.py", "prompt_or_source_record": "Making/IdleFront/0001.png"}, True, "centre", ["identity", "palette"]),
+    ("ui/menu_rock", "the backlit kopje Panoramic stands on in the menu", authored("tools/art/ui_hero.py"), True, "his feet at (930, 104)", ["palette", "light-direction"]),
     ("ui/", "interface ornament (beadwork, ribbon, shield, HUD head)", authored("tools/art/ui_art.py / logo.py"), True, "centre", ["palette"]),
     ("icons/", "app icon (iOS, Play, Android adaptive layers)", authored("tools/art/icons.py (from the user's portrait)"), False, "centre", ["identity", "palette"]),
-    ("fx/ring", "Panoramic's throwing ring (a lit torus of blue light)", authored("tools/art/ring.py"), True, "centre", ["palette", "light-direction"]),
+    ("fx/ring", "Panoramic's throwing ring: a 3D blue-steel torus with a glowing inner edge, 8 frames of a half turn", authored("tools/art/blender/ring_render.py (Blender)"), True, "centre", ["palette", "light-direction"]),
     ("world/home_", "HOME homestead piece (hut, fence, granary, sign, pot, glow)", authored("tools/art/home.py"), True, "bottom-centre at the ground", ["palette", "light-direction"]),
     ("world/prop_", "savanna decoration prop", authored("tools/art/props.py"), True, "bottom-centre at the ground", ["palette", "light-direction"]),
     ("world/tree_", "background tree (acacia, baobab), anchors in tree_info.json", authored("tools/art/trees.py"), True, "bottom-centre at the trunk", ["palette", "light-direction"]),

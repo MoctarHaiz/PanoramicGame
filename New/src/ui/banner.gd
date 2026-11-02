@@ -22,7 +22,7 @@ func _init(text: String, banner_tone := Ui.Tone.CRIMSON, font_size := 56, arch_p
 	title.shadow = Color(0, 0, 0, 0)
 	_band_h = roundf(font_size * 1.32)
 	_tail = roundf(font_size * 1.0)
-	var band_w := title.text_width() + font_size * 1.4
+	var band_w := title.text_width() + font_size * 2.2  # room at both ends, clear of the folds
 	arch = arch_px if arch_px >= 0 else roundf(band_w * 0.035)
 	custom_minimum_size = Vector2(band_w + _tail * 2 * 0.72, _band_h + _band_h * 0.3 + arch + 10)
 	# The same curve as the band: y = arch * (x / half the width)², over the text's narrower width.

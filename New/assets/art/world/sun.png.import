@@ -3,19 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dw54r7gm6tnv8"
-path="res://.godot/imported/sun.png-91e4e6bc4c6c18b5988fa572c92fa907.ctex"
+path.s3tc="res://.godot/imported/sun.png-91e4e6bc4c6c18b5988fa572c92fa907.s3tc.ctex"
+path.etc2="res://.godot/imported/sun.png-91e4e6bc4c6c18b5988fa572c92fa907.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/art/world/sun.png"
-dest_files=["res://.godot/imported/sun.png-91e4e6bc4c6c18b5988fa572c92fa907.ctex"]
+dest_files=["res://.godot/imported/sun.png-91e4e6bc4c6c18b5988fa572c92fa907.s3tc.ctex", "res://.godot/imported/sun.png-91e4e6bc4c6c18b5988fa572c92fa907.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

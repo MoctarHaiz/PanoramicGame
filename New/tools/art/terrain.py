@@ -16,6 +16,8 @@ The ground is drawn by src/game/terrain_view.gd in layers:
   underside.png   hanging roots and shadow under a cell open below, tiles in x
   tufts.png       one row of grass clumps and wild flowers that stand on tops (they sway)
   front_grass.png short blades drawn in front of the runners' feet, tiles in x
+  spires.png      three sandstone stacks (64 x 420 units each) drawn for one-cell-wide walls
+                  (the poles in the river) instead of their soil (tools/art/material.py)
 
     python3 tools/art/terrain.py
 """
@@ -27,6 +29,7 @@ from PIL import Image, ImageDraw
 from scipy import ndimage
 
 sys.path.insert(0, str(Path(__file__).parent))
+import material  # noqa: E402
 from paint import (blur, dither_rgba, fbm, hexc, mix, noise1, normals_light, poly_mask, ramp, save,  # noqa: E402
                    smooth, strokes)
 
@@ -808,12 +811,18 @@ def main() -> None:
     def want(name: str) -> bool:
         return not which or name in which
 
+    # New: the soil and the sandstone are lit reliefs (tools/art/material.py: blocks and stones in
+    # volume, cast shadows, occlusion), no longer flat paint with strata stripes and pebble decals
+    # (soil() and rock() above are the previous look).
     if want("soil"):
-        s = soil()
+        s = np.clip(material.laterite() * 1.12, 0, 1) * 255.0
         save(dither_rgba(s, np.ones(s.shape[:2])), "soil.png")
     if want("rock"):
-        r = rock()
+        r = np.clip(material.sandstone() * 1.1, 0, 1) * 255.0
         save(dither_rgba(r, np.ones(r.shape[:2])), "rock.png")
+    if want("spires"):  # New: the stacks standing in the river (one cell wide walls), 3 side by side
+        a = np.concatenate([material.spire(21 + i) for i in range(3)], axis=1)
+        save(dither_rgba(a[..., :3] * 255.0, a[..., 3]), "spires.png")
     if want("shape"):
         save(shape_atlas(), "terrain_shape.png")
     if want("cap"):
@@ -823,7 +832,6 @@ def main() -> None:
     if want("under"):
         save(underside(), "underside.png")
         save(roots_strip(), "roots.png")
-        save(rock_edges(), "rock_edges.png")
     if want("tufts"):
         save(tufts(), "tufts.png")
         save(front_grass(), "front_grass.png")

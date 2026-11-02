@@ -13,7 +13,7 @@ signal pause_pressed
 
 const ROW_HEIGHT := 60.0
 const BOB_ICON := 46.0  ## size of the Red Bob on the counter
-const TRACK_W := 300.0
+const TRACK_W := 330.0
 const HEART := 34.0
 const PLATE_TOP := Color(0.44, 0.21, 0.11, 0.94)
 const PLATE_BOTTOM := Color(0.25, 0.08, 0.03, 0.94)
@@ -41,6 +41,7 @@ var _hero_rect := Rect2()  # where Panoramic is on screen (game_screen sets it e
 static func plate(radius: float, pressed := false) -> GlossStyle:
 	var s := GlossStyle.new(PLATE_TOP, PLATE_BOTTOM, PLATE_EDGE, radius, 5.0, pressed)
 	s.set_outline(PLATE_LINE, 3.0)
+	s.set_frame(2.5, Color("ffe3a0"), Color("c27a22"), Color(0, 0, 0, 0))  # a fine gold rim: the kit's ring
 	s.rim = 0.2
 	s.gloss = 0.08
 	s.shadow.shadow_color = Color(0, 0, 0, 0.28)
@@ -91,10 +92,10 @@ func setup(w: World) -> void:
 	_count_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(_count_box)
 	var gap := Control.new()  # the counter never crowds the pause button
-	gap.custom_minimum_size = Vector2(6, 0)
+	gap.custom_minimum_size = Vector2(16, 0)
 	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(gap)
-	_pause = _pause_button(ROW_HEIGHT)
+	_pause = _pause_button(ROW_HEIGHT + 4.0)
 	_pause.pressed.connect(pause_pressed.emit)
 	row.add_child(_pause)
 	_fx = Node2D.new()
@@ -177,16 +178,27 @@ func _pause_button(side: float) -> JuicyButton:
 
 func _process(delta: float) -> void:
 	_clock += delta
-	# the lives and the track fade while he is under them (hanging under the vine, a high jump)
+	# the lives and the track step out of the way while he is under them (hanging under the vine, a
+	# high jump): a quick fade and a lift, never held half see-through
 	for item: Control in [_lives_glass, _track_glass]:
 		if item:
 			var over := item.get_global_rect().grow(6.0).intersects(_hero_rect)
-			item.modulate.a = move_toward(item.modulate.a, 0.28 if over else 1.0, delta * 5.0)
+			item.modulate.a = move_toward(item.modulate.a, 0.0 if over else 1.0, delta * 9.0)
 	# the last heart beats
 	if world and world.lives == 1 and _hearts.size() > 0:
 		var t := fposmod(_clock, 0.9)
 		var beat := maxf(sin(t / 0.16 * PI), 0.0) if t < 0.16 else (maxf(sin((t - 0.2) / 0.14 * PI), 0.0) * 0.6 if t < 0.34 else 0.0)
 		_hearts[0].scale = Vector2.ONE * (1.0 + 0.16 * beat)
+
+
+## The run is over: the HUD leaves in a blink (it slides up out of the screen as it fades), never
+## held half see-through.
+func leave() -> void:
+	set_process(false)
+	var t := create_tween().set_parallel(true)
+	t.tween_property(self, "position:y", -110.0, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	t.tween_property(self, "modulate:a", 0.0, 0.14).set_delay(0.06)
+	t.chain().tween_callback(hide)  # gone, not waiting above the screen (nor catching a tap)
 
 
 ## Where Panoramic is on screen, so the pieces over him can fade.
@@ -214,12 +226,26 @@ func refresh() -> void:
 	_track.progress = world.progress()
 
 
-## A heart lost: it swells, flashes white, and flies off spinning while it fades.
+## A heart lost: it swells in a white flash of light (added, so it shows on phones too), and flies
+## off spinning while it fades.
 func _lose_heart(h: Control) -> void:
 	var start := h.position
+	var flash := TextureRect.new()
+	flash.texture = Fx.glow_texture()
+	flash.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	flash.material = Fx.additive()
+	flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	flash.size = Vector2(HEART, HEART) * 2.6
+	flash.position = h.position + h.size / 2 - flash.size / 2
+	flash.pivot_offset = flash.size / 2
+	flash.modulate = Color(1, 0.95, 0.85, 0.95)
+	h.get_parent().add_child(flash)
+	var f := flash.create_tween().set_parallel(true)
+	f.tween_property(flash, "scale", Vector2.ONE * 1.5, 0.3).from(Vector2.ONE * 0.4)
+	f.tween_property(flash, "modulate:a", 0.0, 0.3).set_delay(0.05)
+	f.chain().tween_callback(flash.queue_free)
 	var t := h.create_tween()
 	t.tween_property(h, "scale", Vector2.ONE * 1.6, 0.08).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	t.parallel().tween_property(h, "modulate", Color(3, 3, 3), 0.08)
 	t.tween_property(h, "modulate", Color(1, 1, 1, 0), 0.45)
 	t.parallel().tween_property(h, "position", start + Vector2(10, -50), 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	t.parallel().tween_property(h, "rotation", 0.8, 0.45)
@@ -261,14 +287,15 @@ func bob_target() -> Vector2:
 
 ## True when a touch at `pos` belongs to a HUD button, not to the game.
 func blocks(pos: Vector2) -> bool:
-	return _pause.get_global_rect().grow(10).has_point(pos)
+	return _pause.global_hit_rect().has_point(pos)
 
 
-## The way home: a sunken groove, a thick gold fill with a moving sheen, quarter marks, Panoramic's
-## face in a gold ring at its tip and the house on a gold disc at the end.
+## The way home: a sunken groove with the sandy path still to go (dashes), a thick gold fill with a
+## moving sheen to where he is, Panoramic's face in a gold ring at its tip, a flag halfway, and the
+## house on a glowing gold disc at the end.
 class _Track extends Control:
 	const HEAD := preload("res://assets/art/ui/head.png")
-	const GROOVE := 22.0
+	const GROOVE := 26.0
 	var progress := 0.0:
 		set(value):
 			if not is_equal_approx(value, progress):
@@ -279,9 +306,9 @@ class _Track extends Control:
 	var _styles := {}  # (colour, radius, border) -> StyleBoxFlat, made once
 
 	func _init() -> void:
-		custom_minimum_size = Vector2(Hud.TRACK_W + 44, Hud.ROW_HEIGHT - 10.0)
+		custom_minimum_size = Vector2(Hud.TRACK_W + 50, Hud.ROW_HEIGHT - 8.0)
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_house = Ui.bold_icon("house-fill", 22, Ui.WHITE, Hud.PLATE_LINE)
+		_house = Ui.bold_icon("house-fill", 24, Ui.WHITE, Hud.PLATE_LINE)
 		add_child(_house)
 
 	func _process(delta: float) -> void:
@@ -290,43 +317,54 @@ class _Track extends Control:
 
 	func _draw() -> void:
 		var y := size.y / 2
-		var x0 := 22.0
-		var w := Hud.TRACK_W - 22.0
+		var x0 := 26.0
+		var w := Hud.TRACK_W - 26.0
 		var groove := Rect2(x0, y - GROOVE / 2, w, GROOVE)
-		_rounded(groove, Color(0.06, 0.01, 0.0, 0.8), GROOVE / 2)
-		# the way still to go: a pale dusty path in the groove
-		_rounded(groove.grow(-3.0), Color(0.86, 0.66, 0.42, 0.42), GROOVE / 2 - 3.0)
-		_rounded(Rect2(groove.position + Vector2(5, GROOVE * 0.5), Vector2(w - 10, 3)), Color(0.35, 0.18, 0.08, 0.35), 1.5)
+		_rounded(groove.grow(2.0), Hud.PLATE_LINE, GROOVE / 2 + 2.0)
+		# the way still to go: a sandy path, in shade at its top, a dashed line along it
+		_rounded(groove, Color("b88a56"), GROOVE / 2)
+		_rounded(Rect2(groove.position + Vector2(0, 5), groove.size - Vector2(0, 5)), Color("e2bd84"), GROOVE / 2 - 2.0)
+		var dash := 14.0
+		var dx := x0 + 10.0
+		while dx < x0 + w - 12.0:
+			_rounded(Rect2(dx, y + 1.0, dash * 0.55, 3.0), Color(0.45, 0.25, 0.1, 0.45), 1.5)
+			dx += dash
 		var fill_w := maxf(w * progress, 0.0)
 		if fill_w > 6.0:
-			var fill := Rect2(x0 + 3, y - GROOVE / 2 + 3, fill_w - 3, GROOVE - 6)
-			_rounded(fill, Color("e08a10"), fill.size.y / 2)
-			_rounded(Rect2(fill.position, Vector2(fill.size.x, fill.size.y * 0.62)), Color("ffc93c"), fill.size.y * 0.31)
-			_rounded(Rect2(fill.position + Vector2(4, 2), Vector2(maxf(fill.size.x - 8, 0), 3)), Color(1, 1, 0.9, 0.7), 1.5)
+			var fill := Rect2(x0 + 2, y - GROOVE / 2 + 2, fill_w - 2, GROOVE - 4)
+			_rounded(fill, Color("e07a0c"), fill.size.y / 2)
+			_rounded(Rect2(fill.position, Vector2(fill.size.x, fill.size.y * 0.6)), Color("ffcf3a"), fill.size.y * 0.3)
+			_rounded(Rect2(fill.position + Vector2(5, 3), Vector2(maxf(fill.size.x - 10, 0), 4)), Color(1, 1, 0.9, 0.8), 2.0)
 			# a sheen running along the fill
-			var sx := fposmod(_clock * 140.0, fill_w + 80.0) - 40.0
-			if sx > 0 and sx < fill_w - 8:
-				draw_rect(Rect2(fill.position.x + sx, fill.position.y + 1, 8, fill.size.y - 2), Color(1, 1, 1, 0.5))
-		# quarter marks: gold pips, dim ahead of him, lit once passed
-		for i in range(1, 4):
-			var mx := x0 + w * i / 4.0
-			var passed := mx <= x0 + fill_w
-			draw_circle(Vector2(mx, y), 6.0, Hud.PLATE_LINE)
-			draw_circle(Vector2(mx, y), 4.2, Color("ffe08a") if passed else Color(0.72, 0.52, 0.3))
-			draw_circle(Vector2(mx - 1.2, y - 1.4), 1.6, Color(1, 1, 1, 0.8 if passed else 0.35))
-		# the house at the end, on a gold disc
-		var hc := Vector2(x0 + w + 6, y)
-		draw_circle(hc, 21.0, Hud.PLATE_LINE)
-		draw_circle(hc, 18.0, Color("e08a10"))
-		draw_circle(hc + Vector2(0, -2), 15.5, Color("ffc93c"))
+			var sx := fposmod(_clock * 150.0, fill_w + 80.0) - 40.0
+			if sx > 0 and sx < fill_w - 10:
+				draw_rect(Rect2(fill.position.x + sx, fill.position.y + 2, 9, fill.size.y - 4), Color(1, 1, 1, 0.45))
+		# a little flag halfway
+		var mx := x0 + w * 0.5
+		var passed := mx <= x0 + fill_w
+		draw_line(Vector2(mx, y + 9), Vector2(mx, y - 17), Hud.PLATE_LINE, 4.0, true)
+		draw_colored_polygon(PackedVector2Array([Vector2(mx + 1, y - 18), Vector2(mx + 15, y - 13), Vector2(mx + 1, y - 7)]),
+				Hud.PLATE_LINE)
+		draw_colored_polygon(PackedVector2Array([Vector2(mx + 2, y - 16), Vector2(mx + 12, y - 12.5), Vector2(mx + 2, y - 9)]),
+				Color("ff4a2a") if passed else Color("fff0d0"))
+		# the house at the end, on a glowing gold disc
+		var hc := Vector2(x0 + w + 8, y)
+		var pulse := 0.5 + 0.5 * sin(_clock * 3.0)
+		draw_circle(hc, 30.0 + pulse * 3.0, Color(1, 0.85, 0.4, 0.18 + 0.1 * pulse))
+		draw_circle(hc, 24.0, Hud.PLATE_LINE)
+		draw_circle(hc, 21.0, Color("e08a10"))
+		draw_circle(hc + Vector2(0, -2), 18.5, Color("ffc93c"))
+		draw_circle(hc + Vector2(-6, -9), 5.0, Color(1, 1, 0.9, 0.5))
 		_house.position = hc - _house.size / 2 + Vector2(0, 1)
 		# the face in its gold ring, bobbing a little as it runs
-		var hx := x0 + 3 + fill_w
+		var hx := x0 + 2 + fill_w
 		var bob := absf(sin(_clock * 8.0)) * 2.0
 		var c := Vector2(hx, y - bob)
-		draw_circle(c, 24.0, Hud.PLATE_LINE)
-		draw_circle(c, 21.5, Color("ffc93c"))
-		draw_texture_rect(HEAD, Rect2(c - Vector2(19, 19), Vector2(38, 38)), false)
+		draw_circle(c + Vector2(0, 3), 27.0, Color(0, 0, 0, 0.3))
+		draw_circle(c, 27.0, Hud.PLATE_LINE)
+		draw_circle(c, 24.5, Color("e08a10"))
+		draw_circle(c + Vector2(0, -1), 23.0, Color("ffd34a"))
+		draw_texture_rect(HEAD, Rect2(c - Vector2(20, 20), Vector2(40, 40)), false)
 
 	func _rounded(r: Rect2, colour: Color, radius: float, border := Color(0, 0, 0, 0), border_w := 0.0) -> void:
 		var key := [colour, int(minf(radius, r.size.y / 2)), border, border_w]

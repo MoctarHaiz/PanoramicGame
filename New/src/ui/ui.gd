@@ -25,6 +25,13 @@ const WHITE := Color.WHITE
 const BLACK := Color.BLACK
 const SHADOW := Color(0.2, 0.08, 0.02, 0.22)
 const MAX_TOAST_WIDTH := 700.0
+## Smallest touch target in design units: 48 dp on a 360 dp-tall phone (Android), 52 pt on an iPhone
+## (Apple asks for 44). Buttons drawn smaller still take touches this far (JuicyButton._has_point).
+const MIN_TOUCH := 86.0
+## Cream and sand: the inside of panels, where text is dark brown (contrast above 10:1).
+const CREAM := Color("fff6e4")
+const SAND := Color("f3d9ac")
+const SAND_DEEP := Color("dcb47c")
 
 ## The candy colours of the interface kit (buttons, chips, banners, panels): docs/art/STYLE.md.
 ## GREEN is the go colour (one main action per screen), GOLD rewards, SUNSET the brand,
@@ -38,6 +45,16 @@ const TONES := {
 	Tone.BLUE: [Color("7cd0ff"), Color("2f86e0"), Color("1c5cb2"), Color("0e2a5e")],
 	Tone.CRIMSON: [Color("ff7a5c"), Color("e82808"), Color("a8180a"), Color("4e0804")],
 	Tone.WHITE: [Color("ffffff"), Color("fff0e2"), Color("f2c9a8"), Color("5a1a06")],
+}
+## The lit ring around a button's face (the gold rim of the buttons of top games), per tone: ring top,
+## ring bottom, the thickness under it (edge), the outline around it all.
+const FRAMES := {
+	Tone.GREEN: [Color("fff3a6"), Color("f4a62a"), Color("b8620c"), Color("4a1e04")],
+	Tone.GOLD: [Color("ffd9a0"), Color("ea6a1c"), Color("a83c0a"), Color("4a1404")],
+	Tone.SUNSET: [Color("fff3a6"), Color("f4a62a"), Color("b8620c"), Color("4a1e04")],
+	Tone.BLUE: [Color("fff3a6"), Color("f4a62a"), Color("b8620c"), Color("3a1a08")],
+	Tone.CRIMSON: [Color("fff3a6"), Color("f4a62a"), Color("b8620c"), Color("4a1004")],
+	Tone.WHITE: [Color("fffdf6"), Color("e6c08a"), Color("b07a3c"), Color("4a1e04")],
 }
 
 var font_title: FontVariation  ## Fredoka Bold: titles, buttons, numbers
@@ -112,10 +129,10 @@ func card_style(bg := WHITE, radius := 40, shadow := 26) -> StyleBoxFlat:
 	return s
 
 
-## The colours of a tone: top, bottom, edge, outline.
+## The colours of a tone: top, bottom, edge, outline (and its button ring: frame).
 func tone_colours(tone: Tone) -> Dictionary:
 	var c: Array = TONES[tone]
-	return {"top": c[0], "bottom": c[1], "edge": c[2], "outline": c[3]}
+	return {"top": c[0], "bottom": c[1], "edge": c[2], "outline": c[3], "frame": FRAMES[tone]}
 
 
 ## The colours of a candy made from any face and edge colour (the older builders' arguments).
@@ -124,7 +141,7 @@ func face_colours(face: Color, edge: Color) -> Dictionary:
 		if TONES[tone][1].is_equal_approx(face) or _legacy_face(tone).is_equal_approx(face):
 			return tone_colours(tone)
 	return {"top": face.lerp(WHITE, 0.3), "bottom": face.darkened(0.06), "edge": edge,
-			"outline": edge.darkened(0.55)}
+			"outline": edge.darkened(0.55), "frame": FRAMES[Tone.SUNSET]}
 
 
 ## The face colours the screens passed before the tones existed map to the nearest tone.
@@ -153,6 +170,20 @@ func _candy(c: Dictionary, radius: float, pressed: bool, depth: float) -> GlossS
 	s.shadow.shadow_color = Color(NIGHT, 0.32)
 	s.shadow.shadow_size = 6 if pressed else 14
 	s.shadow.shadow_offset = Vector2(0, 4 if pressed else 10)
+	return s
+
+
+## A button's candy: the tone's face inside a lit gold ring (FRAMES) `ring` px wide, all of it on
+## its edge (`depth`) and outlined, a darker lip along the bottom of the face.
+func _framed(c: Dictionary, radius: float, pressed: bool, depth: float, ring: float) -> GlossStyle:
+	var s := _candy(c, radius, pressed, depth)
+	var f: Array = c.get("frame", FRAMES[Tone.GREEN])
+	s.edge = f[2]
+	s.outline = f[3]
+	s.outline_width = clampf(roundf(depth * 0.4), 3.0, 5.0)
+	s.set_frame(ring, f[0], f[1], Color(c.outline, 0.85))
+	s.rim = 0.25
+	s.lip = 0.35
 	return s
 
 
@@ -198,6 +229,7 @@ func glass_style(radius := 40, alpha := 0.16) -> StyleBoxFlat:
 func label(text: String, size: int, color := INK, font: Font = null,
 		align := HORIZONTAL_ALIGNMENT_CENTER) -> Label:
 	var l := Label.new()
+	l.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED  # the text is already translated
 	l.text = text
 	l.horizontal_alignment = align
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -269,16 +301,17 @@ func candy_button(text: String, icon_name := "", tone := Tone.GREEN, height := 1
 func _candy_button(text: String, icon_name: String, c: Dictionary, height: int, font_size: int) -> JuicyButton:
 	var b := JuicyButton.new()
 	b.custom_minimum_size = Vector2(0, height)
-	var radius := height / 2.0
-	var depth := roundf(height * 0.085)
+	var radius := height * 0.36  # a rounded slab, not a pill: chunkier, like top games' buttons
+	var depth := roundf(height * 0.09)
+	var ring := roundf(height * 0.085)
 	var white := (c.top as Color).get_luminance() > 0.95
-	b.add_theme_stylebox_override(&"normal", _candy(c, radius, false, depth))
-	b.add_theme_stylebox_override(&"hover", _candy(c, radius, false, depth))
-	b.add_theme_stylebox_override(&"pressed", _candy(c, radius, true, depth))
+	b.add_theme_stylebox_override(&"normal", _framed(c, radius, false, depth, ring))
+	b.add_theme_stylebox_override(&"hover", _framed(c, radius, false, depth, ring))
+	b.add_theme_stylebox_override(&"pressed", _framed(c, radius, true, depth, ring))
 	var dim := c.duplicate()
-	for key: String in dim:
+	for key: String in ["top", "bottom", "edge", "outline"]:
 		dim[key] = (dim[key] as Color).lerp(WHITE, 0.45)
-	b.add_theme_stylebox_override(&"disabled", _candy(dim, radius, false, depth))
+	b.add_theme_stylebox_override(&"disabled", _framed(dim, radius, false, depth, ring))
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override(&"separation", roundi(font_size * 0.28))
@@ -297,7 +330,7 @@ func _candy_button(text: String, icon_name: String, c: Dictionary, height: int, 
 	l.shadow = Color(0, 0, 0, 0)
 	l.refresh()
 	row.add_child(l)
-	b.add_child(_face_holder(row, _candy(c, radius, false, depth)))
+	b.add_child(_face_holder(row, _framed(c, radius, false, depth, ring)))
 	b.content = row
 	return b
 
@@ -308,8 +341,8 @@ func _face_holder(content: Control, style: GlossStyle) -> Control:
 	var holder := Control.new()
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	holder.offset_top = style.outline_width
-	holder.offset_bottom = -(style.outline_width + style.depth)
+	holder.offset_top = style.outline_width + style.frame_width
+	holder.offset_bottom = -(style.outline_width + style.depth + style.frame_width)
 	content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	holder.add_child(content)
 	return holder
@@ -342,10 +375,11 @@ func _icon_button(icon_name: String, c: Dictionary, button_size: Vector2, radius
 		icon_color: Color) -> JuicyButton:
 	var b := JuicyButton.new()
 	b.custom_minimum_size = button_size
-	var depth := roundf(button_size.y * 0.08)
+	var depth := roundf(button_size.y * 0.09)
+	var ring := roundf(button_size.y * 0.07)
 	for state in [&"normal", &"hover"]:
-		b.add_theme_stylebox_override(state, _candy(c, radius, false, depth))
-	b.add_theme_stylebox_override(&"pressed", _candy(c, radius, true, depth))
+		b.add_theme_stylebox_override(state, _framed(c, radius, false, depth, ring))
+	b.add_theme_stylebox_override(&"pressed", _framed(c, radius, true, depth, ring))
 	var white := (c.top as Color).get_luminance() > 0.95
 	var side := button_size.y * 0.46
 	var i: Control
@@ -353,7 +387,7 @@ func _icon_button(icon_name: String, c: Dictionary, button_size: Vector2, radius
 		i = icon(icon_name, side, icon_color)
 	else:
 		i = bold_icon(icon_name, side, icon_color, c.outline)
-	b.add_child(_face_holder(i, _candy(c, radius, false, depth)))
+	b.add_child(_face_holder(i, _framed(c, radius, false, depth, ring)))
 	b.content = i
 	return b
 
@@ -392,6 +426,20 @@ func counter(icon_control: Control, text: String, font_size := 42) -> Control:
 	icon_control.size = icon_size
 	box.custom_minimum_size = Vector2(pill.position.x + pill_size.x, tall)
 	return box
+
+
+## A cream plaque framed in gold (the counters and records of the menus, as the resource pills of
+## top games): dark brown text on it reads on any background.
+func plaque_style(radius := 30.0, pressed := false) -> GlossStyle:
+	var s := GlossStyle.new(CREAM, SAND, Color("c98a3c"), radius, 6.0, pressed)
+	s.set_outline(Color("4a1e04"), 3.5)
+	s.set_frame(4.0, Color("fff3a6"), Color("e0961e"), Color("8a4a12"))
+	s.rim = 0.6
+	s.lip = 0.25
+	s.shadow.shadow_color = Color(NIGHT, 0.35)
+	s.shadow.shadow_size = 10
+	s.shadow.shadow_offset = Vector2(0, 6)
+	return s
 
 
 ## A small candy pill with outlined text (and an icon): "NEW BEST!", "2×", tags.

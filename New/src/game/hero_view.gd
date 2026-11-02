@@ -1,162 +1,109 @@
 class_name HeroView
 extends Node2D
-## Panoramic, drawn from the poses cut out of the hero sheet (assets/art/hero/, made by
-## tools/art/hero_sprites.py) and brought to life in code:
-## - the run: two strides, each landing in a squash and rising into a stretch, the body bobbing and
-##   leaning into the run; on his marks before the start, crouched and breathing;
-## - the air: the leap stretching with the speed, the tuck, a squash on landing and on take-off;
-## - the hang: a damped pendulum from the staff's hook, pushed back by the wind of the run;
-## - a red scarf (physics: a chain pushed by the wind of the run, gravity and his moves) where the
-##   painted pose has only its knot, and a soft shadow on the ground under him;
-## - a dark outline, a rim of sunlight on his sun side (upper left) and a soft warm backlight
-##   behind him, so he is the clearest thing on screen even against the brown rock;
-## - hurt: a flash, a knock back and a flicker; caught: thrown up and tumbling out of the picture;
-## - home: he stops before the glowing doorway and hops with his staff raised.
+## Panoramic: the user's 3D model (ROOT/Making/Animation.blend), re-lit for the savanna's low sun
+## and rendered frame by frame (tools/art/blender/hero_render.py), packed into atlases
+## (tools/art/hero_atlas.py, assets/art/hero/hero_frames.json) and played by the state of the rules:
+## - the run: 16 frames at the pace that keeps his planted foot on the scrolling ground;
+## - the jump: the push-off, then the rise, the top and the fall picked by his vertical speed (the
+##   rules decide how high and how far), the landing played out into the run;
+## - the vine: reaching up into it, hanging by his hands (a damped pendulum, legs swaying), the
+##   climb over a ledge, the crouch, the throw (his arm over the running legs), the blow, the fall
+##   onto his back when caught, and at home he turns to us and throws his fists up;
+## - a soft shadow on the ground under him, cast a little away from the sun.
 ## Animation runs on the world's clock while the game runs, so pause and hit-stop freeze him too.
 
+const FRAMES := "res://assets/art/hero/hero_frames.json"
 const DIR := "res://assets/art/hero/"
-const STRIDE := 0.16  ## seconds per stride (one pose)
-const DOOR_DUCK := 110.0  ## units before the doorway where he ducks (his staff reaches ahead)
-const TAKEOFF := 0.07  ## seconds of the push-off: crouched, rising out of it (the rules have left)
-const THROW_TIME := 0.15  ## the throw: the ring hand back, then forward
-const MANTLE := 0.17  ## seconds pulling himself over a ledge after a climb
+## His drawn size is the atlas' (GameArt.HERO_DRAW_HEIGHT standing): kept for the views that size
+## things after him.
+const DRAW_SCALE := 1.0
+## The run: atlas frames a second at the ground's speed (233 units/s), measured from the render so
+## the planted boot moves back exactly with the ground (tools/art/hero_atlas.py prints it).
+const RUN_FPS := 26.0
+const RUN_FRAMES := 16
+const TAKEOFF := 0.07  ## seconds of the push-off (the rules have already left the ground)
+const THROW_TIME := 0.2  ## the throw: the arm drawn back, then the release
+const THROW_BACK := 0.3  ## share of the throw spent drawing the arm back
+const MANTLE := 0.16  ## seconds standing up after a climb over a ledge
 const BLINK_HZ := 8.0  ## the mercy pulse after a hit (smooth, not a strobe)
-const STANCE_SLIDE := 20.0  ## texture px the feet slide back over one stride (the planted foot)
-const VINE_Y := 4.0  ## where his staff hooks on when hanging
-const PAD := 24  ## transparent pixels added around each pose: room for the outline and the stance slide
-const STAND_SCALE := 0.58  ## the turnaround poses are drawn about twice as big on the sheet
-## He is drawn a quarter bigger than the 2017 sprite his hit box was made for, so he reads on a
-## phone among the painted scenery (the rules' box is unchanged; feet, hands and hook stay put).
-const DRAW_SCALE := 1.25
-## Where the scarf is knotted (behind the neck), in each pose's texture pixels; poses not listed
-## have their scarf painted in full.
-const SCARF_KNOT := {&"run_a": Vector2(170, 66), &"run_b": Vector2(174, 70), &"leap_up": Vector2(136, 106)}
-const SCARF_LINKS := 9
-const SCARF_LINK := 8.6  ## units between two links
-const SCARF_RED := Color("d22a14")
-const SCARF_DARK := Color("8c1206")
-const SCARF_LIGHT := Color("ff6a3c")
-const INK := Color(0.16, 0.05, 0.04, 0.9)
+const VINE_Y := 6.0  ## where his hands grip the vine
+const GRIP_UP := 14.0  ## atlas px from his wrists up to his grip
+const WIN_LOOP := 10  ## the cheer at home loops from this frame
+const JUMP_RISE := [2, 9]  ## jump frames of the rise (vertical speed -JUMP_SPEED .. -TOP)
+const JUMP_TOP := [10, 13]  ## the top (-TOP .. +TOP)
+const JUMP_FALL := [14, 18]  ## the fall (+TOP .. +JUMP_SPEED)
+const JUMP_LAND := [19, 26]  ## the landing, played out (it ends in the run's first frame)
+const TOP := 6.0  ## units a tick of vertical speed counted as the top of the jump
+const SHADOW_SHIFT := 10.0  ## units the ground shadow falls right of him (the sun is upper left)
+
+enum Anchor { FEET, HIPS, HANDS }
+
+static var _data := {}
+static var _pages: Array[Texture2D] = []
+static var _units := 1.0  # units per atlas pixel
+static var _hips_dy := 0.0  # standing: his hips this far above the centre of his box (units, < 0: above)
 
 var _sprite: Sprite2D
-var _halo: Sprite2D  # the soft warm backlight behind him (additive)
 var _material: ShaderMaterial
-var _poses := {}  # name -> {"texture", "anchor", "mode", "k"}
-var _pose := &""
+var _anim := &""
+var _index := 0
 var _clock := 0.0
 var _last_time := -1.0
+var _run := 0.0  # frames into the run cycle
+var _run_rate := 1.0  # the run's pace (1: the ground's speed), eased
 var _squash := Vector2.ONE
-var _land_left := 0.0
+var _land_time := -1.0  # seconds since landing (-1: not landing)
+var _takeoff := 0.0  # seconds left of the push-off
 var _throw_left := 0.0
+var _hurt_time := -1.0  # seconds since a blow (-1: none)
 var _hurt_left := 0.0
-var _knock := 0.0  # 1 -> 0: the knock back of a hit
-var _flash := 0.0
+var _knock := 0.0  # 1 -> 0: the knock back of a blow
+var _flash := 0.0  # seconds of frames left of the blow's white flash (frames: a hit-stop holds the world's clock)
+var _crouch_time := 0.0
+var _climb_time := 0.0
+var _mantle := 0.0  # seconds left of standing up after a climb
+var _was_climbing := false
 var _wall_shift := 0.0  # held back from a wall face (units, <= 0)
 var _swing := 0.0  # hanging: pendulum angle and speed
 var _swing_speed := 0.0
 var _was_hanging := false
-var _air_pose_time := 0.0
-var _takeoff := 0.0  # seconds left of the push-off
-var _takeoff_y := 0.0  # the ground he pushed off from (his centre y)
-var _mantle := 0.0  # seconds left of the pull over a ledge
-var _was_climbing := false
-var _settle := 0.0  # rotation left over from a pose change, easing to 0
-var _flash_until := 0  # Time.get_ticks_msec() until which the blow's white flash shows
-# the end of the run
+var _settle := 0.0  # rotation left over from a change, easing to 0
 var _end_time := 0.0
-var _end_alpha := 1.0  # fades into the hut at the end
-var _death := Vector2.ZERO  # offset of the tumble when caught
+var _death := Vector2.ZERO  # the knock back of the fatal blow, then lying where he fell
 var _death_speed := Vector2.ZERO
-var _spin := 0.0
-# the scarf and the shadow, drawn under him by a node of his parent
-var _under: Node2D
-var _scarf: Array[Vector2] = []
-var _scarf_speed: Array[Vector2] = []
-var _scarf_alpha := 0.0
+var _under: Node2D  # his shadow, drawn under him by a node of his parent
 var _shadow := Vector2(-1, -1)  # where the shadow is (x, ground y), -1: none
 var _shadow_k := 0.0  # 0..1: his height above it (1: on it)
+var _shadow_w := 1.0  # the shadow's width (lying down: longer)
 var _world: World
-var _visible := 1.0  # the flicker after a hit (the picture and the scarf)
+var _visible := 1.0
+
+
+static func frames_data() -> Dictionary:
+	if _data.is_empty():
+		_data = (load(FRAMES) as JSON).data
+		for page: String in _data.pages:
+			_pages.append(load(DIR + page))
+		_units = float(_data.units_per_px)
+		var f: Dictionary = _data.anims.run.frames[0]
+		var feet := World.HERO_SIZE.y / 2 + GameArt.FEET_SINK
+		_hips_dy = feet - (float(f.origin[1]) - float(f.hips[1])) * _units
+	return _data
+
+
+static func frames(anim: StringName) -> Array:
+	return frames_data().anims[anim].frames
 
 
 func _init() -> void:
-	var data: Dictionary = (load(DIR + "hero.json") as JSON).data
-	for name: String in data:
-		var d: Dictionary = data[name]
-		var k := DRAW_SCALE / float(d.get("texture_scale", 2.0))
-		if name.begins_with("stand"):
-			k *= STAND_SCALE
-		var texture: Texture2D = load(DIR + name + ".png")
-		_poses[StringName(name)] = {
-			"texture": _padded(texture),
-			"anchor": Vector2(d.anchor[0], d.anchor[1]) + Vector2(PAD, PAD),
-			"mode": d.mode,
-			"k": k,
-			# hanging: his body hangs left of the staff tip; this shift puts it over his hit box
-			"body_dx": (float(d.anchor[0]) - _body_x(texture)) * k if d.mode == "top" else 0.0,
-			"front": (_front_x(texture) - float(d.anchor[0])) * k,  # how far ahead of him it reaches
-		}
+	frames_data()
 	_sprite = Sprite2D.new()
 	_sprite.centered = false
+	_sprite.region_enabled = true
 	_material = ShaderMaterial.new()
 	_material.shader = preload("res://src/game/actor.gdshader")
-	_material.set_shader_parameter(&"outline_px", 3.2)
-	_material.set_shader_parameter(&"outline_colour", Color(0.1, 0.03, 0.02, 0.95))
-	_material.set_shader_parameter(&"rim", 0.9)
-	_material.set_shader_parameter(&"rim_px", 5.0)
-	_material.set_shader_parameter(&"rim_colour", Color(1.0, 0.84, 0.55))
-	_material.set_shader_parameter(&"rim_dir", Vector2(-0.6, -0.8))  # towards the sun
 	_sprite.material = _material
-	_halo = Sprite2D.new()
-	_halo.texture = Fx.glow_texture()
-	_halo.material = Fx.additive()
-	_halo.modulate = Color(1.0, 0.82, 0.55, 0.3)
-	add_child(_halo)
 	add_child(_sprite)
-	for i in SCARF_LINKS:
-		_scarf.append(Vector2.ZERO)
-		_scarf_speed.append(Vector2.ZERO)
-
-
-## The front of a pose (texture px): the right-most opaque pixel (his hand or staff).
-static func _front_x(texture: Texture2D) -> float:
-	var img := texture.get_image()
-	if img.is_compressed():
-		img.decompress()
-	for x in range(img.get_width() - 1, -1, -1):
-		for y in range(0, img.get_height(), 2):
-			if img.get_pixel(x, y).a > 0.5:
-				return x
-	return img.get_width()
-
-
-## The middle of a pose's body (texture px): the mean x of its opaque pixels below the top third
-## (above that are the raised arms and the staff).
-static func _body_x(texture: Texture2D) -> float:
-	var img := texture.get_image()
-	if img.is_compressed():
-		img.decompress()
-	var total := 0.0
-	var count := 0
-	for y in range(img.get_height() / 3, img.get_height(), 3):
-		for x in range(0, img.get_width(), 3):
-			if img.get_pixel(x, y).a > 0.5:
-				total += x
-				count += 1
-	return total / maxi(count, 1)
-
-
-## A pose's picture with a transparent border (so the outline is not cut) and mipmaps.
-static func _padded(texture: Texture2D) -> Texture2D:
-	var img := texture.get_image()
-	if img.is_compressed():
-		img.decompress()
-	img.convert(Image.FORMAT_RGBA8)
-	var out := Image.create_empty(img.get_width() + PAD * 2, img.get_height() + PAD * 2, false, Image.FORMAT_RGBA8)
-	out.blit_rect(img, Rect2i(Vector2i.ZERO, img.get_size()), Vector2i(PAD, PAD))
-	out.fix_alpha_edges()
-	out.generate_mipmaps()
-	return ImageTexture.create_from_image(out)
 
 
 func _ready() -> void:
@@ -172,40 +119,39 @@ func _exit_tree() -> void:
 
 
 func landed() -> void:
-	if _was_climbing:  # over the ledge: he pulls himself up onto it, leaning in
+	if _was_climbing:  # over the ledge: he stands up onto it
 		_mantle = MANTLE
-		_squash = Vector2(1.1, 0.9)
 		return
-	_land_left = 0.14
+	_land_time = 0.0
 	var k := clampf(_world.land_speed / 45.0, 0.3, 1.1) if _world else 1.0  # a step down lands softly, a drop hard
-	_squash = Vector2(1.0 + 0.26 * k, 1.0 - 0.26 * k)
+	_squash = Vector2(1.0 + 0.07 * k, 1.0 - 0.07 * k)
 
 
 func jumped() -> void:
-	if _pose in [&"run_a", &"run_b", &"crouch", &"kneel"]:  # from the ground: a push-off
+	_land_time = -1.0
+	if _world and (_world.on_ground or _anim in [&"run", &"throw", &"crouch", &"idle"]):
 		_takeoff = TAKEOFF
-		_takeoff_y = _world.ground_y if _world else 0.0
-		_squash = Vector2(1.16, 0.84)
-	else:  # the jump left for a fall: no ground to push from
-		_squash = Vector2(0.86, 1.16)
+		_squash = Vector2(1.04, 0.96)
 
 
 func threw() -> void:
 	_throw_left = THROW_TIME
-	_squash = Vector2(1.05, 0.96)
 
 
-## A bandit knocked out: a proud little stretch, leaning back.
+## A bandit knocked out: a proud little lift.
 func cheer() -> void:
-	_squash = Vector2(0.9, 1.12)
-	_settle = -0.12
+	_squash = Vector2(0.97, 1.04)
 
 
 func hurt() -> void:
 	_hurt_left = World.MERCY_TICKS * World.TICK  # pulses while bandits can't hurt him
+	_hurt_time = 0.0
 	_knock = 1.0
-	_flash = 1.0
-	_flash_until = Time.get_ticks_msec() + 40  # real time: a hit-stop holds the world's clock
+	_flash = 0.05
+
+
+func pose() -> StringName:
+	return _anim
 
 
 ## Places him for this frame. `p` is his centre (World.draw_hero()), in play units.
@@ -218,197 +164,173 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 		dt = 0.0 if _last_time < 0.0 else clampf(now - _last_time, 0.0, 0.1)
 		_last_time = now
 	_clock += dt
-	_land_left = maxf(_land_left - dt, 0.0)
+	_flash = maxf(_flash - delta, 0.0)
 	_throw_left = maxf(_throw_left - dt, 0.0)
 	_hurt_left = maxf(maxf(_hurt_left - dt, 0.0), w.mercy * World.TICK)  # also the mercy after a fall
 	_knock = maxf(_knock - dt * 3.2, 0.0)
-	_flash = maxf(_flash - dt * 30.0, 0.0)  # white for two frames
 	_takeoff = maxf(_takeoff - dt, 0.0)
 	_mantle = maxf(_mantle - dt, 0.0)
+	if _land_time >= 0.0:
+		_land_time += dt
+	if _hurt_time >= 0.0:
+		_hurt_time += dt
 	_settle = lerpf(_settle, 0.0, 1.0 - exp(-dt * 14.0))
-	_squash = _squash.lerp(Vector2.ONE, 1.0 - exp(-dt * 15.0))
-	var draw_y := p.y  # where his centre is drawn (the push-off draws him rising out of the ground)
-	var sink := 0.0  # 0..1: how far he has gone under a pool's surface
+	_squash = _squash.lerp(Vector2.ONE, 1.0 - exp(-dt * 14.0))
+	# the run's pace follows the ground under him (the scroll, plus his own steps at the end)
+	var ground_speed := 0.0
+	if playing and not w.blocked:
+		ground_speed = (w.scroll - w.prev_scroll + w.x - w.prev_x) / World.TICK
+	var rate := clampf(ground_speed / (World.SCROLL_SPEED / World.TICK), 0.55, 1.6)
+	_run_rate = lerpf(_run_rate, rate, 1.0 - exp(-dt * 8.0))
+	_run = fmod(_run + dt * RUN_FPS * _run_rate, float(RUN_FRAMES))
 
-	var pose := &"run_a"
+	var anim := &"run"
+	var index := int(_run)
+	var anchor := Anchor.FEET
 	var offset := Vector2.ZERO
 	var tilt := 0.0
-	var stretch := Vector2.ONE
-	var slide := 0.0  # the stance slide of the feet (texture px, + back)
+	var sink := 0.0  # 0..1: how far he has gone under a pool's surface
 	var airborne := w.jumping or not w.on_ground
-	var by_feet := false  # place a "top" pose by its boots (the victory hop)
+	var air_y := p.y + _hips_dy  # where his hips are drawn in the air
+	_crouch_time = _crouch_time + dt if w.crouching else 0.0
+	_climb_time = _climb_time + dt if w.climbing else 0.0
+	_shadow_w = 1.0
 	if w.state == World.State.WON:
-		# home: he stops before the glowing doorway, hops with his staff raised high (the hanging
-		# pose, placed by its boots) and lands into a little squash: the run ends on him, whole and
-		# readable (walking in, he was taller than the low doorway and showed over its arch)
+		# home: he stops before the glowing doorway, turns to us and throws his fists up, cheering
 		_end_time += delta
-		pose = &"leap_up"
-		by_feet = true
-		var hop := clampf(_end_time / 0.42, 0.0, 1.0)
-		offset.y = -sin(hop * PI) * 34.0
-		var land := clampf((_end_time - 0.42) / 0.25, 0.0, 1.0)
-		var squash := sin(land * PI) * 0.1 if _end_time > 0.42 else 0.0
-		stretch = Vector2(1.0 + squash, 1.0 - squash) * (1.0 + 0.06 * sin(hop * PI))
-		_end_alpha = 1.0
+		anim = &"win"
+		var n := frames(anim).size()
+		var f := int(_end_time * float(frames_data().anims.win.fps))
+		index = f if f < n else WIN_LOOP + (f - WIN_LOOP) % (n - WIN_LOOP)
 	elif w.state == World.State.DEAD:
 		_end_time += delta
-		pose = &"tuck"
-		if w.death_reason == &"bandit":  # thrown up and back, tumbling out of the picture
+		if w.death_reason == &"bandit":  # knocked back off his feet, onto his back
+			anim = &"die"
+			index = mini(int(_end_time * float(frames_data().anims.die.fps)), frames(anim).size() - 1)
 			if _death_speed == Vector2.ZERO:
-				_death_speed = Vector2(-55, -760)  # mostly up: he is near the left edge
-			_death_speed.y += 2300.0 * delta
+				_death_speed = Vector2(-160.0, 0.0)
+			_death_speed.x = move_toward(_death_speed.x, 0.0, 420.0 * delta)
 			_death += _death_speed * delta
-			_spin -= delta * 7.5
 			offset = _death
-			tilt = _spin
-		else:
-			_spin -= delta * 2.0
-			tilt = _spin
-	elif not playing and w.ticks == 0:  # on his marks: crouched, breathing
-		pose = &"crouch"
-		var b := sin(_clock * 3.0)
-		stretch = Vector2(1.0 - 0.012 * b, 1.0 + 0.022 * b)
+			_shadow_w = 1.0 + clampf(_end_time / 0.8, 0.0, 1.0) * 1.4
+			if airborne:  # caught in the air: he drops to where he stands
+				air_y = p.y
+				anchor = Anchor.HIPS
+		else:  # into a pool or a pit: the fall
+			anim = &"jump"
+			index = JUMP_FALL[1]
+			anchor = Anchor.HIPS
+	elif not playing and w.ticks == 0:  # on his marks: standing, breathing
+		anim = &"idle"
+		index = int(_clock * float(frames_data().anims.idle.fps)) % frames(&"idle").size()
 	elif w.hanging:
-		pose = &"leap_up"
-	elif w.climbing or (w.blocked and airborne and w.vy < 0.0):  # up a wall: arms up, body to it, feet scrabbling
-		pose = &"leap_up"
-		by_feet = true
-		offset.x += sin(_clock * 46.0) * 2.5
-		offset.y += absf(sin(_clock * 23.0)) * -3.0
-		stretch = Vector2(0.95, 1.07)
-		tilt = 0.06
-	elif airborne and _takeoff > 0.0 and w.vy < 0.0:  # the push-off: crouched, rising out of it
-		pose = &"crouch"
-		var t := 1.0 - _takeoff / TAKEOFF
-		draw_y = lerpf(_takeoff_y, p.y, t * t)
-		stretch = Vector2(1.1 - 0.16 * t, 0.88 + 0.22 * t)
+		anim = &"hang"
+		anchor = Anchor.HANDS
+		index = int(_clock * float(frames_data().anims.hang.fps)) % frames(anim).size()
+	elif w.climbing:  # up a ledge: reaching for its top, a knee onto it
+		anim = &"climb"
+		anchor = Anchor.HIPS
+		index = mini(int(_climb_time * 30.0), 3)
+	elif airborne and w.vy < 0.0 and w.rising_to_vine() and p.y < 150.0:  # reaching up into the vine
+		anim = &"catch"
+		anchor = Anchor.HIPS
+		index = clampi(int((1.0 - p.y / 150.0) * 4.0), 0, 3)
 	elif airborne:
-		var s := clampf(absf(w.vy) / World.JUMP_SPEED, 0.0, 1.0)
-		if w.vy < -12.0:  # the rise: drawn out along the leap
-			pose = &"leap"
-			stretch = Vector2(1.0 - 0.13 * s, 1.0 + 0.2 * s)
-			tilt = -0.03 * s
-		else:  # over the top and down: tucked and turning forward, a squash at the top, stretched as
-			# the fall speeds up; near the ground he braces for it (legs down)
-			pose = &"tuck"
-			var down := clampf(w.vy / World.JUMP_SPEED, 0.0, 1.6)
-			var top := 1.0 - clampf(absf(w.vy) / 12.0, 0.0, 1.0)
-			stretch = Vector2(1.0 + 0.07 * top - 0.07 * down, 1.0 - 0.07 * top + 0.15 * down)
-			tilt = lerpf(-0.14, 0.24, clampf((w.vy + 12.0) / 40.0, 0.0, 1.0))
-			if w.vy > 18.0 and _shadow.x >= 0.0 and _shadow.y - (p.y + World.HERO_SIZE.y / 2) < 110.0:
-				pose = &"crouch"
-				stretch = Vector2(0.93, 1.1)
-				tilt = 0.04
-			if _shadow.x < 0.0 and w.vy > 6.0:  # nothing below him: a fall into a pit, flailing
-				tilt += sin(_clock * 26.0) * 0.24
+		anim = &"jump"
+		anchor = Anchor.HIPS
+		if _takeoff > 0.0 and w.vy < 0.0:  # the push-off
+			index = 1 if _takeoff > TAKEOFF * 0.5 else 2
+		elif w.vy < -TOP:
+			var t := clampf(1.0 - (-w.vy - TOP) / (World.JUMP_SPEED - TOP), 0.0, 1.0)
+			index = roundi(lerpf(JUMP_RISE[0], JUMP_RISE[1], t))
+		elif w.vy <= TOP:
+			index = roundi(lerpf(JUMP_TOP[0], JUMP_TOP[1], (w.vy + TOP) / (2.0 * TOP)))
+		else:
+			var t := clampf((w.vy - TOP) / (World.JUMP_SPEED - TOP), 0.0, 1.0)
+			index = roundi(lerpf(JUMP_FALL[0], JUMP_FALL[1], t))
+			if _shadow.x < 0.0 and w.vy > 6.0:  # nothing below him: a fall into a pit
+				tilt = sin(_clock * 18.0) * 0.08
 				var surface := World.SURFACE_Y - World.HERO_SIZE.y / 2
 				if w.water_at(w.draw_scroll() + p.x):
 					sink = clampf((p.y - surface) / 70.0, 0.0, 1.0)
-	elif _mantle > 0.0:  # over the ledge: crouched, leaning in, pulling up onto it
-		pose = &"crouch"
-		var m := _mantle / MANTLE
-		tilt = 0.2 * m
-		offset.x = -8.0 * m
-		stretch = Vector2(1.0 + 0.06 * m, 1.0 - 0.06 * m)
-	elif _knock > 0.45:  # a blow: knocked back, curled up
-		pose = &"tuck"
-		by_feet = true
+		_land_time = -1.0
+	elif _mantle > 0.0:  # over the ledge: standing up onto it
+		anim = &"climb"
+		index = clampi(4 + int((1.0 - _mantle / MANTLE) * 4.0), 4, 7)
+	elif _hurt_time >= 0.0 and _hurt_time < 0.33:  # a blow: snapped back, arms flung
+		anim = &"hurt"
+		index = mini(int(_hurt_time * 30.0), frames(anim).size() - 1)
 	elif w.crouching:
-		pose = &"kneel"
-	elif w.at_end and w.x > World.HOME_X - DOOR_DUCK:  # the doorway is low: he ducks to go in
-		pose = &"crouch"
-	elif _over_edge(w, p):  # the rules still hold him by the back of his box: he steps off, leaning
-		pose = &"crouch"
-		tilt = 0.2
-	elif _land_left > 0.0:
-		pose = &"crouch"
-	else:
-		var cadence := STRIDE * (1.6 if w.blocked else 1.0)  # pushing against a wall: slower
-		var phase := fmod(_clock / cadence, 2.0)
-		pose = &"run_a" if phase < 1.0 else &"run_b"
-		var u := fmod(phase, 1.0)  # 0: the foot lands, 0.5: up in the stride
-		var rise := sin(u * PI)
-		offset.y = -rise * 6.0 + (1.0 - rise) * 1.5
-		# each stride lands into a squash and rises into a stretch
-		var land := exp(-u * 9.0)
-		stretch = Vector2(1.0 + 0.07 * land - 0.025 * rise, 1.0 - 0.08 * land + 0.035 * rise)
-		tilt = 0.035 + 0.025 * rise
-		# the planted foot travels back with the ground through the stride, then the next stride
-		slide = lerpf(-STANCE_SLIDE * 0.5, STANCE_SLIDE * 0.5, u) * (0.5 if w.blocked else 1.0)
-		if _throw_left > 0.0:  # the ring hand back (run_b), then forward through the throw (run_a)
-			var u2 := 1.0 - _throw_left / THROW_TIME
-			pose = &"run_b" if u2 < 0.3 else &"run_a"
-			tilt += -0.05 if u2 < 0.3 else 0.1 * (1.0 - u2)
-			offset.x += -3.0 if u2 < 0.3 else 7.0 * sin((u2 - 0.3) / 0.7 * PI)
-			stretch.x *= 1.0 if u2 < 0.3 else 1.0 + 0.06 * sin((u2 - 0.3) / 0.7 * PI)
-	_set_pose(pose)
+		anim = &"crouch"
+		index = mini(int(_crouch_time * 24.0), frames(anim).size() - 1)
+	elif _land_time >= 0.0 and _land_time < (JUMP_LAND[1] - JUMP_LAND[0] + 1) / 30.0:
+		anim = &"jump"
+		index = JUMP_LAND[0] + int(_land_time * 30.0)
+		_run = 0.0  # the landing ends in the run's first frame
+	elif _throw_left > 0.0:  # the throwing arm over the running legs
+		anim = &"throw"
+		var back := _throw_left > THROW_TIME * (1.0 - THROW_BACK)
+		index = int(_run) + (0 if back else RUN_FRAMES)
+	elif _over_edge(w, p):  # the rules still hold him by the back of his box: leaning off the edge
+		tilt = 0.08
+	_set_anim(anim, index)
 
 	_was_climbing = w.climbing
-	var info: Dictionary = _poses[pose]
-	var k: float = info.k
-	var feet := draw_y + World.HERO_SIZE.y / 2 + GameArt.FEET_SINK
-	var anchor: Vector2 = info.anchor
-	if by_feet and info.mode != "feet":  # a pose placed by its boots (the climb, the recoil)
-		var tex: Texture2D = info.texture
-		anchor = Vector2(anchor.x, tex.get_height() - PAD)
-		position = Vector2(p.x, feet)
-	else:
-		match info.mode:
-			"feet":
-				position = Vector2(p.x, feet)
-			"top":
-				position = Vector2(p.x + info.body_dx, VINE_Y)
-			_:
-				position = Vector2(p.x, draw_y + 4.0)
-	# hanging: a damped pendulum from the hook, pushed back by the wind of the run
+	var f: Dictionary = frames(anim)[index]
+	var region: Array = f.region
+	var grip := Vector2.ZERO
+	var anchor_px := Vector2(f.origin[0], f.origin[1])
+	var feet := p.y + World.HERO_SIZE.y / 2 + GameArt.FEET_SINK
+	match anchor:
+		Anchor.FEET:
+			position = Vector2(p.x, feet)
+		Anchor.HIPS:
+			anchor_px = Vector2(f.hips[0], f.hips[1])
+			position = Vector2(p.x, air_y)
+		Anchor.HANDS:
+			grip = Vector2((float(f.hand_r[0]) + float(f.hand_l[0])) / 2.0, minf(f.hand_r[1], f.hand_l[1]) - GRIP_UP)
+			anchor_px = grip
+			# his hips over his box
+			position = Vector2(p.x + (grip.x - float(f.hips[0])) * _units, VINE_Y)
+	# hanging: a damped pendulum from his hands, pushed back by the wind of the run
 	if w.hanging and not _was_hanging:
-		_swing_speed = -2.2  # the jump's momentum swings his legs forward
+		_swing_speed = -1.6  # the jump's momentum swings his legs forward
 	_was_hanging = w.hanging
 	if w.hanging:
-		var wind := 0.0 if w.blocked else 0.07
-		var accel := -16.0 * (_swing - wind) - 1.3 * _swing_speed + sin(_clock * 4.1) * 0.25
+		var wind := 0.0 if w.blocked else 0.05
+		var accel := -14.0 * (_swing - wind) - 1.4 * _swing_speed + sin(_clock * 3.7) * 0.18
 		_swing_speed += accel * dt
 		_swing += _swing_speed * dt
 	else:
 		_swing = lerpf(_swing, 0.0, 1.0 - exp(-dt * 10.0))
 		_swing_speed = 0.0
-	# the knock back of a hit: thrown back and up, leaning back
-	if _knock > 0.0:
+	# the knock back of a blow: thrown back and up a little
+	if _knock > 0.0 and w.state == World.State.RUNNING:
 		var e := _knock * _knock
-		offset += Vector2(-30.0 * e, -26.0 * sin(_knock * PI))
-		tilt -= 0.36 * e
-	# at a wall: his picture reaches ~50 units past the chest the rules stop, so it is held back
-	# from the face ahead (before and while it blocks him): his staff hand rests on the wall
+		offset += Vector2(-34.0 * e, -18.0 * sin(_knock * PI))
+	# at a wall: his picture reaches past the chest the rules stop, so it is held back from the face
+	# ahead (before and while it blocks him): his hands and knee rest on the wall
 	var shift := 0.0
-	var front := float(info.front) * stretch.x
+	var front := (float(region[2]) - anchor_px.x) * _units * _squash.x
 	var face := w.wall_ahead(p.x, p.y, front + 4.0, w.draw_scroll()) if w.state == World.State.RUNNING and not w.hanging else -1.0
 	if face >= 0.0:
-		shift = minf(face - 6.0 - (p.x + front), 0.0)
+		shift = minf(face - 4.0 - (p.x + front), 0.0)
 	_wall_shift = lerpf(_wall_shift, shift, 1.0 - exp(-dt * 22.0))
 	offset.x += _wall_shift
 	position += offset
 	rotation = tilt + _swing + _settle
-	scale = _squash * stretch * k
-	_sprite.texture = info.texture
-	_sprite.offset = -anchor
-	var tex_size: Vector2 = (info.texture as Texture2D).get_size()
-	_halo.position = _sprite.offset + tex_size / 2
-	_halo.scale = Vector2.ONE * tex_size.y * 1.15 / 128.0
-	# a white flash on the blow, then (once the knock is over) a soft pulse while he recovers; going
-	# under a pool's surface he fades into it
-	var visible_k := _end_alpha * (1.0 - sink)
-	if _hurt_left > 0.0 and _flash <= 0.0 and _knock <= 0.0 and w.state == World.State.RUNNING:  # (caught: none)
-		visible_k *= 0.675 + 0.325 * cos(_hurt_left * TAU * BLINK_HZ)
+	scale = _squash * _units
+	_sprite.texture = _pages[int(f.page)]
+	_sprite.region_rect = Rect2(region[0], region[1], region[2], region[3])
+	_sprite.offset = -anchor_px
+	# a white flash on the blow, then a soft pulse while he recovers; under a pool's surface he fades
+	var visible_k := 1.0 - sink
+	if _hurt_left > 0.0 and _knock <= 0.0 and w.state == World.State.RUNNING:
+		visible_k *= 0.7 + 0.3 * cos(_hurt_left * TAU * BLINK_HZ)
 	_visible = visible_k
-	_halo.modulate.a = 0.3 * visible_k
-	_material.set_shader_parameter(&"opacity", visible_k)
-	_sprite.modulate.a = 1.0 if slide != 0.0 else visible_k
-	_material.set_shader_parameter(&"warp_px", slide)
-	_material.set_shader_parameter(&"warp_from", 0.42)
-	_material.set_shader_parameter(&"amount", 0.9 if Time.get_ticks_msec() < _flash_until else 0.0)
-	_material.set_shader_parameter(&"tint", Color(1.0, 1.0, 1.0))
-	_material.set_shader_parameter(&"outline_opacity", visible_k)
-	_update_scarf(w, pose, dt)
+	_sprite.modulate.a = visible_k
+	_material.set_shader_parameter(&"amount", 0.85 if _flash > 0.0 else 0.0)
+	_material.set_shader_parameter(&"tint", Color(1.0, 0.97, 0.92))
 	_update_shadow(w, p)
 	if is_instance_valid(_under):
 		_under.queue_redraw()
@@ -421,62 +343,19 @@ func _over_edge(w: World, p: Vector2) -> bool:
 	return w.level.kind_at(floori((w.draw_scroll() + p.x + 6.0) / Level.TILE), row) != Level.Kind.TOP
 
 
-func _set_pose(pose: StringName) -> void:
-	if pose == _pose:
-		return
-	# changing between the ground and the air pops a little
-	var air := [&"leap", &"tuck", &"leap_up"]
-	if (pose in air) != (_pose in air) and not _pose.is_empty():
-		_squash *= Vector2(0.94, 1.06) if pose in air else Vector2(1.06, 0.94)
-	if _pose == &"leap" and pose == &"tuck":  # the leap leans forward: the tuck turns in from it
-		_settle = 0.22
-	_pose = pose
+func _set_anim(anim: StringName, index: int) -> void:
+	if anim != _anim and _anim == &"jump" and anim == &"catch":
+		_settle = 0.0
+	_anim = anim
+	_index = index
 
 
-func pose() -> StringName:
-	return _pose
-
-
-# ------------------------------------------------------------------ scarf and shadow
-
-## The scarf's links follow the knot; the wind of the run blows them back, gravity pulls them
-## down, a flutter ripples them (position-based: each link kept at its distance from the last).
-func _update_scarf(w: World, pose: StringName, dt: float) -> void:
-	var show := SCARF_KNOT.has(pose) and w.state != World.State.DEAD
-	if not show:  # a pose with its scarf painted in full: the code one goes at once
-		_scarf_alpha = 0.0
-		return
-	var knot: Vector2 = get_transform() * (SCARF_KNOT[pose] + Vector2(PAD, PAD) + _sprite.offset)
-	if _scarf_alpha <= 0.0:  # back: laid out straight behind the knot, then it moves on its own
-		for i in SCARF_LINKS:
-			_scarf[i] = knot + Vector2(-SCARF_LINK * i, SCARF_LINK * 0.3 * i)
-			_scarf_speed[i] = Vector2.ZERO
-	_scarf_alpha = move_toward(_scarf_alpha, 1.0, dt * 12.0)
-	if dt <= 0.0:
-		return
-	var running := w.state == World.State.RUNNING and w.ticks > 0 and not w.blocked
-	var wind := Vector2(-World.SCROLL_SPEED / World.TICK if running else 0.0, 0.0)
-	_scarf[0] = knot
-	var before := _scarf.duplicate()
-	for i in range(1, SCARF_LINKS):
-		var flutter := Vector2(0, sin(_clock * 15.0 - i * 0.95) * 170.0 * float(i) / SCARF_LINKS)
-		var lift := Vector2(0, -0.32 * absf(wind.x))  # cloth in a fast wind flies up as well as back
-		var v := _scarf_speed[i]
-		v += (Vector2(0, 300.0) + (wind + lift + flutter - v) * 7.0) * dt
-		_scarf_speed[i] = v
-		_scarf[i] += v * dt
-	for it in 3:
-		for i in range(1, SCARF_LINKS):
-			var d := _scarf[i] - _scarf[i - 1]
-			_scarf[i] = _scarf[i - 1] + d.normalized() * SCARF_LINK if d.length() > 0.001 else _scarf[i - 1] + Vector2(-SCARF_LINK, 0)
-	for i in range(1, SCARF_LINKS):
-		_scarf_speed[i] = _scarf_speed[i].lerp((_scarf[i] - before[i]) / dt, 0.5)
-
+# ------------------------------------------------------------------ shadow
 
 ## The shadow sits on the first grass top below him, smaller and lighter the higher he is.
 func _update_shadow(w: World, p: Vector2) -> void:
 	_shadow = Vector2(-1, -1)
-	if w.state != World.State.RUNNING and w.state != World.State.WON:
+	if w.state == World.State.DEAD and w.death_reason != &"bandit":
 		return
 	var col := floori((w.draw_scroll() + p.x) / Level.TILE)
 	if col < 0 or col >= Level.COLS:
@@ -486,48 +365,17 @@ func _update_shadow(w: World, p: Vector2) -> void:
 		if w.level.kind_at(col, r) == Level.Kind.TOP:
 			var ground := r * Level.TILE + GameArt.FEET_SINK - 3.0
 			_shadow = Vector2(p.x, ground)
-			_shadow_k = clampf(1.0 - (ground - feet) / 360.0, 0.0, 1.0) * _end_alpha
+			_shadow.x = p.x + _wall_shift + SHADOW_SHIFT + (_death.x if w.state == World.State.DEAD else 0.0)
+			_shadow_k = clampf(1.0 - (ground - feet) / 360.0, 0.0, 1.0)
 			return
 
 
 func _draw_under() -> void:
-	if _shadow.x >= 0.0:
-		var w := 40.0 * (0.45 + 0.55 * _shadow_k)
-		for i in 5:  # a soft ellipse: rings of falling darkness
-			var r := 1.0 - i * 0.18
-			_under.draw_set_transform(_shadow, 0.0, Vector2(1.0, 0.24))
-			_under.draw_circle(Vector2.ZERO, w * r, Color(0.14, 0.05, 0.06, 0.12 * _shadow_k + 0.03))
-		_under.draw_set_transform(Vector2.ZERO)
-	if _scarf_alpha <= 0.01 or _scarf[0] == Vector2.ZERO:
+	if _shadow.x < 0.0:
 		return
-	# the ribbon: two tails from the knot, tapering, lit on top, an ink edge
-	var a := _scarf_alpha * _visible
-	for tail in 2:
-		var left := PackedVector2Array()
-		var right := PackedVector2Array()
-		for i in SCARF_LINKS:
-			var p := _scarf[i] + Vector2(0, tail * 2.2 * float(i) / SCARF_LINKS)
-			var t := _scarf[mini(i + 1, SCARF_LINKS - 1)] - _scarf[maxi(i - 1, 0)]
-			var n := t.normalized().orthogonal() if t.length() > 0.001 else Vector2.UP
-			var width := lerpf(5.6, 2.2, float(i) / (SCARF_LINKS - 1)) * (1.0 if tail == 0 else 0.8)
-			left.append(p + n * width)
-			right.append(p - n * width)
-		var tip := _scarf[SCARF_LINKS - 1] + (_scarf[SCARF_LINKS - 1] - _scarf[SCARF_LINKS - 2]) * (0.6 - tail * 0.25)
-		var base := Color(SCARF_RED if tail == 0 else SCARF_RED.darkened(0.2), a)
-		var ink := Color(INK, a * 0.85)
-		# the ink edge first (a little wider), then the cloth: quad by quad, drawn as triangles
-		# (a twisted quad is a bow tie that draw_colored_polygon can't triangulate)
-		var edge := left.duplicate()
-		edge.append(tip)
-		var back := right.duplicate()
-		back.reverse()
-		edge.append_array(back)
-		_under.draw_polyline(edge, ink, 2.4, true)
-		var fill := PackedColorArray([base, base, base, base])
-		for i in SCARF_LINKS - 1:
-			_under.draw_primitive(PackedVector2Array([left[i], left[i + 1], right[i]]), fill.slice(0, 3), PackedVector2Array())
-			_under.draw_primitive(PackedVector2Array([left[i + 1], right[i + 1], right[i]]), fill.slice(0, 3), PackedVector2Array())
-		_under.draw_primitive(PackedVector2Array([left[SCARF_LINKS - 1], tip, right[SCARF_LINKS - 1]]), fill.slice(0, 3), PackedVector2Array())
-		# the shaded underside and a lit edge along the top
-		_under.draw_polyline(right, Color(SCARF_DARK, a * 0.7), 1.6, true)
-		_under.draw_polyline(left, Color(SCARF_LIGHT, a * 0.55), 1.1, true)
+	var w := 46.0 * (0.45 + 0.55 * _shadow_k)
+	for i in 6:  # a soft ellipse: rings of falling darkness, darkest under his feet
+		var r := 1.0 - i * 0.15
+		_under.draw_set_transform(_shadow, 0.0, Vector2(_shadow_w, 0.2))
+		_under.draw_circle(Vector2.ZERO, w * r, Color(0.16, 0.06, 0.1, (0.11 * _shadow_k + 0.03) * _visible))
+	_under.draw_set_transform(Vector2.ZERO)

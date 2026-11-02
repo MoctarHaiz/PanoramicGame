@@ -9,6 +9,9 @@ const PRESS_DEPTH := 6.0
 ## Inner content (text, icon) that sinks with the face. Set by the Ui builders.
 var content: Control
 var click_sound := true
+## Smallest side of the area that takes touches (design units): a small button still takes a
+## thumb-sized touch around it.
+var touch_size := Ui.MIN_TOUCH
 
 var _tween: Tween
 var _squash := 1.0  # pressed size (animated)
@@ -26,14 +29,34 @@ func _ready() -> void:
 	set_process(_breath > 0)
 
 
-## A slow, springy pulse that says "tap me" (the screen's main action).
+## The area that takes touches, in the button's own coordinates: its rect, grown to touch_size.
+func hit_rect() -> Rect2:
+	var grow := ((Vector2(touch_size, touch_size) - size) / 2).max(Vector2.ZERO)
+	return Rect2(-grow, size + grow * 2)
+
+
+func _has_point(point: Vector2) -> bool:
+	return hit_rect().has_point(point)
+
+
+## The touch area on screen (for screens that route touches themselves).
+func global_hit_rect() -> Rect2:
+	var r := hit_rect()
+	return Rect2(get_global_transform() * r.position, r.size * get_global_transform().get_scale())
+
+
+## A slow, springy pulse that says "tap me" (the screen's main action). Not with reduced motion.
 func idle(strength := 0.035) -> void:
+	if not Prefs.motion():
+		return
 	_breath = strength
 	set_process(is_inside_tree())
 
 
 ## A band of light sweeps across the face every `every` seconds (the face's shape clips it).
 func shine(every := 3.2) -> void:
+	if not Prefs.motion():
+		return
 	var band := _Shine.new()
 	band.every = every
 	band.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

@@ -1,7 +1,10 @@
 # Chaka Zulu 2.0: art direction brief
 
 The contract every asset is checked against (create-game-assets skill). The approved visual target is
-the user's own hero art; everything else is made to sit next to it.
+the user's own hero, now his 3D model (`ROOT/Making/Animation.blend`, rendered by
+`tools/art/blender/hero_render.py` with the user's lights plus the savanna's warm rim and bounce);
+everything else is made to sit next to it: the play layer moves toward a lit, material-rich look
+(`tools/art/material.py`, `terrain.gdshader`, `form.gdshader`, 3D-rendered ring).
 
 ## Game frame
 
@@ -38,8 +41,9 @@ the user's own hero art; everything else is made to sit next to it.
 - Materials and surface cues: painted soft shading (no hard cel bands), skin with warm rim, cloth with
   folds, metal (armour, boots) with crisp specular, foliage in clumps of lit pads, soil with strata and
   pebbles, thatch in shaggy tiers, water clear turquoise to deep blue.
-- Edge/line treatment: actors keep a thin dark warm outline (as in the hero art) plus a warm rim on the
-  right; the world has soft painterly edges with an outline only on the playable terrain edge.
+- Edge/line treatment: the hero has no drawn outline (his 3D render reads by its own light: a warm rim
+  from the sun behind him, specular boots and armour); the world has soft edges with a dark rim only
+  on the playable terrain edge.
 - Lighting direction and contrast: one key light, upper left, warm (golden hour); warm rim on the right;
   cool violet ambient in shade; light grade warm wash from the sun corner, soft vignette.
 - Detail density and focal hierarchy: detail concentrated on the actors and the path edge; background
@@ -73,8 +77,9 @@ the user's own hero art; everything else is made to sit next to it.
 
 ## Visual target
 
-- Approved seed/reference paths: `tools/art/ref/user/hero_sheet.png`, `tools/art/ref/user/hero_portrait.jpg`
-  (the user generated these and approved them on 2026-10-30; the hand-made samples in
+- Approved seed/reference paths: the user's 3D renders `ROOT/Making/<Anim><View>/` and their Blender
+  files (2026-11-01, they replace `tools/art/ref/user/hero_sheet.png` and `hero_portrait.jpg`, approved
+  on 2026-10-30; the hand-made samples in
   `docs/art/samples/` were rejected and are never reused).
 - Required do/don't examples: do match the hero's soft painted shading and warm rim; don't use flat vector
   fills with uniform black strokes, don't add grey shadows, don't let background trees out-contrast actors.

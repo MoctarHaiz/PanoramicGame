@@ -167,18 +167,22 @@ static func flier(parent: Node, from: Vector2, to: Vector2, start_size: float, e
 	parent.add_child(s)
 	# the pop: a quick swell with a squash, then away on a curve (up first, then to the counter)
 	var lift := from + Vector2(-from.distance_to(to) * 0.08, -minf(110.0, from.distance_to(to) * 0.35))
-	# (it leaves at once and shrinks as it goes, two fading afterimages behind it: a quick run of
-	# pickups reads as treasure flying home, never as a clump of loose Bobs)
-	var ghosts: Array[Sprite2D] = []
-	for i in 2:
-		var g := Sprite2D.new()
-		g.texture = _faces[Face.JOY]
-		g.modulate = Color(1, 0.75, 0.6, 0.26 - i * 0.12)
-		g.position = from
-		g.scale = s.scale
-		parent.add_child(g)
-		parent.move_child(g, s.get_index())
-		ghosts.append(g)
+	# (it leaves at once and shrinks as it goes, a short tapered streak of warm light behind it: a
+	# quick run of pickups reads as treasure flying home; New: no more faded copies of the ball,
+	# which read as a drawing bug)
+	var streak := Line2D.new()
+	streak.width = start_size * 0.55
+	streak.width_curve = Curve.new()
+	streak.width_curve.add_point(Vector2(0, 1))
+	streak.width_curve.add_point(Vector2(1, 0))
+	streak.gradient = Gradient.new()
+	streak.gradient.set_color(0, Color(1.0, 0.72, 0.42, 0.55))
+	streak.gradient.set_color(1, Color(1.0, 0.45, 0.2, 0.0))
+	streak.joint_mode = Line2D.LINE_JOINT_ROUND
+	streak.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	streak.material = _additive
+	parent.add_child(streak)
+	parent.move_child(streak, s.get_index())
 	var history: Array[Vector2] = []
 	var t := s.create_tween()
 	t.tween_method(func(u: float) -> void:
@@ -189,13 +193,11 @@ static func flier(parent: Node, from: Vector2, to: Vector2, start_size: float, e
 		s.rotation = -0.6 * u
 		s.scale = Vector2.ONE * lerpf(k0 * 0.8, k1 * 0.8, sqrt(u))
 		history.push_front(s.position)
-		if history.size() > 7:
+		if history.size() > 6:
 			history.pop_back()
-		for i in ghosts.size():
-			ghosts[i].position = history[mini((i + 1) * 3, history.size() - 1)]
-			ghosts[i].scale = s.scale * (0.86 - i * 0.12), 0.0, 1.0, 0.42)
+		streak.points = PackedVector2Array(history)
+		streak.width = s.scale.x * _radius_px * 1.1, 0.0, 1.0, 0.42)
 	t.tween_callback(func() -> void:
 		arrived.call()
-		for g in ghosts:
-			g.queue_free()
+		streak.queue_free()
 		s.queue_free())

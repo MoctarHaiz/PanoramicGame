@@ -59,10 +59,13 @@ func _draw() -> void:
 	var o := maxf(side * 0.06, 2.5)  # outline thickness
 	var c := size / 2 + Vector2(0, side * 0.04)
 	var r := side * 0.5 - o
-	if not lit:  # a carved slot: a lit lip below, the dark inset, its shadow along the top
-		draw_colored_polygon(points(c + Vector2(0, o * 0.5), r + o * 0.5), Color(1, 0.78, 0.5, 0.35))
-		draw_colored_polygon(points(c, r + o * 0.3), Color(0.1, 0.02, 0.0, 0.7))
-		draw_colored_polygon(points(c + Vector2(0, o * 0.6), r - o * 0.4), Color(0.32, 0.12, 0.05, 0.9))
+	if not lit:  # a socket carved in the panel: a lit lip below, an ink rim, the floor in the
+		# shade of its upper edges and catching the light lower down
+		draw_colored_polygon(points(c + Vector2(0, o * 0.7), r + o * 0.6), Color(1, 0.96, 0.85, 0.55))
+		draw_colored_polygon(points(c, r + o * 0.6), Color(INK, 0.75))
+		draw_colored_polygon(points(c, r - o * 0.3), Color(0.36, 0.16, 0.06, 0.9))
+		draw_colored_polygon(points(c + Vector2(0, o * 1.1), r - o * 1.3), Color(0.58, 0.32, 0.14, 0.9))
+		draw_colored_polygon(points(c + Vector2(0, o * 1.4), r * 0.42), Color(0.7, 0.44, 0.2, 0.6))
 		return
 	# the ink outline (a fatter star), the bevel under the face, then the face
 	draw_colored_polygon(points(c + Vector2(0, o * 0.5), r + o * 1.15, 0.55), INK)

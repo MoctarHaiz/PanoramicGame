@@ -26,11 +26,27 @@ def set_params(path: Path, values: dict) -> bool:
     return False
 
 
+# Pictures stored block-compressed in video memory (S3TC on desktops, ETC2/ASTC on phones: a
+# quarter of the memory, 1 byte a pixel): Panoramic's atlases and the big painted layers of the
+# world and the bandits. Not the pictures whose channels are data (terrain_shape.png), the smooth
+# sky gradients (blocks would show), the big menu pictures, nor the interface.
+VRAM = ["hero/hero_atlas_", "world/", "bandit/"]
+LOSSLESS = ["world/terrain_shape.png", "world/sky.png", "world/sunset_sky.png"]
+
+
+def compressed(imp: Path) -> bool:
+    rel = str(imp.relative_to(NEW / "assets/art"))[: -len(".import")]
+    return any(rel.startswith(p) for p in VRAM) and rel not in LOSSLESS
+
+
 changed = []
 for imp in sorted(NEW.glob("assets/art/**/*.png.import")):
     if "/icons/" in str(imp) or imp.name.startswith("boot_splash"):
         continue
-    if set_params(imp, {"mipmaps/generate": "true"}):
+    values = {"mipmaps/generate": "true", "compress/mode": "2" if compressed(imp) else "0"}
+    if compressed(imp):
+        values["compress/high_quality"] = "false"
+    if set_params(imp, values):
         changed.append(imp)
 for imp in sorted(NEW.glob("assets/icons/*.svg.import")):
     if set_params(imp, {"mipmaps/generate": "true"}):

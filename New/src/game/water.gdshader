@@ -10,6 +10,7 @@ uniform vec4 shallow : source_color = vec4(0.2, 0.72, 0.8, 1.0);
 uniform vec4 deep : source_color = vec4(0.03, 0.15, 0.38, 1.0);
 uniform vec4 sky_tint : source_color = vec4(1.0, 0.82, 0.62, 1.0);
 uniform vec4 foam : source_color = vec4(0.97, 0.99, 1.0, 1.0);
+uniform sampler2D soil_tex : source_color, repeat_enable, filter_linear_mipmap;  // the banks' earth
 
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -68,6 +69,19 @@ void fragment() {
 	c += vec3(1.0, 0.97, 0.85) * step(0.88, h) * flash * star * (1.0 - smoothstep(4.0, 22.0, d));
 	// banks: the soil's shade on the water, and froth piled against it (bubbles of foam)
 	float bank = min(p.x, rect_size.x - p.x) - 8.0;  // units from the soil's face
+	// New: the banks slope down into the pool (they were vertical cuts): under the surface the earth
+	// reaches further out the deeper it goes, seen through the water (as water_front.gdshader tints
+	// the bank's own face), with a lighter rim where the slope turns to the light
+	float reach = 3.0 + 40.0 * (1.0 - exp(-max(d, 0.0) / 24.0)) + (noise(vec2(d * 0.12, x * 0.01)) - 0.5) * 7.0;
+	float slope = 1.0 - smoothstep(reach - 0.8, reach + 0.8, bank);
+	if (slope > 0.0) {
+		vec3 earth = texture(soil_tex, vec2(x, p.y) / 256.0, 0.5).rgb;
+		float rim = 1.0 - smoothstep(0.0, 4.0, reach - bank);
+		earth *= 0.8 + 0.5 * rim;
+		vec3 through = mix(shallow.rgb, deep.rgb, clamp((d - 3.0) / 46.0, 0.0, 1.0));
+		vec3 e = mix(earth, through, clamp(0.45 + d / 70.0, 0.45, 0.85));
+		c = mix(c, e, slope);
+	}
 	c *= mix(0.6, 1.0, smoothstep(0.0, 22.0, bank));
 	float bubbles = noise(vec2(x * 0.35, d * 0.35 - t * 0.4)) * 0.6 + noise(vec2(x * 0.9 + t * 0.3, d * 0.9)) * 0.4;
 	float froth = (1.0 - smoothstep(2.0, 22.0, bank + d * 0.35)) * (1.0 - smoothstep(6.0, 24.0, d));

@@ -3,19 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://idm2l3068anm"
-path="res://.godot/imported/tree_acacia_2.png-a31ca1cfd59c586ded261f2d1382bcb5.ctex"
+path.s3tc="res://.godot/imported/tree_acacia_2.png-a31ca1cfd59c586ded261f2d1382bcb5.s3tc.ctex"
+path.etc2="res://.godot/imported/tree_acacia_2.png-a31ca1cfd59c586ded261f2d1382bcb5.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/art/world/tree_acacia_2.png"
-dest_files=["res://.godot/imported/tree_acacia_2.png-a31ca1cfd59c586ded261f2d1382bcb5.ctex"]
+dest_files=["res://.godot/imported/tree_acacia_2.png-a31ca1cfd59c586ded261f2d1382bcb5.s3tc.ctex", "res://.godot/imported/tree_acacia_2.png-a31ca1cfd59c586ded261f2d1382bcb5.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

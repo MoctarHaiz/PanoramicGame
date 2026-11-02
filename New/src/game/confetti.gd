@@ -7,12 +7,12 @@ extends Node2D
 ## pieces smear along their path. Everything is drawn in a few batched calls, then the node frees
 ## itself. Made by Fx (rescue, game over, the bushes, the stone).
 
-enum Shape { PAPER, RIBBON, SEQUIN, STAR, LEAF, CHIP }
+enum Shape { PAPER, RIBBON, SEQUIN, STAR, LEAF, CHIP, COIN }
 
 ## Size of each shape in design px at size 1.
 const SIZES := {
 	Shape.PAPER: Vector2(19, 12), Shape.RIBBON: Vector2(30, 10), Shape.SEQUIN: Vector2(13, 13),
-	Shape.STAR: Vector2(19, 19), Shape.LEAF: Vector2(27, 14), Shape.CHIP: Vector2(15, 13),
+	Shape.STAR: Vector2(19, 19), Shape.LEAF: Vector2(27, 14), Shape.CHIP: Vector2(15, 13), Shape.COIN: Vector2(22, 22),
 }
 const STREAK_SPEED := 420.0  ## faster than this (px/s), a piece leaves a smear
 
@@ -164,7 +164,7 @@ func _draw() -> void:
 		if p.age < 0.0 or p.age >= p.life:
 			continue
 		var speed := p.vel.length()
-		if speed > STREAK_SPEED:
+		if speed > STREAK_SPEED and p.shape != Shape.COIN:  # a coin is solid metal: no paper smear
 			var k := minf((speed - STREAK_SPEED) / 600.0, 1.0)
 			var c := _shade(p)
 			c.a *= 0.4 * k
@@ -266,6 +266,17 @@ static func _bake_textures() -> void:
 		var edge := 0.82 + 0.13 * sin(a * 3.0 + 0.7) + 0.06 * sin(a * 5.0)
 		var facet := 1.0 if a < -PI * 0.25 and a > -PI * 0.95 else (0.62 if a > PI * 0.15 else 0.8)
 		return Vector2(facet, (edge - u.length()) * 9.0))
+	# A coin: a raised rim catching the light, a sunken field, an embossed star in the middle.
+	_textures[Shape.COIN] = _bake(Vector2i(44, 44), func(u: Vector2) -> Vector2:
+		var r := u.length()
+		var light := clampf(u.dot(Vector2(-0.6, -0.8)) * 0.5 + 0.5, 0.0, 1.0)
+		var a := atan2(u.y, u.x) + PI / 2
+		var arm := absf(fposmod(a, TAU / 5) - TAU / 10) / (TAU / 10)
+		var star := 1.0 - smoothstep(lerpf(0.5, 0.24, arm) - 0.05, lerpf(0.5, 0.24, arm) + 0.03, r)
+		var rim := smoothstep(0.72, 0.8, r)
+		var b := lerpf(0.68 + 0.18 * light, 0.86 + 0.14 * light, rim)
+		b = lerpf(b, 0.95 + 0.05 * light, star)
+		return Vector2(b - 0.12 * smoothstep(0.86, 0.95, r) * (1.0 - light), (0.97 - r) * 14.0))
 	# A glint: a hot core, four thin spikes and a soft halo.
 	_flare = _bake(Vector2i(64, 64), func(u: Vector2) -> Vector2:
 		var r := u.length()

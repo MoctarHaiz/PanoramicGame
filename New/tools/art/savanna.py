@@ -526,7 +526,9 @@ def main() -> None:
         return not which or name in which
 
     if want("sky"):
-        save(sky(), "sky.png")
+        # a soft gradient: stored at half size (it is stretched over the screen anyway; 0.8 MB of
+        # video memory instead of 3.3)
+        save(sky().resize((512, 320), Image.LANCZOS), "sky.png")
     if want("sun"):
         save(sun(), "sun.png")
         save(rays(), "rays.png")

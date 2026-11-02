@@ -35,12 +35,12 @@ func build() -> void:
 	var hut_info: Dictionary = info["home_hut"]
 	var hut_left: float = LEFT + DOOR_RIGHT - float(hut_info["front_x"])
 	# the back of the homestead: huts and a granary behind the palisade
-	_put(back, "home_granary", LEFT + 330.0, 0.95, Color(0.9, 0.88, 0.9))
-	_put(back, "home_hut_small", LEFT + 1120.0, 0.9, Color(0.92, 0.9, 0.93))
-	_put(back, "home_hut_low", LEFT + 1400.0, 0.8, Color(0.86, 0.84, 0.9), true)
+	_put(back, "home_granary", LEFT + 330.0, 0.95, Color(0.9, 0.88, 0.9)).material = form(1.0)
+	_put(back, "home_hut_small", LEFT + 1120.0, 0.9, Color(0.92, 0.9, 0.93)).material = form(1.0)
+	_put(back, "home_hut_low", LEFT + 1400.0, 0.8, Color(0.86, 0.84, 0.9), true).material = form(1.0)
 	_fence(back, LEFT + 120.0, LEFT + 680.0)
 	_fence(back, LEFT + 960.0, LEFT + 1900.0)
-	_put(back, "home_sign", LEFT + 548.0, 1.35, Color.WHITE)
+	_put(back, "home_sign", LEFT + 548.0, 1.35, Color.WHITE).material = form(0.0, 0.6)
 	_put(back, "home_pot", hut_left + float(hut_info["door_x"]) - 62.0, 1.0, Color.WHITE)
 	var path := _sprite("home_yard", 1.0)  # trodden earth up to the doorway
 	path.position = Vector2(hut_left + float(hut_info["door_x"]) - 70.0, GROUND - 10.0 + 30.0)
@@ -63,6 +63,7 @@ func build() -> void:
 	back.add_child(shade)
 	var hut := _sprite("home_hut", 1.0)
 	hut.position = Vector2(hut_left, GROUND + 4.0)
+	hut.material = form(1.0)
 	back.add_child(hut)
 	var smoke := _smoke()
 	smoke.position = Vector2(hut_left + float(hut_info["size"][0]) / 2.0, GROUND + 4.0 - float(hut_info["size"][1]) + 18.0)
@@ -108,14 +109,25 @@ func _sprite(name: String, k: float) -> Sprite2D:
 	return s
 
 
+## New: the huts were painted flat ("no shadow side, no rim: a sticker"); form.gdshader lights each
+## as a rounded form from the sun's side, darkens its foot and puts a warm rim on its sun edge.
+static func form(dome: float, strength := 1.0) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = preload("res://src/game/form.gdshader")
+	m.set_shader_parameter(&"dome", dome)
+	m.set_shader_parameter(&"strength", strength)
+	return m
+
+
 ## A picture standing on the ground, its foot centred at x.
-func _put(layer: Node2D, name: String, x: float, k: float, colour: Color, flip := false) -> void:
+func _put(layer: Node2D, name: String, x: float, k: float, colour: Color, flip := false) -> Sprite2D:
 	var s := _sprite(name, k)
 	s.offset = Vector2(-s.texture.get_width() / 2.0, -s.texture.get_height())
 	s.position = Vector2(x, GROUND + 5.0)
 	s.modulate = colour
 	s.flip_h = flip
 	layer.add_child(s)
+	return s
 
 
 ## The palisade from x0 to x1: its picture repeats along the ground.

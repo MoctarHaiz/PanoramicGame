@@ -11,6 +11,10 @@ const DIR := "res://assets/art/world/"
 const HORIZON := 0.74  ## share of the height
 const SUN_X := 0.36
 
+## Where the sun is, as shares of the size (the menu puts it behind Panoramic, away from the buttons).
+var sun_at := Vector2(SUN_X, HORIZON - 0.13)
+## The large acacia framing the left edge and the baobab near it (off where a character stands there).
+var framing_tree := true
 var _clock := 0.0
 var _tex := {}
 var _painters: Array[Node2D] = []
@@ -67,7 +71,7 @@ func _k() -> float:  ## design units (640 tall) to this control's pixels
 
 
 func _sun() -> Vector2:
-	return Vector2(size.x * SUN_X, size.y * HORIZON - size.y * 0.13)
+	return size * sun_at
 
 
 func _draw_sky(ci: CanvasItem) -> void:
@@ -80,8 +84,10 @@ func _draw_sun(ci: CanvasItem) -> void:
 	var r := size.y * 0.15 * (1.0 + sin(_clock * 0.8) * 0.01)
 	var glow := size.y * 1.5
 	ci.draw_texture_rect(_tex[&"sun"], Rect2(c - Vector2(glow, glow) / 2, Vector2(glow, glow)), false, Color(1, 0.8, 0.6, 0.9))
-	ci.draw_circle(c, r, Color(1.0, 0.86, 0.56, 0.9), true, -1.0, true)
-	ci.draw_circle(c, r * 0.92, Color(1.0, 0.95, 0.78, 0.8), true, -1.0, true)
+	# a soft-edged disc, white-hot in its middle, warmer towards its rim (no hard cut-out edge)
+	for ring: Array in [[1.16, Color(1.0, 0.8, 0.5, 0.18)], [1.07, Color(1.0, 0.84, 0.55, 0.35)],
+			[1.0, Color(1.0, 0.86, 0.58, 0.75)], [0.93, Color(1.0, 0.92, 0.7, 0.8)], [0.8, Color(1.0, 0.97, 0.86, 0.85)]]:
+		ci.draw_circle(c, r * ring[0], ring[1], true, -1.0, true)
 
 
 ## Soft rays fanning up from the low sun, turning very slowly.
@@ -112,9 +118,11 @@ func _draw_strip(ci: CanvasItem, name: StringName, drop: float, units_per_px: fl
 func _draw_trees(ci: CanvasItem) -> void:
 	var dark := Color(0.2, 0.1, 0.17)
 	var k := _k()
-	_tree(ci, &"tree_acacia_1", Vector2(size.x * 0.0 + 40.0 * k, size.y * (HORIZON + 0.2)), 360.0 * k, dark, true)
+	if framing_tree:
+		_tree(ci, &"tree_acacia_1", Vector2(size.x * 0.0 + 40.0 * k, size.y * (HORIZON + 0.2)), 360.0 * k, dark, true)
 	_tree(ci, &"tree_acacia_2", Vector2(size.x * 0.6, size.y * (HORIZON + 0.06)), 120.0 * k, Color(0.3, 0.14, 0.24), false)
-	_tree(ci, &"tree_baobab_1", Vector2(size.x * 0.17, size.y * (HORIZON + 0.07)), 140.0 * k, Color(0.3, 0.15, 0.26), false)
+	if framing_tree:
+		_tree(ci, &"tree_baobab_1", Vector2(size.x * 0.17, size.y * (HORIZON + 0.07)), 140.0 * k, Color(0.3, 0.15, 0.26), false)
 
 
 func _tree(ci: CanvasItem, name: StringName, foot: Vector2, height: float, tint: Color, flip: bool) -> void:

@@ -104,12 +104,12 @@
    }
   },
   {
-   "id": "fx-ring",
-   "role": "Panoramic's throwing ring (a lit torus of blue light)",
-   "path": "assets/art/fx/ring.png",
+   "id": "fx-ring_spin",
+   "role": "Panoramic's throwing ring: a 3D blue-steel torus with a glowing inner edge, 8 frames of a half turn",
+   "path": "assets/art/fx/ring_spin.png",
    "status": "approved",
    "technical": {
-    "dimensions": "128x128",
+    "dimensions": "768x96",
     "alpha": true,
     "anchor": "centre",
     "frames": null,
@@ -121,10 +121,10 @@
    ],
    "source": {
     "kind": "authored-procedural",
-    "url_or_tool": "tools/art/ring.py",
+    "url_or_tool": "tools/art/blender/ring_render.py (Blender)",
     "creator": "Claude for Haiz Studio",
     "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/ring.py",
+    "prompt_or_source_record": "tools/art/blender/ring_render.py (Blender)",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -169,14 +169,14 @@
    }
   },
   {
-   "id": "hero-crouch",
-   "role": "Panoramic pose (cut out of the hero sheet, Real-ESRGAN x4 + IS-Net)",
-   "path": "assets/art/hero/crouch.png",
+   "id": "hero-hero_atlas_0",
+   "role": "Panoramic's animation frames: the user's 3D model (Making/Animation.blend) re-lit and posed by tools/art/blender/hero_render.py, packed by tools/art/hero_atlas.py (hero_frames.json)",
+   "path": "assets/art/hero/hero_atlas_0.png",
    "status": "approved",
    "technical": {
-    "dimensions": "213x242",
+    "dimensions": "2040x2032",
     "alpha": true,
-    "anchor": "per hero.json (feet / centre / staff tip)",
+    "anchor": "per hero_frames.json (ground origin / hips / hands)",
     "frames": null,
     "filtering": "linear"
    },
@@ -189,10 +189,10 @@
    ],
    "source": {
     "kind": "user-generated",
-    "url_or_tool": "tools/art/hero_sprites.py",
+    "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rendered by tools/art/blender/hero_render.py",
     "creator": "Haiz Studio",
     "license": "owned by Haiz Studio",
-    "prompt_or_source_record": "tools/art/ref/user/hero_sheet.png, hero_portrait.jpg",
+    "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -205,14 +205,14 @@
    }
   },
   {
-   "id": "hero-kneel",
-   "role": "Panoramic pose (cut out of the hero sheet, Real-ESRGAN x4 + IS-Net)",
-   "path": "assets/art/hero/kneel.png",
+   "id": "hero-hero_atlas_1",
+   "role": "Panoramic's animation frames: the user's 3D model (Making/Animation.blend) re-lit and posed by tools/art/blender/hero_render.py, packed by tools/art/hero_atlas.py (hero_frames.json)",
+   "path": "assets/art/hero/hero_atlas_1.png",
    "status": "approved",
    "technical": {
-    "dimensions": "220x235",
+    "dimensions": "2036x2012",
     "alpha": true,
-    "anchor": "per hero.json (feet / centre / staff tip)",
+    "anchor": "per hero_frames.json (ground origin / hips / hands)",
     "frames": null,
     "filtering": "linear"
    },
@@ -225,10 +225,10 @@
    ],
    "source": {
     "kind": "user-generated",
-    "url_or_tool": "tools/art/hero_sprites.py",
+    "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rendered by tools/art/blender/hero_render.py",
     "creator": "Haiz Studio",
     "license": "owned by Haiz Studio",
-    "prompt_or_source_record": "tools/art/ref/user/hero_sheet.png, hero_portrait.jpg",
+    "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -241,14 +241,14 @@
    }
   },
   {
-   "id": "hero-leap",
-   "role": "Panoramic pose (cut out of the hero sheet, Real-ESRGAN x4 + IS-Net)",
-   "path": "assets/art/hero/leap.png",
+   "id": "hero-hero_atlas_2",
+   "role": "Panoramic's animation frames: the user's 3D model (Making/Animation.blend) re-lit and posed by tools/art/blender/hero_render.py, packed by tools/art/hero_atlas.py (hero_frames.json)",
+   "path": "assets/art/hero/hero_atlas_2.png",
    "status": "approved",
    "technical": {
-    "dimensions": "268x331",
+    "dimensions": "2048x628",
     "alpha": true,
-    "anchor": "per hero.json (feet / centre / staff tip)",
+    "anchor": "per hero_frames.json (ground origin / hips / hands)",
     "frames": null,
     "filtering": "linear"
    },
@@ -261,10 +261,10 @@
    ],
    "source": {
     "kind": "user-generated",
-    "url_or_tool": "tools/art/hero_sprites.py",
+    "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rendered by tools/art/blender/hero_render.py",
     "creator": "Haiz Studio",
     "license": "owned by Haiz Studio",
-    "prompt_or_source_record": "tools/art/ref/user/hero_sheet.png, hero_portrait.jpg",
+    "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -277,30 +277,60 @@
    }
   },
   {
-   "id": "hero-leap_up",
-   "role": "Panoramic pose (cut out of the hero sheet, Real-ESRGAN x4 + IS-Net)",
-   "path": "assets/art/hero/leap_up.png",
+   "id": "hero-hero_menu",
+   "role": "Panoramic for the interface (portrait, full-length menu hero, win pose, stands): renders of the user's 3D model (tools/art/hero_atlas.py)",
+   "path": "assets/art/hero/hero_menu.png",
    "status": "approved",
    "technical": {
-    "dimensions": "284x370",
+    "dimensions": "698x1116",
     "alpha": true,
-    "anchor": "per hero.json (feet / centre / staff tip)",
+    "anchor": "bottom-centre",
     "frames": null,
     "filtering": "linear"
    },
    "visual_locks": [
     "identity",
-    "proportions",
-    "palette",
-    "facing",
-    "light-direction"
+    "palette"
    ],
    "source": {
     "kind": "user-generated",
-    "url_or_tool": "tools/art/hero_sprites.py",
+    "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rendered by tools/art/blender/hero_render.py",
     "creator": "Haiz Studio",
     "license": "owned by Haiz Studio",
-    "prompt_or_source_record": "tools/art/ref/user/hero_sheet.png, hero_portrait.jpg",
+    "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "hero-hero_win",
+   "role": "Panoramic for the interface (portrait, full-length menu hero, win pose, stands): renders of the user's 3D model (tools/art/hero_atlas.py)",
+   "path": "assets/art/hero/hero_win.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "389x916",
+    "alpha": true,
+    "anchor": "bottom-centre",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "identity",
+    "palette"
+   ],
+   "source": {
+    "kind": "user-generated",
+    "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rendered by tools/art/blender/hero_render.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -314,13 +344,13 @@
   },
   {
    "id": "hero-portrait",
-   "role": "hero portrait (menu, share card, icon source)",
+   "role": "Panoramic for the interface (portrait, full-length menu hero, win pose, stands): renders of the user's 3D model (tools/art/hero_atlas.py)",
    "path": "assets/art/hero/portrait.png",
    "status": "approved",
    "technical": {
     "dimensions": "660x752",
     "alpha": true,
-    "anchor": "bottom-right",
+    "anchor": "bottom-centre",
     "frames": null,
     "filtering": "linear"
    },
@@ -330,82 +360,10 @@
    ],
    "source": {
     "kind": "user-generated",
-    "url_or_tool": "IS-Net cut-out of hero_portrait.jpg",
+    "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rendered by tools/art/blender/hero_render.py",
     "creator": "Haiz Studio",
     "license": "owned by Haiz Studio",
-    "prompt_or_source_record": "tools/art/ref/user/hero_sheet.png, hero_portrait.jpg",
-    "created_at": "2026-10-30",
-    "attribution": ""
-   },
-   "verification": {
-    "native_scale_reviewed": true,
-    "in_engine_reviewed": true,
-    "technical_checks_passed": true,
-    "approved_by": "",
-    "notes": ""
-   }
-  },
-  {
-   "id": "hero-run_a",
-   "role": "Panoramic pose (cut out of the hero sheet, Real-ESRGAN x4 + IS-Net)",
-   "path": "assets/art/hero/run_a.png",
-   "status": "approved",
-   "technical": {
-    "dimensions": "283x361",
-    "alpha": true,
-    "anchor": "per hero.json (feet / centre / staff tip)",
-    "frames": null,
-    "filtering": "linear"
-   },
-   "visual_locks": [
-    "identity",
-    "proportions",
-    "palette",
-    "facing",
-    "light-direction"
-   ],
-   "source": {
-    "kind": "user-generated",
-    "url_or_tool": "tools/art/hero_sprites.py",
-    "creator": "Haiz Studio",
-    "license": "owned by Haiz Studio",
-    "prompt_or_source_record": "tools/art/ref/user/hero_sheet.png, hero_portrait.jpg",
-    "created_at": "2026-10-30",
-    "attribution": ""
-   },
-   "verification": {
-    "native_scale_reviewed": true,
-    "in_engine_reviewed": true,
-    "technical_checks_passed": true,
-    "approved_by": "",
-    "notes": ""
-   }
-  },
-  {
-   "id": "hero-run_b",
-   "role": "Panoramic pose (cut out of the hero sheet, Real-ESRGAN x4 + IS-Net)",
-   "path": "assets/art/hero/run_b.png",
-   "status": "approved",
-   "technical": {
-    "dimensions": "281x356",
-    "alpha": true,
-    "anchor": "per hero.json (feet / centre / staff tip)",
-    "frames": null,
-    "filtering": "linear"
-   },
-   "visual_locks": [
-    "identity",
-    "proportions",
-    "palette",
-    "facing",
-    "light-direction"
-   ],
-   "source": {
-    "kind": "user-generated",
-    "url_or_tool": "tools/art/hero_sprites.py",
-    "creator": "Haiz Studio",
-    "license": "owned by Haiz Studio",
-    "prompt_or_source_record": "tools/art/ref/user/hero_sheet.png, hero_portrait.jpg",
+    "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -419,29 +377,26 @@
   },
   {
    "id": "hero-stand_front",
-   "role": "Panoramic pose (cut out of the hero sheet, Real-ESRGAN x4 + IS-Net)",
+   "role": "Panoramic for the interface (portrait, full-length menu hero, win pose, stands): renders of the user's 3D model (tools/art/hero_atlas.py)",
    "path": "assets/art/hero/stand_front.png",
    "status": "approved",
    "technical": {
-    "dimensions": "300x605",
+    "dimensions": "274x656",
     "alpha": true,
-    "anchor": "per hero.json (feet / centre / staff tip)",
+    "anchor": "bottom-centre",
     "frames": null,
     "filtering": "linear"
    },
    "visual_locks": [
     "identity",
-    "proportions",
-    "palette",
-    "facing",
-    "light-direction"
+    "palette"
    ],
    "source": {
     "kind": "user-generated",
-    "url_or_tool": "tools/art/hero_sprites.py",
+    "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rendered by tools/art/blender/hero_render.py",
     "creator": "Haiz Studio",
     "license": "owned by Haiz Studio",
-    "prompt_or_source_record": "tools/art/ref/user/hero_sheet.png, hero_portrait.jpg",
+    "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -455,65 +410,26 @@
   },
   {
    "id": "hero-stand_side",
-   "role": "Panoramic pose (cut out of the hero sheet, Real-ESRGAN x4 + IS-Net)",
+   "role": "Panoramic for the interface (portrait, full-length menu hero, win pose, stands): renders of the user's 3D model (tools/art/hero_atlas.py)",
    "path": "assets/art/hero/stand_side.png",
    "status": "approved",
    "technical": {
-    "dimensions": "151x594",
+    "dimensions": "310x576",
     "alpha": true,
-    "anchor": "per hero.json (feet / centre / staff tip)",
+    "anchor": "bottom-centre",
     "frames": null,
     "filtering": "linear"
    },
    "visual_locks": [
     "identity",
-    "proportions",
-    "palette",
-    "facing",
-    "light-direction"
+    "palette"
    ],
    "source": {
     "kind": "user-generated",
-    "url_or_tool": "tools/art/hero_sprites.py",
+    "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rendered by tools/art/blender/hero_render.py",
     "creator": "Haiz Studio",
     "license": "owned by Haiz Studio",
-    "prompt_or_source_record": "tools/art/ref/user/hero_sheet.png, hero_portrait.jpg",
-    "created_at": "2026-10-30",
-    "attribution": ""
-   },
-   "verification": {
-    "native_scale_reviewed": true,
-    "in_engine_reviewed": true,
-    "technical_checks_passed": true,
-    "approved_by": "",
-    "notes": ""
-   }
-  },
-  {
-   "id": "hero-tuck",
-   "role": "Panoramic pose (cut out of the hero sheet, Real-ESRGAN x4 + IS-Net)",
-   "path": "assets/art/hero/tuck.png",
-   "status": "approved",
-   "technical": {
-    "dimensions": "228x325",
-    "alpha": true,
-    "anchor": "per hero.json (feet / centre / staff tip)",
-    "frames": null,
-    "filtering": "linear"
-   },
-   "visual_locks": [
-    "identity",
-    "proportions",
-    "palette",
-    "facing",
-    "light-direction"
-   ],
-   "source": {
-    "kind": "user-generated",
-    "url_or_tool": "tools/art/hero_sprites.py",
-    "creator": "Haiz Studio",
-    "license": "owned by Haiz Studio",
-    "prompt_or_source_record": "tools/art/ref/user/hero_sheet.png, hero_portrait.jpg",
+    "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -790,25 +706,92 @@
   },
   {
    "id": "ui-head",
-   "role": "interface ornament (beadwork, ribbon, shield, HUD head)",
+   "role": "Panoramic's face in a disc (the HUD's way home), from the user's 3D render",
    "path": "assets/art/ui/head.png",
    "status": "approved",
    "technical": {
-    "dimensions": "160x160",
+    "dimensions": "128x128",
     "alpha": true,
     "anchor": "centre",
     "frames": null,
     "filtering": "linear"
    },
    "visual_locks": [
+    "identity",
     "palette"
    ],
    "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/ui_art.py / logo.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/ui_art.py / logo.py",
+    "kind": "user-generated",
+    "url_or_tool": "tools/art/ui_hero.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "Making/IdleFront/0001.png",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "ui-hero_down",
+   "role": "Panoramic for the menu and results (cut from the user's 3D renders, Making/)",
+   "path": "assets/art/ui/hero_down.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "375x538",
+    "alpha": true,
+    "anchor": "bottom-centre at the boots",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "identity",
+    "palette"
+   ],
+   "source": {
+    "kind": "user-generated",
+    "url_or_tool": "tools/art/ui_hero.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "Making/IdleFront/0001.png, Making/DieFront/0026.png",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "ui-hero_stand",
+   "role": "Panoramic for the menu and results (cut from the user's 3D renders, Making/)",
+   "path": "assets/art/ui/hero_stand.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "407x985",
+    "alpha": true,
+    "anchor": "bottom-centre at the boots",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "identity",
+    "palette"
+   ],
+   "source": {
+    "kind": "user-generated",
+    "url_or_tool": "tools/art/ui_hero.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "Making/IdleFront/0001.png, Making/DieFront/0026.png",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -822,11 +805,11 @@
   },
   {
    "id": "ui-logo",
-   "role": "CHAKA ZULU logo over a Zulu shield",
+   "role": "CHAKA ZULU logo: bevelled gold letters over a Zulu shield and crossed assegais",
    "path": "assets/art/ui/logo.png",
    "status": "approved",
    "technical": {
-    "dimensions": "1231x808",
+    "dimensions": "1004x762",
     "alpha": true,
     "anchor": "centre",
     "frames": null,
@@ -837,10 +820,43 @@
    ],
    "source": {
     "kind": "authored-procedural",
-    "url_or_tool": "tools/art/logo.py",
+    "url_or_tool": "tools/art/ui_logo.py",
     "creator": "Claude for Haiz Studio",
     "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/logo.py",
+    "prompt_or_source_record": "tools/art/ui_logo.py",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "ui-menu_rock",
+   "role": "the backlit kopje Panoramic stands on in the menu",
+   "path": "assets/art/ui/menu_rock.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "1400x520",
+    "alpha": true,
+    "anchor": "his feet at (930, 104)",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette",
+    "light-direction"
+   ],
+   "source": {
+    "kind": "authored-procedural",
+    "url_or_tool": "tools/art/ui_hero.py",
+    "creator": "Claude for Haiz Studio",
+    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
+    "prompt_or_source_record": "tools/art/ui_hero.py",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -2105,39 +2121,6 @@
    }
   },
   {
-   "id": "world-rock_edges",
-   "role": "level world layer or terrain texture",
-   "path": "assets/art/world/rock_edges.png",
-   "status": "approved",
-   "technical": {
-    "dimensions": "176x128",
-    "alpha": true,
-    "anchor": "per view",
-    "frames": null,
-    "filtering": "linear"
-   },
-   "visual_locks": [
-    "palette",
-    "light-direction"
-   ],
-   "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/savanna.py / terrain.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
-    "created_at": "2026-10-30",
-    "attribution": ""
-   },
-   "verification": {
-    "native_scale_reviewed": true,
-    "in_engine_reviewed": true,
-    "technical_checks_passed": true,
-    "approved_by": "",
-    "notes": ""
-   }
-  },
-  {
    "id": "world-roots",
    "role": "level world layer or terrain texture",
    "path": "assets/art/world/roots.png",
@@ -2176,7 +2159,7 @@
    "path": "assets/art/world/sky.png",
    "status": "approved",
    "technical": {
-    "dimensions": "1024x640",
+    "dimensions": "512x320",
     "alpha": true,
     "anchor": "per view",
     "frames": null,
@@ -2210,6 +2193,39 @@
    "status": "approved",
    "technical": {
     "dimensions": "512x512",
+    "alpha": true,
+    "anchor": "per view",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette",
+    "light-direction"
+   ],
+   "source": {
+    "kind": "authored-procedural",
+    "url_or_tool": "tools/art/savanna.py / terrain.py",
+    "creator": "Claude for Haiz Studio",
+    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
+    "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "world-spires",
+   "role": "level world layer or terrain texture",
+   "path": "assets/art/world/spires.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "384x840",
     "alpha": true,
     "anchor": "per view",
     "frames": null,

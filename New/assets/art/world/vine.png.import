@@ -3,19 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://xavt2r8f655v"
-path="res://.godot/imported/vine.png-07f7d1ce85096be1f3c37dc579246fe3.ctex"
+path.s3tc="res://.godot/imported/vine.png-07f7d1ce85096be1f3c37dc579246fe3.s3tc.ctex"
+path.etc2="res://.godot/imported/vine.png-07f7d1ce85096be1f3c37dc579246fe3.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/art/world/vine.png"
-dest_files=["res://.godot/imported/vine.png-07f7d1ce85096be1f3c37dc579246fe3.ctex"]
+dest_files=["res://.godot/imported/vine.png-07f7d1ce85096be1f3c37dc579246fe3.s3tc.ctex", "res://.godot/imported/vine.png-07f7d1ce85096be1f3c37dc579246fe3.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

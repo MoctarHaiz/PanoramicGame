@@ -5,6 +5,10 @@ extends SceneTree
 ## running bandit; hops: the take-off window of each hop across the small platforms at cols 456-503;
 ## falls: every landing of a bot run with its drop height; bot: where a bot run loses lives, per
 ## seed; windows: for each pit, how long the window is in which a jump still clears it.
+## bobs: which Red Bobs can be taken and survived (a bot aimed at each, from moments of a bot run;
+##   --from=COL,--to=COL to share the level between runs); warning: how long each bandit is in view
+##   before it reaches him, on the narrowest (iPad, 853 units) and widest (iPhone 15) screens;
+## latency: frames from a swipe to his picture moving, at 30/60/90/120 Hz.
 
 
 func _initialize() -> void:
@@ -25,6 +29,12 @@ func _initialize() -> void:
 	if "falls" in probes or "bot" in probes:
 		for s in String(a.get("seeds", "1")).split(","):
 			_bot_run(int(s), "falls" in probes)
+	if "bobs" in probes:
+		_bobs_reach(int(a.get("from", "0")), int(a.get("to", "800")))
+	if "warning" in probes:
+		_bandit_warning()
+	if "latency" in probes:
+		_latency()
 	quit()
 
 
@@ -124,3 +134,120 @@ func _bot_run(seed_value: int, landings: bool) -> void:
 		drops.sort()
 		print("  landings %d, drops (units): min %.0f, median %.0f, max %.0f; over 200: %d" % [drops.size(), drops[0],
 				drops[drops.size() / 2], drops[-1], drops.filter(func(d: float) -> bool: return d > 200.0).size()])
+
+
+## Red Bobs a player can take and live: from moments of a bot run 0.8 to 2.5 s before each Red Bob,
+## a bot that wants that one above all plays on; it counts if he is still running 2 s after taking
+## it (every Red Bob taken on such a run counts). Prints the ones no try could take.
+func _bobs_reach(from_col: int, to_col: int) -> void:
+	var t0 := Time.get_ticks_msec()
+	var w := World.new()
+	var bot := Bot.new(1)
+	var moments: Array[World] = []
+	while w.state == World.State.RUNNING and w.ticks < 9000:
+		if w.ticks % 20 == 0:
+			moments.append(w.clone())
+		bot.act(w)
+		w.tick()
+	var targets: Array[Vector2i] = []
+	for c in range(from_col, mini(to_col, Level.COLS)):
+		for r in Level.ROWS:
+			if w.level.ids[r * Level.COLS + c] in [84, 85] or Level.load_default().kind_at(c, r) == Level.Kind.BOB:
+				targets.append(Vector2i(c, r))
+	var proven := {}
+	var missing: Array[Vector2i] = []
+	for bob in targets:
+		if proven.has(bob):
+			continue
+		var bob_x := (bob.x + 0.5) * Level.TILE
+		var tries := moments.filter(func(m: World) -> bool:
+			var ahead := bob_x - (m.scroll + m.x)
+			return ahead > 180.0 and ahead < 600.0 and m.level.kind_at(bob.x, bob.y) == Level.Kind.BOB)
+		tries.reverse()  # the nearest moment first
+		var ok := false
+		for i in mini(tries.size(), 4):
+			var sim: World = tries[i].clone()
+			var aim := Bot.new(11 + i)
+			aim.target = bob
+			aim.plans = 30
+			var taken := -1
+			var before := sim.level.copy()
+			while sim.state == World.State.RUNNING and sim.ticks < 9000:
+				aim.act(sim)
+				sim.tick()
+				if taken < 0 and sim.level.kind_at(bob.x, bob.y) != Level.Kind.BOB:
+					taken = sim.ticks
+				if taken >= 0 and sim.ticks - taken >= 80:
+					break
+				if taken < 0 and bob_x < sim.scroll + sim.x - 260.0:
+					break
+			if taken >= 0 and sim.state != World.State.DEAD:
+				ok = true
+				for c in range(maxi(bob.x - 40, 0), mini(bob.x + 60, Level.COLS)):
+					for r in Level.ROWS:
+						if before.kind_at(c, r) == Level.Kind.BOB and sim.level.kind_at(c, r) != Level.Kind.BOB:
+							proven[Vector2i(c, r)] = true
+				break
+		if not ok:
+			missing.append(bob)
+			print("  bob col %d row %d: not taken alive in %d tries" % [bob.x, bob.y, mini(tries.size(), 4)])
+	print("bobs %d-%d: %d of %d taken alive, %d not: %s (%d s)" % [from_col, to_col, targets.size() - missing.size(), targets.size(),
+			missing.size(), missing, (Time.get_ticks_msec() - t0) / 1000])
+
+
+## Each bandit that comes at him in a bot run: seconds between first showing at the right edge (the
+## narrowest screen: iPad 4:3, 853 units of play; the widest: iPhone 15, about 1290) and reaching
+## the front of his body, or being knocked out first. Flags any under 1 s on the iPad.
+func _bandit_warning() -> void:
+	var w := World.new()
+	var bot := Bot.new(1)
+	var seen := {}  # id -> [tick in view on an iPad, tick in view on an iPhone]
+	var rows := []
+	while w.state == World.State.RUNNING and w.ticks < 9000:
+		bot.act(w)
+		w.tick()
+		for b in w.bandits:
+			if b.gone or not b.active:
+				if b.gone and seen.has(b.id) and seen[b.id].size() == 2:
+					rows.append([b.id, -1.0, (w.ticks - seen[b.id][0]) * World.TICK, int(b.x / Level.TILE), "gone"])
+					seen[b.id].append(true)
+				continue
+			var sx := b.x - w.scroll
+			if not seen.has(b.id):
+				seen[b.id] = [w.ticks if sx < 853.0 else -1, w.ticks]
+			elif seen[b.id][0] < 0 and sx < 853.0:
+				seen[b.id][0] = w.ticks
+			if seen[b.id].size() == 2 and seen[b.id][0] >= 0 and sx - World.BANDIT_SIZE.x / 2 - World.CLUB_REACH < w.x + World.HERO_SIZE.x / 4:
+				rows.append([b.id, (w.ticks - seen[b.id][0]) * World.TICK, (w.ticks - seen[b.id][1]) * World.TICK, int(b.x / Level.TILE),
+						"high" if b.y < w.y - 60.0 else ("low" if b.y > w.y + 60.0 else "level")])
+				seen[b.id].append(true)
+	for r: Array in rows:
+		if r[1] >= 0.0:
+			print("  bandit %2d at col %3d: in view %.2f s (iPad), %.2f s (wide) before its club reaches him; %s%s" % [r[0], r[3], r[1], r[2], r[4],
+					"   <-- under 1 s" if r[1] < 1.0 else ""])
+	print("warning: %d bandits reached him (%d under 1 s on an iPad); lives %d" % [rows.filter(func(r: Array) -> bool: return r[1] >= 0.0).size(),
+			rows.filter(func(r: Array) -> bool: return r[1] >= 0.0 and r[1] < 1.0).size(), w.lives])
+
+
+## Frames from a swipe (made at any moment between two frames) to his picture moving.
+func _latency() -> void:
+	for hz in [30.0, 60.0, 90.0, 120.0]:
+		var worst := 0
+		var total := 0
+		for k in 24:
+			var v := World.new()
+			for b in v.bandits:
+				b.gone = true
+			for i in 30:
+				v.tick()
+			v.advance(k / 24.0 * World.TICK)
+			var y0 := v.draw_hero().y
+			v.jump()
+			var frames := 0
+			while v.draw_hero().y > y0 - 0.5 and frames < 20:
+				v.advance(1.0 / hz)
+				frames += 1
+			worst = maxi(worst, frames)
+			total += frames
+		print("latency at %3d Hz: the jump shows %.1f frames after the swipe on average, %d at worst (%.0f / %.0f ms)" % [hz,
+				total / 24.0, worst, total / 24.0 * 1000.0 / hz, worst * 1000.0 / hz])

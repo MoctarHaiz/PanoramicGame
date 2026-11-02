@@ -4,11 +4,20 @@ extends Node
 ## are repeatable.
 ##
 ## Godot --path . --fixed-fps 60 --resolution 200x200 --always-on-top res://tests/capture.tscn -- \
-##     --out=DIR [--devices=a,b] [--shots=x,y] [--lang=fr] [--ads=off]
+##     --out=DIR [--devices=a,b] [--shots=x,y] [--lang=fr|en,fr] [--ads=off]
 ## Each picture is drawn on demand (_draw_now): macOS skips drawing covered windows.
+## --lang=en,fr takes every picture in each language, into DIR/en/ and DIR/fr/.
 ##
-## Shots in the level start from worlds the bot reached first (headless, before any picture), so
-## every device shows the same moment.
+## Shots in the level start from worlds the bot reached first (before any picture), so every device
+## shows the same moment. The bot's run is recorded once (BotReplay, build/qa/: about 5 minutes the
+## first time, then instant) and replayed to each moment.
+##
+## Shots: the screens of a store release. boot, menu (a returning player), first_menu (the first
+## launch: no best yet), start (the first run's card), game, throw (a ring flying at a bandit), hurt
+## (the instant after a hit), climb, hang, home (1.2 s after he is home: in the doorway, the
+## HUD gone), pause, resume (the countdown after Resume),
+## gameover (caught), fell (game over by a fall), win, settings, settings_end (scrolled to the bottom:
+## About and the version).
 
 ## Screen size (landscape) and safe-area margins (left, top, right, bottom) in device pixels.
 const DEVICES := {
@@ -19,7 +28,11 @@ const DEVICES := {
 	"iphone17promax_2868x1320": {"size": Vector2i(2868, 1320), "insets": Vector4(186, 0, 186, 63)},
 	"ipad13_2752x2064": {"size": Vector2i(2752, 2064), "insets": Vector4(0, 48, 0, 40)},
 }
-const SHOTS := ["boot", "menu", "start", "game", "climb", "hang", "home", "pause", "gameover", "win", "settings"]
+const SHOTS := ["boot", "menu", "first_menu", "start", "game", "throw", "hurt", "climb", "hang", "home", "pause", "resume",
+		"gameover", "fell", "win", "settings", "settings_end"]
+## Shots that start from another one's moment.
+const MOMENT_OF := {"pause": "game", "resume": "game", "throw": "game", "hurt": "game", "gameover": "climb",
+		"fell": "climb", "win": "home"}
 ## Moments of the bot's run used by the level shots: name -> condition on the world.
 const MOMENTS := {
 	"game": "ticks >= 250",
@@ -36,39 +49,42 @@ var _moments := {}  # name -> World snapshot
 func _ready() -> void:
 	Save.persist = false
 	var args := _args()
-	_out = args.get("out", "user://captures")
-	DirAccess.make_dir_recursive_absolute(_out)
-	if args.has("lang"):
-		Save.language = args.lang
-		Save.apply_language()
+	var out: String = args.get("out", "user://captures")
+	var langs: PackedStringArray = String(args.get("lang", "")).split(",", false)
 	_ads = args.get("ads", "on") != "off"
 	var devices: Array = args.get("devices", ",".join(DEVICES.keys())).split(",")
 	var shots: Array = args.get("shots", ",".join(SHOTS)).split(",")
 	var needed := {}
 	for shot: String in shots:
-		var m: String = {"pause": "game", "gameover": "climb", "win": "home"}.get(shot, shot)
+		var m: String = MOMENT_OF.get(shot, shot)
 		if MOMENTS.has(m):
 			needed[m] = MOMENTS[m]
 	if not needed.is_empty():
 		_collect_moments(needed)
-	for device: String in devices:
-		for shot: String in shots:
-			await _capture(device, shot)
-	print("captures saved to ", ProjectSettings.globalize_path(_out))
+	for lang in (langs if not langs.is_empty() else PackedStringArray([""])):
+		_out = out.path_join(lang) if langs.size() > 1 else out
+		DirAccess.make_dir_recursive_absolute(_out)
+		if not lang.is_empty():
+			Save.language = lang
+			Save.apply_language()
+		for device: String in devices:
+			for shot: String in shots:
+				await _capture(device, shot)
+		print("captures saved to ", ProjectSettings.globalize_path(_out))
 	get_tree().quit()
 
 
-## The bot plays the level once, headless; the world is copied at each moment.
+## The bot's recorded run is replayed once, headless; the world is copied at each moment.
 func _collect_moments(needed: Dictionary) -> void:
+	var replay := BotReplay.recorded(1)
 	var w := World.new()
-	var bot := Bot.new(1)
 	var t0 := Time.get_ticks_msec()
 	while w.state == World.State.RUNNING and w.ticks < 9000 and _moments.size() < needed.size():
-		bot.act(w)
+		replay.act(w)
 		w.tick()
 		for name: String in needed:
 			if not _moments.has(name) and _check(w, needed[name]):
-				_moments[name] = w.clone()
+				_moments[name] = BotReplay.snapshot(w)
 				print("  moment %s at %.1f s" % [name, w.ticks * World.TICK])
 	print("  moments found in %d ms" % (Time.get_ticks_msec() - t0))
 
@@ -88,6 +104,7 @@ func _capture(device: String, shot: String) -> void:
 	Device.debug_insets = d.insets * k
 	Device.banner_height = 50.0 * px.y / 411.0 * k if _ads and Config.is_debug else 0.0  # a 50 dp banner
 	_reset_state()
+	seed(shot.hash())  # the effects' random sparks and leaves: the same on every device and run
 
 	var vp := SubViewport.new()
 	vp.size = px
@@ -113,31 +130,74 @@ func _capture(device: String, shot: String) -> void:
 			Save.best_stars = 2
 			Nav.go(&"menu")
 			await _wait(1.3)
+		"first_menu":
+			Save.tutorial_seen = false
+			Nav.go(&"menu")
+			await _wait(1.3)
 		"start":  # the first run: the start card waits for a touch
 			Save.tutorial_seen = false
 			Nav.go(&"game", {})
 			await _wait(1.0)
-		"game", "climb", "hang", "home":
+		"game", "climb", "hang":
 			await _start_game(shot)
 			await _wait(1.0)
+		"home":  # in the doorway, the HUD gone (not caught in the middle of its fade)
+			await _start_game(shot)
+			await get_tree().process_frame  # (the autopilot starts the run)
+			Nav.current.autopilot = null  # the run home is his own: no rings thrown at the hut
+			await _wait_for(func() -> bool: return Nav.current.world.state != World.State.RUNNING, 5.0)
+			await _wait(1.2)
+		"throw":  # a bandit ahead, a ring on its way
+			await _start_game("game")
+			await _wait(0.3)
+			var game: Node = Nav.current
+			game.autopilot = null
+			_bandit_ahead(game.world, 330.0)
+			game.world.throw()
+			await _wait(0.3)
+		"hurt":  # a bandit runs into him: the instant after the blow
+			await _start_game("game")
+			await _wait(0.3)
+			var game: Node = Nav.current
+			game.autopilot = null
+			var lives: int = game.world.lives
+			game.world.mercy = 0
+			_bandit_ahead(game.world, 150.0)
+			await _wait_for(func() -> bool: return game.world.lives < lives, 3.0)
+			await _wait(0.12)
 		"pause":
 			await _start_game("game")
 			await _wait(0.5)
 			Nav.current.pause_game()
 			await _wait(0.6)
-		"gameover":
+		"resume":  # the countdown's first number
+			await _start_game("game")
+			await _wait(0.5)
+			Nav.current.pause_game()
+			await _wait(0.6)
+			Nav.current.resume_game()
+			await _wait(0.2)
+		"gameover", "fell":
 			await _start_game("climb")
 			await _wait(0.4)
 			var game: Node = Nav.current
 			game.autopilot = null
-			game.world._die(&"bandit")
+			game.world._die(&"bandit" if shot == "gameover" else &"fall")
 			await _wait(2.4)
 		"win":
 			await _start_game("home")
+			await get_tree().process_frame
+			Nav.current.autopilot = null
 			await _wait(4.5)
 		"settings":
 			Nav.go(&"settings")
 			await _wait(1.0)
+		"settings_end":  # every scrolling list scrolled to its end
+			Nav.go(&"settings")
+			await _wait(0.8)
+			for s: ScrollContainer in Nav.current.find_children("*", "ScrollContainer", true, false):
+				s.scroll_vertical = 100000
+			await _wait(0.3)
 	_draw_now()
 	_save(vp.get_texture().get_image(), device, shot)
 	if Nav.current:
@@ -151,11 +211,35 @@ func _capture(device: String, shot: String) -> void:
 
 
 func _start_game(moment: String) -> void:
-	var w: World = _moments[moment].clone() if _moments.has(moment) else World.new()
+	var w: World = BotReplay.snapshot(_moments[moment]) if _moments.has(moment) else World.new()
 	Nav.go(&"game", {"world": w})
 	await get_tree().process_frame
 	await get_tree().process_frame
 	Nav.current.autopilot = Bot.new(7)
+
+
+## Brings the last bandit (far away) `ahead` units in front of Panoramic, on his ground; the others
+## near him go.
+func _bandit_ahead(w: World, ahead: float) -> void:
+	for b in w.bandits:
+		if absf(b.x - w.scroll - w.x) < 1500.0:
+			b.gone = true
+	var b: World.Bandit = w.bandits[-1]
+	b.gone = false
+	b.active = true
+	b.health = World.BANDIT_HEALTH
+	b.x = w.scroll + w.x + ahead
+	b.y = w.ground_y + 10.0
+	b.prev_x = b.x
+	b.prev_y = b.y
+
+
+## Waits until `done` is true, at most `seconds`.
+func _wait_for(done: Callable, seconds: float) -> void:
+	var t := 0.0
+	while not done.call() and t < seconds:
+		await get_tree().process_frame
+		t += get_process_delta_time()
 
 
 ## A grey stand-in where AdMob's banner goes (debug builds), so layouts can be checked.

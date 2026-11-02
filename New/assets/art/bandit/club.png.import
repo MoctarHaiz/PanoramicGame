@@ -3,19 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://0nr326uq4ggw"
-path="res://.godot/imported/club.png-6f7f2091ed91fa3e89b31732ca178e50.ctex"
+path.s3tc="res://.godot/imported/club.png-6f7f2091ed91fa3e89b31732ca178e50.s3tc.ctex"
+path.etc2="res://.godot/imported/club.png-6f7f2091ed91fa3e89b31732ca178e50.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/art/bandit/club.png"
-dest_files=["res://.godot/imported/club.png-6f7f2091ed91fa3e89b31732ca178e50.ctex"]
+dest_files=["res://.godot/imported/club.png-6f7f2091ed91fa3e89b31732ca178e50.s3tc.ctex", "res://.godot/imported/club.png-6f7f2091ed91fa3e89b31732ca178e50.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
