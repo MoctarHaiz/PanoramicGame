@@ -39,6 +39,7 @@ const HOLD := 0.1  ## seconds an animation shows at least before another replace
 const HURT_TIME := 0.33  ## seconds of the blow's reaction
 const STUMBLE := 0.14  ## seconds of the stumble after it, leaning back and catching himself
 const PULL := 0.16  ## seconds per hand-over-hand pull up a ledge
+const HAND_STEP := 0.2  ## seconds per hand step along the vine while hanging
 const WALK_IN := 70.0  ## units he walks into the doorway at home
 const DIE_PUSH := 40.0  ## units the fatal blow knocks him back
 const DIE_MIN_X := 70.0  ## play x he is never drawn left of when caught (the death stays on screen)
@@ -111,12 +112,12 @@ func _init() -> void:
 	_material.shader = preload("res://src/game/actor.gdshader")
 	# so he reads at phone size: a warm rim on the edges facing the sun (2-3 px on a 1179 px screen)
 	# and a thin dark edge (both stay inside the atlas' 3 px of padding)
-	_material.set_shader_parameter(&"rim", 1.0)
-	_material.set_shader_parameter(&"rim_px", 2.5)
+	_material.set_shader_parameter(&"rim", 1.35)
+	_material.set_shader_parameter(&"rim_px", 3.0)
 	_material.set_shader_parameter(&"rim_colour", Color(1.0, 0.86, 0.6))
 	_material.set_shader_parameter(&"rim_dir", Vector2(-0.6, -0.8))
-	_material.set_shader_parameter(&"outline_px", 1.4)
-	_material.set_shader_parameter(&"outline_colour", Color(0.1, 0.04, 0.06, 0.9))
+	_material.set_shader_parameter(&"outline_px", 1.8)
+	_material.set_shader_parameter(&"outline_colour", Color(0.08, 0.03, 0.05, 1.0))
 	_sprite.material = _material
 	add_child(_sprite)
 
@@ -265,6 +266,10 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 			else:
 				anim = &"hang"
 				index = int(_clock * float(frames_data().anims.hang.fps)) % frames(anim).size()
+				# hand over hand along the vine: a small lift and lean at each grip
+				var step := sin((t - 0.1) * PI / HAND_STEP)
+				offset.y -= absf(step) * 3.0
+				tilt += 0.035 * signf(step)
 		&"climb":  # up a ledge hand over hand: a pull every PULL seconds, most of it at its start
 			anim = &"climb"
 			anchor = Anchor.HIPS
@@ -396,7 +401,7 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 		_material.set_shader_parameter(&"amount", 0.32 if flicker else 0.0)
 		_material.set_shader_parameter(&"tint", Color(1.0, 0.45, 0.35))
 	_material.set_shader_parameter(&"opacity", visible_k)
-	_material.set_shader_parameter(&"outline_opacity", visible_k * 0.6)
+	_material.set_shader_parameter(&"outline_opacity", visible_k * 0.9)  # (his white wraps against the pale sky)
 	_update_shadow(w, p)
 	if is_instance_valid(_under):
 		_under.queue_redraw()

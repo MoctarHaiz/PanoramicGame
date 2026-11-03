@@ -282,7 +282,7 @@
    "path": "assets/art/hero/hero_defeat.png",
    "status": "approved",
    "technical": {
-    "dimensions": "436x776",
+    "dimensions": "675x688",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -315,7 +315,7 @@
    "path": "assets/art/hero/hero_menu.png",
    "status": "approved",
    "technical": {
-    "dimensions": "809x1116",
+    "dimensions": "803x1171",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -348,7 +348,7 @@
    "path": "assets/art/hero/hero_win.png",
    "status": "approved",
    "technical": {
-    "dimensions": "389x916",
+    "dimensions": "389x961",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,

@@ -166,3 +166,25 @@ win and defeat renders; (6) the studio logo; (7) the null texture on the first b
   trigger).
 - Still to do: env to show HomeView.front (the jamb) while he walks in; the climb strip; perf
   numbers (bandit.png grew to 3200 x 780, VRAM-compressed: about +1.7 MB in play).
+
+## Round 3
+
+- Hero skin no longer plastic: roughness 0.68, specular 0.28, a little warm subsurface, normal map
+  at 0.6 (in play) / 0.45 (interface): softer muscle grooves; the user's colours and model kept.
+- Interface pictures backlit: the user's front lights at 25 % and warmed, an orange rim (14) from
+  behind, a warm bounce; a soft warm-dark contact shadow under his feet (`grounded()` in
+  hero_atlas.py). New defeat: sat down hard, dazed, a hand to his head, knees up.
+- The ring is blue steel (metallic 1, roughness 0.1, a thinner tube, a glint light, a glowing inner
+  edge): in-game (`fx/ring_spin.png`) and in the menu picture. RingView draws it leaving from his
+  hand (30 units back) over 4 frames.
+- In play: rim 1.35 at 3 px, a 1.8 px near-black edge at 90 %: his white wraps no longer melt into
+  the pale sky. Hand steps while hanging (a lift and lean every 0.2 s).
+- Bandit recoloured: near-black skin, crimson wraps, a red mask band with amber eyes, a black crest,
+  a bone-white club. The swing now runs on gameplay's `strike(b)` (drawn back, then the blow over
+  World.STRIKE_TICKS); its white flash decays on real time (2 frames, also inside a hit-stop).
+- Red Bobs: a bigger, fully opaque specular hotspot, a stronger glow, a slight size pulse.
+- Knock-back: audio's Feel.APPLY_KNOCKS kept (hit_dir / hit_strength not duplicated here).
+- Results: tests 959 checks, 0 failed (exit 0). Captures `_agents/AAA/art/round_3/` (menu, win,
+  gameover, game, climb, hang, home), strips `round_3/strips/` (bandit_swing, hurt, run, home).
+- Short: the sitting defeat reads as falling at card size (UX shows it tilted); at phone size the
+  bandit's swing is still small; the hero in play is still small (env's zoom).

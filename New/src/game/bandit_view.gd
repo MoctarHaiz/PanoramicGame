@@ -23,10 +23,6 @@ const KO_SPIN := 15.0  ## radians/s
 const VAULT_TIME := 0.46  ## seconds
 const VAULT_HEIGHT := 150.0  ## units: over his head
 const STAR_COUNT := 3
-## The swing, by how far ahead of it Panoramic is (units between their centres): the club goes back
-## from SWING_FROM, the blow lands at SWING_HIT (its club's reach), then the follow-through.
-const SWING_FROM := 200.0
-const SWING_HIT := 105.0
 const FLIGHT_FRAME := 4  ## the run frame with both feet off the ground (hopping a wall, vaulting)
 
 static var _data: Dictionary
@@ -156,7 +152,7 @@ func _process(delta: float) -> void:
 	var now := (world.ticks + world.alpha) * World.TICK
 	var dt := 0.0 if _last_time < 0.0 else clampf(now - _last_time, 0.0, 0.1)
 	_last_time = now
-	_flash = maxf(_flash - dt / FLASH_TIME, 0.0)
+	_flash = maxf(_flash - delta / FLASH_TIME, 0.0)  # real time: 2 frames, even inside a hit-stop
 	_jolt = lerpf(_jolt, 0.0, 1.0 - exp(-dt * 16.0))
 	_squash = _squash.lerp(Vector2.ONE, 1.0 - exp(-dt * 13.0))
 	_stars = move_toward(_stars, 1.0 if bandit.hurt else 0.0, dt * 4.0)
@@ -199,18 +195,17 @@ func _process(delta: float) -> void:
 	_front.queue_redraw()
 
 
-## The frame of the club's swing (0..7) as Panoramic comes within reach ahead of it, or -1.
+## The frame of the club's swing (0..7): drawn back then the blow over gameplay's strike() (its
+## last World.STRIKE_TICKS before the club reaches him), the follow-through once it has; or -1.
 func _swing_frame() -> int:
 	if bandit.hurt or not bandit.active or world.state != World.State.RUNNING:
 		return -1
-	var d := position.x - world.draw_hero().x
-	if bandit.touched_hero or d < SWING_HIT * 0.55:
-		return 6 + (1 if d < SWING_HIT * 0.3 or bandit.touched_hero else 0)  # the follow-through
-	if d < SWING_HIT:
-		return 4 + (1 if d < SWING_HIT * 0.8 else 0)  # the blow, smeared
-	if d < SWING_FROM:
-		return clampi(int((SWING_FROM - d) / (SWING_FROM - SWING_HIT) * 4.0), 0, 3)  # drawn back
-	return -1
+	if bandit.touched_hero:
+		return 6 + (1 if _vault > 0.3 else 0)
+	var k := world.strike(bandit)
+	if k < 0.0:
+		return -1
+	return mini(int(k * 6.0), 5)
 
 
 func _draw() -> void:

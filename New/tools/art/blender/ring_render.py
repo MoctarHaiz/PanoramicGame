@@ -30,10 +30,10 @@ sc.eevee.taa_render_samples = 64
 world = bpy.data.worlds.new("Sky")
 world.use_nodes = True
 world.node_tree.nodes["Background"].inputs["Color"].default_value = (0.45, 0.58, 0.85, 1)
-world.node_tree.nodes["Background"].inputs["Strength"].default_value = 0.6
+world.node_tree.nodes["Background"].inputs["Strength"].default_value = 0.35
 sc.world = world
 
-bpy.ops.mesh.primitive_torus_add(major_radius=1.0, minor_radius=0.24, major_segments=96, minor_segments=32)
+bpy.ops.mesh.primitive_torus_add(major_radius=1.0, minor_radius=0.17, major_segments=96, minor_segments=32)
 ring = bpy.context.object
 bpy.ops.object.shade_smooth()
 ring.rotation_euler = (math.radians(90), 0, 0)  # face the camera (looking along +Y)
@@ -43,9 +43,9 @@ mat.use_nodes = True
 nodes = mat.node_tree.nodes
 links = mat.node_tree.links
 bsdf = nodes["Principled BSDF"]
-bsdf.inputs["Base Color"].default_value = (0.1, 0.42, 1.0, 1)
-bsdf.inputs["Metallic"].default_value = 0.85
-bsdf.inputs["Roughness"].default_value = 0.22
+bsdf.inputs["Base Color"].default_value = (0.08, 0.25, 0.62, 1)  # blue steel, not a pool float
+bsdf.inputs["Metallic"].default_value = 1.0
+bsdf.inputs["Roughness"].default_value = 0.1
 # the inner edge glows: emission by how close the surface is to the ring's axis (object space)
 geo = nodes.new("ShaderNodeNewGeometry")
 sep = nodes.new("ShaderNodeSeparateXYZ")
@@ -58,7 +58,7 @@ links.new(sep.outputs["X"], comb.inputs["X"])
 links.new(sep.outputs["Y"], comb.inputs["Y"])
 links.new(comb.outputs["Vector"], length.inputs[0])
 ramp = nodes.new("ShaderNodeValToRGB")
-ramp.color_ramp.elements[0].position = 0.84
+ramp.color_ramp.elements[0].position = 0.86
 ramp.color_ramp.elements[0].color = (1, 1, 1, 1)
 ramp.color_ramp.elements[1].position = 0.98
 ramp.color_ramp.elements[1].color = (0, 0, 0, 1)
@@ -66,7 +66,7 @@ links.new(length.outputs["Value"], ramp.inputs["Fac"])
 bsdf.inputs["Emission Color"].default_value = (0.35, 0.8, 1.0, 1)
 gain = nodes.new("ShaderNodeMath")
 gain.operation = "MULTIPLY"
-gain.inputs[1].default_value = 6.0
+gain.inputs[1].default_value = 9.0
 links.new(ramp.outputs["Color"], gain.inputs[0])
 links.new(gain.outputs["Value"], bsdf.inputs["Emission Strength"])
 ring.data.materials.append(mat)
@@ -92,7 +92,8 @@ def sun(name, colour, strength, direction):
 
 
 # as on the hero: the game's sun from the upper left behind, a white front light, a warm bounce
-sun("Key", (1.0, 1.0, 1.0), 2.5, (-0.4, -0.8, 0.5))
+sun("Key", (1.0, 1.0, 1.0), 4.0, (-0.4, -0.8, 0.5))
+sun("Glint", (1.0, 0.95, 0.85), 6.0, (0.5, -0.6, 0.7))  # sharp highlights on the steel
 sun("Rim", (1.0, 0.78, 0.5), 4.0, (-0.7, 0.6, 0.6))
 sun("Bounce", (0.85, 0.65, 0.35), 0.8, (0.2, -0.3, -1.0))
 

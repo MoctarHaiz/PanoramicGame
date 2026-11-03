@@ -13,6 +13,10 @@ const SPIN_FPS := 24.0
 const TRAIL := 6  ## positions kept for the streak: a short motion streak, not a line between rings
 const WIND_UP := 0.04  ## seconds hidden while his hand swings back (HeroView.THROW_TIME)
 const HOT := Color("e6f6ff")
+## It leaves from his hand (the rules start it at his middle, ahead of him): drawn from this offset
+## back to its place over its first HAND_TIME seconds.
+const FROM_HAND := Vector2(-30.0, -18.0)
+const HAND_TIME := 4.0 / 60.0
 
 var _clock := 0.0
 var _glow: Node2D
@@ -56,11 +60,13 @@ func _turn() -> float:
 func _draw() -> void:
 	if _clock < WIND_UP:
 		return
+	var hand := FROM_HAND * (1.0 - clampf((_clock - WIND_UP) / HAND_TIME, 0.0, 1.0))
+	draw_set_transform(hand)
 	var f := int(_clock * SPIN_FPS) % SPIN_FRAMES
 	var px := TEXTURE.get_height()
 	draw_texture_rect_region(TEXTURE, Rect2(-RADIUS, -RADIUS, RADIUS * 2, RADIUS * 2), Rect2(f * px, 0, px, px))
 	var spin := _clock * 18.0
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2(_turn(), 1.0))
+	draw_set_transform(hand, 0.0, Vector2(_turn(), 1.0))
 	draw_arc(Vector2.ZERO, RADIUS * 0.62, spin, spin + 0.9, 12, Color(HOT, 0.7), 2.0, true)
 	draw_set_transform(Vector2.ZERO)
 

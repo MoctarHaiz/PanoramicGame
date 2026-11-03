@@ -190,6 +190,26 @@ def save(arr: np.ndarray, name: str, pad: int = 8) -> None:
     print(name, out.shape[1], out.shape[0])
 
 
+def grounded(arr: np.ndarray) -> np.ndarray:
+    """A figure standing on a soft contact shadow (warm dark, blurred) under his feet."""
+    h, w = arr.shape[:2]
+    out = np.zeros((h + int(h * 0.05), w, 4), np.float32)
+    feet = np.nonzero(arr[int(h * 0.95):, :, 3] > 0.5)[1]
+    cx = feet.mean() if feet.size else w / 2
+    span = (feet.max() - feet.min()) if feet.size else w * 0.4
+    yy, xx = np.mgrid[0:out.shape[0], 0:w]
+    rx, ry = span * 0.62 + w * 0.08, h * 0.022
+    d = ((xx - cx) / rx) ** 2 + ((yy - (h - h * 0.006)) / ry) ** 2
+    shade = np.clip(1.0 - d, 0.0, 1.0) ** 1.5 * 0.55
+    out[..., :3] = np.array([0.12, 0.05, 0.04])
+    out[..., 3] = shade
+    a = arr[..., 3:4]
+    top = out[:h]
+    top[..., :3] = arr[..., :3] * a + top[..., :3] * (1 - a)
+    top[..., 3:4] = a + top[..., 3:4] * (1 - a)
+    return out
+
+
 def pictures() -> None:
     """The pictures the interface shows, each lit by its screen's own light (the sunset rim from
     behind, the warm bounce: tools/art/blender/hero_render.py --light sunset): the menu's hero (full
@@ -198,7 +218,7 @@ def pictures() -> None:
     on the ground), and the turnaround stands."""
     ui = RENDER.parent / "render_ui"
     hero = trimmed(ui / "menu_hero/000.png", 1100)
-    save(hero, "hero_menu.png")
+    save(grounded(hero), "hero_menu.png")
     # the portrait: 660 x 752 from his hair to his hips
     h, w = hero.shape[:2]
     crop_h = int(h * 0.56)
@@ -213,8 +233,8 @@ def pictures() -> None:
     full = np.zeros((752, 660, 4), np.float32)
     full[:min(752, arr.shape[0]), :min(660, arr.shape[1])] = arr[:752, :660]
     save(full, "portrait.png", pad=0)
-    save(trimmed(ui / "win_front/000.png", 900), "hero_win.png")
-    save(trimmed(ui / "defeat/000.png", 760), "hero_defeat.png")
+    save(grounded(trimmed(ui / "win_front/000.png", 900)), "hero_win.png")
+    save(grounded(trimmed(ui / "defeat/000.png", 640)), "hero_defeat.png")
     save(trimmed(RENDER / "idle_front/000.png", 640), "stand_front.png")
     save(trimmed(RENDER / "idle/000.png", 560), "stand_side.png")
 

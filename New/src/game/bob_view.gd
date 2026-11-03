@@ -104,8 +104,8 @@ func _init(column := 0, row := 0) -> void:
 	_spec = Sprite2D.new()
 	_spec.texture = _halo_tex
 	_spec.material = _additive
-	_spec.scale = Vector2.ONE * 9.0 / 64.0
-	_spec.modulate = Color(1, 0.97, 0.9, 0.9)
+	_spec.scale = Vector2.ONE * 11.0 / 64.0  # (round 3: a stronger hotspot, they read as stickers)
+	_spec.modulate = Color(1, 0.98, 0.92, 1.0)
 	add_child(_spec)
 	_shine = Node2D.new()
 	_shine.material = _additive
@@ -124,10 +124,12 @@ func _process(delta: float) -> void:
 	var s := sin(_clock * _pace - _phase)
 	_sprite.position.y = -3.4 * s
 	var squash := 0.05 * -s
-	_sprite.scale = Vector2(_scale * (1.0 + squash), _scale * (1.0 - squash))
+	var pulse := 1.0 + 0.045 * maxf(sin(_clock * 3.1 - _phase * 1.3), 0.0)  # a slight beat of size
+	_sprite.scale = Vector2(_scale * (1.0 + squash), _scale * (1.0 - squash)) * pulse
 	_sprite.rotation = 0.07 * sin(_clock * 2.1 - _phase * 0.7)
 	_halo.position = _sprite.position
-	_halo.modulate = Color(1.0, 0.5, 0.25, 0.42 + 0.12 * sin(_clock * 2.6 - _phase))
+	_halo.modulate = Color(1.0, 0.5, 0.25, 0.55 + 0.15 * sin(_clock * 2.6 - _phase))
+	_halo.scale = Vector2.ONE * SIZE * 1.9 / 64.0 * pulse
 	_spec.position = _sprite.position + Vector2(-6.0, -7.0).rotated(_sprite.rotation)
 	# blink every few seconds; once in a while a wink
 	var face := Face.SMILE

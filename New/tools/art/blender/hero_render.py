@@ -66,22 +66,37 @@ def setup_scene():
     r.image_settings.color_mode = "RGBA"
     r.image_settings.color_depth = "8"
     SC.eevee.taa_render_samples = 16 if TEST else 64
+    # New (round 3, "a vinyl action figure"): no plastic sheen on the skin (rougher, less
+    # specular), a little warm light under it (subsurface), the muscle grooves of the normal map
+    # flattened; the user's colours, model and proportions unchanged
+    for m in MESH.data.materials:
+        for n in m.node_tree.nodes:
+            if n.type == "BSDF_PRINCIPLED":
+                n.inputs["Roughness"].default_value = 0.68
+                n.inputs["Specular IOR Level"].default_value = 0.28
+                n.inputs["Subsurface Weight"].default_value = 0.12
+                n.inputs["Subsurface Radius"].default_value = (1.0, 0.35, 0.2)
+                n.inputs["Subsurface Scale"].default_value = 0.02
+            elif n.type == "NORMAL_MAP":
+                n.inputs["Strength"].default_value = 0.6
     rig = bpy.data.objects.new("LightRig", None)
     SC.collection.objects.link(rig)
     if arg("--light", "day") == "sunset":
         # the interface pictures, in their screens' own light: the low sun behind him wraps his
         # edges in orange, the warm ground bounces up; the user's front lights dimmed and warmed
         # (a cool neutral front light read as "composited"), the muscle grooves softer
+        # backlit: his front falls into a warm dark shade, a strong orange rim on every edge facing
+        # the sun
         for ob in user_lights:
-            ob.data.energy *= 0.45
-            ob.data.color = (1.0, 0.82, 0.68)
+            ob.data.energy *= 0.25
+            ob.data.color = (1.0, 0.72, 0.55)
         for m in MESH.data.materials:
             for n in m.node_tree.nodes:
                 if n.type == "NORMAL_MAP":
-                    n.inputs["Strength"].default_value = 0.55
-        add_sun("Rim", (1.0, 0.55, 0.22), 10.0, aim_from=(0.62, 0.72, 0.3), angle=2.0)
-        add_sun("RimFront", (1.0, 0.68, 0.45), 3.5, aim_from=(0.55, -0.78, 0.3), angle=2.0)
-        add_area("Bounce", (0.95, 0.5, 0.25), 60.0, at=(-0.5, -0.1, -0.6), size=2.0)
+                    n.inputs["Strength"].default_value = 0.45
+        add_sun("Rim", (1.0, 0.52, 0.2), 14.0, aim_from=(0.62, 0.72, 0.3), angle=2.0)
+        add_sun("RimFront", (1.0, 0.6, 0.35), 6.0, aim_from=(0.55, -0.78, 0.3), angle=2.0)
+        add_area("Bounce", (0.95, 0.48, 0.22), 50.0, at=(-0.5, -0.1, -0.6), size=2.0)
     else:
         # the level: the golden-hour sun high on the left (behind him): a warm rim on his back,
         # shoulders and hair; the grass below: a faint warm bounce
@@ -438,18 +453,18 @@ def pose_menu_throw():
     turn("Head", -4)
     ring = bpy.data.objects.get("MenuRing")
     if ring is None:
-        bpy.ops.mesh.primitive_torus_add(major_radius=0.055, minor_radius=0.014, major_segments=64, minor_segments=24)
+        bpy.ops.mesh.primitive_torus_add(major_radius=0.055, minor_radius=0.009, major_segments=64, minor_segments=24)
         ring = bpy.context.object
         ring.name = "MenuRing"
         bpy.ops.object.shade_smooth()
         m = bpy.data.materials.new("RingSteel")
         m.use_nodes = True
         b = m.node_tree.nodes["Principled BSDF"]
-        b.inputs["Base Color"].default_value = (0.1, 0.42, 1.0, 1)
-        b.inputs["Metallic"].default_value = 0.85
-        b.inputs["Roughness"].default_value = 0.22
-        b.inputs["Emission Color"].default_value = (0.35, 0.8, 1.0, 1)
-        b.inputs["Emission Strength"].default_value = 0.6
+        b.inputs["Base Color"].default_value = (0.08, 0.25, 0.6, 1)  # blue steel
+        b.inputs["Metallic"].default_value = 1.0
+        b.inputs["Roughness"].default_value = 0.12
+        b.inputs["Emission Color"].default_value = (0.3, 0.75, 1.0, 1)
+        b.inputs["Emission Strength"].default_value = 0.25
         ring.data.materials.append(m)
     ring.hide_render = False
     hand = ARM.matrix_world @ ARM.pose.bones[P + "RightHand"].tail
@@ -463,19 +478,26 @@ def pose_menu_throw():
 
 
 def pose_defeat():
-    """Game over: down on one knee, a hand on the ground, his head turned away and bowed."""
+    """Game over: sat down hard on the ground, dazed, one hand to his head, the other propping him
+    up behind, his knees up, his face turned to us."""
     reset_turn()
-    pose_kneel()
-    aim("RightArm", 0.55, -0.85, 0.3)
-    aim("RightForeArm", 0.25, -1.0, 0.1)
-    aim("RightHand", 0.6, -0.8)
-    aim("LeftArm", 0.05, -1.0, -0.2)
-    aim("LeftForeArm", 0.4, -0.6, -0.2)
-    turn("Spine", 10)
-    turn("Neck", 18)
-    turn("Head", 14, axis=(0.0, 0.0, 1.0))
-    plant(0.0, knees=True)
-    ARM.rotation_euler.z = math.radians(32.0)
+    apply(sample("idle", 1))
+    aim("RightUpLeg", 1.0, 0.15)
+    aim("RightLeg", 0.45, -1.0)
+    aim("RightFoot", 1.0, -0.3)
+    aim("LeftUpLeg", 1.0, 0.0, -0.15)
+    aim("LeftLeg", 0.9, -0.55)
+    aim("LeftFoot", 1.0, -0.2)
+    turn("Spine", -12)
+    aim("RightArm", 0.35, 0.75, 0.35)
+    aim("RightForeArm", -0.55, 0.8, 0.1)
+    aim("RightHand", -0.6, 0.4)
+    aim("LeftArm", -0.55, -0.85, -0.3)
+    aim("LeftForeArm", -0.35, -0.95, -0.1)
+    turn("Head", -10)
+    hips = bone_z("Hips")
+    shift_hips(0.0, 0.11 - hips)  # sitting: his hips on the ground
+    ARM.rotation_euler.z = math.radians(38.0)
     bpy.context.view_layer.update()
 
 
@@ -512,8 +534,9 @@ def anims():
 
 # ------------------------------------------------------------------ the bandit (--character bandit)
 # The masked raider, built from the hero's own mesh and rig so he sits in the same light: his
-# picture's light and dark turned to violet wraps (the normal map keeps every muscle), a hood over
-# his head with amber eyes and a teal crest, a club in his near hand. Rendered from the other side
+# picture's light and dark turned to near-black skin and crimson wraps (the normal map keeps every
+# muscle), a red mask band with amber eyes, a black crest, a bone-white club in his near hand:
+# dark and saturated, he reads on the yellow-green grass and is never mistaken for Panoramic. Rendered from the other side
 # (he runs left, at Panoramic).
 
 def _material(name, colour, rough=0.7, emit=None, strength=0.0):
@@ -554,10 +577,10 @@ def make_bandit():
         bw = nodes.new("ShaderNodeRGBToBW")
         ramp = nodes.new("ShaderNodeValToRGB")
         el = ramp.color_ramp.elements
-        el[0].position, el[0].color = 0.05, (0.05, 0.025, 0.09, 1)
-        el[1].position, el[1].color = 0.75, (0.62, 0.48, 0.86, 1)
-        mid = el.new(0.32)
-        mid.color = (0.2, 0.1, 0.36, 1)
+        el[0].position, el[0].color = 0.05, (0.025, 0.012, 0.02, 1)
+        el[1].position, el[1].color = 0.72, (0.62, 0.04, 0.06, 1)
+        mid = el.new(0.3)
+        mid.color = (0.12, 0.05, 0.06, 1)
         links.new(tex.outputs["Color"], bw.inputs["Color"])
         links.new(bw.outputs["Val"], ramp.inputs["Fac"])
         links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
@@ -573,7 +596,7 @@ def make_bandit():
     band = bpy.context.object
     band.scale = (0.95, 1.12, 1.0)
     bpy.ops.object.shade_smooth()
-    band.data.materials.append(_material("Mask", (0.1, 0.04, 0.18), 0.8))
+    band.data.materials.append(_material("Mask", (0.55, 0.02, 0.03), 0.6))
     eye_mat = _material("Eyes", (1.0, 0.6, 0.1), 0.3, (1.0, 0.62, 0.12), 16.0)
     parts = [band]
     for side in (-1.0, 1.0):
@@ -586,7 +609,7 @@ def make_bandit():
     bpy.ops.mesh.primitive_cone_add(radius1=size * 0.14, depth=size * 0.9, location=top + up * size * 0.15 + Vector((0.0, size * 0.1, 0.0)))
     crest = bpy.context.object
     crest.rotation_euler = (math.radians(-25), 0, 0)
-    crest.data.materials.append(_material("Crest", (0.1, 0.62, 0.6), 0.4, (0.05, 0.4, 0.38), 1.5))
+    crest.data.materials.append(_material("Crest", (0.02, 0.02, 0.02), 0.5))
     parts.append(crest)
     for ob in parts:
         _attach(ob, "Head")
@@ -602,7 +625,7 @@ def make_bandit():
     knob = bpy.context.object
     knob.scale = (1.0, 1.0, 1.3)
     knob.rotation_euler = club.rotation_euler
-    wood = _material("Club", (0.3, 0.16, 0.08), 0.55)
+    wood = _material("Club", (0.85, 0.8, 0.68), 0.45)  # bone-white: it reads against the grass
     for ob in (club, knob):
         bpy.ops.object.select_all(action="DESELECT")
         ob.select_set(True)
