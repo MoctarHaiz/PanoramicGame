@@ -36,12 +36,13 @@ def authored(tool: str) -> dict:
 FAMILIES = [
     ("hero/hero_atlas_", "Panoramic's animation frames: the user's 3D model (Making/Animation.blend) re-lit and posed by tools/art/blender/hero_render.py, packed by tools/art/hero_atlas.py (hero_frames.json)", USER_3D, True, "per hero_frames.json (ground origin / hips / hands)", ["identity", "proportions", "palette", "facing", "light-direction"]),
     ("hero/", "Panoramic for the interface (portrait, full-length menu hero, win pose, stands): renders of the user's 3D model (tools/art/hero_atlas.py)", USER_3D, True, "bottom-centre", ["identity", "palette"]),
-    ("bandit/", "masked raider enemy sheet (run, dazed, knock-out, idle) and its club", authored("tools/art/bandit.py"), True, "bottom-centre at the boots", ["silhouette", "palette", "facing"]),
-    ("bob/", "Red Bob collectible faces (smile, blink, joy, wink)", authored("tools/art/bob.py"), True, "centre", ["palette", "silhouette"]),
-    ("ui/logo", "CHAKA ZULU logo: bevelled gold letters over a Zulu shield and crossed assegais", authored("tools/art/ui_logo.py"), True, "centre", ["palette"]),
+    ("bandit/", "masked raider sheet (run, dazed run, knock-out, waiting, the club's swing) and its club: the hero's 3D mesh and rig retextured and rendered in his light", authored("tools/art/blender/hero_render.py --character bandit + tools/art/bandit_sheet.py (Blender)"), True, "bottom-centre at the boots", ["silhouette", "palette", "facing"]),
+    ("bob/", "Red Bob collectible faces (smile, blink, joy, wink): a 3D glossy ball in the hero's light with the 2017 face drawn on", authored("tools/art/blender/bob_render.py + tools/art/bob_sheet.py (Blender)"), True, "centre", ["palette", "silhouette"]),
+    ("ui/logo", "CHAKA ZULU logo: bevelled gold letters over a Zulu shield, its stick and an assegai", authored("tools/art/ui_logo.py"), True, "centre", ["palette"]),
     ("ui/hero_", "Panoramic for the menu and results (cut from the user's 3D renders, Making/)", USER_ART | {"url_or_tool": "tools/art/ui_hero.py", "prompt_or_source_record": "Making/IdleFront/0001.png, Making/DieFront/0026.png"}, True, "bottom-centre at the boots", ["identity", "palette"]),
     ("ui/head", "Panoramic's face in a disc (the HUD's way home), from the user's 3D render", USER_ART | {"url_or_tool": "tools/art/ui_hero.py", "prompt_or_source_record": "Making/IdleFront/0001.png"}, True, "centre", ["identity", "palette"]),
-    ("ui/menu_rock", "the backlit kopje Panoramic stands on in the menu", authored("tools/art/ui_hero.py"), True, "his feet at (930, 104)", ["palette", "light-direction"]),
+    ("ui/menu_rock", "the backlit kopje Panoramic stands on in the menu", authored("tools/art/ui_hero.py"), True, "his feet at (1340, 150)", ["palette", "light-direction"]),
+    ("ui/paper", "the hide/paper grain of the panels (tiles both ways)", authored("tools/art/ui_kit.py"), False, "tiles", ["palette"]),
     ("ui/", "interface ornament (beadwork, ribbon, shield, HUD head)", authored("tools/art/ui_art.py / logo.py"), True, "centre", ["palette"]),
     ("icons/", "app icon (iOS, Play, Android adaptive layers)", authored("tools/art/icons.py (from the user's portrait)"), False, "centre", ["identity", "palette"]),
     ("fx/ring", "Panoramic's throwing ring: a 3D blue-steel torus with a glowing inner edge, 8 frames of a half turn", authored("tools/art/blender/ring_render.py (Blender)"), True, "centre", ["palette", "light-direction"]),
@@ -51,7 +52,7 @@ FAMILIES = [
     ("world/sunset_", "menu dusk backdrop layer", authored("tools/art/savanna.py"), True, "bottom-left, repeats in x", ["palette"]),
     ("world/vine", "the vine along the top of the screen", authored("tools/art/vine.py"), True, "top", ["palette"]),
     ("world/", "level world layer or terrain texture", authored("tools/art/savanna.py / terrain.py"), None, "per view", ["palette", "light-direction"]),
-    ("haiz_studio", "Haiz Studio logo (boot, About)", {"kind": "studio-owned", "url_or_tool": "tools/art/studio_logo.py (cropped + Real-ESRGAN x4 from Old/app/src/main/assets/HaizStudio.png)", "creator": "Haiz Studio", "license": "owned by Haiz Studio", "prompt_or_source_record": "2017 game"}, True, "centre", ["identity"]),
+    ("haiz_studio", "Haiz Studio logo (boot, About)", {"kind": "studio-owned", "url_or_tool": "tools/art/studio_logo.py (cropped + Real-ESRGAN x4 from Old/app/src/main/assets/HaizStudio.png), made crisp by tools/art/logo_crisp.py", "creator": "Haiz Studio", "license": "owned by Haiz Studio", "prompt_or_source_record": "2017 game"}, True, "centre", ["identity"]),
 ]
 
 

@@ -35,6 +35,13 @@ const JUMP_FALL := [14, 18]  ## the fall (+TOP .. +JUMP_SPEED)
 const JUMP_LAND := [19, 26]  ## the landing, played out (it ends in the run's first frame)
 const TOP := 6.0  ## units a tick of vertical speed counted as the top of the jump
 const SHADOW_SHIFT := 10.0  ## units the ground shadow falls right of him (the sun is upper left)
+const HOLD := 0.1  ## seconds an animation shows at least before another replaces it (no flicker)
+const HURT_TIME := 0.33  ## seconds of the blow's reaction
+const STUMBLE := 0.14  ## seconds of the stumble after it, leaning back and catching himself
+const PULL := 0.16  ## seconds per hand-over-hand pull up a ledge
+const WALK_IN := 70.0  ## units he walks into the doorway at home
+const DIE_PUSH := 40.0  ## units the fatal blow knocks him back
+const DIE_MIN_X := 70.0  ## play x he is never drawn left of when caught (the death stays on screen)
 
 enum Anchor { FEET, HIPS, HANDS }
 
@@ -102,6 +109,14 @@ func _init() -> void:
 	_sprite.region_enabled = true
 	_material = ShaderMaterial.new()
 	_material.shader = preload("res://src/game/actor.gdshader")
+	# so he reads at phone size: a warm rim on the edges facing the sun (2-3 px on a 1179 px screen)
+	# and a thin dark edge (both stay inside the atlas' 3 px of padding)
+	_material.set_shader_parameter(&"rim", 1.0)
+	_material.set_shader_parameter(&"rim_px", 2.5)
+	_material.set_shader_parameter(&"rim_colour", Color(1.0, 0.86, 0.6))
+	_material.set_shader_parameter(&"rim_dir", Vector2(-0.6, -0.8))
+	_material.set_shader_parameter(&"outline_px", 1.4)
+	_material.set_shader_parameter(&"outline_colour", Color(0.1, 0.04, 0.06, 0.9))
 	_sprite.material = _material
 	add_child(_sprite)
 
@@ -154,6 +169,12 @@ func pose() -> StringName:
 	return _anim
 
 
+## For the footsteps (the audio track): the run frame showing (0..15), -1 when he isn't running.
+## Boots touch the ground around frames 1 and 9.
+func run_frame() -> int:
+	return int(_run) % RUN_FRAMES if _anim in [&"run", &"throw"] else -1
+
+
 ## Places him for this frame. `p` is his centre (World.draw_hero()), in play units.
 func show_state(w: World, p: Vector2, delta: float) -> void:
 	_world = w
@@ -190,89 +211,126 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 	var offset := Vector2.ZERO
 	var tilt := 0.0
 	var sink := 0.0  # 0..1: how far he has gone under a pool's surface
-	var airborne := w.jumping or not w.on_ground
+	var duck := 1.0  # under a low roof: drawn this much shorter
 	var air_y := p.y + _hips_dy  # where his hips are drawn in the air
-	_crouch_time = _crouch_time + dt if w.crouching else 0.0
-	_climb_time = _climb_time + dt if w.climbing else 0.0
+	var phase := w.move_phase()  # gameplay's hooks: what he is doing and since when
+	var t := w.phase_time()
 	_shadow_w = 1.0
-	if w.state == World.State.WON:
-		# home: he stops before the glowing doorway, turns to us and throws his fists up, cheering
-		_end_time += delta
-		anim = &"win"
-		var n := frames(anim).size()
-		var f := int(_end_time * float(frames_data().anims.win.fps))
-		index = f if f < n else WIN_LOOP + (f - WIN_LOOP) % (n - WIN_LOOP)
-	elif w.state == World.State.DEAD:
-		_end_time += delta
-		if w.death_reason == &"bandit":  # knocked back off his feet, onto his back
-			anim = &"die"
-			index = mini(int(_end_time * float(frames_data().anims.die.fps)), frames(anim).size() - 1)
-			if _death_speed == Vector2.ZERO:
-				_death_speed = Vector2(-160.0, 0.0)
-			_death_speed.x = move_toward(_death_speed.x, 0.0, 420.0 * delta)
-			_death += _death_speed * delta
-			offset = _death
-			_shadow_w = 1.0 + clampf(_end_time / 0.8, 0.0, 1.0) * 1.4
-			if airborne:  # caught in the air: he drops to where he stands
-				air_y = p.y
+	match phase:
+		&"home":
+			# he lands at the door, the victory beat (turns to us, fists up), then walks into the
+			# doorway (the hut's jamb is drawn over him by HomeView.front)
+			_end_time = t
+			if t < World.HOME_LAND:
+				anim = &"jump"
+				index = JUMP_LAND[0] + mini(int(t / World.HOME_LAND * 4.0), 3)
+			elif t < World.HOME_CHEER:
+				anim = &"win"
+				var n := frames(anim).size()
+				var f := int((t - World.HOME_LAND) * float(frames_data().anims.win.fps))
+				index = f if f < n else WIN_LOOP + (f - WIN_LOOP) % (n - WIN_LOOP)
+			else:
+				anim = &"run"
+				var u := clampf((t - World.HOME_CHEER) / (World.HOME_TIME - World.HOME_CHEER), 0.0, 1.0)
+				index = int(t * RUN_FPS * 0.6) % RUN_FRAMES
+				offset.x = WALK_IN * u * u
+		&"dead":
+			_end_time = t
+			if w.death_reason == &"bandit":  # knocked back off his feet onto his back, and he stays
+				anim = &"die"
+				var n := frames(anim).size()
+				index = mini(int(t / (World.DYING_TIME * 0.7) * n), n - 1)
+				offset.x = -DIE_PUSH * (1.0 - exp(-t * 4.0))
+				_death.x = offset.x
+				_shadow_w = 1.0 + clampf(t / 0.8, 0.0, 1.0) * 1.4
+				var ground := w.ground_below(p.x, p.y)
+				if ground >= 0.0 and ground > p.y + 1.0:  # caught in the air: he drops to it
+					offset.y = (ground - p.y) * minf(t / 0.3, 1.0) ** 2
+			else:  # into a pool or a pit: falling, flailing
+				anim = &"jump"
+				index = JUMP_FALL[1]
 				anchor = Anchor.HIPS
-		else:  # into a pool or a pit: the fall
-			anim = &"jump"
-			index = JUMP_FALL[1]
-			anchor = Anchor.HIPS
-	elif not playing and w.ticks == 0:  # on his marks: standing, breathing
-		anim = &"idle"
-		index = int(_clock * float(frames_data().anims.idle.fps)) % frames(&"idle").size()
-	elif w.hanging:
-		anim = &"hang"
-		anchor = Anchor.HANDS
-		index = int(_clock * float(frames_data().anims.hang.fps)) % frames(anim).size()
-	elif w.climbing:  # up a ledge: reaching for its top, a knee onto it
-		anim = &"climb"
-		anchor = Anchor.HIPS
-		index = mini(int(_climb_time * 30.0), 3)
-	elif airborne and w.vy < 0.0 and w.rising_to_vine() and p.y < 150.0:  # reaching up into the vine
-		anim = &"catch"
-		anchor = Anchor.HIPS
-		index = clampi(int((1.0 - p.y / 150.0) * 4.0), 0, 3)
-	elif airborne:
-		anim = &"jump"
-		anchor = Anchor.HIPS
-		if _takeoff > 0.0 and w.vy < 0.0:  # the push-off
-			index = 1 if _takeoff > TAKEOFF * 0.5 else 2
-		elif w.vy < -TOP:
-			var t := clampf(1.0 - (-w.vy - TOP) / (World.JUMP_SPEED - TOP), 0.0, 1.0)
-			index = roundi(lerpf(JUMP_RISE[0], JUMP_RISE[1], t))
-		elif w.vy <= TOP:
-			index = roundi(lerpf(JUMP_TOP[0], JUMP_TOP[1], (w.vy + TOP) / (2.0 * TOP)))
-		else:
-			var t := clampf((w.vy - TOP) / (World.JUMP_SPEED - TOP), 0.0, 1.0)
-			index = roundi(lerpf(JUMP_FALL[0], JUMP_FALL[1], t))
-			if _shadow.x < 0.0 and w.vy > 6.0:  # nothing below him: a fall into a pit
-				tilt = sin(_clock * 18.0) * 0.08
+				tilt = sin(t * 16.0) * 0.18
 				var surface := World.SURFACE_Y - World.HERO_SIZE.y / 2
 				if w.water_at(w.draw_scroll() + p.x):
 					sink = clampf((p.y - surface) / 70.0, 0.0, 1.0)
-		_land_time = -1.0
-	elif _mantle > 0.0:  # over the ledge: standing up onto it
-		anim = &"climb"
-		index = clampi(4 + int((1.0 - _mantle / MANTLE) * 4.0), 4, 7)
-	elif _hurt_time >= 0.0 and _hurt_time < 0.33:  # a blow: snapped back, arms flung
-		anim = &"hurt"
-		index = mini(int(_hurt_time * 30.0), frames(anim).size() - 1)
-	elif w.crouching:
-		anim = &"crouch"
-		index = mini(int(_crouch_time * 24.0), frames(anim).size() - 1)
-	elif _land_time >= 0.0 and _land_time < (JUMP_LAND[1] - JUMP_LAND[0] + 1) / 30.0:
-		anim = &"jump"
-		index = JUMP_LAND[0] + int(_land_time * 30.0)
-		_run = 0.0  # the landing ends in the run's first frame
-	elif _throw_left > 0.0:  # the throwing arm over the running legs
-		anim = &"throw"
-		var back := _throw_left > THROW_TIME * (1.0 - THROW_BACK)
-		index = int(_run) + (0 if back else RUN_FRAMES)
-	elif _over_edge(w, p):  # the rules still hold him by the back of his box: leaning off the edge
-		tilt = 0.08
+		&"idle":  # on his marks: standing, breathing
+			anim = &"idle"
+			index = int(_clock * float(frames_data().anims.idle.fps)) % frames(&"idle").size()
+		&"hang":  # the last of the catch, then hanging by his hands
+			anchor = Anchor.HANDS
+			if t < 0.1:
+				anim = &"catch"
+				index = 2 + mini(int(t / 0.05), 1)
+			else:
+				anim = &"hang"
+				index = int(_clock * float(frames_data().anims.hang.fps)) % frames(anim).size()
+		&"climb":  # up a ledge hand over hand: a pull every PULL seconds, most of it at its start
+			anim = &"climb"
+			anchor = Anchor.HIPS
+			var k := fmod(t, PULL) / PULL
+			index = 0 if fmod(t, PULL * 2.0) < PULL else 1
+			if t > PULL * 2.0:
+				index = 2 + mini(int((t - PULL * 2.0) / 0.06), 1)  # a knee onto the top
+			offset.y = -sin(minf(k * 2.0, 1.0) * PI * 0.5) * 6.0
+		&"takeoff":
+			anim = &"jump"
+			anchor = Anchor.HIPS
+			index = 1 + mini(int(t / 0.025), 1)
+		&"rise", &"apex", &"fall":
+			anim = &"jump"
+			anchor = Anchor.HIPS
+			var ap := w.air_progress()  # 0..1 through his time in the air (the rules decide how long)
+			if ap >= 0.0:
+				if ap < 0.45:
+					index = roundi(lerpf(JUMP_RISE[0], JUMP_RISE[1], ap / 0.45))
+				elif ap < 0.6:
+					index = roundi(lerpf(JUMP_TOP[0], JUMP_TOP[1], (ap - 0.45) / 0.15))
+				else:
+					index = roundi(lerpf(JUMP_FALL[0], JUMP_FALL[1], (ap - 0.6) / 0.4))
+				tilt = lerpf(-0.06, 0.08, ap)
+			elif w.vy < 0.0 and w.rising_to_vine() and p.y < 150.0:  # reaching up into the vine
+				anim = &"catch"
+				index = clampi(int((1.0 - p.y / 150.0) * 2.0), 0, 1)
+			elif w.vy < 0.0:
+				var r := clampf(1.0 - (-w.vy - TOP) / (World.JUMP_SPEED - TOP), 0.0, 1.0)
+				index = roundi(lerpf(JUMP_RISE[0], JUMP_RISE[1], r))
+			else:  # no ground ahead: a fall into a pit, flailing
+				index = JUMP_FALL[1]
+				tilt = sin(_clock * 16.0) * 0.18
+				var surface := World.SURFACE_Y - World.HERO_SIZE.y / 2
+				if w.water_at(w.draw_scroll() + p.x):
+					sink = clampf((p.y - surface) / 70.0, 0.0, 1.0)
+			_land_time = -1.0
+		&"crouch":
+			anim = &"crouch"
+			index = mini(int(t * 24.0), frames(anim).size() - 1)
+		_:  # on the ground: the mantle after a climb, the landing played out, the blow, the run
+			if _mantle > 0.0:
+				anim = &"climb"
+				index = clampi(4 + int((1.0 - _mantle / MANTLE) * 4.0), 4, 7)
+			elif _hurt_time >= 0.0 and _hurt_time < HURT_TIME:
+				anim = &"hurt"
+				index = mini(int(_hurt_time * 30.0), frames(anim).size() - 1)
+			elif _land_time >= 0.0 and _land_time < (JUMP_LAND[1] - JUMP_LAND[0] + 1) / 30.0:
+				anim = &"jump"
+				index = JUMP_LAND[0] + int(_land_time * 30.0)
+				_run = 0.0  # the landing ends in the run's first frame
+			elif _throw_left > 0.0:  # the throwing arm over the running legs
+				anim = &"throw"
+				var back := _throw_left > THROW_TIME * (1.0 - THROW_BACK)
+				index = int(_run) + (0 if back else RUN_FRAMES)
+			if _hurt_time >= HURT_TIME and _hurt_time < HURT_TIME + STUMBLE:  # the stumble after it
+				tilt -= 0.17 * (1.0 - (_hurt_time - HURT_TIME) / STUMBLE)
+			if anim == &"run" and _over_edge(w, p):  # held by the back of his box: leaning off the edge
+				tilt = 0.08
+	# under the tunnel's roof he ducks (his picture is taller than his box)
+	if w.state == World.State.RUNNING and not w.hanging:
+		var roof := w.ceiling_above(p.x, p.y - World.HERO_SIZE.y / 2, w.draw_scroll())
+		var top := p.y + World.HERO_SIZE.y / 2 + GameArt.FEET_SINK - GameArt.HERO_DRAW_HEIGHT
+		if roof >= 0.0 and roof > top - 40.0:
+			duck = clampf((p.y + World.HERO_SIZE.y / 2 + GameArt.FEET_SINK - roof + 2.0) / GameArt.HERO_DRAW_HEIGHT, 0.8, 1.0)
+			tilt += (1.0 - duck) * 0.8
 	_set_anim(anim, index)
 
 	_was_climbing = w.climbing
@@ -318,19 +376,27 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 	_wall_shift = lerpf(_wall_shift, shift, 1.0 - exp(-dt * 22.0))
 	offset.x += _wall_shift
 	position += offset
+	position.x = maxf(position.x, DIE_MIN_X) if w.state == World.State.DEAD else position.x  # the death stays on screen
 	rotation = tilt + _swing + _settle
-	scale = _squash * _units
+	scale = _squash * _units * Vector2(1.0, duck)
 	_sprite.texture = _pages[int(f.page)]
 	_sprite.region_rect = Rect2(region[0], region[1], region[2], region[3])
 	_sprite.offset = -anchor_px
-	# a white flash on the blow, then a soft pulse while he recovers; under a pool's surface he fades
+	# a white flash on the blow, then (while bandits can't hurt him) a warm red flicker, 4 frames
+	# on, 4 off: he stays solid (a faded ghost vanished against the bright savanna); under a
+	# pool's surface he fades
 	var visible_k := 1.0 - sink
-	if _hurt_left > 0.0 and _knock <= 0.0 and w.state == World.State.RUNNING:
-		visible_k *= 0.7 + 0.3 * cos(_hurt_left * TAU * BLINK_HZ)
 	_visible = visible_k
 	_sprite.modulate.a = visible_k
-	_material.set_shader_parameter(&"amount", 0.85 if _flash > 0.0 else 0.0)
-	_material.set_shader_parameter(&"tint", Color(1.0, 0.97, 0.92))
+	var flicker := _hurt_left > 0.0 and _knock <= 0.0 and w.state == World.State.RUNNING and fmod(_hurt_left, 8.0 / 60.0) < 4.0 / 60.0
+	if _flash > 0.0:
+		_material.set_shader_parameter(&"amount", 0.85)
+		_material.set_shader_parameter(&"tint", Color(1.0, 0.97, 0.92))
+	else:
+		_material.set_shader_parameter(&"amount", 0.32 if flicker else 0.0)
+		_material.set_shader_parameter(&"tint", Color(1.0, 0.45, 0.35))
+	_material.set_shader_parameter(&"opacity", visible_k)
+	_material.set_shader_parameter(&"outline_opacity", visible_k * 0.6)
 	_update_shadow(w, p)
 	if is_instance_valid(_under):
 		_under.queue_redraw()
@@ -377,5 +443,5 @@ func _draw_under() -> void:
 	for i in 6:  # a soft ellipse: rings of falling darkness, darkest under his feet
 		var r := 1.0 - i * 0.15
 		_under.draw_set_transform(_shadow, 0.0, Vector2(_shadow_w, 0.2))
-		_under.draw_circle(Vector2.ZERO, w * r, Color(0.16, 0.06, 0.1, (0.11 * _shadow_k + 0.03) * _visible))
+		_under.draw_circle(Vector2.ZERO, w * r, Color(0.14, 0.05, 0.08, (0.15 * _shadow_k + 0.04) * _visible))
 	_under.draw_set_transform(Vector2.ZERO)

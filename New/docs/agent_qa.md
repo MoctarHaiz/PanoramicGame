@@ -67,3 +67,21 @@ kept alive by test lambdas that capture them).
 - Review the builders' merge in wt/base (rerun: run_tests, perf at iphone15 + phone_1280x720, the full
   EN/FR audit, film of a store preview), diff against round 1, recheck every bugs.md item.
 - Ask gameplay for `World.clone()` prev_* (GP-1) and maybe a `Save` path override for a real file round trip.
+
+## Round 2 (review of the round 1 merge)
+
+- Merge review: camera, endings, results guard, swipe_min, hero.gdshader, hud.leave, Save path all fine.
+  Lost: footsteps (art's hero_view.gd has neither run_frame() nor run_a/run_b, audio's Footsteps needs one:
+  0 steps in the real game) and the walk-in at home.
+- The 3 failures: (1) "Parameter t is null" = headless dummy renderer + threaded picture loads still running
+  (reproduced with a probe; control without threads: 0), fixed in `_test_preload` (waits for every preload);
+  (2) FR start card on iPad: `StartCard._fit` measures the overgrown CenterContainer and its scale is reset by
+  the container's sort (probe), ux; (3) the win check kept the start card up (my test), fixed.
+- Tests: ErrorLog shows where an error came from (script frame, loading thread); save round trip now through the
+  real files on a scratch `Save.path`; `_test_contracts` (footsteps vs the real hero view); `--quick` skips it.
+  799 checks, 2 failed (UX start card, art/audio footsteps), quick 600, 0 failed.
+- Capture: gameover/fell wait DYING_TIME/FALL_DEATH_TIME + 1.5; the ad stand-in only when the game wants a banner.
+- Perf: `--jump-mb`; spikes also list frames with 3/4 of the budget of own work. Merge at iPhone 15: menu 51 MB,
+  play 85-87 MB before the first pause (combo chip font sizes: +4 MB per size), menu again 110 MB; load 303 ms.
+- README testing section: perf.tscn, --quick, --film, --layers, --lang=en,fr.
+- Outputs: AAA/qa/round_2/ (bugs.md, audit, audit_ads, sheets, strips, perf_*).

@@ -115,7 +115,8 @@ func _hand(o: Vector2, s: float) -> void:
 	var hs := s * 0.62 * press
 	# the fingertip is at the top middle of the icon: it sits on the point
 	var rect := Rect2(at + Vector2(-hs * 0.42, -hs * 0.08), Vector2(hs, hs))
-	for i in 12:
-		var d := Vector2.from_angle(TAU * i / 12) * maxf(s * 0.04, 2.0)
+	for i in 16:  # a chunky ink outline, and its depth below
+		var d := Vector2.from_angle(TAU * i / 16) * maxf(s * 0.055, 2.5)
+		draw_texture_rect(HAND, Rect2(rect.position + d + Vector2(0, s * 0.03), rect.size), false, Color(INK, alpha * 0.6))
 		draw_texture_rect(HAND, Rect2(rect.position + d, rect.size), false, Color(INK, alpha))
-	draw_texture_rect(HAND, rect, false, Color(1, 1, 1, alpha))
+	draw_texture_rect(HAND, rect, false, Color(1, 0.97, 0.9, alpha))

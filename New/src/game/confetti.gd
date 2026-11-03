@@ -7,12 +7,13 @@ extends Node2D
 ## pieces smear along their path. Everything is drawn in a few batched calls, then the node frees
 ## itself. Made by Fx (rescue, game over, the bushes, the stone).
 
-enum Shape { PAPER, RIBBON, SEQUIN, STAR, LEAF, CHIP, COIN }
+enum Shape { PAPER, RIBBON, SEQUIN, STAR, LEAF, CHIP, COIN, PETAL, BEAD }
 
 ## Size of each shape in design px at size 1.
 const SIZES := {
 	Shape.PAPER: Vector2(19, 12), Shape.RIBBON: Vector2(30, 10), Shape.SEQUIN: Vector2(13, 13),
 	Shape.STAR: Vector2(19, 19), Shape.LEAF: Vector2(27, 14), Shape.CHIP: Vector2(15, 13), Shape.COIN: Vector2(22, 22),
+	Shape.PETAL: Vector2(18, 11), Shape.BEAD: Vector2(10, 10),
 }
 const STREAK_SPEED := 420.0  ## faster than this (px/s), a piece leaves a smear
 
@@ -175,7 +176,7 @@ func _draw() -> void:
 			if p.shape != shape or p.age < 0.0 or p.age >= p.life:
 				continue
 			var face := cos(p.flip)
-			var w := maxf(absf(face), 0.14)
+			var w := 1.0 if p.shape == Shape.BEAD else maxf(absf(face), 0.14)  # a bead is round from every side
 			var grow := minf(p.age / 0.06, 1.0)  # pieces open out of the burst
 			draw_set_transform(p.pos, p.turn, Vector2(w, 1.0) * grow)
 			draw_texture_rect(tex, Rect2(-p.size / 2, p.size), false, _shade(p))
@@ -223,7 +224,7 @@ func _shade(p: Piece) -> Color:
 
 ## How much a piece catches the light (0 to 1): for an instant as it turns full face.
 func _glint(p: Piece) -> float:
-	if p.shape == Shape.LEAF or p.shape == Shape.CHIP:
+	if p.shape == Shape.LEAF or p.shape == Shape.CHIP or p.shape == Shape.PETAL:
 		return 0.0
 	return pow(maxf(cos(p.flip + p.glint_phase), 0.0), 24.0) * maxf(cos(p.flip), 0.0)
 
@@ -277,6 +278,20 @@ static func _bake_textures() -> void:
 		var b := lerpf(0.68 + 0.18 * light, 0.86 + 0.14 * light, rim)
 		b = lerpf(b, 0.95 + 0.05 * light, star)
 		return Vector2(b - 0.12 * smoothstep(0.86, 0.95, r) * (1.0 - light), (0.97 - r) * 14.0))
+	# A petal: a soft teardrop, darker at its base, a crease down the middle, lit from the upper left.
+	_textures[Shape.PETAL] = _bake(Vector2i(36, 22), func(u: Vector2) -> Vector2:
+		var x := (u.x + 1.0) / 2.0  # 0 at the base, 1 at the tip
+		var half := 0.9 * pow(sin(clampf(x, 0.0, 1.0) * PI), 0.7) * (0.55 + 0.45 * x)
+		var crease := 0.12 * (1.0 - smoothstep(0.0, 0.15, absf(u.y)))
+		var light := clampf(0.6 - 0.4 * u.y + 0.2 * x, 0.0, 1.0)
+		return Vector2(0.62 + 0.38 * light - crease, (half - absf(u.y)) * 10.0))
+	# A glass bead: a sphere with a hard specular point and a coloured rim light.
+	_textures[Shape.BEAD] = _bake(Vector2i(20, 20), func(u: Vector2) -> Vector2:
+		var r := u.length()
+		var light := clampf(u.dot(Vector2(-0.6, -0.8)) * 0.5 + 0.5, 0.0, 1.0)
+		var spec := pow(maxf(1.0 - (u - Vector2(-0.35, -0.4)).length() / 0.3, 0.0), 2.0)
+		var rim := smoothstep(0.7, 0.95, r) * (1.0 - light) * 0.3
+		return Vector2(0.45 + 0.45 * light + 0.6 * spec + rim, (0.96 - r) * 12.0))
 	# A glint: a hot core, four thin spikes and a soft halo.
 	_flare = _bake(Vector2i(64, 64), func(u: Vector2) -> Vector2:
 		var r := u.length()

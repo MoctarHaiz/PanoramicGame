@@ -12,7 +12,9 @@ For each file (WAV or Ogg Vorbis, decoded with ffmpeg):
 Writes a Markdown table (`sounds.md`), a CSV, one spectrogram PNG per sound (waveform on top,
 log-frequency spectrogram under it) and a contact sheet of them all.
 
-Usage: python3 tools/audio_report.py OUT_DIR [files or folders ...]   (default: assets/audio)
+Usage: python3 tools/audio_report.py OUT_DIR [files or folders ...] [--grains-free=DIR]   (default: assets/audio)
+--grains-free: the same sounds rendered with `tools/sfx_synth.py DIR --no-grains`; a click flag that
+is not there is a grit grain placed on purpose, not a cut, and isn't listed.
 """
 import csv
 import subprocess
@@ -89,6 +91,58 @@ def true_peak(x: np.ndarray) -> float:
     return 20 * np.log10(np.abs(up).max() + 1e-12)
 
 
+def cuts(x: np.ndarray, floor_db: float = -40.0, drop_db: float = 14.0) -> list:
+    """Times (s) where the sound is cut while it still rings: its envelope (the Hilbert envelope, so a
+    low tone doesn't dip at each zero crossing; 1 ms steps) falls more than `drop_db` within 2 ms
+    from a level it held for the 4 ms before, within `floor_db` of the loudest point. A natural decay
+    or a grain's soft edge never does that; a layer truncated without a fade does (a click)."""
+    w = 44
+    env = np.abs(signal.hilbert(x.mean(axis=1)))
+    m = len(env) // w
+    if m < 8:
+        return []
+    lvl = 20 * np.log10(env[: m * w].reshape(m, w).mean(axis=1) + 1e-9)
+    top = lvl.max()
+    out = []
+    for i in range(30, m - 3):  # past the attack; the very end is the file's own fade
+        held = lvl[i - 4:i].min()
+        stays = lvl[i + 1:i + 6].max() < lvl[i - 1] - drop_db * 0.8  # not a dip between beating partials
+        if lvl[i - 1] > top + floor_db and held > lvl[i - 1] - 6 and lvl[i - 1] - lvl[i + 1] > drop_db and stays:
+            if not out or i * w / RATE - out[-1] > 0.01:
+                out.append(round(i * w / RATE, 3))
+    return out
+
+
+def spikes(x: np.ndarray, rise_db: float = 15.0) -> list:
+    """Times (s) of clicks inside a sound: a 1-2 ms burst above 5 kHz standing `rise_db` over the
+    10 ms around it, after which the sound is quieter than before (a cut leaves less; a new note's
+    or a drum's attack doesn't), and with energy down in 1-4 kHz too (a cut is broadband; a sparkle grain is only
+    high). Skips the first 120 ms (the attack and its crunch grains). Grit grains placed on purpose
+    (a crumble, a crunch) also show here: tools/sfx_synth.py --no-grains renders the set without them
+    to tell the two apart."""
+    w = 44
+    mono = x.mean(axis=1)
+    hf = signal.sosfilt(signal.butter(4, 5000, "highpass", fs=RATE, output="sos"), mono)
+    mid = signal.sosfilt(signal.butter(4, [1000, 4000], "bandpass", fs=RATE, output="sos"), mono)
+    m = len(mono) // w
+    if m < 130:
+        return []
+    e_hf = 10 * np.log10((hf[: m * w].reshape(m, w) ** 2).mean(axis=1) + 1e-14)
+    e_mid = 10 * np.log10((mid[: m * w].reshape(m, w) ** 2).mean(axis=1) + 1e-14)
+    env = 20 * np.log10(np.abs(signal.hilbert(mono))[: m * w].reshape(m, w).mean(axis=1) + 1e-9)
+    top = env.max()
+    out = []
+    for i in range(120, m - 12):
+        around = np.median(np.concatenate([e_hf[i - 10:i - 1], e_hf[i + 2:i + 11]]))
+        mid_around = np.median(np.concatenate([e_mid[i - 10:i - 1], e_mid[i + 2:i + 11]]))
+        if e_hf[i] - around > rise_db and e_mid[i] - mid_around > 6.0 and env[i] > top - 45 \
+                and env[i + 3:i + 8].mean() <= env[i - 8:i - 3].mean() - 2.0 \
+                and env[i - 3:i + 1].max() - env[i - 5] < 3.0:  # rising into it: a drum's attack, not a cut
+            if not out or i * w / RATE - out[-1] > 0.01:
+                out.append(round(i * w / RATE, 3))
+    return out
+
+
 def measure(path: Path) -> dict:
     x = decode(path)
     mono = x.mean(axis=1)
@@ -123,10 +177,20 @@ def measure(path: Path) -> dict:
         step = np.abs(x[0] - x[-1]).max()
         typical = np.percentile(np.abs(np.diff(x, axis=0)).max(axis=1), 99.5)
         m["clicks"] = f"loop seam {step / typical:.2f}x" + (" (jump!)" if step > typical else " ok")
-    else:  # a click: the sound starts or stops away from zero (> -40 dB of its peak), or jumps there
-        m["clicks"] = ", ".join(k for k, v in [("start", m["start"] > 0.01), ("end", m["end"] > 0.01),
-                                                ("jump-in", m["jump_start"] > 0.25 and m["start"] > 0.002),
-                                                ("jump-out", m["jump_end"] > 0.25 and m["end"] > 0.002)] if v) or "-"
+    else:  # a click: the sound starts or stops away from zero (> -40 dB of its peak), jumps there, or
+        # is cut inside (cuts())
+        found = [k for k, v in [("start", m["start"] > 0.01), ("end", m["end"] > 0.01),
+                                ("jump-in", m["jump_start"] > 0.25 and m["start"] > 0.002),
+                                ("jump-out", m["jump_end"] > 0.25 and m["end"] > 0.002)] if v]
+        clean = None  # the same sound rendered without its grit grains (--grains-free DIR)
+        if GRAINS_FREE and (GRAINS_FREE / path.name).exists():
+            g = decode(GRAINS_FREE / path.name)
+            clean = sorted(set(cuts(g)) | set(spikes(g)))
+        for c in sorted(set(cuts(x)) | set(spikes(x))):
+            if clean is not None and not any(abs(c - d) < 0.006 for d in clean):
+                continue  # a grain placed on purpose: gone without the grains
+            found.append(f"cut at {c:.3f} s")
+        m["clicks"] = ", ".join(found) or "none"
     m["_x"] = x
     return m
 
@@ -177,13 +241,39 @@ def contact_sheet(pngs: list, out: Path, cols: int = 4) -> None:
     sheet.save(out)
 
 
+def descriptions() -> dict:
+    """How each sound should sound, from the recipes that make it (file stem -> text): the 4th
+    field of tools/sfx_synth.py's RECIPES, tools/music_synth.py's DESCRIPTIONS."""
+    sys.path.insert(0, str(Path(__file__).parent))
+    import music_synth
+    import sfx_synth
+    out = {name: recipe[3] for name, recipe in sfx_synth.RECIPES.items()}
+    out.update(music_synth.DESCRIPTIONS)
+    return out
+
+
+def describe(stem: str, table: dict) -> str:
+    """The description of a file: its own stem, or the recipe its takes come from (sfx_bob_3: sfx_bob)."""
+    while stem and stem not in table:
+        stem = stem.rsplit("_", 1)[0] if "_" in stem else ""
+    return table.get(stem, "")
+
+
 FIELDS = ["file", "rate", "ch", "length_s", "peak_dbfs", "true_peak_dbtp", "lufs_i", "m_max", "dc", "clicks",
           "centroid_hz", "rolloff95_hz", "top_hz", "below200"]
 
 
+GRAINS_FREE: Path | None = None
+
+
 def main() -> None:
-    out = Path(sys.argv[1])
-    sources = [Path(p) for p in sys.argv[2:]] or [Path("assets/audio")]
+    global GRAINS_FREE
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    for a in sys.argv[1:]:
+        if a.startswith("--grains-free="):
+            GRAINS_FREE = Path(a.split("=", 1)[1])
+    out = Path(args[0])
+    sources = [Path(p) for p in args[1:]] or [Path("assets/audio")]
     files = []
     for s in sources:
         files += sorted(p for p in s.rglob("*") if p.suffix in (".wav", ".ogg", ".mp3")) if s.is_dir() else [s]
@@ -203,13 +293,16 @@ def main() -> None:
         w.writerow(FIELDS)
         for m in rows:
             w.writerow([m[k] if not isinstance(m[k], float) else round(m[k], 4) for k in FIELDS])
+    table = descriptions()
     lines = ["| file | rate | ch | length s | peak dBFS | true peak dBTP | LUFS-I | M max | DC | clicks | centroid Hz | "
-             "95% roll-off Hz | top Hz | < 200 Hz |", "|" + " --- |" * 14]
+             "95% roll-off Hz | top Hz | < 200 Hz | how it should sound |", "|" + " --- |" * 15]
     for m in rows:
-        lines.append(f"| {m['file']} | {m['rate']} | {m['ch']} | {m['length_s']:.3f} | {m['peak_dbfs']:.1f} | "
-                     f"{m['true_peak_dbtp']:.1f} | {m['lufs_i']:.1f}{'*' if m['short'] else ''} | {m['m_max']:.1f} | "
-                     f"{m['dc']:+.4f} | {m['clicks']} | {m['centroid_hz']:.0f} | {m['rolloff95_hz']:.0f} | "
-                     f"{m['top_hz']:.0f} | {100 * m['below200']:.0f} % |")
+        stem = m["file"].rsplit(".", 1)[0]
+        lines.append(f"| [{m['file']}](spectrograms/{stem}.png) | {m['rate']} | {m['ch']} | {m['length_s']:.3f} | "
+                     f"{m['peak_dbfs']:.1f} | {m['true_peak_dbtp']:.1f} | {m['lufs_i']:.1f}{'*' if m['short'] else ''} | "
+                     f"{m['m_max']:.1f} | {m['dc']:+.4f} | {m['clicks']} | {m['centroid_hz']:.0f} | "
+                     f"{m['rolloff95_hz']:.0f} | {m['top_hz']:.0f} | {100 * m['below200']:.0f} % | "
+                     f"{describe(stem, table) or 'MISSING'} |")
     lines.append("")
     lines.append("`*` shorter than a 400 ms block: measured padded with silence (compare M max between one-shots).")
     lines.append("Loops (music_, amb_): the step from their last sample to their first, against the 99.5th percentile of")

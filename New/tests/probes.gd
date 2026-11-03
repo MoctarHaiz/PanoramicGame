@@ -6,9 +6,12 @@ extends SceneTree
 ## falls: every landing of a bot run with its drop height; bot: where a bot run loses lives, per
 ## seed; windows: for each pit, how long the window is in which a jump still clears it.
 ## bobs: which Red Bobs can be taken and survived (a bot aimed at each, from moments of a bot run;
-##   --from=COL,--to=COL to share the level between runs); warning: how long each bandit is in view
-##   before it reaches him, on the narrowest (iPad, 853 units) and widest (iPhone 15) screens;
+##   --from=COL,--to=COL to share the level between runs); warning: the bot's recorded run played
+##   through the real game screen on every device of tests/capture.gd (--devices=a,b for some), each
+##   bandit's first moment on screen (inside the safe area) against the 2017 screen's (the 960-unit
+##   play window): none may be seen later (the camera's zoom and follow are checked this way);
 ## latency: frames from a swipe to his picture moving, at 30/60/90/120 Hz.
+
 
 
 func _initialize() -> void:
@@ -31,10 +34,13 @@ func _initialize() -> void:
 			_bot_run(int(s), "falls" in probes)
 	if "bobs" in probes:
 		_bobs_reach(int(a.get("from", "0")), int(a.get("to", "800")))
-	if "warning" in probes:
-		_bandit_warning()
 	if "latency" in probes:
 		_latency()
+	if "warning" in probes:
+		await process_frame  # (the autoloads are in the tree from the first frame)
+		var devices: Array = String(a.get("devices", ",".join(_devices().keys()))).split(",")
+		for device: String in devices:
+			await _warning_on(device)
 	quit()
 
 
@@ -195,38 +201,96 @@ func _bobs_reach(from_col: int, to_col: int) -> void:
 			missing.size(), missing, (Time.get_ticks_msec() - t0) / 1000])
 
 
-## Each bandit that comes at him in a bot run: seconds between first showing at the right edge (the
-## narrowest screen: iPad 4:3, 853 units of play; the widest: iPhone 15, about 1290) and reaching
-## the front of his body, or being knocked out first. Flags any under 1 s on the iPad.
-func _bandit_warning() -> void:
-	var w := World.new()
-	var bot := Bot.new(1)
-	var seen := {}  # id -> [tick in view on an iPad, tick in view on an iPhone]
-	var rows := []
-	while w.state == World.State.RUNNING and w.ticks < 9000:
-		bot.act(w)
-		w.tick()
+## The bot's recorded run (BotReplay) through the real game screen at `device`'s size and notches:
+## for each bandit, the tick it is first on screen (its body's front inside the safe area) and the
+## tick the 2017 screen showed it (its body inside the 960-unit play window), until its club would
+## reach him or it is knocked out. Prints the bandits seen later than in 2017 (none expected) and
+## the shortest time any bandit was on screen before its club reached him.
+func _warning_on(device: String) -> void:
+	var Device: Node = root.get_node("Device")  # (autoloads: by node in a -s script)
+	var Nav: Node = root.get_node("Nav")
+	var Save: Node = root.get_node("Save")
+	var d: Dictionary = _devices()[device]
+	var px: Vector2i = d.size
+	var design := Vector2(640.0 * px.x / px.y, 640.0)
+	Device.debug_insets = d.insets * (design.y / px.y)
+	Device.banner_height = 0.0
+	Save.persist = false
+	Save.tutorial_seen = true
+	Save.tutorial_learned = 31
+	var vp := SubViewport.new()
+	vp.size = px
+	vp.size_2d_override = Vector2i(design.round())
+	vp.size_2d_override_stretch = true
+	root.add_child(vp)
+	var host := Control.new()
+	host.size = design
+	vp.add_child(host)
+	host.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	Nav.custom_viewport = vp
+	Nav.attach(host)
+	Nav.go(&"game", {"world": World.new()})
+	var t0 := Time.get_ticks_msec()
+	while (Nav.current == null or Nav.is_busy()) and Time.get_ticks_msec() - t0 < 10000:
+		await process_frame
+	var game: Node = Nav.current
+	var watch := Watch.new(BotReplay.recorded(1), game, Device.debug_insets)
+	game.autopilot = watch
+	Engine.time_scale = 6.0
+	while game.world.state == World.State.RUNNING and game.world.ticks < 9000:
+		await process_frame
+	Engine.time_scale = 1.0
+	var late: Array = watch.rows.filter(func(r: Array) -> bool: return r[1] > r[0])
+	var warn: Array = watch.rows.filter(func(r: Array) -> bool: return r[2] >= 0).map(func(r: Array) -> float: return (r[2] - r[1]) * World.TICK)
+	warn.sort()
+	var leads: Array = watch.rows.filter(func(r: Array) -> bool: return r[0] >= 0 and r[1] >= 0).map(func(r: Array) -> int: return r[0] - r[1])
+	leads.sort()
+	print("warning %s: %d bandits seen, %d later than on the 2017 screen %s; seen earlier than in 2017 by %s s (least) to %s s (most); shortest time on screen before a club reached him: %s s; %s, %d lives" % [
+			device, watch.rows.size(), late.size(), late.map(func(r: Array) -> String: return "#%d %d ticks late" % [r[3], r[1] - r[0]]),
+			"%.2f" % (leads[0] * World.TICK) if not leads.is_empty() else "-", "%.2f" % (leads[-1] * World.TICK) if not leads.is_empty() else "-",
+			"%.2f" % warn[0] if not warn.is_empty() else "-", World.State.keys()[game.world.state], game.world.lives])
+	game.queue_free()
+	Nav.reset()
+	Nav.custom_viewport = root
+	vp.queue_free()
+	for i in 3:
+		await process_frame
+
+
+## Plays a recorded run and, before each tick, notes what the screen shows of each bandit.
+class Watch extends RefCounted:
+	var replay: BotReplay
+	var game: Node
+	var insets: Vector4
+	var seen := {}  # bandit id -> [tick in the 2017 window, tick on screen, tick its club reached him (-1)]
+	var rows: Array = []  # [2017 tick, screen tick, reach tick, id] per bandit that came
+
+	func _init(r: BotReplay, g: Node, ins: Vector4) -> void:
+		replay = r
+		game = g
+		insets = ins
+
+	func act(w: World) -> void:
+		var zoom: float = game._stage.scale.x
+		var right: float = (game._clip.size.x - insets.z - game._stage.position.x) / zoom  # the safe area's edge, play x
 		for b in w.bandits:
-			if b.gone or not b.active:
-				if b.gone and seen.has(b.id) and seen[b.id].size() == 2:
-					rows.append([b.id, -1.0, (w.ticks - seen[b.id][0]) * World.TICK, int(b.x / Level.TILE), "gone"])
-					seen[b.id].append(true)
+			if not b.active or b.health <= 0:
 				continue
-			var sx := b.x - w.scroll
+			var front := b.x - w.scroll - World.BANDIT_SIZE.x / 2
 			if not seen.has(b.id):
-				seen[b.id] = [w.ticks if sx < 853.0 else -1, w.ticks]
-			elif seen[b.id][0] < 0 and sx < 853.0:
-				seen[b.id][0] = w.ticks
-			if seen[b.id].size() == 2 and seen[b.id][0] >= 0 and sx - World.BANDIT_SIZE.x / 2 - World.CLUB_REACH < w.x + World.HERO_SIZE.x / 4:
-				rows.append([b.id, (w.ticks - seen[b.id][0]) * World.TICK, (w.ticks - seen[b.id][1]) * World.TICK, int(b.x / Level.TILE),
-						"high" if b.y < w.y - 60.0 else ("low" if b.y > w.y + 60.0 else "level")])
-				seen[b.id].append(true)
-	for r: Array in rows:
-		if r[1] >= 0.0:
-			print("  bandit %2d at col %3d: in view %.2f s (iPad), %.2f s (wide) before its club reaches him; %s%s" % [r[0], r[3], r[1], r[2], r[4],
-					"   <-- under 1 s" if r[1] < 1.0 else ""])
-	print("warning: %d bandits reached him (%d under 1 s on an iPad); lives %d" % [rows.filter(func(r: Array) -> bool: return r[1] >= 0.0).size(),
-			rows.filter(func(r: Array) -> bool: return r[1] >= 0.0 and r[1] < 1.0).size(), w.lives])
+				if b.gone:
+					continue
+				seen[b.id] = [-1, -1, -1]
+				rows.append(seen[b.id])
+				seen[b.id].append(b.id)
+			var row: Array = seen[b.id]
+			if row[0] < 0 and front < World.VIEW_W:
+				row[0] = w.ticks
+			if row[1] < 0 and front < right:
+				row[1] = w.ticks
+			if row[2] < 0 and (w.strike(b) >= 1.0 or b.touched_hero):
+				row[2] = w.ticks
+		replay.act(w)
 
 
 ## Frames from a swipe (made at any moment between two frames) to his picture moving.
@@ -251,3 +315,8 @@ func _latency() -> void:
 			total += frames
 		print("latency at %3d Hz: the jump shows %.1f frames after the swipe on average, %d at worst (%.0f / %.0f ms)" % [hz,
 				total / 24.0, worst, total / 24.0 * 1000.0 / hz, worst * 1000.0 / hz])
+
+
+## The devices of tests/capture.gd (loaded when the autoloads it uses exist).
+func _devices() -> Dictionary:
+	return load("res://tests/capture.gd").DEVICES

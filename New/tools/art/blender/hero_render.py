@@ -69,10 +69,19 @@ def setup_scene():
     rig = bpy.data.objects.new("LightRig", None)
     SC.collection.objects.link(rig)
     if arg("--light", "day") == "sunset":
-        # the menu: the low sun behind him on the left, its light wrapping his edges in orange
-        add_sun("Rim", (1.0, 0.55, 0.25), 6.0, aim_from=(0.62, 0.72, 0.3), angle=2.0)
-        add_sun("RimFront", (1.0, 0.7, 0.5), 2.0, aim_from=(0.55, -0.78, 0.3), angle=2.0)
-        add_area("Bounce", (0.8, 0.45, 0.3), 25.0, at=(-0.5, -0.1, -0.6), size=2.0)
+        # the interface pictures, in their screens' own light: the low sun behind him wraps his
+        # edges in orange, the warm ground bounces up; the user's front lights dimmed and warmed
+        # (a cool neutral front light read as "composited"), the muscle grooves softer
+        for ob in user_lights:
+            ob.data.energy *= 0.45
+            ob.data.color = (1.0, 0.82, 0.68)
+        for m in MESH.data.materials:
+            for n in m.node_tree.nodes:
+                if n.type == "NORMAL_MAP":
+                    n.inputs["Strength"].default_value = 0.55
+        add_sun("Rim", (1.0, 0.55, 0.22), 10.0, aim_from=(0.62, 0.72, 0.3), angle=2.0)
+        add_sun("RimFront", (1.0, 0.68, 0.45), 3.5, aim_from=(0.55, -0.78, 0.3), angle=2.0)
+        add_area("Bounce", (0.95, 0.5, 0.25), 60.0, at=(-0.5, -0.1, -0.6), size=2.0)
     else:
         # the level: the golden-hour sun high on the left (behind him): a warm rim on his back,
         # shoulders and hair; the grass below: a faint warm bounce
@@ -418,8 +427,63 @@ def pose_menu(kind):
     bpy.context.view_layer.update()
 
 
+def pose_menu_throw():
+    """The title screen: mid-throw, a ring leaving his hand, three-quarters towards us."""
+    reset_turn()
+    apply(sample_jog(3))
+    throw_arm(1)
+    aim("LeftArm", -0.8, -0.25, -0.3)
+    aim("LeftForeArm", -0.55, 0.35)
+    turn("Spine", 6)
+    turn("Head", -4)
+    ring = bpy.data.objects.get("MenuRing")
+    if ring is None:
+        bpy.ops.mesh.primitive_torus_add(major_radius=0.055, minor_radius=0.014, major_segments=64, minor_segments=24)
+        ring = bpy.context.object
+        ring.name = "MenuRing"
+        bpy.ops.object.shade_smooth()
+        m = bpy.data.materials.new("RingSteel")
+        m.use_nodes = True
+        b = m.node_tree.nodes["Principled BSDF"]
+        b.inputs["Base Color"].default_value = (0.1, 0.42, 1.0, 1)
+        b.inputs["Metallic"].default_value = 0.85
+        b.inputs["Roughness"].default_value = 0.22
+        b.inputs["Emission Color"].default_value = (0.35, 0.8, 1.0, 1)
+        b.inputs["Emission Strength"].default_value = 0.6
+        ring.data.materials.append(m)
+    ring.hide_render = False
+    hand = ARM.matrix_world @ ARM.pose.bones[P + "RightHand"].tail
+    ring.location = hand + Vector((-0.02, -0.06, 0.02))
+    ring.rotation_euler = (math.radians(70), math.radians(20), 0)
+    ARM.rotation_euler.z = math.radians(50.0)
+    bpy.context.view_layer.update()
+    # the ring turns with him (it was placed before the turn): put it at his hand again
+    hand = ARM.matrix_world @ ARM.pose.bones[P + "RightHand"].tail
+    ring.location = hand + Vector((0.05, -0.03, 0.02))
+
+
+def pose_defeat():
+    """Game over: down on one knee, a hand on the ground, his head turned away and bowed."""
+    reset_turn()
+    pose_kneel()
+    aim("RightArm", 0.55, -0.85, 0.3)
+    aim("RightForeArm", 0.25, -1.0, 0.1)
+    aim("RightHand", 0.6, -0.8)
+    aim("LeftArm", 0.05, -1.0, -0.2)
+    aim("LeftForeArm", 0.4, -0.6, -0.2)
+    turn("Spine", 10)
+    turn("Neck", 18)
+    turn("Head", 14, axis=(0.0, 0.0, 1.0))
+    plant(0.0, knees=True)
+    ARM.rotation_euler.z = math.radians(32.0)
+    bpy.context.view_layer.update()
+
+
 def reset_turn():
     ARM.rotation_euler.z = 0.0
+    ring = bpy.data.objects.get("MenuRing")  # only the title screen's picture holds a ring
+    if ring:
+        ring.hide_render = True
     bpy.context.view_layer.update()
 
 
@@ -439,10 +503,192 @@ def anims():
     out["climb"] = ("side", [lambda i=i: pose_climb(i / 7.0) for i in range(8)])
     out["win"] = ("side", [lambda i=i: pose_win(i / 23.0) for i in range(24)], 0.2)
     out["menu"] = ("front", [lambda k=k: pose_menu(k) for k in range(4)], 0.1)
-    out["menu_hero"] = ("front", [lambda: pose_menu(0)], 0.1)
+    out["menu_hero"] = ("front", [lambda: pose_menu_throw()], 0.1)
+    out["defeat"] = ("front", [lambda: pose_defeat()], 0.0)
     out["win_front"] = ("side", [lambda: pose_win(0.62, face_turn=-100.0)], 0.2)
     return out
 
+
+
+# ------------------------------------------------------------------ the bandit (--character bandit)
+# The masked raider, built from the hero's own mesh and rig so he sits in the same light: his
+# picture's light and dark turned to violet wraps (the normal map keeps every muscle), a hood over
+# his head with amber eyes and a teal crest, a club in his near hand. Rendered from the other side
+# (he runs left, at Panoramic).
+
+def _material(name, colour, rough=0.7, emit=None, strength=0.0):
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    b = m.node_tree.nodes["Principled BSDF"]
+    b.inputs["Base Color"].default_value = (*colour, 1.0)
+    b.inputs["Roughness"].default_value = rough
+    if emit:
+        b.inputs["Emission Color"].default_value = (*emit, 1.0)
+        b.inputs["Emission Strength"].default_value = strength
+    return m
+
+
+def _attach(ob, bone):
+    """Parents an object to a bone, keeping where it is now."""
+    mw = ob.matrix_world.copy()
+    ob.parent = ARM
+    ob.parent_type = "BONE"
+    ob.parent_bone = P + bone
+    bpy.context.view_layer.update()
+    ob.matrix_world = mw
+
+
+def bone_world(name, end="head"):
+    pb = ARM.pose.bones[P + name]
+    return ARM.matrix_world @ (pb.head if end == "head" else pb.tail)
+
+
+BANDIT_PROPS = []
+
+
+def make_bandit():
+    for m in MESH.data.materials:
+        nodes, links = m.node_tree.nodes, m.node_tree.links
+        bsdf = next(n for n in nodes if n.type == "BSDF_PRINCIPLED")
+        tex = next(l.from_node for l in links if l.to_socket == bsdf.inputs["Base Color"])
+        bw = nodes.new("ShaderNodeRGBToBW")
+        ramp = nodes.new("ShaderNodeValToRGB")
+        el = ramp.color_ramp.elements
+        el[0].position, el[0].color = 0.05, (0.05, 0.025, 0.09, 1)
+        el[1].position, el[1].color = 0.75, (0.62, 0.48, 0.86, 1)
+        mid = el.new(0.32)
+        mid.color = (0.2, 0.1, 0.36, 1)
+        links.new(tex.outputs["Color"], bw.inputs["Color"])
+        links.new(bw.outputs["Val"], ramp.inputs["Fac"])
+        links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
+        bsdf.inputs["Roughness"].default_value = 0.62
+    apply(sample("idle", 1))
+    head = bone_world("Head")
+    top = bone_world("HeadTop_End")
+    up = (top - head).normalized()
+    size = (top - head).length
+    # a mask: a dark band of cloth round his head at the eyes, amber eyes glowing through it
+    eyes_at = head + up * size * 0.5 + Vector((0.0, -0.01, 0.0))
+    bpy.ops.mesh.primitive_cylinder_add(radius=size * 0.52, depth=size * 0.24, location=eyes_at, vertices=48)
+    band = bpy.context.object
+    band.scale = (0.95, 1.12, 1.0)
+    bpy.ops.object.shade_smooth()
+    band.data.materials.append(_material("Mask", (0.1, 0.04, 0.18), 0.8))
+    eye_mat = _material("Eyes", (1.0, 0.6, 0.1), 0.3, (1.0, 0.62, 0.12), 16.0)
+    parts = [band]
+    for side in (-1.0, 1.0):
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=size * 0.075, location=eyes_at + Vector((side * size * 0.2, -size * 0.58, 0.0)))
+        eye = bpy.context.object
+        eye.scale = (1.5, 0.6, 0.65)
+        eye.data.materials.append(eye_mat)
+        parts.append(eye)
+    # a teal crest standing out of his hair
+    bpy.ops.mesh.primitive_cone_add(radius1=size * 0.14, depth=size * 0.9, location=top + up * size * 0.15 + Vector((0.0, size * 0.1, 0.0)))
+    crest = bpy.context.object
+    crest.rotation_euler = (math.radians(-25), 0, 0)
+    crest.data.materials.append(_material("Crest", (0.1, 0.62, 0.6), 0.4, (0.05, 0.4, 0.38), 1.5))
+    parts.append(crest)
+    for ob in parts:
+        _attach(ob, "Head")
+    # the club, in the hand nearer the other-side camera (his left), carried on from his forearm
+    apply(sample("run", 1))
+    hand = bone_world("LeftHand")
+    shaft = (bone_world("LeftHand", "tail") - bone_world("LeftForeArm")).normalized()
+    length = 0.38
+    bpy.ops.mesh.primitive_cylinder_add(radius=0.02, depth=length, location=hand + shaft * length * 0.5)
+    club = bpy.context.object
+    club.rotation_euler = shaft.to_track_quat("Z", "Y").to_euler()
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.045, location=hand + shaft * length * 0.95)
+    knob = bpy.context.object
+    knob.scale = (1.0, 1.0, 1.3)
+    knob.rotation_euler = club.rotation_euler
+    wood = _material("Club", (0.3, 0.16, 0.08), 0.55)
+    for ob in (club, knob):
+        bpy.ops.object.select_all(action="DESELECT")
+        ob.select_set(True)
+        bpy.context.view_layer.objects.active = ob
+        bpy.ops.object.shade_smooth()
+        ob.data.materials.append(wood)
+        _attach(ob, "LeftHand")
+    BANDIT_PROPS.extend([club, knob])
+
+
+def club_visible(on):
+    for ob in BANDIT_PROPS:
+        ob.hide_render = not on
+
+
+def run_full(i):
+    """The user's run at full stride (the bandits run 291 units/s against the ground)."""
+    apply(sample("run", 1 + i))
+    club_visible(True)
+
+
+def pose_daze(i):
+    """Running dazed after a ring: head lolling, the club arm hanging."""
+    run_full(i)
+    turn("Head", 18)
+    turn("Spine1", 8)
+    aim("LeftArm", -0.15, -1.0, -0.2)
+    aim("LeftForeArm", 0.25, -1.0)
+
+
+def pose_swing(i):
+    """The club over his head (0-3, drawn back further each frame), the blow (4-5), the follow
+    through (6-7); the legs keep running."""
+    run_full(i * 2)
+    if i < 4:
+        k = (i + 1) / 4.0
+        turn("Spine", -8 * k)
+        aim("LeftArm", 0.2 - 0.7 * k, 0.6 + 0.4 * k, -0.3)
+        aim("LeftForeArm", -0.2 - 0.6 * k, 1.0 - 0.3 * k, -0.1)
+    elif i < 6:
+        k = (i - 3) / 2.0
+        turn("Spine", 10 * k)
+        aim("LeftArm", 0.9, 0.5 - 0.7 * k, -0.25)
+        aim("LeftForeArm", 1.0, 0.3 - 0.9 * k, -0.1)
+    else:
+        turn("Spine", 12)
+        aim("LeftArm", 0.5, -0.9, -0.25)
+        aim("LeftForeArm", 0.6, -0.8, -0.1)
+
+
+def pose_bandit_ko(k):
+    club_visible(False)  # it flies off on its own (club.png)
+    if k == 0:  # the blow: snapped back
+        pose_hurt(0.2)
+    else:  # tumbling, curled
+        apply(sample("jump", 12))
+
+
+def pose_wait(k):
+    """Waiting to pounce: crouched low, breathing (k 0 or 1)."""
+    pose_kneel()
+    aim("RightUpLeg", 0.9, -0.3)
+    aim("RightLeg", -0.3, -1.0)
+    plant(0.0)
+    turn("Spine", 4 * k)
+    club_visible(True)
+
+
+def club_alone():
+    """The club by itself (it flies off when he is knocked out): the body hidden."""
+    run_full(0)
+    MESH.hide_render = True
+    for ob in bpy.data.objects:
+        if ob.type == "MESH" and ob.parent == ARM and ob.parent_bone == P + "Head":
+            ob.hide_render = True
+
+
+def bandit_anims():
+    out = {}
+    out["b_run"] = ("other_side", [lambda i=i: run_full(i) for i in range(16)])
+    out["b_daze"] = ("other_side", [lambda i=i: pose_daze(i) for i in range(16)])
+    out["b_ko"] = ("other_side", [lambda k=k: pose_bandit_ko(k) for k in range(2)])
+    out["b_wait"] = ("other_side", [lambda k=k: pose_wait(k) for k in range(2)])
+    out["b_swing"] = ("other_side", [lambda i=i: pose_swing(i) for i in range(8)])
+    out["b_club"] = ("other_side", [lambda: club_alone()])
+    return out
 
 # ------------------------------------------------------------------ render
 
@@ -506,6 +752,9 @@ def render(name, view, frames, lift=0.0):
 def main():
     setup_scene()
     table = anims()
+    if arg("--character") == "bandit":
+        make_bandit()
+        table = bandit_anims()
     wanted = arg("--anims", ",".join(table)).split(",")
     for name in wanted:
         render(name, *table[name])

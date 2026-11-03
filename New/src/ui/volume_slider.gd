@@ -62,17 +62,19 @@ func _draw() -> void:
 		GlossStyle.fill_rounded(ci, fill, gr - 3.5, Color("ffe066"), Color("e8860e"))
 		GlossStyle.fill_rounded(ci, Rect2(fill.position + Vector2(5, 2), Vector2(maxf(fill.size.x - 10, 0), 4)), 2.0,
 				Color(1, 1, 0.9, 0.75), Color(1, 1, 0.9, 0.5))
-	# the step marks
+	# the step marks along the whole groove (the scale reads even when it is full)
 	for i in range(1, STEPS):
 		var x := lerpf(r, size.x - r, float(i) / STEPS)
-		if x > cx + r * 0.6:
-			draw_circle(Vector2(x, r), 2.2, Color(INK, 0.35), true, -1, true)
+		if absf(x - cx) > r * 0.7:
+			draw_circle(Vector2(x, r), 2.4, Color(INK, 0.45) if x > cx else Color("b8600c"), true, -1, true)
 	var knob_r := r - 2.0
 	var centre := Vector2(cx, r)
 	draw_circle(centre + Vector2(0, 4), knob_r, Color(Ui.NIGHT, 0.3), true, -1, true)
 	draw_circle(centre, knob_r, INK, true, -1, true)
 	draw_circle(centre, knob_r - 3.0, Color("e0961e"), true, -1, true)
 	draw_circle(centre - Vector2(0, 1.5), knob_r - 4.5, Color("ffe9a0"), true, -1, true)
-	draw_circle(centre, knob_r - 8.0, Color("efe2cf"), true, -1, true)
-	draw_circle(centre - Vector2(0, 2), knob_r - 9.5, Color.WHITE, true, -1, true)
-	draw_circle(centre - Vector2(knob_r * 0.28, knob_r * 0.32), knob_r * 0.18, Color(1, 1, 1, 0.9), true, -1, true)
+	draw_circle(centre, knob_r - 8.0, Color("d6c0a0"), true, -1, true)  # a glossy cream ball: shaded below,
+	draw_circle(centre - Vector2(0, 2.5), knob_r - 10.0, Color("fffaf0"), true, -1, true)  # lit above
+	draw_set_transform(centre - Vector2(knob_r * 0.12, knob_r * 0.34), -0.35, Vector2(1.0, 0.55))
+	draw_circle(Vector2.ZERO, knob_r * 0.42, Color(1, 1, 1, 0.95), true, -1, true)
+	draw_set_transform(Vector2.ZERO)

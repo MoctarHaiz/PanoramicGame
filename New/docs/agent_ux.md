@@ -105,3 +105,46 @@ Next: review round 1 captures at full size and shrunk; ads-on layouts; then the 
 Still short: the win could be a bigger moment (full-screen confetti rain, hero celebration pose: the
 renders have no cheer/victory animation); the menu pose is a calm stance (the judge asked for action);
 the boot logo art (art track); the in-game hero is still the old painted sprite (art track).
+
+## Round 2
+
+Judged round 1: UX 0/8 (ours 6, settings 7, boot 2); merged 0/12. Critiques: `AAA/judge/j01_ux`,
+`AAA/judge/j01`, motion `AAA/judge/m01`; QA `AAA/qa/round_2/bugs.md`.
+
+Done:
+- Merge failures: StartCard is a plain Control now, centred and scaled by hand (a container reset the
+  scale; it measured itself, not the screen); the start card is freed when a run ends.
+- Panels (GamePanel): behind them the game is taken once as a picture (`Ui.blurred_snapshot`: 1/16
+  size by 2x2 averaging, drawn back stretched: a soft blur, no shader, no screen copy kept), tinted
+  and vignetted, so the HUD and scene step back; the card pops in opaque (0.7 -> 1.06 -> 1), the
+  ribbon drops in, the character slides in; the group (character + card) is centred; a tall
+  character lifts the group down; his shadow under his feet.
+- Card material: paper grain (`assets/art/ui/paper.png`, `tools/art/ui_kit.py`) under the cream,
+  bevelled frame, gold studs, side inner shadows, a deeper drop shadow.
+- Results: sequenced (stars slam 0.32 s apart with a burst and their note, the third shakes the card;
+  coins and confetti in front of everything; the count rolls 0.7 s with ticks; a NEW BEST stamp slams
+  on the count's corner last); buttons shown at once; Share in gold (no blue); the bandit stat and
+  hearts dropped (mixed styles); the way-home bar fills after the count and ends on a gold house
+  disc drawn into it (not a button); total out of World.BOBS_REACHABLE (what the stars count); the
+  art track's `hero_win.png` (arms up), `hero_lose.png` when it exists, else my `hero_down.png`.
+- Empty stars: cool grey recessed sockets.
+- Pause: big RESUME, one aligned row of four tiles (Music, Sounds with ON/OFF tabs and a red strike
+  when off, Controls, Home), the controls (animated gesture tiles) behind the Controls tile.
+- Menu: the art track's fighting-stance render, the sun low between him and the title (bloomed,
+  soft-edged, strong shafts, a warm horizon band), long rose-gold clouds, no specks or twinkles, a
+  new rock (soft granite masses, cracks with lit lips, grain, clefts in shade), cream settings
+  button, the title column further right.
+- Logo: a slimmer pointed shield with its stick and a fur tuft, dark leather laces (no red-white
+  "candy cane"), one long assegai (no symmetric blades reading as ears).
+- Settings: the hero at the left where there is room, tan board with raised cream rows, tiles tinted
+  by kind, distinct shake and reduce-motion glyphs, bold headers with icons and a gold rule ("Game"
+  instead of "More"), the back button nailed to the panel's corner, glossy knobs, ticks over the
+  whole slider.
+- HUD: glossy hearts vs dark sockets; a lost heart flashes, cracks in two and falls, the plate
+  flashes red; the counter counts on pickup, punches and flashes; plates never fade (QA: the
+  progress plate vanished for seconds); a soft shade along the top sets the HUD apart from the vine;
+  stronger plate shadows. The ×N combo pops beside the hero, warmer and bigger per streak, one font
+  size scaled (QA: each size cached ~4 MB); the resume countdown uses the 64 px size scaled 1.5
+  (no 96 px atlas).
+- Boot: a dusk title card, the studio logo on a cream plaque in the kit's frame, a gold bar filling.
+- Start: "Tap to start" on dark glass, a chunkier hand.

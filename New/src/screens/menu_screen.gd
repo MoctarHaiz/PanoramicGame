@@ -1,23 +1,26 @@
 extends Screen
-## The menu: the sunset; on the left Panoramic, full length (the user's 3D render), standing on a
-## kopje that juts out into the evening, the low sun right behind him (hero.gdshader: a warm rim
-## all round him, the dusk in his shadows), a soft halo around him, his shadow on the rock; on
-## the right the CHAKA ZULU logo (bevelled gold letters over a Zulu shield and crossed assegais,
-## tools/art/ui_logo.py) with its subtitle on a beadwork ribbon, a big framed PLAY, the best run and
-## the settings. Dust drifts up through the light. Everything arrives in a short choreography: the
-## hero rises onto the rock, the logo drops and bounces, the ribbon unrolls, PLAY pops, the rest
-## fades in. Then the logo catches the light now and then and PLAY breathes.
+## The menu, composed as key art: on the left Panoramic in his fighting stance (the art track's
+## render, assets/art/hero/hero_menu.png), full length on a backlit granite kopje, his shadow on
+## the rock; the low sun between him and the title, blown out and blooming, shafts of light fanning
+## from it, long rose-gold clouds, so he is rim-lit from that side (hero.gdshader) and the middle of
+## the screen glows instead of lying empty; on the right the CHAKA ZULU logo (bevelled gold letters
+## over a Zulu shield and an assegai, tools/art/ui_logo.py) with its subtitle on a ribbon, a big
+## framed PLAY, and a row of cream plaques: the best run and the settings. Everything arrives in a
+## short choreography: the hero rises onto the rock, the logo drops and bounces, the ribbon unrolls,
+## PLAY pops, the rest fades in. Then the logo catches the light now and then and PLAY breathes.
 
 const LOGO := preload("res://assets/art/ui/logo.png")
 const RIBBON := preload("res://assets/art/ui/ribbon.png")
-const HERO := preload("res://assets/art/ui/hero_stand.png")
+const HERO_ART := "res://assets/art/hero/hero_menu.png"  ## the art track's render, when there
+const HERO_STAND := preload("res://assets/art/ui/hero_stand.png")
 const ROCK := preload("res://assets/art/ui/menu_rock.png")
-const ROCK_STAND := Vector2(930, 104)  ## where his feet go on the rock, in its pixels (tools/art/ui_hero.py)
-const HERO_TALL := 0.78  ## his height, as a share of the screen's
-const FEET_AT := 0.86  ## where his feet stand, as a share of the screen's height
+const ROCK_STAND := Vector2(1340, 150)  ## where his feet go on the rock, in its pixels (tools/art/ui_hero.py)
+const HERO_TALL := 0.8  ## his height, as a share of the screen's
+const FEET_AT := 0.9  ## where his feet stand, as a share of the screen's height
 
 var _backdrop: SunsetBackdrop
 var _hero: TextureRect
+var _hero_tex: Texture2D
 var _rock: TextureRect
 var _shadow: TextureRect  # his shadow on the rock
 var _front: TextureRect  # dark backlit grass across the bottom, in front of the rock's foot
@@ -38,8 +41,12 @@ var _clock := 0.0
 func enter(_data: Dictionary) -> void:
 	_backdrop = SunsetBackdrop.new()
 	_backdrop.framing_tree = false  # he stands there
+	_backdrop.motes = false  # no specks in a lit sky
+	_backdrop.clouds = true
+	_backdrop.shafts = 2.4
 	add_child(_backdrop)
-	# the hero's halo: a soft warm light behind him
+	_hero_tex = load(HERO_ART) if ResourceLoader.exists(HERO_ART) else HERO_STAND
+	# the bloom around the low sun
 	_halo_glow = TextureRect.new()
 	_halo_glow.texture = Fx.glow_texture()
 	_halo_glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -47,8 +54,6 @@ func enter(_data: Dictionary) -> void:
 	_halo_glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_halo_glow.material = Fx.additive()
 	add_child(_halo_glow)
-	if Prefs.motion():
-		add_child(Motes.new(30))
 	_rock = _picture(ROCK)
 	add_child(_rock)
 	_shadow = _picture(Fx.glow_texture())
@@ -57,9 +62,11 @@ func enter(_data: Dictionary) -> void:
 	_front = _picture(load("res://assets/art/world/sunset_grass.png"))
 	_front.stretch_mode = TextureRect.STRETCH_TILE
 	_front.modulate = Color(0.55, 0.45, 0.52)
-	_hero = _picture(HERO)
+	_hero = _picture(_hero_tex)
 	var lit := ShaderMaterial.new()
 	lit.shader = preload("res://src/ui/hero.gdshader")
+	lit.set_shader_parameter(&"rim_dir", Vector2(1.0, -0.2))  # the sun is on his right (our right)
+	lit.set_shader_parameter(&"rim_px", 8.0)
 	_hero.material = lit
 	add_child(_hero)
 	add_child(_front)
@@ -85,11 +92,6 @@ func enter(_data: Dictionary) -> void:
 	_logo_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_logo_box.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_left.add_child(_logo_box)
-	var twinkles := Twinkles.new(6)
-	twinkles.smallest = 12.0
-	twinkles.largest = 30.0
-	twinkles.visible = Prefs.motion()
-	_logo_box.add_child(twinkles)
 	_logo = TextureRect.new()
 	_logo.texture = LOGO
 	_logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -107,7 +109,6 @@ func enter(_data: Dictionary) -> void:
 	_ribbon_fit.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ribbon_fit.add_child(_ribbon)
 	_logo_box.add_child(_ribbon_fit)
-	twinkles.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 	_play_box = Control.new()
 	_play_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -132,7 +133,7 @@ func enter(_data: Dictionary) -> void:
 	_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if Save.games_played > 0:
 		_row.add_child(_best_plaque())
-	var settings := Ui.icon_button("gear-six-fill", Ui.Tone.BLUE, 88.0, 30.0)
+	var settings := Ui.icon_button("gear-six-fill", Ui.Tone.WHITE, 84.0, 28.0)  # cream, as the plaque
 	settings.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	settings.pressed.connect(func() -> void: Nav.go(&"settings", {}, settings.get_global_rect().get_center()))
 	_row.add_child(settings)
@@ -177,7 +178,7 @@ func _best_plaque() -> PanelContainer:
 	var bob := TextureRect.new()
 	bob.texture = BobView.texture()
 	bob.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	bob.custom_minimum_size = Vector2(64, 64)
+	bob.custom_minimum_size = Vector2(58, 58)
 	bob.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	bob.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(bob)
@@ -194,7 +195,7 @@ func _best_plaque() -> PanelContainer:
 	count.refresh()
 	words.add_child(count)
 	row.add_child(words)
-	var stars := StarRow.new(Save.best_stars, 44)
+	var stars := StarRow.new(Save.best_stars, 38)
 	stars.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(stars)
 	plaque.add_child(row)
@@ -241,32 +242,33 @@ func _vignette() -> TextureRect:
 	return v
 
 
-## Places Panoramic on the left, full length, his feet on the rock and the sun behind his chest
-## (never wider than a third of a tablet's screen), and sizes the logo to the height left by the
-## safe area and the banner in the column on his right.
+## Places Panoramic on the left, full length, his feet on the rock (never wider than a third of a
+## tablet's screen); the sun low between him and the title; the title column on the right; the
+## logo sized to the height left by the safe area and the banner.
 func _layout() -> void:
 	var v := size
 	var insets := Device.insets()
-	var aspect := float(HERO.get_width()) / HERO.get_height()
-	var h := minf(v.y * HERO_TALL, v.x * 0.3 / aspect)
+	var aspect := float(_hero_tex.get_width()) / _hero_tex.get_height()
+	var h := minf(v.y * HERO_TALL, v.x * 0.26 / aspect)
 	var w := h * aspect
-	var feet := Vector2(insets.x + maxf(w * 0.72, v.x * 0.14), v.y * FEET_AT)
+	var feet := Vector2(insets.x + w * 0.5 + 12.0, v.y * FEET_AT)
 	_hero.size = Vector2(w, h)
 	_hero.position = feet - Vector2(w * 0.5, h * 0.985)
 	_hero.pivot_offset = Vector2(w / 2, h)
-	var k := h * 0.7 / ROCK.get_height()  # the rock's pixels to screen units
+	var k := h * 0.62 / ROCK.get_height()  # the rock's pixels to screen units
 	_rock.size = Vector2(ROCK.get_width(), ROCK.get_height()) * k
 	_rock.position = feet - ROCK_STAND * k
 	_front.size = Vector2(v.x, v.y * 0.1)
 	_front.position = Vector2(0, v.y * 0.92)
-	_shadow.size = Vector2(w * 0.95, w * 0.2)
-	_shadow.position = feet - Vector2(w * 0.5, w * 0.08)
-	var chest := _hero.position + Vector2(w * 0.52, h * 0.3)
-	_backdrop.sun_at = chest / v
-	_halo_glow.size = Vector2(h * 1.4, h * 1.4)
-	_halo_glow.position = chest - _halo_glow.size / 2
-	# the column on his right
-	var column_left := _hero.position.x + w + 16.0
+	_shadow.size = Vector2(w * 1.15, w * 0.16)  # under both boots of his wide stance
+	_shadow.position = feet - Vector2(_shadow.size.x * 0.5, _shadow.size.y * 0.45)
+	# the sun, low, between him and the title: it rims him and fills the middle with light
+	var sun := Vector2(_hero.position.x + w + maxf(v.x * 0.07, 70.0), v.y * 0.6)
+	_backdrop.sun_at = sun / v
+	_halo_glow.size = Vector2(v.y * 1.5, v.y * 1.5)
+	_halo_glow.position = sun - _halo_glow.size / 2
+	# the column on the right of the sun
+	var column_left := minf(sun.x + v.x * 0.04, v.x - insets.z - 18.0 - 470.0)
 	_hero_side.custom_minimum_size.x = maxf(column_left - insets.x - 18.0, 0.0)
 	var free := v.y - insets.y - Device.bottom_with_banner() - 36.0
 	var logo_h := clampf(free - 124.0 - 92.0 - 50.0 - _ribbon.size.y * 0.55, 170.0, 300.0)  # air above and below

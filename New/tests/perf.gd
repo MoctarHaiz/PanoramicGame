@@ -18,10 +18,11 @@ extends Node
 ##
 ## Godot --path . --fixed-fps 60 --resolution 200x200 --always-on-top res://tests/perf.tscn -- \
 ##     [--device=iphone15_2556x1179 | --size=2556x1179] [--seconds=40] [--pause-at=20] [--ads=on]
-##     [--out=build/perf/perf.json]
+##     [--jump-mb=4] [--out=build/perf/perf.json]
 ## --device takes a size and notches from tests/capture.gd (default iphone15_2556x1179); --seconds
 ## plays that much of the run (default: the whole level, about 2 minutes); --pause-at pauses the
-## run that many seconds in (default 20); --ads=on keeps room for the ad banner.
+## run that many seconds in (default 20); --ads=on keeps room for the ad banner; --jump-mb lists every
+## frame whose texture memory grew by more than that (default 4 MB), with the nodes added then.
 ## macOS skips drawing a covered window: such frames are drawn on demand (force_draw), so the
 ## numbers hold, but keep --always-on-top. The first run records the bot (about 5 minutes, then
 ## kept in build/qa/). Frame times are only meaningful on a quiet machine (others' renders and
@@ -51,11 +52,12 @@ var _all_pictures := PackedStringArray()  # every picture in res://assets
 var _cached := {}  # picture path -> true once in the resource cache
 var _late_loads := []  # [seconds into the run, path] of pictures first loaded during the run
 var _run_clock := -1.0  # seconds into the run (-1: not in the run)
-var _spikes := []  # frames of play over the budget: [s, work ms, script ms, render ms]
+var _spikes := []  # frames of play over the budget (wall), or with 3/4 of it of own work: [s, work, script, render ms]
 var _jumps := []  # texture memory jumps over 4 MB in a frame: [s, phase, MB, the nodes added then]
 var _added := {}  # what entered the tree since the last frame: script or class -> count
 var _added_before := {}  # ... and in the frame before (the one just drawn)
 var _last_texture := 0.0
+var _jump_mb := 4.0  # texture memory growth in one frame worth listing (--jump-mb)
 
 
 ## The first node to process each frame: notes the time.
@@ -87,6 +89,7 @@ func _ready() -> void:
 	Device.debug_insets = insets * k
 	Device.banner_height = 50.0 * px.y / 411.0 * k if a.get("ads", "off") == "on" else 0.0
 	var replay := BotReplay.recorded(1)  # before measuring: the first time it takes minutes
+	_jump_mb = float(a.get("jump-mb", "4"))
 	process_priority = 1000000  # last: _process measures the frame's scripts since _first
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(_first)
@@ -184,7 +187,7 @@ func _process(_delta: float) -> void:
 		_undrawn += 1
 		RenderingServer.force_draw(false)
 	var texture := Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED) - _own_target
-	if _last_texture > 0.0 and texture - _last_texture > 4.0 * MB:
+	if _last_texture > 0.0 and texture - _last_texture > _jump_mb * MB:
 		var added := _added_before.duplicate()
 		added.merge(_added)
 		_jumps.append([snappedf(_run_clock, 0.01), _phase, snappedf((texture - _last_texture) / MB, 0.1), added])
@@ -199,7 +202,7 @@ func _process(_delta: float) -> void:
 	var rid := _vp.get_viewport_rid()
 	var scripts := (now - _first.at) / 1000.0
 	var render := RenderingServer.viewport_get_measured_render_time_cpu(rid) + RenderingServer.get_frame_setup_time_cpu()
-	if _phase == "run" and frame_ms > FRAME_BUDGET_MS:
+	if _phase == "run" and (frame_ms > FRAME_BUDGET_MS or scripts + render > FRAME_BUDGET_MS * 0.75):
 		_spikes.append([snappedf(_run_clock, 0.01), snappedf(frame_ms, 0.1), snappedf(scripts, 0.1), snappedf(render, 0.1)])
 	var m: Dictionary = _samples.get_or_add(_phase, {})
 	for pair: Array in [

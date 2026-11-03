@@ -15,6 +15,12 @@ const SUN_X := 0.36
 var sun_at := Vector2(SUN_X, HORIZON - 0.13)
 ## The large acacia framing the left edge and the baobab near it (off where a character stands there).
 var framing_tree := true
+## Pollen specks drifting up (off on the menu: they read as stars in a lit sky).
+var motes := true
+## How strong the shafts of light fanning from the sun are (1: a breath of light).
+var shafts := 1.0
+## Long sunset clouds across the upper sky (the level's painted clouds, tinted by the dusk).
+var clouds := false
 var _clock := 0.0
 var _tex := {}
 var _painters: Array[Node2D] = []
@@ -40,13 +46,18 @@ func _ready() -> void:
 	sway.shader = preload("res://src/game/sway.gdshader")
 	sway.set_shader_parameter(&"amount", 4.0)
 	_painter(_draw_sky)
+	if clouds:
+		for i in 4:
+			_tex[StringName("cloud_%d" % (i + 1))] = load(DIR + "cloud_%d.png" % (i + 1))
+		_painter(_draw_clouds)
 	_painter(_draw_sun).material = add
 	_painter(_draw_rays).material = add
 	_painter(_draw_strip.bind(&"sunset_far", 0.0, 0.62, 2.0), true)
 	_painter(_draw_strip.bind(&"sunset_hills", 0.2, 0.9, 5.0), true)
 	_painter(_draw_trees)
 	_painter(_draw_strip.bind(&"sunset_grass", 0.29, 0.75, 9.0), true).material = sway
-	_painter(_draw_motes).material = add
+	if motes:
+		_painter(_draw_motes).material = add
 	_painter(_draw_birds)
 
 
@@ -79,15 +90,35 @@ func _draw_sky(ci: CanvasItem) -> void:
 	ci.draw_rect(Rect2(0, size.y * (HORIZON + 0.05), size.x, size.y), Color("3a1a30"))
 
 
+## Long clouds lit from below by the sun gone down: the level's painted clouds, stretched wide,
+## tinted rose and gold, drifting slowly; warmer and brighter the nearer they are to the sun.
+func _draw_clouds(ci: CanvasItem) -> void:
+	var k := _k()
+	var sun := _sun()
+	for c: Array in [[1, 0.1, 0.1, 1.5], [3, 0.52, 0.06, 1.25], [2, 0.86, 0.17, 1.6], [4, 0.33, 0.27, 1.0], [1, 0.68, 0.33, 0.8]]:
+		var tex: Texture2D = _tex[StringName("cloud_%d" % c[0])]
+		var sz := Vector2(tex.get_width() * 1.6, tex.get_height()) * k * float(c[3])
+		var x := fposmod(size.x * float(c[1]) + _clock * 4.0 * k * float(c[3]), size.x + sz.x) - sz.x * 0.5
+		var at := Vector2(x, size.y * float(c[2]))
+		var near := clampf(1.0 - at.distance_to(sun) / (size.y * 1.1), 0.0, 1.0)
+		var tint := Color(0.78, 0.5, 0.62, 0.5).lerp(Color(1.0, 0.72, 0.5, 0.75), near)
+		ci.draw_texture_rect(tex, Rect2(at - sz / 2, sz), false, tint)
+
+
 func _draw_sun(ci: CanvasItem) -> void:
 	var c := _sun()
 	var r := size.y * 0.15 * (1.0 + sin(_clock * 0.8) * 0.01)
 	var glow := size.y * 1.5
 	ci.draw_texture_rect(_tex[&"sun"], Rect2(c - Vector2(glow, glow) / 2, Vector2(glow, glow)), false, Color(1, 0.8, 0.6, 0.9))
-	# a soft-edged disc, white-hot in its middle, warmer towards its rim (no hard cut-out edge)
-	for ring: Array in [[1.16, Color(1.0, 0.8, 0.5, 0.18)], [1.07, Color(1.0, 0.84, 0.55, 0.35)],
-			[1.0, Color(1.0, 0.86, 0.58, 0.75)], [0.93, Color(1.0, 0.92, 0.7, 0.8)], [0.8, Color(1.0, 0.97, 0.86, 0.85)]]:
-		ci.draw_circle(c, r * ring[0], ring[1], true, -1.0, true)
+	# the warm air along the horizon either side of the sun
+	var band := Vector2(size.y * 2.6, size.y * 0.42)
+	ci.draw_texture_rect(_tex[&"sun"], Rect2(Vector2(c.x, size.y * HORIZON) - band / 2, band), false, Color(1, 0.7, 0.45, 0.55))
+	# a blown-out disc: many soft rings added up, white-hot in its middle, blooming into the sky
+	# (no hard cut-out edge)
+	for i in 12:
+		var u := i / 11.0
+		ci.draw_circle(c, r * lerpf(1.7, 0.55, u), Color(1.0, lerpf(0.72, 0.97, u), lerpf(0.45, 0.88, u), lerpf(0.06, 0.22, u)),
+				true, -1.0, true)
 
 
 ## Soft rays fanning up from the low sun, turning very slowly.
@@ -98,7 +129,7 @@ func _draw_rays(ci: CanvasItem) -> void:
 	var a := 0.2 + 0.05 * sin(_clock * 0.5)
 	for side in [-1.0, 1.0]:
 		ci.draw_set_transform(c, -PI * 0.5 + side * (0.05 + sin(_clock * 0.07) * 0.03), Vector2(k * side, k))
-		ci.draw_texture_rect(tex, Rect2(-SavannaView.RAYS_ORIGIN, SavannaView.RAYS_SIZE), false, Color(1, 0.85, 0.6, a))
+		ci.draw_texture_rect(tex, Rect2(-SavannaView.RAYS_ORIGIN, SavannaView.RAYS_SIZE), false, Color(1, 0.85, 0.6, minf(a * shafts, 1.0)))
 	ci.draw_set_transform(Vector2.ZERO)
 
 

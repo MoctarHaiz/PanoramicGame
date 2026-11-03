@@ -1,13 +1,14 @@
 class_name BobView
 extends Node2D
-## A Red Bob in the level (assets/art/bob/, tools/art/bob.py): a glossy red ball with a face that
+## A Red Bob in the level (assets/art/bob/: the ball rendered in 3D in Panoramic's light by
+## tools/art/blender/bob_render.py, its faces drawn by tools/art/bob_sheet.py): a glossy red ball with a face that
 ## floats up and down (each at its own phase and pace, so a row never moves as one), sways, squashes
 ## at the bottom of its float, blinks now and then, catches a glint of light, carries a hot specular
 ## point on its gloss, and glows warm (an additive rim breathing round it) so a row reads as treasure.
 ## When Panoramic takes it, the game screen flies a copy to the counter (BobView.flier()).
 
 const DIR := "res://assets/art/bob/"
-const SIZE := 28.0  ## drawn width in units (a 32-unit tile: neighbours keep a gap)
+const SIZE := 31.0  ## drawn width in units (a 32-unit tile: neighbours just apart; bigger reads at phone size)
 enum Face { SMILE, BLINK, JOY, WINK }
 
 static var _sheet: Texture2D

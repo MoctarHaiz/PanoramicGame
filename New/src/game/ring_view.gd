@@ -10,7 +10,7 @@ const RADIUS := 20.0
 const TEXTURE := preload("res://assets/art/fx/ring_spin.png")
 const SPIN_FRAMES := 8  ## ring_spin.png: a half turn, side by side
 const SPIN_FPS := 24.0
-const TRAIL := 12  ## positions kept for the streak (it sells the speed)
+const TRAIL := 6  ## positions kept for the streak: a short motion streak, not a line between rings
 const WIND_UP := 0.04  ## seconds hidden while his hand swings back (HeroView.THROW_TIME)
 const HOT := Color("e6f6ff")
 
@@ -80,21 +80,14 @@ func _draw_glow() -> void:
 			left.append(p + Vector2(0, -w))
 			right.append(p + Vector2(0, w))
 		for i in _trail.size() - 1:
-			var a := 0.55 * (1.0 - float(i) / _trail.size())
-			var b := 0.55 * (1.0 - float(i + 1) / _trail.size())
+			var a := 0.35 * (1.0 - float(i) / _trail.size())
+			var b := 0.35 * (1.0 - float(i + 1) / _trail.size())
 			_glow.draw_polygon(PackedVector2Array([left[i], left[i + 1], right[i + 1], right[i]]),
 					PackedColorArray([Color(0.3, 0.6, 1.0, a), Color(0.3, 0.6, 1.0, b), Color(0.3, 0.6, 1.0, b), Color(0.3, 0.6, 1.0, a)]))
-		# a white-hot core line along the streak
-		var core := PackedVector2Array()
-		var core_cols := PackedColorArray()
-		for i in _trail.size():
-			core.append(_glow.to_local(get_parent().to_global(_trail[i])))
-			core_cols.append(Color(0.9, 0.97, 1.0, 0.75 * (1.0 - float(i) / _trail.size())))
-		_glow.draw_polyline_colors(core, core_cols, 3.0, true)
 	# the halo
 	_glow.draw_set_transform(Vector2.ZERO, 0.0, Vector2(k, 1.0))
-	for i in 4:
-		_glow.draw_arc(Vector2.ZERO, RADIUS * 0.75, 0, TAU, 40, Color(0.2, 0.55, 1.0, 0.2 - i * 0.04), 10.0 + i * 7.0, true)
+	for i in 2:  # (slimmer: the 3D ring carries its own glowing edge)
+		_glow.draw_arc(Vector2.ZERO, RADIUS * 0.75, 0, TAU, 40, Color(0.2, 0.55, 1.0, 0.14 - i * 0.05), 8.0 + i * 6.0, true)
 	_glow.draw_set_transform(Vector2.ZERO)
 	# the flash where it leaves his hand
 	if _clock < 0.12:

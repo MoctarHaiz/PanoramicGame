@@ -120,3 +120,49 @@ in 241 ms (was 277-302). Art in memory during play: hero 12.2 MB, world ~13 MB, 
 
 Next: the bandits are still the flat 2D cartoon (a 3D model would end the last style clash); the
 Red Bobs; the sky takes ~45 % of the level shots; the HOME sign; the props and the bank cells' faces.
+
+## Round 2 (characters and effects art; env owns the world, light and camera)
+
+Plan: (1) a 3D bandit from the hero's mesh and rig (violet wraps, hood with amber eyes, a club),
+same pipeline and lights, in bandit.png's grid so BanditView keeps its logic; (2) Red Bobs
+rendered in Blender (bob.png's four faces); (3) rings: slimmer glow, ask audio for a short motion
+streak; (4) HeroView on gameplay's hooks (move_phase, air_progress, phase_time, DYING_TIME,
+HOME_*), a warm rim and thin outline that read at phone size, a darker contact shadow, hurt as an
+additive flicker (no alpha ghost), a stumble, states held >= 6 frames, run_frame(); (5) menu,
+win and defeat renders; (6) the studio logo; (7) the null texture on the first boot.
+
+### Round 2 progress
+
+- HeroView now runs on gameplay's hooks: `move_phase()` / `phase_time()` pick the animation (idle,
+  run, land, takeoff, rise/apex/fall by `air_progress()`, climb as hand-over-hand pulls then a knee
+  over and the mantle, catch then hang, crouch, dead by `death_reason` over DYING_TIME / the pit
+  flail, home: the landing to HOME_LAND, the cheer to HOME_CHEER, the walk into the doorway to
+  HOME_TIME). Ducks under the tunnel roof (`ceiling_above`). A warm rim (2.5 px) and a thin dark
+  edge in actor.gdshader; the mercy after a hit is a warm red flicker 4 frames on / 4 off (no alpha
+  ghost), then a short stumble; the death stays on screen (DIE_MIN_X). `run_frame()` for the
+  footsteps.
+- The bandit in 3D: `hero_render.py --character bandit` (the hero's mesh and rig, his picture's
+  light and dark mapped to violet wraps, a dark mask band with amber eyes, a teal crest, a club in
+  his near hand), packed by `tools/art/bandit_sheet.py` into bandit.png (16 x 3 cells: run, dazed
+  run, KO blow/tumble + waiting crouch + the club's swing with a smeared blow) and club.png.
+  BanditView swings the club as Panoramic comes within SWING_FROM..SWING_HIT ahead.
+- Red Bobs: `tools/art/blender/bob_render.py` (glossy red ball, clear coat, the hero's light) +
+  `tools/art/bob_sheet.py` (the 2017 faces, bolder: big eyes with a glint, thick smile, cheeks);
+  BobView draws them 31 units wide (was 28).
+- Rings: RingView's own glow slimmer (2 halo arcs), its streak shorter (6 positions), no white core.
+- UI pictures in their screens' own light (`--light sunset`: the user's front lights dimmed and
+  warmed, a strong orange rim from behind, a warm bounce, the normal map softened for gentler
+  muscle grooves): `hero_menu.png` (mid-throw, a ring leaving his hand), `portrait.png` (its head
+  and shoulders), `hero_win.png` (arms up), new `hero_defeat.png` (on one knee, a hand on the
+  ground, head bowed).
+- The null texture on the first boot (tests): GameArt.preload_art() loads on the main thread when
+  headless (the stand-in renderer's texture store isn't thread safe).
+- Studio logo: `tools/art/logo_crisp.py` redraws the same design in its own flat colours with clean
+  edges (source: the upscale `studio_logo.py` now writes to `tools/art/gen/`).
+- Reverted my headless preload change in game_art.gd (QA handles that race in its tests).
+- Tests: 796 checks, 2 failed (both the known French iPad start/win text of the ux track).
+- Captures: `_agents/AAA/art/round_2/iphone15_2556x1179__*.png`; strips in `round_2/strips/`
+  (bandit_swing, bandit_ko, run, jump, hang, hurt, die, home; the climb strip's moment didn't
+  trigger).
+- Still to do: env to show HomeView.front (the jamb) while he walks in; the climb strip; perf
+  numbers (bandit.png grew to 3200 x 780, VRAM-compressed: about +1.7 MB in play).

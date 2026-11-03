@@ -1,5 +1,5 @@
 class_name StartCard
-extends CenterContainer
+extends Control
 ## Before the first touch the world waits (the 2017 "Ready"): "TAP TO START" breathing, a hand
 ## tapping beside it. The first time, nothing else: the moves are taught when they are needed
 ## (Tutorial). Later runs show the five moves above it on a strip of dark glass, each with its own
@@ -47,7 +47,11 @@ func _init(first_run: bool) -> void:
 	go.refresh()
 	go.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	go_row.add_child(go)
-	box.add_child(go_row)
+	var plate := Card.new(Vector4(20, 6, 40, 8), true)  # on dark glass: it reads over any sky
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	plate.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	plate.add_child(go_row)
+	box.add_child(plate)
 	go.resized.connect(func() -> void: go.pivot_offset = go.size / 2)
 	if Prefs.motion():
 		var t := go.create_tween().set_loops()
@@ -56,13 +60,17 @@ func _init(first_run: bool) -> void:
 	box.modulate.a = 0.0
 	box.create_tween().tween_property(box, "modulate:a", 1.0, 0.3).set_delay(0.2)
 	resized.connect(_fit.bind(box))
-	box.resized.connect(_fit.bind(box))
+	box.minimum_size_changed.connect(_fit.bind(box))
 
 
-## Shrinks it to fit a narrow screen (a tablet, the longer French words), inside the safe area.
+## Centres it, shrunk to fit a narrow screen (a tablet, the longer French words) inside the safe
+## area. (Placed by hand: a container would undo the scale.)
 func _fit(box: Control) -> void:
 	var insets := Device.insets()
 	var room := size.x - insets.x - insets.z - 40.0
-	var k := minf(1.0, room / maxf(box.size.x, 1.0))
-	box.pivot_offset = box.size / 2
+	var need := box.get_combined_minimum_size()
+	var k := clampf(room / maxf(need.x, 1.0), 0.1, 1.0)
+	box.size = need
+	box.pivot_offset = need / 2
+	box.position = Vector2(insets.x + (size.x - insets.x - insets.z - need.x) / 2, (size.y - need.y) / 2)
 	box.scale = Vector2.ONE * k

@@ -16,7 +16,7 @@ from scipy import ndimage
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT.parent / "Old/app/src/main/assets/HaizStudio.png"
-OUT = ROOT / "assets/art/haiz_studio.png"
+OUT = ROOT / "tools/art/gen/haiz_studio_upscaled.png"  ## New: then tools/art/logo_crisp.py makes it crisp
 MODELS = ROOT / "tools/art/models"
 WIDTH = 1200
 

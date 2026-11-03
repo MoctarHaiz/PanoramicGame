@@ -191,16 +191,20 @@ def save(arr: np.ndarray, name: str, pad: int = 8) -> None:
 
 
 def pictures() -> None:
-    """The pictures the interface shows: the menu's hero (full length, in his fighting stance, lit
-    by the sunset), the portrait (the same, head to hips, the size the menu and cards expect), the
-    win card's cheer, and the turnaround stands."""
-    hero = trimmed(RENDER / "menu_hero/000.png", 1100)
+    """The pictures the interface shows, each lit by its screen's own light (the sunset rim from
+    behind, the warm bounce: tools/art/blender/hero_render.py --light sunset): the menu's hero (full
+    length, mid-throw, a ring leaving his hand), the portrait (the same, head to hips, the size the
+    menu and cards expect), the win card's cheer, the game over's defeat (down on one knee, a hand
+    on the ground), and the turnaround stands."""
+    ui = RENDER.parent / "render_ui"
+    hero = trimmed(ui / "menu_hero/000.png", 1100)
     save(hero, "hero_menu.png")
     # the portrait: 660 x 752 from his hair to his hips
     h, w = hero.shape[:2]
     crop_h = int(h * 0.56)
     crop_w = int(crop_h * 660 / 752)
-    x0 = max(0, min(w - crop_w, w // 2 - crop_w // 2))
+    top = np.nonzero(hero[: h // 4, :, 3] > 0.5)[1]  # centred on his head and shoulders
+    x0 = max(0, min(w - crop_w, int(top.mean()) - crop_w // 2))
     bust = np.zeros((crop_h, crop_w, 4), np.float32)
     part = hero[:crop_h, x0:x0 + crop_w]
     bust[:part.shape[0], :part.shape[1]] = part
@@ -209,8 +213,8 @@ def pictures() -> None:
     full = np.zeros((752, 660, 4), np.float32)
     full[:min(752, arr.shape[0]), :min(660, arr.shape[1])] = arr[:752, :660]
     save(full, "portrait.png", pad=0)
-    hi = RENDER.parent / "render_hi/win_front/000.png"  # rendered at 2048 for the card
-    save(trimmed(hi if hi.exists() else RENDER / "win_front/000.png", 900), "hero_win.png")
+    save(trimmed(ui / "win_front/000.png", 900), "hero_win.png")
+    save(trimmed(ui / "defeat/000.png", 760), "hero_defeat.png")
     save(trimmed(RENDER / "idle_front/000.png", 640), "stand_front.png")
     save(trimmed(RENDER / "idle/000.png", 560), "stand_side.png")
 

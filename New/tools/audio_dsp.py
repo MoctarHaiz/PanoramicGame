@@ -280,19 +280,22 @@ def pan(x: np.ndarray, p: float) -> np.ndarray:
 
 def place(out: np.ndarray, at: float, x: np.ndarray, gain: float = 1.0, wrap: bool = False) -> None:
     """Mixes x into out from time `at` (s). With `wrap`, what runs past the end comes back in
-    at the start (a loop: the tails of its last notes ring into its first bar)."""
+    at the start (a loop: the tails of its last notes ring into its first bar). Without it, a
+    layer that runs past the end of `out` is faded out where it is cut (a hard cut clicks)."""
     i = n_of(at)
     if x.ndim == 1 and out.ndim == 2:
         x = np.stack([x, x], axis=1) * np.sqrt(0.5)
-    k = min(len(x) // 3, n_of(0.02))  # a layer cut off while still ringing clicks: fade its end
-    if k > 1:
-        x = x.copy()
-        ramp = 0.5 + 0.5 * np.cos(np.linspace(0, np.pi, k))
-        x[-k:] *= ramp[:, None] if x.ndim == 2 else ramp
     if i < 0:
         x = x[-i:]
         i = 0
     n = len(out)
+    if not wrap and len(x) > n - i:
+        x = x[: max(n - i, 0)]
+    x = x.copy()
+    k = min(len(x) // 3, n_of(0.02))  # a layer cut off while still ringing clicks: fade its end
+    if k > 1:
+        ramp = 0.5 + 0.5 * np.cos(np.linspace(0, np.pi, k))
+        x[-k:] *= ramp[:, None] if x.ndim == 2 else ramp
     while len(x) > 0 and i < n:
         k = min(len(x), n - i)
         out[i:i + k] += x[:k] * gain
@@ -304,6 +307,20 @@ def place(out: np.ndarray, at: float, x: np.ndarray, gain: float = 1.0, wrap: bo
 
 def saturate(x: np.ndarray, drive: float = 1.0) -> np.ndarray:
     return np.tanh(x * drive) / np.tanh(drive)
+
+
+def phone(x: np.ndarray, cut: float = 110.0, harmonics: float = 0.6, drive: float = 3.0) -> np.ndarray:
+    """Ready for a phone speaker (nothing under ~300 Hz comes out of it): the lows (under 250 Hz) are
+    saturated so their 2nd and 3rd harmonics carry the weight where the speaker plays, then the
+    sub-bass the speaker can't play is cut under `cut` (it only eats headroom)."""
+    low = lp(x, 250.0, 2)
+    harm = hp(saturate(low * drive / (np.abs(low).max() + 1e-9), 1.0) * np.abs(low).max(), 220.0, 2)
+    return hp(x, cut, 2) + harmonics * harm
+
+
+def snap(sec: float = 0.02, lo: float = 1500.0, hi: float = 4000.0, decay: float = 0.004) -> np.ndarray:
+    """A transient in the band a phone plays best (1.5-4 kHz): a crack, a click, a crunch's edge."""
+    return bp(noise(sec), lo, hi, 2) * perc(sec, 0.0002, decay)
 
 
 # ---------------------------------------------------------------- loudness (ITU-R BS.1770-4)

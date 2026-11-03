@@ -79,6 +79,8 @@ func _draw() -> void:
 	draw_circle(centre, knob_r, INK, true, -1, true)
 	draw_circle(centre, knob_r - 3.0, Color("e0961e"), true, -1, true)
 	draw_circle(centre - Vector2(0, 1.5), knob_r - 4.5, Color("ffe9a0"), true, -1, true)
-	draw_circle(centre, knob_r - 8.0, Color("efe2cf"), true, -1, true)
-	draw_circle(centre - Vector2(0, 2), knob_r - 9.5, Color.WHITE, true, -1, true)
-	draw_circle(centre - Vector2(knob_r * 0.28, knob_r * 0.32), knob_r * 0.18, Color(1, 1, 1, 0.9), true, -1, true)
+	draw_circle(centre, knob_r - 8.0, Color("d6c0a0"), true, -1, true)  # a glossy cream ball: shaded below,
+	draw_circle(centre - Vector2(0, 2.5), knob_r - 10.0, Color("fffaf0"), true, -1, true)  # lit above
+	draw_set_transform(centre - Vector2(knob_r * 0.12, knob_r * 0.34), -0.35, Vector2(1.0, 0.55))
+	draw_circle(Vector2.ZERO, knob_r * 0.42, Color(1, 1, 1, 0.95), true, -1, true)
+	draw_set_transform(Vector2.ZERO)

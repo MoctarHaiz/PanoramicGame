@@ -4,11 +4,11 @@
  "assets": [
   {
    "id": "bandit-bandit",
-   "role": "masked raider enemy sheet (run, dazed, knock-out, idle) and its club",
+   "role": "masked raider sheet (run, dazed run, knock-out, waiting, the club's swing) and its club: the hero's 3D mesh and rig retextured and rendered in his light",
    "path": "assets/art/bandit/bandit.png",
    "status": "approved",
    "technical": {
-    "dimensions": "1520x840",
+    "dimensions": "3200x780",
     "alpha": true,
     "anchor": "bottom-centre at the boots",
     "frames": null,
@@ -21,10 +21,10 @@
    ],
    "source": {
     "kind": "authored-procedural",
-    "url_or_tool": "tools/art/bandit.py",
+    "url_or_tool": "tools/art/blender/hero_render.py --character bandit + tools/art/bandit_sheet.py (Blender)",
     "creator": "Claude for Haiz Studio",
     "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/bandit.py",
+    "prompt_or_source_record": "tools/art/blender/hero_render.py --character bandit + tools/art/bandit_sheet.py (Blender)",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -38,11 +38,11 @@
   },
   {
    "id": "bandit-club",
-   "role": "masked raider enemy sheet (run, dazed, knock-out, idle) and its club",
+   "role": "masked raider sheet (run, dazed run, knock-out, waiting, the club's swing) and its club: the hero's 3D mesh and rig retextured and rendered in his light",
    "path": "assets/art/bandit/club.png",
    "status": "approved",
    "technical": {
-    "dimensions": "66x33",
+    "dimensions": "37x86",
     "alpha": true,
     "anchor": "bottom-centre at the boots",
     "frames": null,
@@ -55,10 +55,10 @@
    ],
    "source": {
     "kind": "authored-procedural",
-    "url_or_tool": "tools/art/bandit.py",
+    "url_or_tool": "tools/art/blender/hero_render.py --character bandit + tools/art/bandit_sheet.py (Blender)",
     "creator": "Claude for Haiz Studio",
     "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/bandit.py",
+    "prompt_or_source_record": "tools/art/blender/hero_render.py --character bandit + tools/art/bandit_sheet.py (Blender)",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -72,7 +72,7 @@
   },
   {
    "id": "bob-bob",
-   "role": "Red Bob collectible faces (smile, blink, joy, wink)",
+   "role": "Red Bob collectible faces (smile, blink, joy, wink): a 3D glossy ball in the hero's light with the 2017 face drawn on",
    "path": "assets/art/bob/bob.png",
    "status": "approved",
    "technical": {
@@ -88,10 +88,10 @@
    ],
    "source": {
     "kind": "authored-procedural",
-    "url_or_tool": "tools/art/bob.py",
+    "url_or_tool": "tools/art/blender/bob_render.py + tools/art/bob_sheet.py (Blender)",
     "creator": "Claude for Haiz Studio",
     "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/bob.py",
+    "prompt_or_source_record": "tools/art/blender/bob_render.py + tools/art/bob_sheet.py (Blender)",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -153,7 +153,7 @@
    ],
    "source": {
     "kind": "studio-owned",
-    "url_or_tool": "tools/art/studio_logo.py (cropped + Real-ESRGAN x4 from Old/app/src/main/assets/HaizStudio.png)",
+    "url_or_tool": "tools/art/studio_logo.py (cropped + Real-ESRGAN x4 from Old/app/src/main/assets/HaizStudio.png), made crisp by tools/art/logo_crisp.py",
     "creator": "Haiz Studio",
     "license": "owned by Haiz Studio",
     "prompt_or_source_record": "2017 game",
@@ -277,12 +277,45 @@
    }
   },
   {
+   "id": "hero-hero_defeat",
+   "role": "Panoramic for the interface (portrait, full-length menu hero, win pose, stands): renders of the user's 3D model (tools/art/hero_atlas.py)",
+   "path": "assets/art/hero/hero_defeat.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "436x776",
+    "alpha": true,
+    "anchor": "bottom-centre",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "identity",
+    "palette"
+   ],
+   "source": {
+    "kind": "user-generated",
+    "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rendered by tools/art/blender/hero_render.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
    "id": "hero-hero_menu",
    "role": "Panoramic for the interface (portrait, full-length menu hero, win pose, stands): renders of the user's 3D model (tools/art/hero_atlas.py)",
    "path": "assets/art/hero/hero_menu.png",
    "status": "approved",
    "technical": {
-    "dimensions": "698x1116",
+    "dimensions": "809x1116",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -805,11 +838,11 @@
   },
   {
    "id": "ui-logo",
-   "role": "CHAKA ZULU logo: bevelled gold letters over a Zulu shield and crossed assegais",
+   "role": "CHAKA ZULU logo: bevelled gold letters over a Zulu shield, its stick and an assegai",
    "path": "assets/art/ui/logo.png",
    "status": "approved",
    "technical": {
-    "dimensions": "1004x762",
+    "dimensions": "1004x860",
     "alpha": true,
     "anchor": "centre",
     "frames": null,
@@ -841,9 +874,9 @@
    "path": "assets/art/ui/menu_rock.png",
    "status": "approved",
    "technical": {
-    "dimensions": "1400x520",
+    "dimensions": "2000x720",
     "alpha": true,
-    "anchor": "his feet at (930, 104)",
+    "anchor": "his feet at (1340, 150)",
     "frames": null,
     "filtering": "linear"
    },
@@ -857,6 +890,38 @@
     "creator": "Claude for Haiz Studio",
     "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
     "prompt_or_source_record": "tools/art/ui_hero.py",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "ui-paper",
+   "role": "the hide/paper grain of the panels (tiles both ways)",
+   "path": "assets/art/ui/paper.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "256x256",
+    "alpha": false,
+    "anchor": "tiles",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette"
+   ],
+   "source": {
+    "kind": "authored-procedural",
+    "url_or_tool": "tools/art/ui_kit.py",
+    "creator": "Claude for Haiz Studio",
+    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
+    "prompt_or_source_record": "tools/art/ui_kit.py",
     "created_at": "2026-10-30",
     "attribution": ""
    },

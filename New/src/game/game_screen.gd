@@ -29,10 +29,6 @@ const SHAKE := 22.0  ## design units of the strongest shake
 const RESUME_COUNT := 3  ## after Resume: 3, 2, 1 before the world moves again
 const RESUME_STEP := 0.5  ## seconds per number
 const FALL_BEAT := 0.3  ## after a fall that costs a life, the world holds this long before he springs back
-const KO_STOP := 0.1  ## hit-stop of a knock-out (s)
-const RING_STOP := 0.035  ## of a ring that hits without knocking out (two frames)
-const HURT_STOP := 0.12  ## of a hit
-const CAUGHT_STOP := 0.2  ## of the last hit
 
 var world: World
 ## Plays instead of the player (tests and screenshots): any object with act(world).
@@ -70,6 +66,15 @@ var _count_id := 0  # which Resume the countdown's numbers belong to
 var _spring_due := false  # the spring's sound waits for the end of the fall's beat
 var _frame := 1.0  # the camera drawn back (FRAME_TOP): 1 = the 640 units fill the screen
 var _push := 1.0  # the camera pushed in at home (HOME_PUSH)
+var _pit_scroll := -1.0  # the scroll the camera holds at while he drops into a pit (_gameplay_camera)
+var _pit_time := 0.0  # seconds since it began holding
+var _pit_seen := false  # the hold began while he was still in the picture, dropping in
+var _need := Rect2()  # what must be seen (World.camera_must_see()), eased
+const NEED_EASE := 12.0  ## 1/s: how fast the camera follows a change in what must be seen (~0.2 s)
+## Caught: his last beat is framed with him this far across the screen (he fell near its left edge),
+## brought there over DEATH_FRAME_TIME seconds of the ending.
+const DEATH_FRAME := 0.4
+const DEATH_FRAME_TIME := 0.5
 ## New (UX): no ad banner while playing unless the config asks for one ([ads] banner_in_play): under
 ## the swipe area it invites accidental clicks (AdMob's placement policy); pause and results show it.
 var _banner_in_play: bool = Config.value("ads", "banner_in_play", false)
@@ -117,6 +122,8 @@ func enter(data: Dictionary) -> void:
 	world.stepped.connect(func() -> void: Audio.play_sfx(&"step"))  # a swipe right answers
 	world.thrown.connect(_on_thrown)
 	add_child(Footsteps.new(world, view.get(&"_hero")))  # steps on the run animation's foot contacts
+	add_child(Feel.new(self, world, view))  # knockbacks, climb grabs, vine creaks, the music's drive
+	world.bumped.connect(_on_bumped)
 	world.splashed.connect(_on_splashed)
 	world.fell.connect(_on_fell)
 	world.sprang.connect(func() -> void: _spring_due = true)
@@ -214,6 +221,9 @@ func _place_camera(delta: float) -> void:
 	elif _push > 1.0001:
 		zoom_k *= _push
 		at = at * _push + fall * (1.0 - _push)
+	var fair := _gameplay_camera(zoom_k, at)
+	zoom_k = fair[0]
+	at = fair[1]
 	var z := 1.0 + 2.0 * shake / (World.VIEW_H * _k)
 	zoom_k *= z
 	at = at * z + _clip.size / 2.0 * (1.0 - z)
@@ -222,6 +232,59 @@ func _place_camera(delta: float) -> void:
 	view.view_left = at.x / zoom_k
 	view.view_width = get_viewport_rect().size.x / zoom_k
 	view.view_top = -at.y / zoom_k
+
+
+## (gameplay) The rules' say over the camera, after its framing: it holds still while he drops into
+## a pit he can't get out of (World.falling_to_death(): he is seen falling in, not scrolled away);
+## caught or dropping into a pit, it brings him in from the edge of the screen for his last beat
+## (DEATH_FRAME); then it keeps what must be seen on screen (_keep_fair). Takes and returns [zoom, at].
+func _gameplay_camera(zoom: float, at: Vector2) -> Array:
+	if _pit_scroll < 0.0 and world.falling_to_death():
+		_pit_scroll = world.draw_scroll()
+		_pit_seen = world.state == World.State.RUNNING  # (known only once he was gone: no framing)
+	var u := 0.0  # how far his last beat's framing has come
+	if _pit_scroll >= 0.0:
+		at.x += (world.draw_scroll() - _pit_scroll) * zoom
+		_pit_time += get_process_delta_time()
+		u = smoothstep(0.0, DEATH_FRAME_TIME, _pit_time) if _pit_seen else 0.0
+	if world.state == World.State.DEAD and world.death_reason == &"bandit":
+		u = smoothstep(0.0, DEATH_FRAME_TIME, world.end_time)
+		at.y += (_clip.size.y - (at.y + World.VIEW_H * zoom)) * u  # as high as the ground allows
+	if u > 0.0:
+		at.x += (_clip.size.x * DEATH_FRAME - (at.x + world.draw_hero().x * zoom)) * u
+	return _keep_fair(zoom, at)
+
+
+## New (gameplay, the camera's limits): whatever the framing, what the player must see stays on
+## screen: World.camera_must_see() inside the safe area and under the HUD band, the camera zooming
+## out and sliding only as much as that needs (and never baring the bottom of the world). So a close
+## camera never shows a bandit later than the 2017 screen did, nor hides the vine he can catch or
+## the ground he will land on. Takes and returns the stage's zoom and position ([zoom, at]).
+func _keep_fair(zoom: float, at: Vector2) -> Array:
+	var need := world.camera_must_see()
+	if _need.size != Vector2.ZERO:  # eased (a change in what must be seen never snaps the picture)
+		var k := 1.0 - exp(-get_process_delta_time() * NEED_EASE)
+		need = Rect2(_need.position.lerp(need.position, k), _need.size.lerp(need.size, k))
+	_need = need
+	var insets := Device.insets()
+	var area := Rect2(insets.x, FRAME_TOP, _clip.size.x - insets.x - insets.z, _clip.size.y - FRAME_TOP)
+	var fit := minf(area.size.x / need.size.x, area.size.y / need.size.y)
+	if zoom > fit:  # zoomed out about the middle of what must be seen
+		var c := at + need.get_center() * zoom
+		zoom = fit
+		at = c - need.get_center() * zoom
+	var lo := area.position - need.position * zoom
+	var hi := area.end - need.end * zoom
+	at.x = clampf(at.x, lo.x, hi.x)
+	at.y = clampf(at.y, maxf(lo.y, _clip.size.y - World.VIEW_H * zoom), hi.y)
+	return [zoom, at]
+
+
+## The play window's part on screen now (play units): what the camera shows.
+func visible_play_rect() -> Rect2:
+	var zoom := _stage.scale.x
+	var at := _stage.position
+	return Rect2(-at / zoom, _clip.size / zoom)
 
 
 ## The phase now (see Phase): followed every frame, so no change is missed.
@@ -277,8 +340,11 @@ func _input(event: InputEvent) -> void:
 		_move(_reader.drag(drag.index, drag.position, _clock))
 
 
-## Gives the world a move read from the fingers (TouchReader).
+## Gives the world a move read from the fingers (TouchReader). Not while he drops into a pit he
+## can't get out of: nothing changes it, the drop plays out.
 func _move(action: StringName) -> void:
+	if world.falling_to_death():
+		return
 	match action:
 		&"throw":
 			world.throw()
@@ -369,12 +435,23 @@ const COMBO_WINDOW := 0.6  ## seconds between two Red Bobs that keep a combo goi
 
 
 ## A blow felt by the camera: a shake (`trauma`, 0..1, decays) and a kick (design units, springs
-## back). Neither with reduced motion.
+## back). Neither with reduced motion or the screen shake off (Prefs.shake).
 func _jolt(trauma: float, kick := Vector2.ZERO) -> void:
-	if Fx.calm():
+	if Prefs.shake() <= 0.0:
 		return
 	_trauma = minf(_trauma + trauma, 1.0)
 	_kick += kick
+
+
+## An impact (Fx.IMPACTS: small, medium, fatal): its hit-stop (3-5 frames) and its shake (about
+## 4-8 px on a phone, gone in 8-12 frames) and kick (neither with reduced motion or the shake off). Its light is
+## drawn where it lands (Fx.ring_hit, Fx.knock_out, Fx.impact), its knock by Feel (Fx.knock).
+func _impact(kind: StringName, kick := Vector2.ZERO) -> void:
+	var preset: Dictionary = Fx.IMPACTS[kind]
+	_freeze = maxf(_freeze, preset.stop)
+	if Prefs.shake() > 0.0:
+		_trauma = maxf(_trauma, sqrt(preset.shake / SHAKE))
+		_kick += kick
 
 
 ## A ring thrown: its whoosh, a flash at his hand, its light in flight, a small recoil.
@@ -388,12 +465,28 @@ func _on_thrown(r: World.Ring) -> void:
 ## A Red Bob: its chime climbs the A major scale (a take per step: sfx_bob_1..8) while they come
 ## quickly one after another, and its light grows with the streak (_on_bob_popped).
 func _on_bob(_c: int, _r: int) -> void:
-	_combo = _combo + 1 if _clock - _last_bob < COMBO_WINDOW else 0
+	_combo = _streak()
 	_last_bob = _clock
 	Audio.play_tuned(&"bob", _combo)
 	Haptics.pickup()
-	if _combo >= 2:
-		_combo_tag(_combo + 1)
+	_bob_serial += 1
+	var t := create_tween()  # a streak of 3 or more that ends: its chord
+	t.tween_interval(COMBO_WINDOW + 0.02)
+	t.tween_callback(_streak_end.bind(_bob_serial, _combo + 1))
+
+
+## The streak a Red Bob taken now belongs to (0: the first of a run).
+func _streak() -> int:
+	return _combo + 1 if _clock - _last_bob < COMBO_WINDOW else 0
+
+
+## No Red Bob since the one numbered `serial`: a run of 3 or more ends on a chord.
+func _streak_end(serial: int, length: int) -> void:
+	if serial == _bob_serial and length >= 3:
+		Audio.play_sfx(&"streak")
+
+
+var _bob_serial := 0  # Red Bobs taken (the streak's chord waits for the last of a run)
 
 
 ## "×N" while Red Bobs come in a quick run: a gold badge pinned over the counter's lower right
@@ -404,49 +497,57 @@ var _tag: Control
 func _combo_tag(n: int) -> void:
 	if is_instance_valid(_tag):
 		_tag.queue_free()
-	var chip := Ui.chip("×%d" % n, Ui.Tone.GOLD, 26 + mini(n, 10) * 2)
+	# New (UX): beside him, where the eye is, warmer and bigger each step of the streak (gold, orange,
+	# red), rising as it fades
+	var tone := Ui.Tone.GOLD if n < 5 else (Ui.Tone.SUNSET if n < 8 else Ui.Tone.CRIMSON)
+	var chip := Ui.chip("×%d" % n, tone, 40)  # one font size (each new size caches its glyphs): scaled to grow
+	var grow := (34.0 + mini(n, 10) * 3.0) / 40.0
 	_tag = Control.new()
 	_tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_tag.size = chip.get_combined_minimum_size()
 	_tag.add_child(chip)
 	add_child(_tag)
-	var corner := hud.counter_rect().end  # hanging from the plate's lower right corner, clear of the count
-	_tag.position = corner - Vector2(_tag.size.x * 0.8, 8.0)
+	var hero := view.hero_screen_rect()
+	var at := Vector2(hero.end.x + 6.0, hero.position.y - _tag.size.y * 0.2)
+	var v := get_viewport_rect().size
+	at = at.clamp(Vector2(Device.insets().x + 8.0, 70.0), v - _tag.size - Vector2(Device.insets().z + 8.0, 8.0))
+	_tag.position = at
 	_tag.pivot_offset = _tag.size / 2
-	_tag.scale = Vector2.ONE * 0.4
-	_tag.rotation = -0.2
+	_tag.scale = Vector2.ONE * 0.3 * grow
+	_tag.rotation = -0.18
 	var tag := _tag
 	var t := tag.create_tween()
-	t.tween_property(tag, "scale", Vector2.ONE * 1.15, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	t.parallel().tween_property(tag, "rotation", -0.06, 0.2)
-	t.tween_property(tag, "scale", Vector2.ONE, 0.1)
-	t.tween_interval(0.45)
-	t.tween_property(tag, "modulate:a", 0.0, 0.25)
-	t.parallel().tween_property(tag, "scale", Vector2.ONE * 0.7, 0.25)
+	t.tween_property(tag, "scale", Vector2.ONE * 1.3 * grow, 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.parallel().tween_property(tag, "rotation", -0.06, 0.18)
+	t.tween_property(tag, "scale", Vector2.ONE * grow, 0.1)
+	t.tween_property(tag, "position:y", at.y - 40.0, 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	t.parallel().tween_property(tag, "modulate:a", 0.0, 0.35).set_delay(0.15)
 	t.tween_callback(tag.queue_free)
 
 
 ## The Red Bob flies from where it was (WorldView units) to the counter.
 func _on_bob_popped(at: Vector2) -> void:
 	var from := _stage.get_global_transform() * at
-	hud.bob_launched()
+	# counted as it is taken (the HUD reads world.bobs): the flier is the show, landing with a pop
 	Fx.bob_flight(_fliers, from, hud.bob_target(), BobView.SIZE * _stage.scale.x, hud.BOB_ICON, hud.bob_arrived)
-	Fx.bob_pop(view.fx, at * 2.0, _combo)
+	var streak := _streak()  # (this runs before _on_bob counts it)
+	Fx.bob_pop(view.fx, at * 2.0, streak)
+	if streak >= 1:  # "×2", "×3"... at the pickup, beside him, where the eye is
+		Fx.streak_pop(view.fx, at * 2.0, streak + 1)
 
 
-## A ring on a bandit: a short hit-stop, the camera kicked the way the ring flew; a knock-out holds
-## longer, kicks harder and shakes.
+## A ring on a bandit: the small impact (3 frames held, a light shake, the bandit knocked back the
+## way the ring flew and springing back); a knock-out is the medium one (it tumbles away: BanditView).
 func _on_bandit_hit(b: World.Bandit, knocked_out: bool) -> void:
 	Audio.play_sfx(&"knock_out" if knocked_out else &"ring_hit")
 	if knocked_out:
 		Haptics.knock()
-		_freeze = maxf(_freeze, KO_STOP)
-		_jolt(0.5, Vector2(9.0, -3.0))
+		_impact(&"medium", Vector2(7.0, -2.0))
 		Fx.plus_one(view.fx, Vector2(b.x - world.scroll, b.y - World.BANDIT_SIZE.y * 0.9) * 2.0)
 	else:
 		Haptics.select()
-		_freeze = maxf(_freeze, RING_STOP)
-		_jolt(0.0, Vector2(4.0, 0.0))
+		_impact(&"small", Vector2(3.0, 0.0))
+		Fx.knock(b, Vector2(Fx.IMPACTS[&"small"].knock, -4.0), 0.35)
 
 
 ## The thud follows the drop (World.land_speed, units a tick): a climb or a step down lands softly,
@@ -466,18 +567,44 @@ func _on_splashed(_x: float, hero: bool) -> void:
 	Audio.play_sfx(&"splash", 1.0 if hero else 1.25, 1.0 if hero else 0.6)
 
 
+## A blow: the medium impact, Panoramic knocked back and up (springing back to his place), the
+## heart cracking; down to the last one, a heartbeat warning. The last blow is the fatal impact
+## (its sound in _on_died; the death animation knocks him down).
 func _on_hurt(_b: World.Bandit, lives: int) -> void:
-	if lives > 0:  # the last blow sounds in _on_died
+	Audio.play_sfx(&"heart_break")
+	if lives > 0:
 		Audio.play_sfx(&"hurt")
 		Haptics.hurt()
-	_freeze = HURT_STOP if lives > 0 else CAUGHT_STOP
-	_jolt(0.7, Vector2(-10.0, 0.0))
+		_impact(&"medium", Vector2(-6.0, 0.0))
+		Fx.knock(&"hero", Vector2(-Fx.IMPACTS[&"medium"].knock, -12.0), 0.45)
+		if lives == 1:
+			_last_heart_warning()
+	else:
+		_impact(&"fatal", Vector2(-9.0, 0.0))
 	_red_flash(0.25 if Fx.calm() else 0.5)
 
 
+## Down to the last heart: a heartbeat, once the blow has passed.
+func _last_heart_warning() -> void:
+	var t := create_tween()
+	t.tween_interval(0.45)
+	t.tween_callback(Audio.play_sfx.bind(&"last_heart"))
+
+
+## His head hit a ceiling: a bonk, a little dirt falling from it, the camera nudged up.
+func _on_bumped() -> void:
+	Audio.play_sfx(&"bump")
+	var head := world.draw_hero() - Vector2(0.0, World.HERO_SIZE.y / 2.0)
+	Fx.dust(view.fx, head * 2.0, 6, 140.0, 0.0, 0.7)
+	_jolt(0.0, Vector2(0.0, -3.0))
+
+
 ## A fall that cost a life: the heart goes, the world holds a beat, then he springs back up.
-func _on_fell(_lives: int) -> void:
+func _on_fell(lives: int) -> void:
 	Audio.play_sfx(&"fell")
+	Audio.play_sfx(&"heart_break")
+	if lives == 1:
+		_last_heart_warning()
 	Haptics.fall()
 	_freeze = FALL_BEAT
 	_red_flash(0.4)
@@ -497,20 +624,22 @@ func _on_died(reason: StringName) -> void:
 		Haptics.fall()
 	else:
 		Haptics.death()
-		_jolt(1.0)
 	_end_run(World.FALL_DEATH_TIME if reason == &"fall" else World.DYING_TIME)
 
 
-## Home: the win stinger (its drum roll lands on his hop, 0.45 s), the doorway's light swelling
-## with embers, the burst of light, a success buzz.
+## Home: over the threshold (a whoosh and a warm swell), the win stinger (its drum roll lands on
+## his hop, 0.45 s), the doorway's light swelling with embers, then the burst of light from the
+## doorway itself, a success buzz.
 func _on_won() -> void:
+	Audio.play_sfx(&"door")
 	Audio.stinger(&"win")
 	hud.leave()  # the picture is his arrival
-	Fx.home_glow(view.fx, Vector2(World.HOME_X + 34.0, World.VIEW_H - 160.0) * 2.0)
+	var door := Vector2(HomeView.DOOR_RIGHT - 40.0, HomeView.GROUND - 70.0) * 2.0  # its middle (effects units)
+	Fx.home_glow(view.fx, door + Vector2(0.0, 40.0))
 	_end_run(World.HOME_TIME)
 	await get_tree().create_timer(0.45).timeout  # he lands his hop: light from the doorway
 	if is_inside_tree():
-		Fx.rescue_burst(view.fx, Vector2(World.HOME_X + 34.0, World.VIEW_H - 150.0) * 2.0)
+		Fx.rescue_burst(view.fx, door)
 		Haptics.success()
 
 
@@ -518,6 +647,9 @@ func _on_won() -> void:
 ## `wait` seconds of the ending (World.end_time: hit-stops don't count), or at a tap (skip_ending).
 func _end_run(wait: float) -> void:
 	_ended = true
+	if is_instance_valid(_start_card):  # New: a run that ends before its first touch (tests)
+		_start_card.queue_free()
+		_start_card = null
 	_end_wait = wait
 	_reader.clear()
 	_news = Save.record_run(world)
@@ -573,20 +705,23 @@ func _count_pop(n: int, id: int) -> void:
 		return
 	Audio.play_tuned(&"count", RESUME_COUNT - n)  # 3, 2, 1 climb A, C#, E
 	Haptics.select()
-	var label := Ui.display_text(str(n), 96, Ui.WHITE, Ui.NIGHT, Ui.BRAND_LIGHT)
+	# New (UX): drawn at a size the font has cached already (64, "Tap to start") and scaled up, so
+	# no new 96 px glyph atlas is made (about 8 MB of texture)
+	var label := Ui.display_text(str(n), 64, Ui.WHITE, Ui.NIGHT, Ui.BRAND_LIGHT)
 	label.depth = 4.0
 	label.refresh()
 	add_child(label)
 	label.size = label.get_combined_minimum_size()
 	label.position = get_viewport_rect().size / 2 - label.size / 2
 	label.pivot_offset = label.size / 2
-	label.scale = Vector2.ONE * 0.5
+	var k := 1.5
+	label.scale = Vector2.ONE * 0.5 * k
 	var t := label.create_tween()
-	t.tween_property(label, "scale", Vector2.ONE * 1.1, 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	t.tween_property(label, "scale", Vector2.ONE, 0.08)
+	t.tween_property(label, "scale", Vector2.ONE * 1.1 * k, 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.tween_property(label, "scale", Vector2.ONE * k, 0.08)
 	t.tween_interval(RESUME_STEP - 0.4)
 	t.tween_property(label, "modulate:a", 0.0, 0.18)
-	t.parallel().tween_property(label, "scale", Vector2.ONE * 0.8, 0.18)
+	t.parallel().tween_property(label, "scale", Vector2.ONE * 0.8 * k, 0.18)
 	t.tween_callback(label.queue_free)
 
 

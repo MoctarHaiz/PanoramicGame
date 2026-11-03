@@ -4,8 +4,9 @@ upper left like the 3D hero, so the title belongs with him.
 
     python3 tools/art/ui_logo.py      # assets/art/ui/logo.png (replaces the flat SVG one of logo.py)
 
-- An isihlangu shield of cowhide (cream, dark brown patches, a laced red strip down its middle) stands
-  behind the words, two assegais crossed behind it; the shield's rim is bevelled and catches the light.
+- An isihlangu shield of cowhide (cream, dark brown patches, dark leather laces threaded down its
+  middle, its stick through it with a tuft of fur at the top) stands behind the words, one long
+  assegai leaning behind it; the shield's rim is bevelled and catches the light.
 - CHAKA over ZULU in Fredoka (assets/fonts, SIL OFL) at its boldest and a little wide: a gold face
   (pale yellow at the top to deep orange at the foot) with a rounded bevel (normals from the letters'
   distance field: lit top-left edges, shaded bottom-right ones, a hot specular), a thin light line
@@ -96,58 +97,71 @@ def over(dst_rgb, dst_a, src_rgb, src_a):
 
 
 def shield_layers(w: int, h: int, cx: float, cy: float, sh: float):
-    """The shield and the two assegais behind it: [(rgb, alpha), ...] back to front."""
+    """The shield, its stick and an assegai behind it: [(rgb, alpha), ...] back to front."""
     layers = []
     yy, xx = np.mgrid[0:h, 0:w].astype(float)
-    # two assegais crossed behind: a wooden shaft, an iron blade, a bound grip
-    for ang in (-0.62, 0.62):
-        d = np.array([np.sin(ang), -np.cos(ang)])
-        n = np.array([d[1], -d[0]])
-        u = (xx - cx) * d[0] + (yy - cy) * d[1]
-        v = (xx - cx) * n[0] + (yy - cy) * n[1]
-        shaft = (np.abs(v) < sh * 0.022) & (u > -sh * 0.6) & (u < sh * 0.36)
-        blade_u = (u - sh * 0.36) / (sh * 0.24)
-        leaf = np.sin(np.clip(blade_u, 0, 1) ** 0.6 * np.pi)  # widest near its foot, a sharp point
-        blade = (blade_u >= 0) & (blade_u <= 1) & (np.abs(v) < sh * 0.056 * leaf)
-        m = ndimage.gaussian_filter((shaft | blade).astype(float), 1.0)
-        diff, spec = shade(m, sh * 0.03)
-        wood = ramp((v / (sh * 0.044)) * 0.5 + 0.5, [(0, "d8995a"), (0.5, "a8622e"), (1, "6a3414")])
-        iron = ramp((v / (sh * 0.15)) * 0.5 + 0.5, [(0, "f4f6fa"), (0.45, "b8c0cc"), (1, "5a6270")])
-        rgb = np.where(blade[..., None], iron, wood) * (0.55 + 0.6 * diff[..., None]) + spec[..., None] * 255
-        grip = shaft & (np.abs(u - sh * 0.1) < sh * 0.06) & (np.sin(u * 0.9) > 0)
-        rgb = np.where(grip[..., None], hexc("e8d8b0") * (0.6 + 0.5 * diff[..., None]), rgb)
-        outline = grow(m, sh * 0.014)
-        layers.append((np.broadcast_to(INK, rgb.shape).copy(), outline))
-        layers.append((rgb, m))
-    # the shield: an oval of cowhide, pointed at both ends
+    # one long assegai behind, leaning right: a wooden shaft, a bound grip, a long iron leaf blade
+    # with a ridge down its middle (one, not two: two blades either side read as ears)
+    ang = 0.5
+    d = np.array([np.sin(ang), -np.cos(ang)])
+    n = np.array([d[1], -d[0]])
+    u = (xx - cx) * d[0] + (yy - cy) * d[1]
+    v = (xx - cx) * n[0] + (yy - cy) * n[1]
+    shaft = (np.abs(v) < sh * 0.02) & (u > -sh * 0.66) & (u < sh * 0.5)
+    blade_u = (u - sh * 0.5) / (sh * 0.36)
+    leaf = np.sin(np.clip(blade_u, 0, 1) ** 0.55 * np.pi)  # widest near its foot, a sharp point
+    blade = (blade_u >= 0) & (blade_u <= 1) & (np.abs(v) < sh * 0.05 * leaf)
+    m = ndimage.gaussian_filter((shaft | blade).astype(float), 1.0)
+    diff, spec = shade(m, sh * 0.03)
+    wood = ramp((v / (sh * 0.04)) * 0.5 + 0.5, [(0, "d8995a"), (0.5, "a8622e"), (1, "6a3414")])
+    iron = ramp((v / (sh * 0.1)) * 0.5 + 0.5, [(0, "ffffff"), (0.48, "c4ccd8"), (0.52, "6a7280"), (1, "8a94a2")])
+    rgb = np.where(blade[..., None], iron, wood) * (0.55 + 0.6 * diff[..., None]) + spec[..., None] * 255
+    grip = shaft & (np.abs(u - sh * 0.42) < sh * 0.07) & (np.sin(u * 0.8) > 0)
+    rgb = np.where(grip[..., None], hexc("e8d8b0") * (0.6 + 0.5 * diff[..., None]), rgb)
+    layers.append((np.broadcast_to(INK, rgb.shape).copy(), grow(m, sh * 0.014)))
+    layers.append((rgb, m))
+    # the shield's stick, through it from top to bottom, a tuft of fur at its top
+    stick = (np.abs(xx - cx) < sh * 0.022) & (yy > cy - sh * 0.62) & (yy < cy + sh * 0.58)
+    tuft_r = np.hypot((xx - cx) / (sh * 0.05), (yy - (cy - sh * 0.64)) / (sh * 0.07))
+    tuft = tuft_r < 1 + 0.25 * np.sin(np.arctan2(yy - (cy - sh * 0.64), xx - cx) * 7)
+    m = ndimage.gaussian_filter((stick | tuft).astype(float), 1.0)
+    diff, spec = shade(m, sh * 0.025)
+    stick_rgb = ramp(((xx - cx) / (sh * 0.044)) * 0.5 + 0.5, [(0, "c88a50"), (0.5, "8a4e24"), (1, "4a2410")])
+    rgb = np.where(tuft[..., None], hexc("2a1a14"), stick_rgb) * (0.55 + 0.6 * diff[..., None]) + spec[..., None] * 160
+    layers.append((np.broadcast_to(INK, rgb.shape).copy(), grow(m, sh * 0.014)))
+    layers.append((rgb, m))
+    # the shield: a tall oval of cowhide, pointed at both ends
     t = (yy - cy) / (sh * 0.5)
-    half_w = sh * 0.3 * np.clip(1 - np.abs(t) ** 2.2, 0, 1) ** 0.62
+    half_w = sh * 0.25 * np.clip(1 - np.abs(t) ** 1.6, 0, 1) ** 0.72
     oval = ndimage.gaussian_filter(((np.abs(xx - cx) < half_w) & (np.abs(t) < 1)).astype(float), 1.0)
-    diff, spec = shade(oval, sh * 0.09, 1.3)
+    diff, spec = shade(oval, sh * 0.08, 1.3)
     rng = np.random.default_rng(3)
-    hide = ramp(t * 0.5 + 0.5, [(0, "fff6e2"), (0.6, "f0dcb6"), (1, "d9b98a")])
+    hide = ramp(t * 0.5 + 0.5, [(0, "fff8ea"), (0.6, "f2e2c4"), (1, "dcc096")])
     patches = np.zeros((h, w))
-    for px, py, r in ((-0.55, -0.45, 0.42), (0.6, -0.05, 0.38), (-0.45, 0.4, 0.36), (0.5, 0.62, 0.3), (0.62, -0.62, 0.26)):
-        ex, ey = cx + px * sh * 0.3, cy + py * sh * 0.5
-        rr = np.hypot((xx - ex) / (r * sh * 0.32), (yy - ey) / (r * sh * 0.4))
+    for px, py, r in ((-0.6, -0.42, 0.44), (0.62, -0.02, 0.4), (-0.5, 0.42, 0.38), (0.55, 0.64, 0.3), (0.6, -0.64, 0.28)):
+        ex, ey = cx + px * sh * 0.25, cy + py * sh * 0.5
+        rr = np.hypot((xx - ex) / (r * sh * 0.28), (yy - ey) / (r * sh * 0.4))
         wob = 1 + 0.18 * np.sin(np.arctan2(yy - ey, xx - ex) * 5 + px * 7)
         patches = np.maximum(patches, np.clip((wob - rr) * 8, 0, 1))
     hair = ndimage.gaussian_filter(rng.standard_normal((h, w)), (6, 0.8)) * 6
-    hide = hide * (1 - patches[..., None]) + hexc("4a2414")[None, None] * patches[..., None]
+    hide = hide * (1 - patches[..., None]) + hexc("3a1c10")[None, None] * patches[..., None]
     hide += hair[..., None]
-    # the laced strip down the middle: a red band with cream laces across it
-    strip = np.abs(xx - cx) < sh * 0.055
-    lace = strip & (np.sin(yy / (sh * 0.016)) > 0.2)
-    hide = np.where(strip[..., None], hexc("c0301c"), hide)
-    hide = np.where(lace[..., None], hexc("f6ead0"), hide)
-    edge_strip = strip & (np.abs(np.abs(xx - cx) - sh * 0.055) < 2.5)
-    hide = np.where(edge_strip[..., None], INK * 1.2, hide)
+    # the lacing down the middle: a band of darker hide, dark leather laces threaded across it
+    band = np.abs(xx - cx) < sh * 0.05
+    hide = np.where(band[..., None], hexc("c9a272"), hide)
+    row = (yy - cy) / (sh * 0.07)
+    lace = band & (np.abs(row - np.round(row)) < 0.16) & (np.abs(xx - cx) < sh * 0.042)
+    lace_lit = band & (np.abs(row - np.round(row) + 0.12) < 0.05) & (np.abs(xx - cx) < sh * 0.036)
+    hide = np.where(lace[..., None], hexc("4a2210"), hide)
+    hide = np.where(lace_lit[..., None], hexc("9a6038"), hide)
+    edge = band & (np.abs(np.abs(xx - cx) - sh * 0.05) < 2.0)
+    hide = np.where(edge[..., None], hexc("6a3a1c"), hide)
     rgb = hide * (0.5 + 0.62 * diff[..., None]) + spec[..., None] * 180
     # the rim: a darker hide edge, as if the skin were folded over a frame
     rim = np.clip(1 - dist_in(oval) / (sh * 0.025), 0, 1)
     rgb = rgb * (1 - rim[..., None] * 0.45)
-    layers.append((np.broadcast_to(INK, rgb.shape).copy(), grow(oval, sh * 0.016)))
-    layers.append((rgb, oval * (1 - 0.0)))
+    layers.append((np.broadcast_to(INK, rgb.shape).copy(), grow(oval, sh * 0.018)))
+    layers.append((rgb, oval))
     return layers
 
 
@@ -195,8 +209,8 @@ def main() -> None:
     w, h = W * SS, H * SS
     rgb = np.zeros((h, w, 3))
     a = np.zeros((h, w))
-    cx, cy = w * 0.5, h * 0.53
-    for lr, la in shield_layers(w, h, cx, cy, h * 0.84):
+    cx, cy = w * 0.5, h * 0.575
+    for lr, la in shield_layers(w, h, cx, cy, h * 0.78):
         rgb, a = over(rgb, a, lr, la)
     layers, _ = text_layers(w, h, [("CHAKA", int(h * 0.26), h * 0.39), ("ZULU", int(h * 0.32), h * 0.69)])
     for lr, la in layers:

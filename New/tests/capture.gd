@@ -183,7 +183,8 @@ func _capture(device: String, shot: String) -> void:
 			var game: Node = Nav.current
 			game.autopilot = null
 			game.world._die(&"bandit" if shot == "gameover" else &"fall")
-			await _wait(2.4)
+			# his death plays first, then the panel arrives and settles (its buttons last)
+			await _wait((World.DYING_TIME if shot == "gameover" else World.FALL_DEATH_TIME) + 1.5)
 		"win":
 			await _start_game("home")
 			await get_tree().process_frame
@@ -198,6 +199,8 @@ func _capture(device: String, shot: String) -> void:
 			for s: ScrollContainer in Nav.current.find_children("*", "ScrollContainer", true, false):
 				s.scroll_vertical = 100000
 			await _wait(0.3)
+	if banner:  # only where the game asks for one (not during play: [ads] banner_in_play)
+		banner.visible = Services.ads.get(&"_banner_wanted") != false
 	_draw_now()
 	_save(vp.get_texture().get_image(), device, shot)
 	if Nav.current:

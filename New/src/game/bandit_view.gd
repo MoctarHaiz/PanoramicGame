@@ -1,16 +1,19 @@
 class_name BanditView
 extends Node2D
-## A bandit (World.Bandit): the masked raider painted by tools/art/bandit.py (assets/art/bandit/).
+## A bandit (World.Bandit): the masked raider, rendered in 3D from Panoramic's own mesh and rig in
+## the same light (violet wraps, a mask with amber eyes, a teal crest, a club: tools/art/blender/
+## hero_render.py --character bandit, packed by tools/art/bandit_sheet.py into assets/art/bandit/).
 ## Placed at its feet. It waits crouched and breathing until it enters the play window, then runs
-## (its 8 frames played at the speed that keeps the planted boot still on the ground). A ring makes
-## it flash white and jolt back; after the first one it runs dazed (one ear flopped, a plaster,
-## stars circling its hood). The second knocks it out: it freezes on the blow, is thrown up and back
-## spinning while its club flies off on its own, and drops out of the picture.
+## (16 frames played at the speed that keeps the planted boot still on the ground). As it closes on
+## Panoramic it draws its club back over its head and swings it (a smeared blow), so the hit is
+## seen coming. A ring makes it flash white and jolt back; after the first one it runs dazed (head
+## lolling, stars circling it). The second knocks it out: it freezes on the blow, is thrown up and
+## back spinning while its club flies off on its own, and drops out of the picture.
 ##
 ## Animation runs on the world's clock, so pause and hit-stop freeze it too.
 
 const DIR := "res://assets/art/bandit/"
-const FLASH_TIME := 0.12
+const FLASH_TIME := Fx.FLASH_TIME  ## New (audio): the shared impact's white, 2 frames, then the reaction shows
 const KO_HOLD := 0.09  ## seconds frozen on the blow before the tumble
 const KO_VELOCITY := Vector2(560, -820)  ## units/s on screen: thrown back (right) and up, fast
 const KO_GRAVITY := 2600.0
@@ -20,6 +23,11 @@ const KO_SPIN := 15.0  ## radians/s
 const VAULT_TIME := 0.46  ## seconds
 const VAULT_HEIGHT := 150.0  ## units: over his head
 const STAR_COUNT := 3
+## The swing, by how far ahead of it Panoramic is (units between their centres): the club goes back
+## from SWING_FROM, the blow lands at SWING_HIT (its club's reach), then the follow-through.
+const SWING_FROM := 200.0
+const SWING_HIT := 105.0
+const FLIGHT_FRAME := 4  ## the run frame with both feet off the ground (hopping a wall, vaulting)
 
 static var _data: Dictionary
 static var _sheet: Texture2D
@@ -96,6 +104,13 @@ func _init(w: World, b: World.Bandit) -> void:
 	_sprite.scale = Vector2.ONE * _scale
 	_material = ShaderMaterial.new()
 	_material.shader = preload("res://src/game/actor.gdshader")
+	# as on Panoramic: a warm rim on its sun side and a thin dark edge, so it reads at phone size
+	_material.set_shader_parameter(&"rim", 0.8)
+	_material.set_shader_parameter(&"rim_px", 2.0)
+	_material.set_shader_parameter(&"rim_colour", Color(1.0, 0.8, 0.55))
+	_material.set_shader_parameter(&"rim_dir", Vector2(-0.6, -0.8))
+	_material.set_shader_parameter(&"outline_px", 1.2)
+	_material.set_shader_parameter(&"outline_colour", Color(0.08, 0.03, 0.1, 0.85))
 	_sprite.material = _material
 	add_child(_sprite)
 	_front = Node2D.new()
@@ -157,8 +172,11 @@ func _process(delta: float) -> void:
 		_run = fposmod(_run + dt * float(_data.run_fps), _run_frames)
 		var f := int(_run)
 		if not _grounded:
-			f = 3  # hopping a wall: the flight frame
+			f = FLIGHT_FRAME  # hopping a wall: the flight frame
 		frame = row * _cols + f
+		var swing := _swing_frame()
+		if swing >= 0 and _grounded:
+			frame = 2 * _cols + int(_data.swing_from) + swing
 		_sprite.scale = Vector2.ONE * _scale
 		var head: Array = _data.head[f]
 		_head = (Vector2(head[0], head[1]) - _anchor) * _scale
@@ -169,7 +187,7 @@ func _process(delta: float) -> void:
 			_squash = Vector2(0.86, 1.14)
 		_vault = minf(_vault + dt / VAULT_TIME, 1.0)
 		lift = VAULT_HEIGHT * 4.0 * _vault * (1.0 - _vault)
-		frame = row * _cols + 3  # the flight frame
+		frame = row * _cols + FLIGHT_FRAME  # the flight frame
 		rotation = -0.5 * sin(_vault * PI)
 	elif _vault >= 1.0:
 		rotation = 0.0
@@ -179,6 +197,20 @@ func _process(delta: float) -> void:
 	_material.set_shader_parameter(&"amount", _flash * 0.85)
 	queue_redraw()
 	_front.queue_redraw()
+
+
+## The frame of the club's swing (0..7) as Panoramic comes within reach ahead of it, or -1.
+func _swing_frame() -> int:
+	if bandit.hurt or not bandit.active or world.state != World.State.RUNNING:
+		return -1
+	var d := position.x - world.draw_hero().x
+	if bandit.touched_hero or d < SWING_HIT * 0.55:
+		return 6 + (1 if d < SWING_HIT * 0.3 or bandit.touched_hero else 0)  # the follow-through
+	if d < SWING_HIT:
+		return 4 + (1 if d < SWING_HIT * 0.8 else 0)  # the blow, smeared
+	if d < SWING_FROM:
+		return clampi(int((SWING_FROM - d) / (SWING_FROM - SWING_HIT) * 4.0), 0, 3)  # drawn back
+	return -1
 
 
 func _draw() -> void:

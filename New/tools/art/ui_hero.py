@@ -9,7 +9,7 @@ and the rock he stands on in the menu.
 - head.png: his face in a disc on a warm sky (the HUD's way home, where it runs to the house).
 - menu_rock.png: a kopje jutting out into the sunset from the left edge of the menu, backlit: a dark
   plum mass, its top lit by the low sun on its right (a warm rim along every edge that faces it),
-  granite facets and cracks. Its flat top (ROCK_STAND, in its pixels) is where his feet go. (Painted
+  rounded granite boulders, cracks with lit lips, mica and feldspar specks, shade in the clefts. Its flat top (ROCK_STAND, in its pixels) is where his feet go. (Painted
   with the cliff on the left and the sun on the left, then mirrored.)
 
 Each hero frame is cut to its figure (a small margin), its colour bled under the transparent pixels
@@ -38,8 +38,8 @@ SOURCES = {
 }
 MARGIN = 8  # px kept around the figure
 HEAD_BOX = (438, 92, 598, 252)  # his face in the standing render (head.png)
-ROCK_SIZE = (1400, 520)
-ROCK_STAND = (470, 104)  # where his feet stand on the rock before the mirroring, in its pixels
+ROCK_SIZE = (2000, 720)
+ROCK_STAND = (660, 150)  # where his feet stand on the rock before the mirroring, in its pixels
 
 
 def bleed(img: Image.Image) -> Image.Image:
@@ -75,80 +75,92 @@ def head() -> Image.Image:
     return Image.fromarray(a.astype(np.uint8), "RGBA")
 
 
+def _crack(h: int, w: int, rng: np.random.Generator, start: tuple, length: int, heading: float) -> np.ndarray:
+    """A jagged crack: a random walk drawn as a thin line, wider at its start (0..1 coverage)."""
+    pts = [np.array(start, float)]
+    a = heading
+    for i in range(length):
+        a += rng.normal(0, 0.35)
+        a = heading + np.clip(a - heading, -0.9, 0.9)
+        pts.append(pts[-1] + np.array([np.cos(a), np.sin(a)]) * rng.uniform(6, 14))
+    lines = [((p[0], p[1], q[0], q[1]), max(1.0, 4.5 * (1 - i / len(pts)))) for i, (p, q) in enumerate(zip(pts, pts[1:]))]
+    return poly_mask(w, h, [], lines=lines)
+
+
 def rock() -> Image.Image:
     w, h = ROCK_SIZE
-    rng = np.random.default_rng(7)
+    rng = np.random.default_rng(11)
     sx, sy = ROCK_STAND
     # the silhouette: a cliff face on the left, a flat top where he stands, rising to the right
-    ridge = [(150, 156), (205, 126), (290, 112), (sx - 80, sy + 2), (sx + 90, sy + 1), (640, 108), (760, 96),
-             (900, 84), (1060, 66), (1220, 58), (1400, 48)]
-    face = [(1400, 520), (30, 520), (52, 440), (80, 360), (104, 280), (126, 214)]
-    boulders = [(205, 190, 80, 66), (130, 330, 70, 90), (330, 160, 90, 52), (640, 150, 120, 56), (790, 96, 105, 62),
-                (1010, 70, 150, 72), (1265, 52, 175, 78), (560, 300, 170, 120), (980, 290, 220, 150),
-                (300, 330, 150, 120)]
+    ridge = [(214, 222), (290, 180), (410, 160), (sx - 110, sy + 3), (sx + 130, sy + 1), (915, 154), (1085, 136),
+             (1285, 118), (1515, 92), (1745, 82), (2000, 70)]
+    face = [(2000, 720), (40, 720), (74, 620), (114, 510), (150, 400), (180, 304)]
+    boulders = [(292, 270, 115, 95), (186, 470, 100, 128), (470, 230, 128, 74), (915, 214, 172, 80), (1130, 140, 150, 90),
+                (1445, 100, 214, 104), (1810, 76, 250, 112), (800, 430, 243, 170), (1400, 415, 314, 214),
+                (430, 470, 214, 170)]
     mask = poly_mask(w, h, [ridge + face], ellipses=boulders)
-    # a ragged edge: the silhouette eaten a little by noise along it
     n = fbm(h, w, 8, 26, 4, rng, wrap_x=False)
     edge = ndimage.distance_transform_edt(mask > 0.5) - ndimage.distance_transform_edt(mask <= 0.5)
-    mask = smooth(-1.2, 1.2, edge + (n - 0.5) * 9.0)
+    mask = smooth(-1.2, 1.2, edge + (n - 0.5) * 10.0)
     inside = mask > 0.5
-
-    # form: rounded at the edges, a soft dome per boulder
-    d = np.minimum(ndimage.distance_transform_edt(inside), 60.0) / 60.0
-    height = (1 - (1 - d) ** 2) * 36.0
     yy, xx = np.mgrid[0:h, 0:w].astype(float)
+
+    # form: rounded at its edges, a smooth dome per boulder, relief at three scales, strata and cracks
+    d = np.minimum(ndimage.distance_transform_edt(inside), 90.0) / 90.0
+    height = (1 - (1 - d) ** 2) * 50.0
     for cx, cy, rx, ry in boulders:
-        r = ((xx - cx) / rx) ** 2 + ((yy - cy) / ry) ** 2
-        height += np.clip(1 - r, 0, 1) ** 2 * 30.0
-    height = blur(height, 2.0)
+        r2 = ((xx - cx) / rx) ** 2 + ((yy - cy) / ry) ** 2
+        dome = np.exp(-r2 * 1.6) * 90.0 + d * 20.0
+        height = np.logaddexp(height * 0.12, dome * 0.12) / 0.12  # a smooth max: soft rounded masses
+    big = fbm(h, w, 6, 16, 4, rng, wrap_x=False)
+    fine = fbm(h, w, 40, 110, 3, rng, wrap_x=False)
+    height += big * 24.0 + fine * 3.5
+    cracks = np.zeros((h, w))
+    for i in range(7):
+        top = rng.integers(260, w - 80)
+        col = np.nonzero(inside[:, top])[0]
+        if col.size == 0:
+            continue
+        cracks = np.maximum(cracks, _crack(h, w, rng, (top, col[0] + rng.uniform(4, 40)), int(rng.integers(8, 18)),
+                                           np.pi / 2 + rng.normal(0, 0.5)))
+    for i in range(2):  # a few running along the slabs
+        cracks = np.maximum(cracks, _crack(h, w, rng, (rng.uniform(300, w), rng.uniform(220, 600)), int(rng.integers(8, 20)),
+                                           rng.choice([0.0, np.pi]) + rng.normal(0, 0.3)))
+    cracks *= inside
+    height -= cracks * 9.0
+    height = blur(height, 1.0)
     gy, gx = np.gradient(height)
-    # facets: the granite splits into flat planes (each Voronoi cell tilted its own way)
-    seeds = np.ones((h, w), bool)
-    pts = np.column_stack([rng.integers(0, h, 90), rng.integers(0, w, 90)])
-    seeds[pts[:, 0], pts[:, 1]] = False
-    _, (iy, ix) = ndimage.distance_transform_edt(seeds, return_indices=True)
-    cell = iy * w + ix
-    tilt = {}
-    for k in np.unique(cell):
-        tilt[k] = rng.normal(0, 0.35, 2)
-    keys = np.array(list(tilt.keys()))
-    tx = np.zeros(h * w)
-    ty = np.zeros(h * w)
-    lookup = np.searchsorted(keys, cell.ravel())
-    vals = np.array(list(tilt.values()))
-    tx = vals[lookup, 0].reshape(h, w)
-    ty = vals[lookup, 1].reshape(h, w)
-    border = (np.abs(np.diff(cell, axis=0, prepend=cell[:1])) + np.abs(np.diff(cell, axis=1, prepend=cell[:, :1]))) > 0
-    border = blur(border.astype(float), 0.9)
-    rough = fbm(h, w, 14, 38, 5, rng, wrap_x=False)
-    rgy, rgx = np.gradient(blur(rough, 1.0) * 30.0)
-    nx = -gx + tx * 0.9 - rgx * 0.6
-    ny = -gy + ty * 0.9 - rgy * 0.6
-    nrm = np.dstack([nx, ny, np.ones_like(height) * 1.4])
+    nrm = np.dstack([-gx, -gy, np.ones_like(height) * 1.2])
     nrm /= np.linalg.norm(nrm, axis=2, keepdims=True)
-    sun = np.array([-0.82, -0.5, 0.3])  # the low sun, left and a little behind
+    sun = np.array([-0.82, -0.45, 0.35])  # the low sun, left and a little behind (mirrored: right)
     sun /= np.linalg.norm(sun)
     lit = np.clip(nrm @ sun, 0, 1)
     sky = np.clip(nrm @ np.array([0.1, -0.95, 0.3]), 0, 1)  # the dusk sky above: cool, soft
 
-    # colour: backlit plum, warm and bright on the planes turned towards the sun
-    col = ramp(lit, [(0.0, "26111d"), (0.3, "361827"), (0.55, "5e2730"), (0.8, "a9493a"), (1.0, "e48a52")])
-    col = mix(col, hexc("6a4a70"), sky * 0.25)
-    # the top surface catches the last light
+    # colour: warm granite against the light, plum in its own shade, the sun's orange on what faces it
+    col = ramp(lit, [(0.0, "2c1520"), (0.25, "47252d"), (0.5, "7a4636"), (0.75, "c27450"), (1.0, "ffb27a")])
+    col = mix(col, hexc("6c5a86"), sky * 0.22)
+    grain = rng.random((h, w))
+    col = mix(col, col * 0.7, (grain > 0.93) * 0.6)  # dark mica specks
+    col = mix(col, col * 1.25 + 10, (grain < 0.03) * 0.5)  # light feldspar specks
+    col += (fine[..., None] - 0.5) * 30.0
     first = np.where(inside.any(axis=0), inside.argmax(axis=0), h)
     below = yy - first[None, :]
-    top = np.where(below >= 0, np.exp(-np.maximum(below, 0) / 30.0), 0.0)
-    col = mix(col, hexc("d9744a"), top * 0.45 * (0.4 + 0.6 * lit))
-    # cracks along the facets' borders
-    col = mix(col, hexc("1a0a12"), border * 0.55)
-    # the rim: where the rock's edge faces the sun, a bright warm line
-    shifted = ndimage.shift(mask, (5, 8), order=1, cval=0.0)  # the mask moved away from the sun
+    top = np.where(below >= 0, np.exp(-np.maximum(below, 0) / 34.0), 0.0)
+    col = mix(col, hexc("e08a58"), top * 0.5 * (0.35 + 0.65 * lit))
+    # cracks: dark, a thin lit lip on their lower side
+    lip = np.clip(ndimage.shift(cracks, (2.0, 0.0), order=1) - cracks, 0, 1)
+    col = mix(col, hexc("150810"), np.clip(cracks * 1.3, 0, 1) * 0.9)
+    col = mix(col, hexc("f0a070"), lip * 0.5)
+    # the rim where the rock's edge faces the sun
+    shifted = ndimage.shift(mask, (4, 7), order=1, cval=0.0)
     rim = np.clip(mask - shifted, 0, 1)
-    rim = blur(rim, 0.7) * mask
-    col = mix(col, hexc("ffc98a"), np.clip(rim * 1.7, 0, 1))
-    # grain, and darker towards the foot (it sinks into the dark grass of the backdrop)
-    col += (rough[..., None] - 0.5) * 22.0
-    col = mix(col, hexc("1c0c16"), smooth(0.4, 1.0, yy / h) * 0.8)
+    rim = blur(rim, 1.0) * mask * (0.55 + 0.45 * lit)
+    col = mix(col, hexc("ffb46e"), np.clip(rim * 1.4, 0, 1))
+    # ambient occlusion in the clefts between boulders, darker towards the foot
+    ao = np.clip((blur(height, 18.0) - height) / 14.0, 0, 1)
+    col = mix(col, hexc("12060c"), ao * 0.7)
+    col = mix(col, hexc("1c0c16"), smooth(0.42, 1.0, yy / h) * 0.8)
     return dither_rgba(np.clip(col, 0, 255), mask, rng)
 
 

@@ -23,13 +23,13 @@ func _ready() -> void:
 			_test_hang, _test_fall, _test_landing_weight, _test_bandits, _test_club_reach, _test_mercy, _test_calm_start, _test_swipes, _test_rings, _test_home_door, _test_run_home, _test_step_cap, _test_frame_rates, _test_idle,
 			_test_stars, _test_save, _test_translations, _test_config, _test_preload, _test_debug_silent,
 			_test_translation_formats, _test_sounds, _test_save_round_trip, _test_determinism, _test_screens, _test_no_leaks,
-			_test_pause_anywhere, _test_replay_home, _test_audio, _test_gameplay]
+			_test_pause_anywhere, _test_replay_home, _test_contracts, _test_audio, _test_gameplay]
 	tests.append(_test_ux)
 	tests.append(_test_art)
 	if "--bot" in OS.get_cmdline_user_args():
 		tests.append(_test_bot)
 	if "--quick" in OS.get_cmdline_user_args():  # without the screens (seconds instead of ~40 s)
-		tests = tests.filter(func(t: Callable) -> bool: return t not in [_test_screens, _test_no_leaks, _test_pause_anywhere, _test_replay_home])
+		tests = tests.filter(func(t: Callable) -> bool: return t not in [_test_screens, _test_no_leaks, _test_pause_anywhere, _test_replay_home, _test_contracts])
 	for test: Callable in tests:
 		await test.call()  # the release checks wait for frames
 	print("%d checks, %d failed" % [_checks, _failures])
@@ -558,6 +558,13 @@ func _test_preload() -> void:
 		GameArt.collect_preloaded()
 		OS.delay_msec(20)
 	_check(GameArt.preloaded_count() >= 40, "the game's pictures preload in the background (%d)" % GameArt.preloaded_count())
+	# Every load finished before anything else runs: the headless renderer's texture table is not
+	# thread-safe, and a picture still loading on a thread while a screen opens could fail it (the
+	# intermittent "Parameter t is null" in texture_2d_initialize; phones' renderers lock it).
+	while not GameArt._pending.is_empty() and Time.get_ticks_msec() - t < 30000:
+		GameArt.collect_preloaded()
+		OS.delay_msec(20)
+	_check(GameArt._pending.is_empty(), "every preload has finished")
 
 
 func _test_debug_silent() -> void:
@@ -579,10 +586,16 @@ class ErrorLog extends Logger:
 	var _mutex := Mutex.new()
 
 	func _log_error(function: String, file: String, line: int, code: String, rationale: String, _editor_notify: bool,
-			error_type: int, _script_backtraces: Array[ScriptBacktrace]) -> void:
+			error_type: int, script_backtraces: Array[ScriptBacktrace]) -> void:
+		# where in our scripts it came from (the innermost frame), and from which thread
+		var at := ""
+		for bt in script_backtraces:
+			if bt.get_frame_count() > 0:
+				at = " from %s:%d" % [bt.get_frame_file(0).get_file(), bt.get_frame_line(0)]
+				break
 		_mutex.lock()
-		lines.append("%s%s (%s:%d %s)" % ["WARNING: " if error_type == ERROR_TYPE_WARNING else "", rationale if rationale else code,
-				file.get_file(), line, function])
+		lines.append("%s%s (%s:%d %s%s%s)" % ["WARNING: " if error_type == ERROR_TYPE_WARNING else "", rationale if rationale else code,
+				file.get_file(), line, function, at, "" if OS.get_thread_caller_id() == OS.get_main_thread_id() else ", a loading thread"])
 		_mutex.unlock()
 
 	func take() -> PackedStringArray:
@@ -654,9 +667,9 @@ func _test_sounds() -> void:
 	_check(music.is_empty(), "the menu and the game have music %s" % [music])
 
 
-## Every setting and record survives a save and a load with its type, and every variable of Save
-## that should last is saved (only `persist`, the session's ad counter and the file's path and origin are not).
-## (In memory: Save.PATH is the player's real file.)
+## Every setting and record survives a save and a load with its type, through the real files
+## (Save.write() and Save._load() on a scratch path, not the player's save), and every variable of
+## Save that should last is saved (not `persist`, `path`, `loaded_from` nor the session's ad counter).
 func _test_save_round_trip() -> void:
 	var script: GDScript = load("res://src/autoload/save.gd")
 	var a: Node = script.new()
@@ -668,22 +681,27 @@ func _test_save_round_trip() -> void:
 				and not StringName(p.name) in keys and p.name not in ["persist", "game_overs_since_ad", "path", "loaded_from"]:
 			unsaved.append(p.name)
 	_check(unsaved.is_empty(), "every lasting variable of Save is saved (%s)" % [unsaved])
-	for key: StringName in keys:  # values unlike the defaults
+	for key: StringName in keys:  # values unlike the defaults, and valid (Save checks ranges on load)
 		var v: Variant = a.get(key)
 		match typeof(v):
 			TYPE_BOOL: a.set(key, not v)
-			TYPE_INT: a.set(key, v + 7)
-			TYPE_FLOAT: a.set(key, v + 0.375)
+			TYPE_INT: a.set(key, 2 if key == &"best_stars" else v + 7)
+			TYPE_FLOAT: a.set(key, 0.375)
 			TYPE_STRING: a.set(key, "fr")
-	var cfg := ConfigFile.new()  # as Save.write() and Save._load() do
-	for key: StringName in keys:
-		cfg.set_value("save", key, a.get(key))
-	var back := ConfigFile.new()
-	_check(back.parse(cfg.encode_to_text()) == OK, "the save file parses")
-	for key: StringName in keys:
-		b.set(key, back.get_value("save", key, b.get(key)))
+	var dir := "user://qa_save_round_trip"
+	DirAccess.make_dir_recursive_absolute(dir)
+	for x in [a, b]:
+		x.path = dir.path_join("save.cfg")
+		x.persist = true
+	a.write()
+	b._load()
 	var differ := keys.filter(func(key: StringName) -> bool: return typeof(a.get(key)) != typeof(b.get(key)) or a.get(key) != b.get(key))
-	_check(differ.is_empty(), "a save loads back the same, types too (%s)" % [differ])
+	_check(b.loaded_from == "save" and differ.is_empty(), "a save loads back the same, types too (from %s, %s)" % [b.loaded_from, differ])
+	a.write()  # a second save keeps the first as the backup
+	_check(FileAccess.file_exists(a.path + ".bak") and not FileAccess.file_exists(a.path + ".tmp"), "saving again keeps a backup, no stray .tmp")
+	for f in DirAccess.get_files_at(dir):
+		DirAccess.remove_absolute(dir.path_join(f))
+	DirAccess.remove_absolute(dir)
 	a.free()
 	b.free()
 
@@ -853,6 +871,28 @@ func _test_replay_home() -> void:
 	Engine.time_scale = 1.0
 
 
+## What the tracks' pieces expect of each other, in the real game (merges have dropped them before):
+## the footsteps follow the hero's run (Footsteps reads HeroView.run_frame(), or run_a/run_b poses).
+func _test_contracts() -> void:
+	Engine.time_scale = FAST
+	var vp := _device_viewport("iphone15_2556x1179")
+	await _open("game")
+	var game: Node = Nav.current
+	var hero: Node = game.view.get(&"_hero")
+	var poses := {}
+	var frames := 0
+	for i in 60:
+		await get_tree().process_frame
+		if game.world.on_ground and not game.world.jumping:
+			poses[hero.pose()] = true
+			if hero.has_method(&"run_frame") and hero.run_frame() >= 0.0:
+				frames += 1
+	var steps := frames > 0 or Footsteps.RUN_POSES.any(func(p: StringName) -> bool: return poses.has(p))
+	_check(steps, "the footsteps can follow the hero's run (run_frame() or run_a/run_b; poses seen %s)" % [poses.keys()])
+	await _close(vp)
+	Engine.time_scale = 1.0
+
+
 ## A viewport at a device's size and notches (tests/capture.gd), holding the screens.
 func _device_viewport(device: String) -> SubViewport:
 	var px: Vector2i = Capture.DEVICES[device].size
@@ -914,11 +954,12 @@ func _open(shot: String, data := {}) -> void:
 			game.autopilot = Scripted.new()
 			await _wait(1.0)
 			game.world._die(&"bandit")
-			await _wait(4.0)  # the panel and its reveal
+			await _wait(World.DYING_TIME + 2.0)  # his death, then the panel and its reveal
 		"win":
+			game._start()  # (a run is under way: the start card has gone)
 			game.world.state = World.State.WON
 			game.world.won.emit()
-			await _wait(6.0)
+			await _wait(World.HOME_TIME + 4.0)
 
 
 ## What's wrong with the layout on screen: buttons and texts outside the safe area or the screen,
@@ -984,6 +1025,14 @@ class _FakeRun3D extends Node:
 
 	func run_frame() -> float:
 		return frame
+
+
+class _FakeHeroClock extends Node:  # the 3D hero before run_frame(): its run clock and its animation
+	var _run := 0.0
+	var anim := &"run"
+
+	func pose() -> StringName:
+		return anim
 
 
 ## Sounds, music, buses, settings, haptics, footsteps and reduced motion (the audio track).
@@ -1082,6 +1131,7 @@ func _test_audio() -> void:
 	Haptics.pickup()
 	_check(Haptics.played == ["hurt"], "a light vibration doesn't cut into a heavy one (%s)" % [Haptics.played])
 	Haptics._busy_until = 0
+	Haptics._last.clear()  # (no pickup from an earlier test inside the repeat window)
 	Haptics.played.clear()
 	Haptics.pickup()
 	Haptics.pickup()
@@ -1089,15 +1139,71 @@ func _test_audio() -> void:
 	Haptics.record = false
 	Haptics._busy_until = 0
 	Save.vibration_on = vib
-	# reduced motion (Save.reduced_motion, when the setting exists)
-	if &"reduced_motion" in Save:
-		var calm: bool = Save.get(&"reduced_motion")
-		Save.set(&"reduced_motion", true)
-		_check(Fx.calm(), "reduced motion turns the camera's shake off")
-		Save.set(&"reduced_motion", calm)
-	else:
-		_check(not Fx.calm(), "no reduced-motion setting yet: full motion")
-	for p: AudioStreamPlayer in Audio._sfx + Audio._ui + [Audio._music, Audio._music_out, Audio._ambience]:
+	# reduced motion (Settings: Save.reduce_motion)
+	var calm: bool = Save.reduce_motion
+	Save.reduce_motion = true
+	_check(Fx.calm(), "reduced motion turns the camera's shake and kicks off")
+	Save.reduce_motion = false
+	_check(not Fx.calm(), "full motion by default")
+	Save.reduce_motion = calm
+	# round 2: the player's volumes stay theirs; the mood and the dips work on the Music bus's gain
+	var music_bus := AudioServer.get_bus_index(&"Music")
+	var fader := AudioServer.get_bus_volume_db(music_bus)
+	AudioServer.set_bus_volume_db(music_bus, -12.0)
+	Audio.duck(6.0)
+	Audio.set_mood(&"paused")
+	Audio._process(0.1)
+	_check(is_equal_approx(AudioServer.get_bus_volume_db(music_bus), -12.0) and Audio._gain.volume_db < -1.0,
+			"the music's mood and dips leave the player's music volume alone")
+	AudioServer.set_bus_volume_db(music_bus, fader)
+	Audio.set_mood(&"play")
+	Audio._duck = 0.0
+	for bus: StringName in [&"UI", &"Ambience"]:
+		_check(AudioServer.get_bus_send(AudioServer.get_bus_index(bus)) == &"SFX", "%s goes through the sounds' bus (its volume, its switch)" % bus)
+	_check(Audio.MUSIC_DB[&"game"] <= Audio.MUSIC_DB[&"menu"] - 5.0, "in play the music sits well under the effects")
+	for name: StringName in [&"hurt", &"knock_out", &"death"]:
+		_check(Audio._how(name).get("duck", 0.0) >= 4.0, "the music dips 4-6 dB under %s" % name)
+	# lengths: the frequent ones never run over the next event
+	for pair: Array in [[&"bob", 0.26], [&"knock_out", 0.52], [&"hurt", 0.42], [&"death", 0.9], [&"ring_hit", 0.37]]:
+		for st: AudioStream in Audio._streams[pair[0]]:
+			_check(st.get_length() <= pair[1], "%s lasts %.2f s (at most %.2f)" % [st.resource_path.get_file(), st.get_length(), pair[1]])
+	for name: StringName in [&"footstep", &"jump", &"land", &"throw", &"ring_hit", &"knock_out", &"hurt", &"splash", &"hang", &"grab"]:
+		_check(Audio._streams[name].size() >= 4, "%s has 4 takes or more" % name)
+	for name: StringName in [&"streak", &"heart_break", &"last_heart", &"bump", &"grab", &"mantle", &"vine_creak", &"door", &"coins"]:
+		_check(Audio.has_sfx(name), "the %s sound exists" % name)
+	_check(Audio._drive.stream != null and is_equal_approx(Audio._drive.stream.get_length(), Audio._music_streams[&"game"].get_length()),
+			"the game theme's drive layer is there, as long as the theme (they loop in sync)")
+	Audio.play_music(&"menu")
+	Audio.play_music(&"game")
+	_check(Audio._drive.playing and Audio._music.playing, "the drive layer starts with the game theme")
+	Audio.set_intensity(1.0)
+	Audio._process(0.5)
+	_check(Audio._drive.volume_db > Audio.SILENT_DB + 10.0, "on the home stretch the drive layer comes in")
+	Audio.set_intensity(0.0)
+	# the impacts: 3-5 frames of hit-stop, small < medium < fatal; a knock springs back
+	var last := 0.0
+	for kind: StringName in [&"small", &"medium", &"fatal"]:
+		var preset: Dictionary = Fx.IMPACTS[kind]
+		_check(preset.stop >= 2.9 / 60.0 and preset.stop <= 5.1 / 60.0 and preset.shake > last, "the %s impact holds 3-5 frames" % kind)
+		last = preset.shake
+	Fx.knock(&"test", Vector2(30, 0), 0.4)
+	Fx.advance_knocks(0.08)
+	var out := Fx.knock_offset(&"test")
+	Fx.advance_knocks(0.4)
+	_check(out.x > 15.0 and Fx.knock_offset(&"test") == Vector2.ZERO, "a knock pushes out fast, then springs back to its place")
+	# footsteps on the new hero's run clock (until it has run_frame()), the throw included
+	var w2 := _standing_world()
+	var hero3d := _FakeHeroClock.new()
+	var feet2 := Footsteps.new(w2, hero3d)
+	before = Audio.sfx_count
+	for f in [3.0, 4.5, 5.5, 9.0, 12.9, 13.2]:
+		hero3d._run = f
+		hero3d.anim = &"throw" if f > 9.0 else &"run"
+		feet2._process(0.0)
+	_check(Audio.sfx_count == before + 2, "footsteps follow the 3D hero's run clock, through a throw too")
+	for n: Node in [hero3d, feet2]:
+		n.free()
+	for p: AudioStreamPlayer in Audio._sfx + Audio._ui + [Audio._music, Audio._music_out, Audio._drive, Audio._ambience]:
 		p.stop()
 
 
@@ -1112,6 +1218,76 @@ func _test_gameplay() -> void:
 	_gp_level_fixes()
 	_gp_view_hooks()
 	_gp_flow()
+	_gp_staging()
+	if "--quick" not in OS.get_cmdline_user_args():
+		await _gp_camera()
+
+
+## The camera's limits on every device (tests/capture.gd): through the real game screen, from moments
+## that test them (running at the start and stepped right to the middle, on the high platform at
+## column 180 where a jump reaches the vine, hanging over the pillars, caught, home), what
+## World.camera_must_see() asks stays inside the safe area under the HUD band; while he plays, the
+## screen shows the whole play window's width (960): no bandit is seen later than in 2017.
+func _gp_camera() -> void:
+	Engine.time_scale = 4.0
+	var moments := {
+		"start": func(w: World) -> void: pass,
+		"stepped right": func(w: World) -> void: w.x = World.MAX_X,
+		"high platform": func(w: World) -> void:
+			w.scroll = 180 * 32.0 - w.x
+			w.y = 6 * 32 - 64.0
+			w.ground_y = w.y,
+		"hanging": func(w: World) -> void:
+			w.scroll = 560 * 32.0 - w.x
+			w.y = 0.0
+			w.hanging = true
+			w.on_ground = false,
+		"caught": func(w: World) -> void: w._die(&"bandit"),
+		"home": func(w: World) -> void:
+			w.scroll = World.SCROLL_END
+			w.at_end = true
+			w.x = World.HOME_X
+			w.end_at = Vector2(w.x, w.y)
+			w.state = World.State.WON,
+	}
+	var worst := {}
+	for device: String in Capture.DEVICES:
+		var vp := _device_viewport(device)
+		for name: String in moments:
+			var w := World.new()
+			w.stand_at_start()
+			for b in w.bandits:
+				b.gone = true
+			(moments[name] as Callable).call(w)
+			w.prev_scroll = w.scroll
+			w.prev_x = w.x
+			w.prev_y = w.y
+			await _open("level", {"world": w})
+			var game: Node = Nav.current
+			game._start()
+			var bad := []
+			for f in 40:
+				await get_tree().process_frame
+				if w.state == World.State.RUNNING and not (name == "high platform" and not w.on_ground):
+					var seen: Rect2 = game.visible_play_rect()
+					if seen.end.x < World.VIEW_W - 0.5:
+						bad.append("frame %d shows play x to %.0f only" % [f, seen.end.x])
+				var need: Rect2 = w.camera_must_see()
+				var zoom: float = game._stage.scale.x
+				var on_screen := Rect2(game._stage.position + need.position * zoom, need.size * zoom)
+				var insets := Device.insets()
+				var area := Rect2(insets.x, GameScreenScript().FRAME_TOP, game._clip.size.x - insets.x - insets.z,
+						game._clip.size.y - GameScreenScript().FRAME_TOP).grow(1.5)
+				if f > 8 and not area.encloses(on_screen):
+					bad.append("frame %d: must see %s, on screen %s, area %s" % [f, need, on_screen, area])
+			_check(bad.is_empty(), "%s, %s: the camera shows what the player must see %s" % [device, name, bad.slice(0, 2)])
+			if name == "caught":  # his last beat away from the edge of the screen
+				var sx: float = game._stage.position.x + w.end_at.x * game._stage.scale.x
+				_check(absf(sx / game._clip.size.x - GameScreenScript().DEATH_FRAME) < 0.08,
+						"%s: caught, he is framed %.0f %% across the screen for his last beat" % [device, sx / game._clip.size.x * 100.0])
+			worst[device] = maxf(worst.get(device, 0.0), 0.0)
+		await _close(vp)
+	Engine.time_scale = 1.0
 
 
 ## Fingers: taps, swipes in the middle of the move, short flicks, two thumbs, a second swipe
@@ -1647,46 +1823,49 @@ func _test_art() -> void:
 		mean += d / steps.size()
 	var boot := mean * float(data.units_per_px) * float(data.run_fps)
 	_check(_near(boot, World.SCROLL_SPEED / World.TICK, 0.12), "the planted boot keeps pace with the ground (%.0f units/s)" % boot)
-	# each state of the rules shows its animation
+	# each state of the rules shows its animation (gameplay's move_phase(): set as a tick would)
 	var holder := Node2D.new()
 	add_child(holder)
 	var hero := HeroView.new()
 	holder.add_child(hero)
 	var w := _standing_world()
+	var show := func(expect: StringName, what: String) -> void:
+		w._phase = w._current_phase()
+		w._phase_tick = w.ticks - 8  # (begun 0.2 s ago)
+		hero.show_state(w, w.draw_hero(), 0.2)
+		_check(hero.pose() == expect, "%s: %s (%s)" % [what, expect, hero.pose()])
 	w.ticks = 0
-	hero.show_state(w, w.draw_hero(), 0.016)
-	_check(hero.pose() == &"idle", "on his marks: idle (%s)" % hero.pose())
+	show.call(&"idle", "on his marks")
 	w.ticks = 10
-	hero.show_state(w, w.draw_hero(), 0.016)
-	_check(hero.pose() == &"run", "running: run (%s)" % hero.pose())
+	show.call(&"run", "running")
+	_check(hero.run_frame() >= 0 and hero.run_frame() < HeroView.RUN_FRAMES, "run_frame() while running (%d)" % hero.run_frame())
 	hero.threw()
-	hero.show_state(w, w.draw_hero(), 0.016)
+	hero.show_state(w, w.draw_hero(), 0.01)
 	_check(hero.pose() == &"throw", "throwing: throw (%s)" % hero.pose())
 	w.jumping = true
 	w.on_ground = false
 	w.vy = -World.JUMP_SPEED * 0.5
 	w.y = 300.0
 	w.prev_y = w.y
-	hero.show_state(w, w.draw_hero(), 0.2)
-	_check(hero.pose() == &"jump", "in the air: jump (%s)" % hero.pose())
+	w.ticks = 40
+	show.call(&"jump", "in the air")
+	_check(hero.run_frame() == -1, "no run_frame() in the air")
 	w.hanging = true
 	w.jumping = false
 	w.y = 0.0
 	w.prev_y = 0.0
-	hero.show_state(w, w.draw_hero(), 0.016)
-	_check(hero.pose() == &"hang", "at the top: hang (%s)" % hero.pose())
+	show.call(&"hang", "at the top")
 	w.hanging = false
 	w.climbing = true
-	hero.show_state(w, w.draw_hero(), 0.016)
-	_check(hero.pose() == &"climb", "up a ledge: climb (%s)" % hero.pose())
+	show.call(&"climb", "up a ledge")
 	w.climbing = false
 	w.state = World.State.WON
-	hero.show_state(w, w.draw_hero(), 0.016)
-	_check(hero.pose() == &"win", "home: win (%s)" % hero.pose())
+	w.end_time = (World.HOME_LAND + World.HOME_CHEER) / 2.0
+	show.call(&"win", "home, the victory beat")
 	w.state = World.State.DEAD
 	w.death_reason = &"bandit"
-	hero.show_state(w, w.draw_hero(), 0.016)
-	_check(hero.pose() == &"die", "caught: die (%s)" % hero.pose())
+	w.end_time = 0.5
+	show.call(&"die", "caught")
 	holder.queue_free()
 	# the ring tumbles through its spin frames; the river's poles are sandstone stacks
 	_check(RingView.TEXTURE.get_width() == RingView.TEXTURE.get_height() * RingView.SPIN_FRAMES, "ring_spin.png holds %d square frames" % RingView.SPIN_FRAMES)
@@ -1702,3 +1881,70 @@ func _test_art() -> void:
 	_check(stacks >= 5 and river >= 5, "the poles are drawn as stacks (%d, %d standing in the river)" % [stacks, river])
 	terrain.free()
 
+
+## The staging hooks for the views (the rules unchanged): a bandit's blow is seen coming (its swing
+## grows over its last 6 ticks and lands with the hit), a blow says where it came from and how hard,
+## a fall into a pit is known for certain before he is out of the picture (the camera holds), the
+## vine counts as within reach from the high ledges, and the Red Bobs out of reach are listed.
+func _gp_staging() -> void:
+	var w := _standing_world()
+	var b := _bandit_ahead(w, 300.0)
+	var swings := []
+	var hit_at := [-1]
+	w.hurt.connect(func(_b: World.Bandit, _l: int) -> void: hit_at[0] = w.ticks)
+	for i in 40:
+		swings.append(w.strike(b))
+		w.tick()
+		if hit_at[0] >= 0:
+			break
+	var wind := swings.filter(func(v: float) -> bool: return v >= 0.0)
+	var growing := true
+	for i in range(1, wind.size()):
+		growing = growing and wind[i] >= wind[i - 1]
+	_check(hit_at[0] > 0 and wind.size() >= World.STRIKE_TICKS - 1 and wind.size() <= World.STRIKE_TICKS + 2 and growing and wind[-1] > 0.8,
+			"a bandit's swing is seen over its last %d ticks before the blow (%s)" % [World.STRIKE_TICKS, wind])
+	_check(w.strike(b) == -1.0 and w.hit_dir.x < 0.0 and w.hit_dir.y < 0.0 and _near(w.hit_strength, 0.6),
+			"the blow knocks him back from the bandit (%s, %.1f), and no swing after it" % [w.hit_dir, w.hit_strength])
+	var j := _standing_world()
+	var jb := _bandit_ahead(j, 300.0)
+	j.y = 100.0  # well above it: no swing at him
+	j.on_ground = false
+	_check(j.strike(jb) == -1.0, "no swing at him when he is above it")
+	var p := _standing_world()
+	p.scroll = 76 * 32.0 - p.x  # over the first pool, falling, his jump used
+	p.y = 420.0
+	p.vy = 4.0
+	p.on_ground = false
+	p.jumping = true
+	var known := -1
+	for i in 30:
+		if known < 0 and p.falling_to_death():
+			known = i
+		p.tick()
+		if p.state != World.State.RUNNING:
+			_check(known >= 0 and i - known >= 3, "a fall into a pit is known %d ticks before he is out of the picture" % (i - known))
+			break
+	var s := _standing_world()
+	s.scroll = 76 * 32.0 - s.x
+	s.y = 420.0
+	s.vy = 4.0
+	s.on_ground = false
+	s.jumping = false  # a fall that still has its jump: a jump may yet save him
+	_check(not s.falling_to_death() or s._look_for_landing(90, -World.JUMP_SPEED) == World.OUT, "a fall that a jump can still save isn't doomed")
+	var q: Node = GameScreenScript().new()  # moves during that drop are ignored
+	q.world = _standing_world()
+	q.world.scroll = 76 * 32.0 - q.world.x  # as above: over the pool, falling, his jump used
+	q.world.y = 420.0
+	q.world.vy = 4.0
+	q.world.jumping = true
+	q.world.on_ground = false
+	q._move(&"jump")
+	q._move(&"throw")
+	_check(q.world.falling_to_death() and q.world._actions.is_empty(), "swipes and taps are ignored while he drops into a pit he can't leave")
+	q.free()
+	var v := _standing_world()
+	v.scroll = 180 * 32.0 - v.x
+	v.y = 6 * 32 - 64.0
+	_check(v.vine_catchable() and not _standing_world().vine_catchable(), "from the high platform the vine is within reach, from the ground not")
+	_check(World.RISKY_BOBS.size() == Level.load_default().bobs_total - World.BOBS_REACHABLE and World.is_risky_bob(610, 12)
+			and Level.load_default().kind_at(610, 12) == Level.Kind.BOB, "the %d Red Bobs out of reach are listed for the views" % World.RISKY_BOBS.size())

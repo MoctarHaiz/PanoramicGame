@@ -9,7 +9,9 @@ extends Node
 ##   a step sounds as the frame passes a contact, CONTACTS (a foot lands on frames 6 and 14 of the
 ##   renders, 0-based 5 and 13: the lowest foot reaches the ground there and then travels back with
 ##   it). Two steps a loop, 8 frames apart: at 24 frames a second, 3 steps a second.
-## - the two drawn run poses (run_a, run_b): a foot lands at each change from one to the other.
+## - until HeroView has run_frame(): its run clock (_run, 0..16) while pose() is &"run" or &"throw"
+##   (the throwing arm is drawn over the running legs);
+## - the two drawn run poses of the old painted hero (run_a, run_b): a foot lands at each change.
 ## A step against a wall (pushing, blocked) is softer.
 
 const RUN_FRAMES := 16  ## the run loop's length in frames
@@ -31,8 +33,8 @@ func _process(_delta: float) -> void:
 	if not is_instance_valid(hero) or world.state != World.State.RUNNING:
 		return
 	var grounded := world.on_ground and not world.hanging and not world.jumping
-	if hero.has_method(&"run_frame"):
-		var f: float = hero.run_frame()
+	if hero.has_method(&"run_frame") or (hero.has_method(&"pose") and hero.get(&"_run") != null):
+		var f: float = _run_frame()
 		if grounded and f >= 0.0 and _frame >= 0.0:
 			for c in CONTACTS:
 				if crossed(_frame, f, c):
@@ -43,6 +45,14 @@ func _process(_delta: float) -> void:
 		if grounded and pose != _pose and pose in RUN_POSES and _pose in RUN_POSES:
 			_step()
 		_pose = pose
+
+
+## The frame of the 3D run showing (-1 when he isn't running): HeroView.run_frame(), or until the
+## art track adds it, its run clock while its animation is the run.
+func _run_frame() -> float:
+	if hero.has_method(&"run_frame"):
+		return hero.run_frame()
+	return float(hero.get(&"_run")) if hero.pose() in [&"run", &"throw"] else -1.0  # a throw keeps the legs running
 
 
 ## True when the run went past frame `c` going from frame `a` to `b` (the loop wraps at RUN_FRAMES).

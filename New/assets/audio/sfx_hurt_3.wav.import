@@ -2,13 +2,13 @@
 
 importer="wav"
 type="AudioStreamWAV"
-uid="uid://d4b0pqf3diciw"
-path="res://.godot/imported/sfx_fall.wav-81aef48a6be91c0ba3524b2df3694e81.sample"
+uid="uid://c88tbgqptn6f1"
+path="res://.godot/imported/sfx_hurt_3.wav-ff4bf1d145938f74fc9e9870bf97275b.sample"
 
 [deps]
 
-source_file="res://assets/audio/sfx_fall.wav"
-dest_files=["res://.godot/imported/sfx_fall.wav-81aef48a6be91c0ba3524b2df3694e81.sample"]
+source_file="res://assets/audio/sfx_hurt_3.wav"
+dest_files=["res://.godot/imported/sfx_hurt_3.wav-ff4bf1d145938f74fc9e9870bf97275b.sample"]
 
 [params]
 

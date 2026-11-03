@@ -368,7 +368,7 @@ func round_button(icon_name: String, diameter := 112, face := WHITE, edge := EDG
 
 ## A square-ish candy icon button in a tone (the menu's records and settings).
 func icon_button(icon_name: String, tone := Tone.SUNSET, side := 124.0, radius := 38.0) -> JuicyButton:
-	return _icon_button(icon_name, tone_colours(tone), Vector2(side, side), radius, WHITE)
+	return _icon_button(icon_name, tone_colours(tone), Vector2(side, side), radius, LABEL_DEEP if tone == Tone.WHITE else WHITE)
 
 
 func _icon_button(icon_name: String, c: Dictionary, button_size: Vector2, radius: float,
@@ -467,6 +467,22 @@ func chip(text: String, tone := Tone.CRIMSON, font_size := 38, icon_name := "") 
 	row.add_child(l)
 	p.add_child(row)
 	return p
+
+
+## The last frame of `vp` as a small picture (1/16 of its size, each step a 2x2 average): drawn
+## back stretched over the screen it is a soft blur of the game, for the panels over it. Taken once,
+## so nothing is copied every frame. Null where nothing is drawn (headless runs).
+func blurred_snapshot(vp: Viewport, halvings := 4) -> Texture2D:
+	if DisplayServer.get_name() == "headless" or not vp:
+		return null
+	var tex := vp.get_texture()
+	var img := tex.get_image() if tex else null
+	if not img or img.is_empty():
+		return null
+	for i in halvings:
+		if img.get_width() > 8 and img.get_height() > 8:
+			img.shrink_x2()
+	return ImageTexture.create_from_image(img)
 
 
 ## A full-screen veil that blurs and tints what is behind it (pause, game over).

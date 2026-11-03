@@ -59,13 +59,15 @@ func _draw() -> void:
 	var o := maxf(side * 0.06, 2.5)  # outline thickness
 	var c := size / 2 + Vector2(0, side * 0.04)
 	var r := side * 0.5 - o
-	if not lit:  # a socket carved in the panel: a lit lip below, an ink rim, the floor in the
-		# shade of its upper edges and catching the light lower down
-		draw_colored_polygon(points(c + Vector2(0, o * 0.7), r + o * 0.6), Color(1, 0.96, 0.85, 0.55))
-		draw_colored_polygon(points(c, r + o * 0.6), Color(INK, 0.75))
-		draw_colored_polygon(points(c, r - o * 0.3), Color(0.36, 0.16, 0.06, 0.9))
-		draw_colored_polygon(points(c + Vector2(0, o * 1.1), r - o * 1.3), Color(0.58, 0.32, 0.14, 0.9))
-		draw_colored_polygon(points(c + Vector2(0, o * 1.4), r * 0.42), Color(0.7, 0.44, 0.2, 0.6))
+	if not lit:  # an empty socket pressed into the panel, in cool stone grey (never brown "dirt"):
+		# a lit lip along its lower edges, a dark rim, the floor in the shade of its upper edges and
+		# catching the light lower down, a faint star moulded in its middle
+		draw_colored_polygon(points(c + Vector2(0, o * 0.8), r + o * 0.7), Color(1, 1, 0.97, 0.75))
+		draw_colored_polygon(points(c, r + o * 0.7), Color(0.16, 0.13, 0.16, 0.85))
+		draw_colored_polygon(points(c, r - o * 0.2), Color(0.32, 0.29, 0.33))
+		draw_colored_polygon(points(c + Vector2(0, o * 1.0), r - o * 1.1), Color(0.5, 0.47, 0.5))
+		draw_colored_polygon(points(c + Vector2(0, o * 1.3), r - o * 2.0), Color(0.58, 0.55, 0.58))
+		draw_colored_polygon(points(c + Vector2(0, o * 1.1), r * 0.36), Color(0.66, 0.63, 0.66, 0.8))
 		return
 	# the ink outline (a fatter star), the bevel under the face, then the face
 	draw_colored_polygon(points(c + Vector2(0, o * 0.5), r + o * 1.15, 0.55), INK)

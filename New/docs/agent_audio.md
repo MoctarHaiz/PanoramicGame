@@ -131,3 +131,71 @@ A lighter pattern never cuts into a heavier one still playing; nothing plays whe
 - When the UX track adds reduced motion: confirm the name (`Save.reduced_motion`), the test switches on.
 - Listen on a phone (I could only measure): the bass/kick balance on a speaker, the ambience level.
 - Maybe: a short slow-motion on the last blow; per-surface footsteps (grass / rock / hut yard).
+
+## Round 2 (2026-11-03): critique AAA/judge/m01, QA AAA/qa/round_2/bugs.md
+
+### Done so far
+- Clicks: `audio_dsp.place` now fades a layer where the output buffer cuts it (the 0.75 s line in every
+  pickup, count 0.6, hurt 0.7, toggles 0.3 came from layers longer than their buffer). `audio_report`
+  checks every file inside, not only its ends: `cuts()` (Hilbert envelope falling >14 dB in 2 ms from a
+  held level and staying down) and `spikes()` (an isolated >5 kHz burst with 1-4 kHz content, not
+  followed by a louder sound); validated on the round-1 files (finds the critic's cuts). Grit grains
+  placed on purpose would show too: `sfx_synth.py DIR --no-grains` renders the set without them and
+  `audio_report.py ... --grains-free=DIR` drops what is gone without them. Round 2 set: no cut anywhere.
+- SFX v3 (`tools/sfx_synth.py`): three-layer hits (transient 1.5-6 kHz, body 300 Hz-1.5 kHz, sweetener),
+  `audio_dsp.phone()` (lows saturated into harmonics, sub cut at 110 Hz), loudness ladder (integrated):
+  death -14.7 > hurt -16.4 > KO -17.0 > ring hit -18.5 > streak -19 > pickup -21 > throw -22 > land -23 >
+  jump -24 > step -27 > footstep -30; peaks <= -3 dBTP; a fast compressor (PUNCH) makes the hits dense
+  enough to reach their loudness under the ceiling. Lengths: pickup 0.25 s, KO 0.5, hurt 0.4, death 0.85,
+  fall 0.9 (no whistle). 4-6 takes of the frequent sounds (runtime ±1.2 st, ±1.5 dB). New: streak chord,
+  heart break, last-heart heartbeat, ceiling bump, climb grab, mantle, vine creak, door threshold,
+  coin tinkles. "How it should sound" is the 4th field of each recipe (for the table).
+- Music: game theme 48 bars (97.6 s: + a C section in B minor on marimba, a finale A3 with choir), 2.5 dB
+  dip at 3 kHz; drive layer `music_game_drive.ogg` (djembe 16ths, agogo, shaker, toms; -22 LUFS, same
+  length, started in the same step as the theme, faded in by `Audio.set_intensity` on the home stretch).
+- `audio.gd`: UX's volume sliders own the Music and SFX faders (Prefs.apply_volumes); the mood and dips
+  now go through an AudioEffectAmplify on Music; UI and Ambience send into SFX. Game theme at -7 dB
+  (-23 LUFS), menu -1. Dips 4-6 dB held 0.3 s (hurt 5, KO 4, death 6, fall 6).
+- `fx.gd`: IMPACTS small/medium/fatal (hit-stop 3/4/5 frames, shake 3/4.5/6.5 units, shards 5/8/12,
+  knock 16/30/46), `impact_burst` (2-frame white core, then only a thin ring, directional shards),
+  `knock()/knock_offset()/advance_knocks()` (out in 30 % of the time, back after), the ring's flight a
+  3-frame motion smear (no beam, no core line), Bob fliers capped at 6 on a bezier that accelerates into
+  the counter (counted at pickup: no more bob_launched), `streak_pop` ("×N" at the pickup, white to
+  red by tier), coins in front of the card, confetti in the scene's palette as petals and beads
+  (Confetti PETAL, BEAD), the home light and burst anchored to the doorway, timer lambdas replaced by
+  tweens owned by their node (QA AU-1).
+- `feel.gd` (new): applies the knocks to the hero and bandit views after they are placed, climb grab and
+  mantle sounds, vine creaks while hanging, the drive intensity.
+- `footsteps.gd`: reads the 3D hero's run clock (`_run`) while its anim is run or throw, until art adds
+  run_frame() (QA AU-2/ART-1).
+- `game_screen.gd`: `_impact()`, hurt/KO/ring hit/fatal presets, hero knock on hurt, bandit knock on a
+  ring hit, heart break + last-heart warning, bump, door, streak chord and pop; KO_STOP, HURT_STOP,
+  CAUGHT_STOP, RING_STOP removed (replaced by Fx.IMPACTS); `_combo_tag` no longer called (UX's).
+- Tests: 901 checks, 2 failed (UX French overflow, known).
+- Later in round 2: `bandit_view.gd` FLASH_TIME -> Fx.FLASH_TIME (one line, art's file: the bandit was white
+  6-8 frames); the ring's own bloom down to 40 px (RingView has its halo); one streak badge at a time; the
+  home light spills along the ground from the doorway (flat pool + a softer glow in the doorway), the
+  rescue burst's flash softer; coins fall over the card (added to the panel's root by Fx.coin_shower).
+- Click check final: on the round-1 files it finds exactly the critic's cuts (pickups 0.749, count 0.6,
+  hurt 0.699, toggles 0.299, death 0.779); on round 2: none (grains filtered by the --no-grains render;
+  a rise into a spike is a drum's attack, not a cut).
+- Real game probe (scratch, 240 frames of bot play): footsteps 13, throw 19, bob 6, streak 1, grab 1,
+  mantle 1, KO 2, land 2: footsteps fire on the new hero through `_run`.
+- Outputs: AAA/audio/round_2/{sound (sounds.md with the "how it should sound" column), strips, captures}.
+
+### Asks for other tracks (round 2)
+- art: `HeroView.run_frame()` (Footsteps reads `_run` meanwhile); decay the bandit's flash in real time
+  (`delta`, not the world clock) so it stays 2 frames inside a hit-stop; RingView: no core line in its
+  streak, launch from his hand (offset from the hand to the rules' spawn, gone in 4 frames: the rules spawn
+  it at his hips, x + 29); the hero's mercy pulse at full alpha (the critic: no 40 % ghost); apply
+  `Fx.knock_offset(&"hero")` / `Fx.knock_offset(bandit)` in the views if you prefer (then Feel.APPLY_KNOCKS
+  = false).
+- ux: `_combo_tag` (the HUD ×N chip) is no longer called: the streak pops at the pickup (Fx.streak_pop);
+  keep or delete. The coin shower adds its coins over the card by itself.
+- gameplay/env: the death staging (centre, push in, hold on him) and the hero entering the door are theirs.
+- qa: `_test_contracts` could accept Footsteps' `_run` fallback until art adds run_frame().
+- Camera kicks also respect UX's screen-shake switch (Prefs.shake), not only reduced motion.
+- Tests (no bot): 904 checks, 2 failed (UX's French iPad overflow from the merge, not audio).
+- Perf (QA's perf.tscn copied in and removed, iPhone 15 size, 40 s): own work worst 9.6 ms, wall p99
+  7.4 ms (PASS); draw calls mean 240 (QA's merged run: 198), max 552 (572); script p99 0.57 ms; texture
+  memory 124 MB FAIL (env/art).

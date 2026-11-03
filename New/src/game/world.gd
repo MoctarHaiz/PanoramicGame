@@ -110,18 +110,19 @@ const HOME_DOOR_PACE := 4.0  ## units a tick in the doorway
 ## New: this close to the doorway he only goes in: swipes and taps are ignored (they made him hop
 ## and throw rings at the hut as he arrived; the last bandit is long past by then).
 const HOME_REACH := 160.0
+const HOME_DOOR_X := HOME_X + 34.0  ## for views: the middle of the doorway he walks into (play x)
 
 ## The end of a run, in seconds of `end_time` (the game screen waits this long before its panel;
 ## views time the hero's last moves on it). Caught: he falls to the ground (the death animation)
 ## and lies there. Into a pit: shorter, he is gone. Home: he lands at the door (HOME_LAND), the
-## victory beat (to HOME_CHEER), then he walks in (to HOME_TIME). From SKIP_AFTER a tap skips to
-## the panel (not sooner: the player was tapping to throw rings when it happened).
+## victory beat (to HOME_CHEER), then he walks in (to HOME_TIME). From SKIP_AFTER a fresh tap skips to
+## the panel: not sooner, a player tapping to throw when it happened would skip his last beat.
 const DYING_TIME := 2.0
-const FALL_DEATH_TIME := 1.0
+const FALL_DEATH_TIME := 0.7
 const HOME_LAND := 0.25
 const HOME_CHEER := 1.3
 const HOME_TIME := 2.1
-const SKIP_AFTER := 0.45
+const SKIP_AFTER := 1.2
 
 ## What he is doing, for the views' animations (move_phase()): idle before the start, run, land
 ## (LAND_TICKS after touching down), takeoff (TAKEOFF_TICKS after leaving the ground in a jump),
@@ -129,6 +130,27 @@ const SKIP_AFTER := 0.45
 const LAND_TICKS := 4  ## 0.1 s
 const TAKEOFF_TICKS := 2  ## 0.05 s
 const APEX_VY := 6.0  ## units a tick: about 0.11 s around the top of a jump
+const JUMP_RISE := 208.0  ## units a jump rises (the old integration: 32 + 29.3 + ... 6.5 tiles)
+
+## For views: a bandit's blow is drawn back over its last STRIKE_TICKS before its club reaches him
+## (strike()), so it can be seen coming; the rules still land it on first contact, as in 2017.
+const STRIKE_TICKS := 6  ## 0.15 s
+## For the camera (camera_must_see()): what the 2017 screen always showed must stay on screen.
+const SEE_BEHIND := 72.0  ## units behind his centre (his back, his scarf)
+const SEE_AHEAD_DOWN := 320.0  ## units ahead in which the grass or water he could drop to is shown
+const SEE_ABOVE := 24.0  ## units over his head
+const VINE_SEEN := -12.0  ## play y shown when the vine matters (it hangs at 0..8)
+
+## Red Bobs that can't be taken alive (tests/probes.gd --probe=bobs, falls_cost_life off): over the
+## river after the pillars a drop is fatal; over the island's left end getting off again takes 8
+## swipes right in one jump. For views: drawn as out of reach (is_risky_bob()). Positions kept.
+const RISKY_BOBS: Array[Vector2i] = [
+	Vector2i(201, 17), Vector2i(202, 16), Vector2i(202, 17), Vector2i(203, 16),
+	Vector2i(596, 12), Vector2i(597, 12), Vector2i(607, 12), Vector2i(608, 12), Vector2i(609, 12),
+	Vector2i(610, 12), Vector2i(611, 12), Vector2i(612, 12), Vector2i(613, 12), Vector2i(614, 12),
+	Vector2i(619, 12), Vector2i(621, 12), Vector2i(622, 12), Vector2i(624, 12), Vector2i(625, 12),
+	Vector2i(628, 12),
+]
 
 enum State { RUNNING, DEAD, WON }
 
@@ -200,6 +222,13 @@ var knocked_out := 0
 var death_reason := &""
 ## Seconds since the run ended (died or won), for views and the game screen (see DYING_TIME).
 var end_time := 0.0
+## For views: the last blow, as views should knock him back (the rules don't move him): its
+## direction (unit, from the bandit to him, mostly back and a little up) and 0..1 its strength
+## (0.6 a blow, 1 the last one).
+var hit_dir := Vector2.ZERO
+var hit_strength := 0.0
+## For views: where he was when the run ended (play units; his centre), and the scroll then.
+var end_at := Vector2.ZERO
 
 var bandits: Array[Bandit] = []
 var rings: Array[Ring] = []
@@ -222,6 +251,8 @@ var _phase_tick := 0
 var _jump_tick := -99  # the tick of the last jump
 var _land_tick := -1  # ticks_to_land(), worked out at this tick
 var _land_in := -1
+var _doom_tick := -1  # falling_to_death(), worked out at this tick
+var _doomed := false
 
 
 func _init(map: Level = null, with_bandits := true) -> void:
@@ -535,6 +566,8 @@ func _update_bandits() -> void:
 				continue
 			mercy = MERCY_TICKS
 			lives -= 1
+			hit_dir = Vector2(-1.0 if b.x - scroll > x else 1.0, -0.35).normalized()
+			hit_strength = 1.0 if lives <= 0 else 0.6
 			hurt.emit(b, lives)
 			if lives <= 0:
 				_die(&"bandit")
@@ -609,6 +642,7 @@ func _collide_hero() -> void:
 			rings.erase(r)
 
 	if at_end and x >= HOME_X and on_ground:
+		end_at = Vector2(x, y)
 		state = State.WON
 		won.emit()
 
@@ -629,6 +663,7 @@ func _land(stand: float) -> void:
 
 
 func _die(reason: StringName) -> void:
+	end_at = Vector2(x, y)
 	state = State.DEAD
 	death_reason = reason
 	died.emit(reason)
@@ -810,16 +845,41 @@ func ticks_to_land() -> int:
 	if _land_tick != ticks:
 		_land_tick = ticks
 		_land_in = _look_for_landing(60)
-	return _land_in
+	return maxi(_land_in, -1)
 
 
-func _look_for_landing(horizon: int) -> int:
+## For views and the camera: true while he is falling into a pit he can't get out of, even with
+## the jump a fall may still have (the camera holds still and shows him drop in). Worked out once a
+## tick, only when no landing is ahead.
+func falling_to_death() -> bool:
+	if _doom_tick == ticks:
+		return _doomed
+	_doom_tick = ticks
+	_doomed = false
+	if state == State.DEAD:
+		_doomed = death_reason == &"fall"
+	elif state == State.RUNNING and not on_ground and vy > 0.0 and not hanging and not climbing \
+			and (not falls_cost_life or lives <= 1) and _look_for_landing(90) == OUT:
+		_doomed = jumping or _look_for_landing(90, -JUMP_SPEED) == OUT
+	return _doomed
+
+
+## The ends of a fall that aren't a landing (_look_for_landing).
+const VINE := -1
+const CLIMB := -2
+const OUT := -3  ## out of the bottom of the screen
+const NONE := -4
+
+
+## What a fall comes to if nobody touches the screen (from `start_vy` if given: a jump now): the
+## ticks to the landing, 0 on the ground, or VINE, CLIMB, OUT or NONE.
+func _look_for_landing(horizon: int, start_vy := NAN) -> int:
 	if hanging or climbing or state != State.RUNNING:
-		return -1
-	if on_ground and not (jumping and vy < 0.0):
+		return NONE
+	var v := vy if is_nan(start_vy) else start_vy
+	if is_nan(start_vy) and on_ground and not (jumping and vy < 0.0):
 		return 0
 	var py := y
-	var v := vy
 	var sc := scroll
 	for t in range(1, horizon + 1):
 		var head := py - HERO_SIZE.y / 2
@@ -831,17 +891,17 @@ func _look_for_landing(horizon: int) -> int:
 				py = ceiling + HERO_SIZE.y / 2
 				v = 0.0
 			elif py <= 0.0:
-				return -1  # the vine
+				return VINE
 		var body := Rect2(x - HERO_SIZE.x / 2, py - HERO_SIZE.y / 2, HERO_SIZE.x, HERO_SIZE.y)
 		var top := _find(body, Level.Kind.TOP, 0.0, sc)
 		if top.x >= 0:
-			return t if py - (top.y * TILE - HERO_SIZE.y / 2) <= maxf(v, 0.0) + CLIMB_SNAP else -1
+			return t if py - (top.y * TILE - HERO_SIZE.y / 2) <= maxf(v, 0.0) + CLIMB_SNAP else CLIMB
 		if py - HERO_SIZE.y / 2 > VIEW_H:
-			return -1
+			return OUT
 		var chest := Rect2(x - HERO_SIZE.x / 4, py - HERO_SIZE.y / 2, HERO_SIZE.x / 2, HERO_SIZE.y)
 		if _find(chest, Level.Kind.SIDE, SIDE_SHRINK, sc).x < 0 and not at_end:
 			sc = minf(sc + SCROLL_SPEED, SCROLL_END)
-	return -1
+	return NONE
 
 
 ## For views: 0..1 through his time in the air (0 leaving the ground, about 0.5 at the top of a
@@ -863,6 +923,77 @@ func ground_below(at_x: float, from_y: float) -> float:
 		if level.kind_at(c, r) == Level.Kind.TOP:
 			return r * TILE - HERO_SIZE.y / 2
 	return -1.0
+
+
+## For the camera: whether the vine matters now: he hangs from it, rises to it, or a jump from where
+## he is would reach it (a ledge high enough; a fall that still has its jump).
+func vine_catchable() -> bool:
+	if hanging or rising_to_vine():
+		return true
+	if jumping or climbing or state != State.RUNNING:
+		return false
+	return y - JUMP_RISE <= 0.0 and ceiling_above(x, y - HERO_SIZE.y / 2, scroll) < 0.0
+
+
+## For the camera (GameScreen keeps it on screen whatever the framing): the part of the play window,
+## in play units, the player must see now, so a closer camera never shows less than the 2017 screen
+## where it matters:
+## - across, from just behind him to the play window's right edge: bandits wake there, so the
+##   time they are seen before they reach him is never shorter than in 2017;
+## - down, the grass or water he stands on or could drop to in the next SEE_AHEAD_DOWN units;
+## - up, his head, or the vine when it matters (vine_catchable()).
+## The run over: caught, him where he lies; into a pit, him and the water; home, him and the door.
+func camera_must_see() -> Rect2:
+	var top := y - HERO_SIZE.y / 2 - SEE_ABOVE
+	if state == State.RUNNING and falling_to_death():  # nothing can come of the rest: him and the water
+		return Rect2(x - 110.0, minf(top, SURFACE_Y - HERO_SIZE.y - SEE_ABOVE), 220.0, VIEW_H - minf(top, SURFACE_Y - HERO_SIZE.y - SEE_ABOVE))
+	if state == State.WON:
+		return Rect2(HOME_X - 150.0, VIEW_H - 320.0, 270.0, 290.0)
+	if state == State.DEAD:
+		var bottom := VIEW_H if death_reason == &"fall" else minf(end_at.y + HERO_SIZE.y / 2 + 40.0, VIEW_H)
+		top = minf(end_at.y, VIEW_H - HERO_SIZE.y) - HERO_SIZE.y / 2 - SEE_ABOVE
+		return Rect2(end_at.x - 110.0, top, 220.0, bottom - top)
+	# nothing over the vine matters (rising to it, his box goes past the top: he is drawn under it)
+	top = VINE_SEEN if vine_catchable() else maxf(top, VINE_SEEN)
+	return Rect2(x - SEE_BEHIND, top, VIEW_W - (x - SEE_BEHIND), _ground_ahead() + 24.0 - top)
+
+
+## The lowest grass top or pool surface he could come down to within SEE_AHEAD_DOWN units ahead (play
+## y), at least his feet.
+func _ground_ahead() -> float:
+	var feet := y + HERO_SIZE.y / 2
+	var lowest := feet
+	var c0 := floori((scroll + x - HERO_SIZE.x / 2) / TILE)
+	var c1 := floori((scroll + x + SEE_AHEAD_DOWN) / TILE)
+	for c in range(maxi(c0, 0), mini(c1, Level.COLS - 1) + 1):
+		for r in range(clampi(floori((feet - 1.0) / TILE), 0, Level.ROWS - 1), Level.ROWS):
+			var k := level.kind_at(c, r)
+			if k == Level.Kind.TOP or k == Level.Kind.WATER:
+				lowest = maxf(lowest, r * TILE)
+				break
+	return minf(lowest, VIEW_H - 24.0)
+
+
+## For views: a bandit's blow, 0..1, over the last STRIKE_TICKS before its club would reach him at
+## the speed they close in now (club drawn back from 0, the blow at 1), or -1 when none is coming
+## (behind him, above or below him, it hit him already, knocked out, or the run is over).
+func strike(b: Bandit) -> float:
+	if b.gone or not b.active or b.touched_hero or b.health <= 0 or state != State.RUNNING:
+		return -1.0
+	var r := bandit_rect(b)
+	var body := body_rect()
+	if r.end.y <= body.position.y or r.position.y >= body.end.y or b.x - scroll < x:
+		return -1.0
+	var closing := BANDIT_RUN + (0.0 if blocked or at_end else SCROLL_SPEED)
+	var left := (r.position.x - CLUB_REACH - chest_rect().end.x) / closing - alpha
+	if left > STRIKE_TICKS:
+		return -1.0
+	return clampf(1.0 - left / STRIKE_TICKS, 0.0, 1.0)
+
+
+## For views: a Red Bob that can't be taken alive (RISKY_BOBS).
+static func is_risky_bob(col: int, row: int) -> bool:
+	return Vector2i(col, row) in RISKY_BOBS
 
 
 ## 0..1: how far into the level.
@@ -894,7 +1025,8 @@ func clone() -> World:
 	w.on_ground = on_ground; w.ground_y = ground_y; w._air_ticks = _air_ticks; w._jump_buffer = _jump_buffer; w.lives = lives; w.cover = cover; w.mercy = mercy; w.bobs = bobs
 	w.climbing = climbing; w._climb_to = _climb_to; w.land_speed = land_speed; w.falls = falls; w._home_pace = _home_pace
 	w._since_land = _since_land; w._phase = _phase; w._phase_tick = _phase_tick; w._jump_tick = _jump_tick; w.end_time = end_time
-	w.prev_x = prev_x; w.prev_y = prev_y; w.prev_scroll = prev_scroll; w.alpha = alpha; w._time = _time  # New: drawn where it is
+	w.prev_x = prev_x; w.prev_y = prev_y; w.prev_scroll = prev_scroll; w.alpha = alpha; w._time = _time
+	w.hit_dir = hit_dir; w.hit_strength = hit_strength; w.end_at = end_at  # New: drawn where it is
 	w.falls_cost_life = falls_cost_life
 	w.knocked_out = knocked_out; w.death_reason = death_reason
 	w.bandits.clear()

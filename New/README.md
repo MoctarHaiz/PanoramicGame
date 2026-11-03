@@ -25,10 +25,26 @@ arrows or WASD to move, space to throw, P or Esc to pause.
 
 - `Godot --headless --path . res://tests/run_tests.tscn` runs the checks (every script compiles, the
   2017 numbers, the 10-tile climb, hanging, bandits, rings, the same game at 30/60/120/144 Hz, saves,
-  every text in English and French, release settings). Add `-- --bot` to let the bot play the whole
-  level (a few minutes; it gets home with 3 lives). Exit code 1 if anything fails.
-- `Godot --path . --fixed-fps 60 --resolution 200x200 --always-on-top res://tests/capture.tscn -- --out=DIR [--devices=…] [--shots=…] [--lang=fr] [--ads=off]`
-  renders screens at exact phone and tablet sizes, with simulated notches (`DEVICES` in `tests/capture.gd`).
+  every text in English and French, release settings), then the release checks: every screen at the
+  six device sizes in English and French (no error, buttons and texts inside the safe area, nothing cut,
+  no raw key), sounds, the save round trip, no node left after a run, pausing at random moments, the
+  bot's recorded run through the real game screen. About 40 s; exit code 1 if anything fails.
+  - `-- --quick` leaves out the checks that open screens (a few seconds, while working).
+  - `-- --bot` also lets the bot play the whole level (a few minutes; it gets home with 3 lives) and
+    records its run in `build/qa/` for the tools below (again only when the rules, level or bot change).
+- `Godot --path . --fixed-fps 60 --resolution 200x200 --always-on-top res://tests/capture.tscn -- --out=DIR [--devices=…] [--shots=…] [--lang=fr|en,fr] [--ads=off]`
+  renders screens at exact phone and tablet sizes, with simulated notches (`DEVICES` in `tests/capture.gd`):
+  every screen and level moment a store release needs (shots listed in its header). `--lang=en,fr`
+  takes both languages in one run (`DIR/en`, `DIR/fr`).
+- `… res://tests/strip.tscn -- --out=FILE.png [--moment="…"] [--act=jump@2] …` saves a contact sheet of
+  frames (a motion strip). `--film=DIR` saves every frame instead (`DIR/0001.png…`) and makes `DIR.mp4`
+  with ffmpeg (`--frames=900 --every=2 --size=2868x1320 --bot`: a 30 s store preview at 30 fps);
+  `--layers=1` builds one frame up layer by layer (depth, z-order). Options in its header.
+- `… res://tests/perf.tscn -- [--device=iphone15_2556x1179] [--seconds=40]` plays the level with the bot's
+  recorded run and reports, for the menu, the run, pause and the results: texture and video memory, draw
+  calls, frame times (the game's own work and the wall time), nodes, pictures loaded mid-run, against
+  the budgets (texture memory under 80 MB, no frame of play over 16 ms, nothing left behind). Exit code 1
+  if one fails; JSON in `build/perf/`.
 
 ## Controls (as in 2017)
 

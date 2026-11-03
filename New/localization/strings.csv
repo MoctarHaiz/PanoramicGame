@@ -64,3 +64,7 @@ SHARE_TEXT,I collected %d Red Bobs in Chaka Zulu! Can you beat me?,J’ai ramass
 SHARE_TEXT_ONE,I collected 1 Red Bob in Chaka Zulu! Can you beat me?,J’ai ramassé 1 Red Bob dans Chaka Zulu ! Tu fais mieux ?
 SHARE_CARD_LINE,Red Bobs,Red Bobs
 SHARE_CARD_CTA,Can you beat me?,Tu fais mieux ?
+CONTROLS,Controls,Commandes
+SWITCH_ON,On,Oui
+SWITCH_OFF,Off,Non
+GENERAL,Game,Jeu

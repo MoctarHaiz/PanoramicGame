@@ -1,11 +1,16 @@
 extends Screen
-## Settings, in the game's own kit: one framed panel with its ribbon over the sunset (dimmed a
-## little), "Sound and feel" on the left (music and sounds volumes, vibration, screen shake,
-## reduced motion), the rest on the right as candy buttons (language, replay the tutorial, rate,
-## privacy, credits, and the ad choices and purchases when they apply). Every row is a thumb-sized
-## target. Credits (About, the fonts and icons, the studio, the version) open over it.
+## Settings, in the game's own kit: Panoramic on his rock at the left (where there is room), and a
+## framed panel with its ribbon, its back button nailed to its corner. Inside, on a tan board, two
+## titled groups of raised cream rows, each with a chunky icon on a candy tile tinted by its kind
+## (gold for sound, green for feel, orange for the game, red for the rest): "Sound and feel"
+## (music and sounds volumes, vibration, screen shake, reduced motion) and "Game" (language, replay
+## the tutorial, rate, privacy, credits, and the ad choices and purchases when they apply). Every
+## row is a thumb-sized target. Credits (About, the fonts and icons, the studio, the version) open
+## over it.
 
 const ROW_H := 74.0  ## height of a row (the whole row takes the touch: 86 with its gap)
+const COLUMN_W := 420.0
+const HERO_ART := "res://assets/art/hero/hero_menu.png"
 
 var _credits: Control
 
@@ -20,7 +25,12 @@ func _build() -> void:
 	for child in get_children():
 		child.queue_free()
 	_credits = null
-	add_child(SunsetBackdrop.new())
+	var backdrop := SunsetBackdrop.new()
+	backdrop.framing_tree = false
+	backdrop.motes = false
+	backdrop.clouds = true
+	backdrop.sun_at = Vector2(0.24, 0.62)
+	add_child(backdrop)
 	var shade := ColorRect.new()  # the sunset steps back behind the panel
 	shade.color = Color(0.1, 0.02, 0.08, 0.35)
 	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -31,21 +41,27 @@ func _build() -> void:
 	var page := Control.new()
 	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	area.add_child(page)
-	var card := Card.new(Vector4(34, 56, 34, 30))
+	var hero := _hero()
+	if hero:
+		add_child(hero)
+		move_child(hero, shade.get_index() + 1)
+	var card := Card.new(Vector4(34, 60, 34, 30))
+	card.top_colour = Color("f3d9ac")  # a tan board: the cream rows stand out on it
+	card.bottom_colour = Color("e2bb84")
 	var columns := HBoxContainer.new()
 	columns.add_theme_constant_override(&"separation", 30)
 	card.add_child(columns)
-	columns.add_child(_column(tr("SOUND_AND_FEEL"), [
+	columns.add_child(_column("speaker-high-fill", tr("SOUND_AND_FEEL"), [
 		_slider_row("music-notes-fill", tr("MUSIC"), &"music_volume", &"music_on"),
 		_slider_row("speaker-high-fill", tr("SOUNDS"), &"sounds_volume", &"sounds_on"),
 		_toggle_row("vibrate-fill", tr("VIBRATION"), &"vibration_on"),
 		_toggle_row("screen-shake", tr("SCREEN_SHAKE"), &"screen_shake"),
-		_toggle_row("sliders-horizontal-fill", tr("REDUCE_MOTION"), &"reduce_motion"),
+		_toggle_row("motion-off", tr("REDUCE_MOTION"), &"reduce_motion"),
 	]))
 	var more: Array = [
-		_button_row("translate-fill", tr("LANGUAGE"), tr("LANGUAGE_NAME"), _switch_language),
-		_button_row("hand-pointing-fill", tr("REPLAY_TUTORIAL"), "", _replay_tutorial),
-		_button_row("star-fill", tr("RATE"), "", Config.open_store_review),
+		_button_row("translate-fill", tr("LANGUAGE"), tr("LANGUAGE_NAME"), _switch_language, Ui.Tone.SUNSET),
+		_button_row("hand-pointing-fill", tr("REPLAY_TUTORIAL"), "", _replay_tutorial, Ui.Tone.SUNSET),
+		_button_row("star-fill", tr("RATE"), "", Config.open_store_review, Ui.Tone.GOLD),
 		_button_row("shield-check-fill", tr("PRIVACY_POLICY"), "", Config.open_privacy_policy),
 	]
 	if Services.ads.privacy_options_required():
@@ -55,7 +71,7 @@ func _build() -> void:
 			more.append(_button_row("prohibit-fill", tr("REMOVE_ADS"), Services.store.price(), Services.store.buy_remove_ads))
 		more.append(_button_row("arrows-clockwise-bold", tr("RESTORE_PURCHASES"), "", Services.store.restore))
 	more.append(_button_row("info-fill", tr("CREDITS_BUTTON"), "", _show_credits))
-	columns.add_child(_column(tr("MORE"), more))
+	columns.add_child(_column("play-fill", tr("GENERAL"), more))
 	var banner := Banner.new(tr("SETTINGS"), Ui.Tone.SUNSET, 44)
 	page.add_child(card)
 	page.add_child(banner)
@@ -68,34 +84,77 @@ func _build() -> void:
 		card.size = card.get_combined_minimum_size()
 		var k := minf(1.0, minf(room.x / card.size.x, (room.y - top) / card.size.y))
 		card.scale = Vector2.ONE * k
-		card.position = Vector2((room.x - card.size.x * k) / 2, top + (room.y - top - card.size.y * k) / 2)
+		# the panel to the right when Panoramic stands at the left, else in the middle
+		var left := (room.x - card.size.x * k) / 2
+		if hero and hero.visible:
+			left = room.x - card.size.x * k
+		card.position = Vector2(left, top + (room.y - top - card.size.y * k) / 2)
 		banner.size = banner.custom_minimum_size
-		banner.position = Vector2(room.x / 2 - banner.size.x / 2, card.position.y - top)
+		banner.position = Vector2(left + card.size.x * k / 2 - banner.size.x / 2, card.position.y - top)
 		back_button.size = back_button.custom_minimum_size
-		back_button.position = Vector2(0, 0)
+		back_button.position = (card.position - back_button.size * 0.3).max(Vector2.ZERO)  # nailed to the panel's corner
+		if hero:
+			var free := card.position.x + area.get_global_rect().position.x
+			hero.visible = free > 200.0
+			var h := size.y * 0.86
+			hero.size = Vector2(h * hero.texture.get_width() / hero.texture.get_height(), h)
+			hero.position = Vector2(maxf(free * 0.5 - hero.size.x * 0.5, Device.insets().x - hero.size.x * 0.2), size.y - h)
 	page.resized.connect(place)
 	card.resized.connect(place)
 	place.call_deferred()
 
 
-## A titled column of rows.
-func _column(title: String, rows: Array) -> VBoxContainer:
+## Panoramic in his stance on the left (the art track's render), lit by the sunset; null when the
+## render isn't there.
+func _hero() -> TextureRect:
+	if not ResourceLoader.exists(HERO_ART):
+		return null
+	var art := TextureRect.new()
+	art.texture = load(HERO_ART)
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_SCALE
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var lit := ShaderMaterial.new()
+	lit.shader = preload("res://src/ui/hero.gdshader")
+	art.material = lit
+	return art
+
+
+## A titled column of rows: its title in bold with an icon, a gold rule under it.
+func _column(icon_name: String, title: String, rows: Array) -> VBoxContainer:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override(&"separation", 12)
-	col.custom_minimum_size.x = 470
-	var head := Ui.label(title.to_upper(), 24, Color("a4561e"), Ui.font_title, HORIZONTAL_ALIGNMENT_LEFT)
+	col.custom_minimum_size.x = COLUMN_W
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override(&"separation", 10)
+	head.add_child(Ui.bold_icon(icon_name, 30, Color("e0961e"), Color("5a2408")))
+	var words := Ui.display_text(title.to_upper(), 30, Color("fff3d6"), Color("5a2408"), Color("ffd98a"))
+	words.depth = 3.0
+	words.shadow = Color(0, 0, 0, 0)
+	words.align = HORIZONTAL_ALIGNMENT_LEFT
+	words.refresh()
+	head.add_child(words)
 	col.add_child(head)
+	var rule := ColorRect.new()
+	rule.color = Color("c98a3c")
+	rule.custom_minimum_size = Vector2(0, 3)
+	col.add_child(rule)
 	for r: Control in rows:
 		col.add_child(r)
 	return col
 
 
-## A row on a sunken sand strip: its icon on a small candy tile, its name, and `right`.
-func _row(icon_name: String, text: String, right: Control) -> PanelContainer:
+## A raised cream row: its icon on a small candy tile in the row's `tone`, its name, and `right`.
+func _row(icon_name: String, text: String, right: Control, tone := Ui.Tone.CRIMSON) -> PanelContainer:
 	var strip := PanelContainer.new()
-	var s := Card.well(18)
+	var s := GlossStyle.new(Color("fffcf4"), Color("f6e6c8"), Color("c99a62"), 18.0, 5.0)
+	s.set_outline(Color("9a6432"), 2.0)
+	s.rim = 0.4
+	s.shadow.shadow_color = Color(0.35, 0.14, 0.02, 0.25)
+	s.shadow.shadow_size = 6
+	s.shadow.shadow_offset = Vector2(0, 4)
 	s.content_margin_top = 6
-	s.content_margin_bottom = 6
+	s.content_margin_bottom = 10
 	s.content_margin_left = 10
 	s.content_margin_right = 14
 	strip.add_theme_stylebox_override(&"panel", s)
@@ -104,13 +163,13 @@ func _row(icon_name: String, text: String, right: Control) -> PanelContainer:
 	row.add_theme_constant_override(&"separation", 14)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var tile := PanelContainer.new()
-	var ts := Ui.candy_style(Ui.Tone.SUNSET, 14.0, false, 4.0)
-	ts.set_content_margin_all(6)
-	ts.content_margin_bottom = 10
+	var ts := Ui.candy_style(tone, 14.0, false, 4.0)
+	ts.set_content_margin_all(5)
+	ts.content_margin_bottom = 9
 	tile.add_theme_stylebox_override(&"panel", ts)
 	tile.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	tile.add_child(Ui.bold_icon(icon_name, 30, Ui.WHITE, Color("5a1a06")))
+	tile.add_child(Ui.bold_icon(icon_name, 34, Ui.WHITE, Ui.tone_colours(tone).outline))
 	row.add_child(tile)
 	var l := Ui.label(text, 27, Color("4a1e04"), Ui.font_title, HORIZONTAL_ALIGNMENT_LEFT)
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -130,7 +189,7 @@ func _toggle_row(icon_name: String, text: String, option: StringName) -> Control
 		Save.set_option(option, on)
 		if option == &"vibration_on" and on:
 			Haptics.tap())
-	var strip := _row(icon_name, text, switch)
+	var strip := _row(icon_name, text, switch, Ui.Tone.GREEN)
 	strip.gui_input.connect(func(event: InputEvent) -> void:  # the whole row flips it
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 			switch.toggle())
@@ -147,10 +206,10 @@ func _slider_row(icon_name: String, text: String, option: StringName, switch_opt
 		Save.set_option(switch_option, v > 0.0)
 		Audio.apply_settings()
 		Prefs.apply_volumes())
-	return _row(icon_name, text, slider)
+	return _row(icon_name, text, slider, Ui.Tone.GOLD)
 
 
-func _button_row(icon_name: String, text: String, value: String, action: Callable) -> Control:
+func _button_row(icon_name: String, text: String, value: String, action: Callable, tone := Ui.Tone.CRIMSON) -> Control:
 	var b := Button.new()
 	b.focus_mode = Control.FOCUS_NONE
 	b.flat = true
@@ -160,8 +219,8 @@ func _button_row(icon_name: String, text: String, value: String, action: Callabl
 	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if not value.is_empty():
 		right.add_child(Ui.label(value, 22, Color("c0431a"), Ui.font_title))
-	right.add_child(Ui.bold_icon("caret-right-bold", 22, Color("c0431a"), Color(0, 0, 0, 0)))
-	var strip := _row(icon_name, text, right)
+	right.add_child(Ui.bold_icon("caret-right-bold", 26, Color("e0661e"), Color("5a2408")))
+	var strip := _row(icon_name, text, right, tone)
 	strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	b.add_child(strip)
 	b.custom_minimum_size = strip.get_combined_minimum_size()

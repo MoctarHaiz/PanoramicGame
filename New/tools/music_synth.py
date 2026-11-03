@@ -6,8 +6,11 @@ The style is South African township jive (kwela, mbaqanga): a pennywhistle melod
 electric bass, two interlocking clean guitars, hand drums and shakers, with a kalimba (thumb piano)
 and a choir; all in A major, the key of the sound effects.
 
-    music_game.ogg   "Run Home": 118 BPM, 32 bars (65 s): groove, whistle tune, kalimba and choir
-                     bridge, the tune again in thirds, a drum break; loops seamlessly
+    music_game.ogg   "Run Home": 118 BPM, 48 bars (98 s): groove, whistle tune, kalimba and choir
+                     bridge, the tune in thirds, a marimba section in B minor, the tune with the choir,
+                     a drum break; loops seamlessly; 2.5 dB less around 3 kHz (room for the effects)
+    music_game_drive.ogg  its drive layer (djembe 16ths, agogo bell, shaker, tom fills), the same
+                     98 s in sync: the game fades it in on the home stretch
     music_menu.ogg   "Sunset": 92 BPM, 16 bars (42 s): kalimba, choir, soft drums, the whistle tune
                      the second time round; loops seamlessly
     sting_win.ogg    home reached: a drum roll, the band's A major chord, the whistle on top
@@ -29,7 +32,7 @@ from scipy.signal import fftconvolve
 
 sys.path.insert(0, str(Path(__file__).parent))
 import audio_dsp as dsp
-from audio_dsp import (RATE, adsr, bp, compress, convolve, drum, fade, glide, hp, impulse, lp, master, n_of, noise,
+from audio_dsp import (RATE, adsr, bp, compress, convolve, drum, fade, glide, hp, impulse, lp, master, n_of, noise, peak_eq,
                        pan, perc, phase_of, place, saturate, seed, shelf, t, taper, write_ogg)
 from sfx_synth import bell, kalimba, marimba
 
@@ -87,6 +90,12 @@ def conga(f: float, v: float = 1.0, slap: bool = False) -> np.ndarray:
     if slap:
         place(out, 0, hp(noise(0.03), 2500) * perc(0.03, 0.0003, 0.006), 0.8)
     return out * v
+
+
+def agogo(high: bool, v: float = 1.0) -> np.ndarray:
+    """The two-tone bell of West and South African bands: a bright inharmonic clank."""
+    f = 940.0 if high else 705.0
+    return dsp.modal(0.25, [(f, 1.0, 0.11), (f * 2.51, 0.45, 0.05), (f * 4.12, 0.2, 0.025)]) * v
 
 
 def djembe_bass(v: float = 1.0) -> np.ndarray:
@@ -257,7 +266,9 @@ class Song:
             if name in self.tracks:
                 self.tracks[name] *= g[:, None]
 
-    def mix(self, levels: dict, reverb: float = 1.6, target: float = -16.0) -> np.ndarray:
+    def mix(self, levels: dict, reverb: float = 1.6, target: float = -16.0, dip: float = 0.0) -> np.ndarray:
+        """The tracks at their levels, the shared room, `dip` dB cut around 3 kHz (room for the
+        effects' transients), glue compression and the master (loudness `target`)."""
         out = np.zeros((self.n, 2))
         for name, buf in self.tracks.items():
             out += buf * levels.get(name, 1.0)
@@ -275,6 +286,8 @@ class Song:
                 tail = tail[k:]
         out += wet[: self.n] * levels.get("reverb", 0.3)
         out = shelf(out, 9000, 1.5)  # a little air
+        if dip:
+            out = peak_eq(out, 3000, -dip, 0.8)
         if self.loop:  # dynamics run on two passes, the second kept: no seam in their state
             two = compress(np.vstack([out, out]), -20, 2.0, 0.012, 0.18)
             two = master(two, target, OGG_CEILING)
@@ -381,40 +394,110 @@ ANSWER = [
 CALL = [(0, 0, 1, 7, 0), (0, 1, 1, 9, 0), (0, 2, 2, 11, 1), (0, 4, 1, 9, 0), (0, 5, 3, 7, 0)]
 
 
-def game_theme() -> np.ndarray:
-    seed(2001)
-    s = Song(118, 32, swing=0.12)
+# the C section's marimba line (over Bm D A E Bm D E E)
+TUNE_C = [
+    (0, 0, 1, 5, 0), (0, 1, 1, 3, 0), (0, 2, 2, 1, 0), (0, 4, 1, 3, 0), (0, 5, 1, 5, 0), (0, 6, 2, 8, 0),
+    (1, 0, 2, 7, 0), (1, 2, 1, 5, 0), (1, 3, 1, 3, 0), (1, 4, 2, 5, 0), (1, 6, 2, 3, 0),
+    (2, 0, 1, 2, 0), (2, 1, 1, 4, 0), (2, 2, 2, 7, 0), (2, 4, 1, 4, 0), (2, 5, 1, 2, 0), (2, 6, 2, 0, 0),
+    (3, 0, 3, 1, 0), (3, 3, 1, 4, 0), (3, 4, 4, 6, 0),
+    (4, 0, 1, 5, 0), (4, 1, 1, 3, 0), (4, 2, 2, 1, 0), (4, 4, 1, 3, 0), (4, 5, 1, 5, 0), (4, 6, 2, 10, 0),
+    (5, 0, 2, 9, 0), (5, 2, 1, 7, 0), (5, 3, 1, 5, 0), (5, 4, 4, 7, 0),
+    (6, 0, 2, 8, 0), (6, 2, 2, 6, 0), (6, 4, 2, 4, 0), (6, 6, 2, 6, 0),
+    (7, 0, 4, 4, 0),
+]
+
+
+def marimba_line(s: Song, bar0: int, phrase, gain: float = 0.5, p: float = -0.2) -> None:
+    """A melody on the marimba (struck notes, each ringing up to its next), from bar0."""
+    eighth = s.beat / 2
+    for bar, e, ln, deg, _ in phrase:
+        f = hz(deg, 0)
+        s.add("marimba", s.time(bar0 + bar, 2 * e), marimba(f, min(ln * eighth + 0.25, 0.9)), gain, p, 0.3)
+        s.add("marimba", s.time(bar0 + bar, 2 * e), marimba(f * 2, min(ln * eighth + 0.15, 0.5)), gain * 0.25, -p, 0.3)
+
+
+GAME_BARS = 48  ## 4 intro, A 8, B 8, A2 8, C 8, A3 8, break 4: 97.6 s at 118 BPM
+
+
+def game_chords() -> list:
     prog_a = ["A", "D", "A", "E", "A", "D", "A", "E"]
     prog_b = ["F#m", "D", "A", "E", "F#m", "D", "E", "E"]
-    chords = prog_a[:4] + prog_a + prog_b + prog_a + ["A", "D", "E", "E"]
+    prog_c = ["Bm", "D", "A", "E", "Bm", "D", "E", "E"]
+    return prog_a[:4] + prog_a + prog_b + prog_a + prog_c + prog_a + ["A", "D", "E", "E"]
+
+
+def game_section(bar: int) -> str:
+    return ["intro", "A", "B", "A2", "C", "A3", "break"][0 if bar < 4 else min((bar - 4) // 8 + 1, 6)]
+
+
+def game_theme() -> np.ndarray:
+    """'Run Home': the groove, the whistle tune, a kalimba-and-choir bridge (B), the tune in thirds,
+    a marimba section in B minor (C), the tune with the choir behind it (A3), a talking-drum break."""
+    seed(2001)
+    s = Song(118, GAME_BARS, swing=0.12)
+    chords = game_chords()
     for bar, ch in enumerate(chords):
         nxt = chords[(bar + 1) % len(chords)]
-        section = "intro" if bar < 4 else "A" if bar < 12 else "B" if bar < 20 else "A2" if bar < 28 else "break"
-        drums_groove(s, bar, 0.5 if bar < 2 else 1.0, fill=bar in (3, 11, 19, 27, 31))
-        bass_bar(s, bar, ch, nxt, 0.0 if section == "break" and bar in (28, 29) else 1.0)
-        if section != "break" or bar >= 30:
-            guitars_bar(s, bar, ch, 0.7 if section == "B" else 1.0)
+        section = game_section(bar)
+        drums_groove(s, bar, 0.5 if bar < 2 else (0.75 if section == "C" else 1.0),
+                     fill=bar in (3, 11, 19, 27, 35, 43, 47))
+        bass_bar(s, bar, ch, nxt, 0.0 if section == "break" and bar in (44, 45) else 1.0)
+        if section != "break" or bar >= 46:
+            guitars_bar(s, bar, ch, 0.7 if section in ("B", "C") else 1.0)
+        root, tones = CHORDS[ch]
         if section == "B":
             kalimba_bar(s, bar, ch, 1.0)
-            root, tones = CHORDS[ch]
             for d in tones:
                 s.add("choir", s.time(bar), voice_aah(hz(d, 0), s.beat * 4 + 0.3, 0.35), 0.16, 0.0, 0.5)
         if section == "A2":
             kalimba_bar(s, bar, ch, 0.5, 2)
+        if section == "C":
+            s.add("pad", s.time(bar), pad([hz(d, -1) for d in tones], s.beat * 4 + 0.2, bright=3.0), 0.14, 0.0, 0.4)
+        if section == "A3":
+            for d in tones:
+                s.add("choir", s.time(bar), voice_aah(hz(d, 0), s.beat * 4 + 0.3, 0.7), 0.13, 0.0, 0.5)
+            kalimba_bar(s, bar, ch, 0.45, 2)
         if section == "break":
-            root, tones = CHORDS[ch]
             s.add("pad", s.time(bar), pad([hz(d, -1) for d in tones], s.beat * 4 + 0.2), 0.12, 0.0, 0.4)
     melody(s, 4, TUNE_A, 0, 0.42, 0.1, 0.3)
     melody(s, 14, ANSWER, 0, 0.36, 0.15, 0.35)
     melody(s, 18, ANSWER, 0, 0.36, 0.15, 0.35)
     melody(s, 20, TUNE_A, 0, 0.42, 0.1, 0.3, harmony=2)
-    melody(s, 30, CALL, 0, 0.4, 0.1, 0.35)
-    s.duck(["bass", "gtr_lead", "gtr_chop", "kalimba", "pad", "choir"], 0.22)
+    marimba_line(s, 28, TUNE_C, 0.5)
+    melody(s, 30, ANSWER, 1, 0.22, 0.2, 0.4)
+    melody(s, 34, ANSWER, 1, 0.22, 0.2, 0.4)
+    melody(s, 36, TUNE_A, 0, 0.42, 0.1, 0.3, harmony=2)
+    melody(s, 46, CALL, 0, 0.4, 0.1, 0.35)
+    s.duck(["bass", "gtr_lead", "gtr_chop", "kalimba", "pad", "choir", "marimba"], 0.22)
     # balance (pre-master, LUFS): whistle -13, bass -17.5, kick -16.5, kalimba -18, snare -18, talking
     # drum -19, guitars -21 and -25, choir -23, pad -24, shaker -24, congas -24, open hat -30
     return s.mix({"kick": 0.66, "snare": 0.6, "shaker": 0.58, "conga": 0.7, "hat": 0.5, "talk": 0.42, "bass": 0.385,
                   "gtr_lead": 1.83, "gtr_chop": 2.9, "kalimba": 0.6, "choir": 1.97, "pad": 1.4, "whistle": 0.9,
-                  "reverb": 0.35})
+                  "marimba": 0.9, "reverb": 0.35}, dip=2.5)
+
+
+def game_drive() -> np.ndarray:
+    """The drive layer of 'Run Home' (same 48 bars, played over it as the run nears home): djembe
+    16ths, the agogo bell's hi-lo pattern, a second shaker and tom fills. Mastered 6 dB under the
+    theme: the game raises it from silence."""
+    seed(2006)
+    s = Song(118, GAME_BARS, swing=0.12)
+    for bar in range(GAME_BARS):
+        if game_section(bar) == "break" and bar < 46:
+            continue
+        for step, kind, v in [(0, "bass", 1.0), (2, "tone", 0.6), (3, "tone", 0.5), (4, "slap", 0.9), (6, "tone", 0.6),
+                              (7, "slap", 0.7), (8, "bass", 0.9), (10, "tone", 0.6), (11, "tone", 0.5), (12, "slap", 0.9),
+                              (13, "tone", 0.4), (14, "slap", 0.8), (15, "tone", 0.5)]:
+            sig = djembe_bass(v) if kind == "bass" else conga(360 if kind == "tone" else 410, v, kind == "slap")
+            s.add("djembe", s.time(bar, step), sig, 0.7, 0.25, 0.1)
+        for step, high in [(2, True), (3, False), (6, True), (10, True), (11, False), (14, True)]:
+            s.add("agogo", s.time(bar, step), agogo(high, 0.8 if high else 0.6), 0.35, -0.5, 0.15)
+        for step in range(16):
+            s.add("shaker2", s.time(bar, step), shaker(0.4 + 0.4 * (step % 2 == 1), step % 4 == 3), 0.4, -0.35, 0.05)
+        if bar % 8 == 7:
+            for k, step in enumerate([12, 13, 14, 15]):
+                s.add("toms", s.time(bar, step), drum(140 - 15 * k, 0.4, 0.15, 0.5, 0.05), 0.6, 0.3 - 0.2 * k, 0.15)
+    return s.mix({"djembe": 0.8, "agogo": 0.7, "shaker2": 0.6, "toms": 0.7, "reverb": 0.3}, target=-22.0, dip=2.5)
 
 
 MENU_TUNE = [
@@ -626,14 +709,34 @@ def ambience() -> np.ndarray:
     return two[m:]
 
 
+## How each file should sound (copied into tools/audio_report.py's table).
+DESCRIPTIONS = {
+    "music_game": "'Run Home', 118 BPM township jive in A major, 98 s loop: bouncing thumb bass, two interlocking "
+                  "clean guitars, kick/snare/clap, swung shaker and congas, a cheerful pennywhistle tune, a kalimba "
+                  "and choir bridge, the tune in thirds, a marimba section in B minor, the tune with the choir, a "
+                  "talking-drum break; slightly scooped at 3 kHz so the effects cut through; no seam.",
+    "music_game_drive": "The game theme's drive layer, same 98 s in sync: djembe 16ths, the agogo bell's hi-lo, a second "
+                        "shaker and tom fills; it fades in on the home stretch (alone it is only percussion).",
+    "music_menu": "'Sunset', 92 BPM, A major: warm and unhurried; kalimba arpeggios, a soft string pad, a hummed choir, "
+                  "gentle drums, the whistle tune the second time round; no seam.",
+    "sting_win": "Home reached: a quick djembe roll landing at 0.45 s on the whole band in A major, the whistle climbing "
+                 "to a held high note, a shimmer; rings out in 3 s.",
+    "sting_lose": "Game over, gentle: kalimba and marimba falling E5-D5-C5-B4 onto A4 over a low A minor pad, the "
+                  "whistle sighing down; fades over 3 s.",
+    "amb_savanna": "The savanna under the music: wind gusting through grass, crickets chirping in threes, two far "
+                   "cicada swells, a distant dove and small birds; barely noticed; no seam.",
+}
+
+
 def main() -> None:
     out = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("assets/audio")
     global REPORT
     REPORT = "--report" in sys.argv
-    which = [a for a in sys.argv[2:] if not a.startswith("--")] or ["game", "menu", "win", "lose", "ambience"]
+    which = [a for a in sys.argv[2:] if not a.startswith("--")] or ["game", "drive", "menu", "win", "lose", "ambience"]
     out.mkdir(parents=True, exist_ok=True)
     jobs = {
         "game": ("music_game.ogg", game_theme, 3),
+        "drive": ("music_game_drive.ogg", game_drive, 0),
         "menu": ("music_menu.ogg", menu_theme, 3),
         "win": ("sting_win.ogg", sting_win, 3),
         "lose": ("sting_lose.ogg", sting_lose, 3),

@@ -6,8 +6,10 @@ class_name Fx
 
 # Chaka Zulu: sunset orange, gold, the Red Bob red, the ring blue, savanna green, white.
 const CONFETTI: Array[Color] = [Color("f2662e"), Color("ffd36b"), Color("e82808"), Color("3a8fd8"), Color("a8c808"), Color("ffffff")]
-## Party colours: the brand sunset with the reward colours (gold, red, blue) and white.
-const PARTY: Array[Color] = [Color("f2662e"), Color("ff9a5a"), Color("e82808"), Color("ffd36b"), Color("3a8fd8"), Color("a8c808"), Color("ffffff")]
+## Party colours, the scene's palette: gold, the warm reds of the sunset and the Red Bobs, the deep
+## indigo of his beads, cream.
+const PARTY: Array[Color] = [Color("ffd36b"), Color("e8a317"), Color("e85a3a"), Color("c8341f"), Color("f2662e"),
+		Color("4a43a8"), Color("2f2b7a"), Color("fff1d0")]
 ## Blue sparks of a ring hitting a bandit.
 const RING_SPARKS: Array[Color] = [Color("ffffff"), Color("8fd0ff"), Color("3fa2ff")]
 ## Red Bob bits.
@@ -17,16 +19,34 @@ const STONE_DUST: Array[Color] = [Color("c69c6d"), Color("f1d0ad"), Color("a57b4
 const STONE_CHIPS: Array[Color] = [Color("a57b4f"), Color("8a6440"), Color("c69c6d"), Color("6e4c2e")]
 const LEAVES: Array[Color] = [Color("99ce40"), Color("8abd31"), Color("76a22a"), Color("aedb5a")]
 const CHALK: Array[Color] = [Color(1, 1, 1)]
-## The mix of confetti pieces: mostly paper, some ribbons, sequins and stars.
-const PARTY_SHAPES := [Confetti.Shape.PAPER, Confetti.Shape.PAPER, Confetti.Shape.PAPER, Confetti.Shape.RIBBON,
-		Confetti.Shape.SEQUIN, Confetti.Shape.STAR]
+## The mix of confetti pieces: shaded petals and glass beads, a few sequins (gold motes are sparkles).
+const PARTY_SHAPES := [Confetti.Shape.PETAL, Confetti.Shape.PETAL, Confetti.Shape.PETAL, Confetti.Shape.BEAD,
+		Confetti.Shape.BEAD, Confetti.Shape.SEQUIN]
 const PLUS_SIZE := 118  ## font size of the "+1" (design px)
 ## The ring's light: white-hot core, its blue, a deeper blue at the edge.
 const RING_LIGHT: Array[Color] = [Color("ffffff"), Color("bfe6ff"), Color("6cc4ff"), Color("2f8bff")]
 ## A Red Bob's streak: hot gold to its red.
 const BOB_LIGHT: Array[Color] = [Color("fff1c4"), Color("ffc65a"), Color("ff7a3a"), Color("e82808")]
 const EMBERS: Array[Color] = [Color("ffe2a0"), Color("ffb347"), Color("ff7a2a")]
-const GOLD: Array[Color] = [Color("ffd36b"), Color("f2b52a"), Color("ffe9a8"), Color("e8a317")]
+const GOLD: Array[Color] = [Color("ffcf3a"), Color("f5b81c"), Color("ffe27a"), Color("e8a317")]
+## The shared impacts, from a ring's tap to the last blow (the game screen applies them: _impact).
+## stop: hit-stop (s: 3, 4, 5 frames); shake: camera shake (design units: about 4-8 px on a phone,
+## gone in 8-12 frames); shards: sparks thrown away from the contact; knock: how far the one hit is
+## knocked (design units; it springs back, the rules don't move); scale: the size of the burst.
+const IMPACTS := {
+	&"small": {"stop": 0.05, "shake": 3.0, "shards": 5, "knock": 16.0, "scale": 0.7},
+	&"medium": {"stop": 0.067, "shake": 4.5, "shards": 8, "knock": 30.0, "scale": 1.0},
+	&"fatal": {"stop": 0.083, "shake": 6.5, "shards": 12, "knock": 46.0, "scale": 1.35},
+}
+const FLASH_TIME := 0.035  ## the white of a blow: 2 frames, then the one hit shows (the views use it)
+const MAX_FLIERS := 6  ## Red Bobs flying to the counter at once (more just pop on it)
+## The streak badge's colour per tier (2-3, 4-5, 6-7, 8+ in a row).
+const STREAK_TIERS: Array[Color] = [Color("ffffff"), Color("ffd84a"), Color("ff9a2a"), Color("ff4a3a")]
+
+static var _knocks := {}  # key (&"hero", a World.Bandit) -> [start (knock clock), push, seconds]
+static var _knock_clock := 0.0
+static var _fliers := 0
+static var _streak_badge: Node2D
 
 static var _confetti_tex: Texture2D
 static var _bubble_tex: Texture2D
@@ -39,10 +59,47 @@ static var _shine: ShaderMaterial
 static var _plus_font: Font
 
 
-## True when the player asked for reduced motion (the setting the UX track adds, Save.reduced_motion):
-## no screen shake or camera kicks then, and flashes are halved. Particles and light stay.
+## True when the player asked for reduced motion (Settings, Save.reduce_motion: Prefs): no screen
+## shake or camera kicks then, and the red flash of a blow is halved. Particles and light stay.
 static func calm() -> bool:
-	return &"reduced_motion" in Save and bool(Save.get(&"reduced_motion"))
+	return not Prefs.motion()
+
+
+## Knocks `key` (&"hero", or a World.Bandit) by `push` (design units): out fast (ease-out, the
+## first 30 % of `seconds`), then back to where the rules have it. The views add knock_offset().
+static func knock(key: Variant, push: Vector2, seconds := 0.4) -> void:
+	_knocks[key] = [_knock_clock, push, seconds]
+
+
+## Where `key` is drawn from its place now (design units).
+static func knock_offset(key: Variant) -> Vector2:
+	var k: Array = _knocks.get(key, [])
+	if k.is_empty():
+		return Vector2.ZERO
+	var u: float = (_knock_clock - k[0]) / k[2]
+	if u >= 1.0:
+		_knocks.erase(key)
+		return Vector2.ZERO
+	var amount := 1.0 - pow(1.0 - u / 0.3, 3.0) if u < 0.3 else 1.0 - smoothstep(0.35, 1.0, u)
+	return k[1] * amount
+
+
+## The knocks' clock: advanced by the game while the world runs (a hit-stop holds the knock too).
+static func advance_knocks(delta: float) -> void:
+	_knock_clock += delta
+
+
+## The light of a blow at `at` (effects units), sized by an IMPACTS preset: a white-hot core for
+## two frames, then only a thin ring spreading (the one hit is never hidden), sharp shards thrown
+## `away` from the contact, a few sparks. `tint`: the colour of the light (the ring's blue, red
+## for a blow on Panoramic).
+static func impact_burst(parent: Node, at: Vector2, away: Vector2, size: StringName, tint: Color) -> void:
+	var k: float = IMPACTS[size].scale
+	glow(parent, at, Color(1, 1, 1, 0.9), 0.12 * k, 0.4 * k, FLASH_TIME * 1.5)
+	ring(parent, at, 14.0 * k, 110.0 * k, 0.22, Color(tint.lerp(Color.WHITE, 0.4), 0.85), 5.0 * k)
+	shards(parent, at, away, IMPACTS[size].shards, k, tint)
+	Confetti.make(parent, at).sparkle(int(4 * k), [Color.WHITE, tint.lightened(0.4)], Vector2(160, 420), 0.7 * k,
+			Vector2(0.2, 0.4))
 
 
 ## The "+1" of a rescue: a chunky gold number with a deep crimson outline (the 2018 "+1" red on its
@@ -78,7 +135,7 @@ static func plus_one(parent: Node, at: Vector2) -> void:
 ## A big reward: a warm flash, a burst of rays and speed lines, two rings of light,
 ## twinkling stars and a fountain of shaded, tumbling confetti that catches the light.
 static func rescue_burst(parent: Node, at: Vector2) -> void:
-	glow(parent, at, Color(1, 0.93, 0.74, 0.95), 0.45, 2.1, 0.3)
+	glow(parent, at, Color(1, 0.85, 0.6, 0.6), 0.4, 1.5, 0.28)
 	rays(parent, at, Color(1, 0.92, 0.66, 0.7), 12, 250.0, 0.5)
 	lines(parent, at, Color(1, 1, 1, 0.85), 9, 70.0, 230.0, 0.24)
 	ring(parent, at, 30.0, 150.0, 0.4, Color(1, 1, 1, 0.95), 16.0)
@@ -87,8 +144,8 @@ static func rescue_burst(parent: Node, at: Vector2) -> void:
 	c.gravity = 1150.0
 	c.drag = 2.1
 	c.flutter = 420.0
-	c.spray(26, PARTY_SHAPES, PARTY, Vector2(420, 900), Vector2.UP, 105.0, 1.0, Vector2(0.8, 1.15))
-	c.sparkle(10, SPARKS, Vector2(140, 420))
+	c.spray(40, PARTY_SHAPES, PARTY, Vector2(420, 900), Vector2.UP, 105.0, 1.0, Vector2(0.8, 1.2))
+	c.sparkle(14, GOLD, Vector2(140, 420))
 
 
 ## The light behind a badge popping in (NEW BEST): a glow and a ring, smaller and softer
@@ -108,10 +165,10 @@ static func confetti_burst(parent: Node, at: Vector2) -> void:
 	c.gravity = 950.0
 	c.drag = 1.5
 	c.flutter = 520.0
-	c.spray(46, PARTY_SHAPES, PARTY, Vector2(700, 1700), Vector2.UP, 70.0, 1.1, Vector2(2.2, 3.0), 30.0)
-	c.spray(22, PARTY_SHAPES, PARTY, Vector2(800, 1800), Vector2.UP, 60.0, 1.9, Vector2(2.2, 3.0), 30.0)
-	c.spray(9, PARTY_SHAPES, PARTY, Vector2(900, 1900), Vector2.UP, 50.0, 2.8, Vector2(2.2, 3.0), 30.0)
-	c.sparkle(14, SPARKS, Vector2(200, 600), 1.2)
+	c.spray(56, PARTY_SHAPES, PARTY, Vector2(700, 1700), Vector2.UP, 70.0, 1.0, Vector2(2.2, 3.0), 30.0)
+	c.spray(26, PARTY_SHAPES, PARTY, Vector2(800, 1800), Vector2.UP, 60.0, 1.6, Vector2(2.2, 3.0), 30.0)
+	c.spray(10, PARTY_SHAPES, PARTY, Vector2(900, 1900), Vector2.UP, 50.0, 2.3, Vector2(2.2, 3.0), 30.0)
+	c.sparkle(20, GOLD, Vector2(200, 600), 1.0)
 
 
 ## A reward landing in a counter: a small flash, a ring and a few stars.
@@ -121,12 +178,10 @@ static func counter_pop(parent: Node, at: Vector2) -> void:
 	Confetti.make(parent, at).sparkle(7, SPARKS, Vector2(160, 380), 0.85, Vector2(0.35, 0.6))
 
 
-## Panoramic takes a blow: a jagged white-hot spark, a red shock ring, a few stars knocked loose.
-## (`push`: the side he is knocked to.)
+## Panoramic takes a blow: the medium impact in red (shards thrown the way he is knocked, `push`),
+## a few stars knocked loose.
 static func impact(parent: Node, at: Vector2, push: float) -> void:
-	hit_spark(parent, at, Color(1, 0.9, 0.8), 100.0, 0.14)
-	glow(parent, at, Color(1, 0.45, 0.35, 0.7), 0.3, 1.3, 0.22)
-	ring(parent, at, 18.0, 110.0, 0.28, Color(1, 0.55, 0.45, 0.85), 11.0)
+	impact_burst(parent, at, Vector2(push, -0.4).normalized(), &"medium", Color(1.0, 0.45, 0.3))
 	var stars := Confetti.make(parent, at)
 	stars.gravity = 1500.0
 	stars.drag = 1.2
@@ -135,25 +190,15 @@ static func impact(parent: Node, at: Vector2, push: float) -> void:
 			Vector2(push, -1.3).normalized(), 55.0, 0.9, Vector2(0.5, 0.75))
 
 
-## A ring strikes a bandit: a bloom of blue light, a white-hot spark, a ring of light, shards of
-## light thrown on the way the ring flew (right), blue sparks.
+## A ring strikes a bandit: the small impact in the ring's blue, shards thrown the way it flew.
 static func ring_hit(parent: Node, at: Vector2) -> void:
-	glow(parent, at, Color(0.3, 0.6, 1.0, 0.55), 0.35, 1.4, 0.2)
-	hit_spark(parent, at, Color(0.5, 0.76, 1.0), 75.0, 0.1)
-	ring(parent, at, 12.0, 92.0, 0.24, Color(0.6, 0.86, 1.0, 0.9), 9.0)
-	shards(parent, at, Vector2.RIGHT, 9, 0.7)
-	Confetti.make(parent, at).sparkle(9, RING_SPARKS, Vector2(160, 460), 0.9, Vector2(0.3, 0.5))
+	impact_burst(parent, at, Vector2.RIGHT, &"small", RING_LIGHT[2])
 
 
-## A bandit knocked out: a bigger spark, a burst of the ring's blue light, short rays, stars
+## A bandit knocked out: the medium impact in the ring's blue (shards flung up and away), stars
 ## flying off and a puff of dust where he stood.
 static func knock_out(parent: Node, at: Vector2, feet: Vector2) -> void:
-	hit_spark(parent, at, Color(0.45, 0.72, 1.0), 95.0, 0.1)
-	glow(parent, at, Color(0.3, 0.6, 1.0, 0.55), 0.4, 2.0, 0.28)
-	glow(parent, at, Color(0.9, 0.96, 1.0, 0.6), 0.15, 0.55, 0.07)
-	shards(parent, at, Vector2(1, -0.4).normalized(), 14, 1.0)
-	rays(parent, at, Color(0.7, 0.88, 1.0, 0.5), 8, 130.0, 0.26)
-	ring(parent, at, 20.0, 125.0, 0.26, Color(0.75, 0.9, 1.0, 0.7), 9.0)
+	impact_burst(parent, at, Vector2(1, -0.4).normalized(), &"medium", RING_LIGHT[2])
 	var stars := Confetti.make(parent, at)
 	stars.gravity = 1400.0
 	stars.drag = 1.4
@@ -166,7 +211,8 @@ static func knock_out(parent: Node, at: Vector2, feet: Vector2) -> void:
 
 ## Streaks of light flung out from a hit (`towards`: the way the blow went), each a tapered line
 ## that flies, slows and fades: the shrapnel of the ring's light.
-static func shards(parent: Node, at: Vector2, towards: Vector2, count: int, power: float) -> void:
+static func shards(parent: Node, at: Vector2, towards: Vector2, count: int, power: float,
+		tint := Color("6cc4ff")) -> void:
 	var node := Node2D.new()
 	node.position = at
 	node.material = additive()
@@ -183,7 +229,7 @@ static func shards(parent: Node, at: Vector2, towards: Vector2, count: int, powe
 			var dir := Vector2.from_angle(b.x)
 			var head := dir * b.y * 0.3 * travel
 			var tail := head - dir * b.z * (1.0 - k)
-			var c := RING_LIGHT[1].lerp(RING_LIGHT[3], k)
+			var c := tint.lightened(0.45).lerp(tint.darkened(0.2), k)
 			node.draw_line(tail, head, Color(c, 0.9 * (1.0 - k)), b.w * (1.0 - 0.6 * k), true)
 			node.draw_line(tail.lerp(head, 0.5), head, Color(1, 1, 1, 0.8 * (1.0 - k)), b.w * 0.4, true))
 	var t := node.create_tween()
@@ -200,6 +246,7 @@ static func ribbon(canvas: CanvasItem, path: Array[Vector3], life: float, width:
 		core: Color) -> void:
 	if path.size() < 2:
 		return
+	var with_core := core.a > 0.0
 	var left := PackedVector2Array()
 	var right := PackedVector2Array()
 	var cols := PackedColorArray()
@@ -225,7 +272,8 @@ static func ribbon(canvas: CanvasItem, path: Array[Vector3], life: float, width:
 	cols.append_array(rc)
 	if Geometry2D.triangulate_polygon(left).size() > 0:
 		canvas.draw_polygon(left, cols)
-	canvas.draw_polyline_colors(line, line_cols, 3.0, true)
+	if with_core:
+		canvas.draw_polyline_colors(line, line_cols, 3.0, true)
 
 
 ## The ring leaving his hand: a flash of blue light, a small ring and sparks thrown forward.
@@ -249,8 +297,8 @@ static func ring_flight(parent: Node, world: World, r: World.Ring) -> void:
 
 
 class RingFlight extends Node2D:
-	const TRAIL_TIME := 0.13  ## seconds of path the ribbon keeps
-	const WIDTH := 30.0  ## the ribbon's width at the ring (effects px)
+	const TRAIL_TIME := 0.05  ## seconds of path the streak keeps: 3 frames, a motion smear, not a beam
+	const WIDTH := 34.0  ## the streak's width at the ring (effects px)
 	var world: World
 	var ring: World.Ring
 	var _path: Array[Vector3] = []  # x, y, age
@@ -267,7 +315,7 @@ class RingFlight extends Node2D:
 		if _flying:
 			_at = Vector2(lerpf(ring.prev_x, ring.x, world.alpha) + 12.0, ring.y + 14.0) * 2.0
 			_path.push_front(Vector3(_at.x, _at.y, 0.0))
-			if randf() < delta * 55.0:
+			if randf() < delta * 20.0:
 				_sparks.append(Vector4(_at.x + randf_range(-14, 14), _at.y + randf_range(-18, 18), 0.0, randf_range(0.2, 0.4)))
 				_drift.append(Vector2(randf_range(-160, -40), randf_range(-60, 60)))
 		for i in _path.size():
@@ -287,28 +335,30 @@ class RingFlight extends Node2D:
 
 	func _draw() -> void:
 		var tex := Fx.glow_texture()
-		Fx.ribbon(self, _path, TRAIL_TIME, WIDTH, Color(Fx.RING_LIGHT[2], 0.6), Fx.RING_LIGHT[3], Color(1, 1, 1, 0.85))
+		Fx.ribbon(self, _path, TRAIL_TIME, WIDTH, Color(Fx.RING_LIGHT[1], 0.5), Fx.RING_LIGHT[3], Color(1, 1, 1, 0.0))
 		for sp in _sparks:
 			var k := 1.0 - sp.z / sp.w
 			var r := 7.0 + 6.0 * k
 			draw_texture_rect(tex, Rect2(Vector2(sp.x, sp.y) - Vector2(r, r), Vector2(r, r) * 2), false, Color(Fx.RING_LIGHT[1], k))
 		if _flying:
-			var pulse := 1.0 + 0.12 * sin(_clock * 30.0)
-			var r := 92.0 * pulse
-			draw_texture_rect(tex, Rect2(_at - Vector2(r, r), Vector2(r, r) * 2), false, Color(0.35, 0.65, 1.0, 0.55))
-			r = 46.0 * pulse
-			draw_texture_rect(tex, Rect2(_at - Vector2(r, r), Vector2(r, r) * 2), false, Color(0.85, 0.95, 1.0, 0.5))
+			var r := 40.0 * (1.0 + 0.1 * sin(_clock * 30.0))  # (RingView has its own halo)
+			draw_texture_rect(tex, Rect2(_at - Vector2(r, r), Vector2(r, r) * 2), false, Color(0.35, 0.65, 1.0, 0.22))
 
 
-## A Red Bob flying to the counter (screen units): it pops, then leaves on a curve (up first, then
-## home), shrinking, a tapered streak of warm light behind it and sparks shed on the way; `arrived`
-## runs when it lands. One ball and its light: no afterimages.
+## A Red Bob flying to the counter (screen units): it pops, rises a little (an overshoot up),
+## then curves in, slow at first and accelerating into the counter, shrinking; a tapered streak
+## of warm light behind it, sparks shed on the way; `arrived` runs when it lands. At most
+## MAX_FLIERS fly at once: more just land at once (the counter already counts them).
 static func bob_flight(parent: Node, from: Vector2, to: Vector2, start_size: float, end_size: float,
 		arrived: Callable) -> void:
+	if _fliers >= MAX_FLIERS:
+		arrived.call()
+		return
+	_fliers += 1
 	var s := Sprite2D.new()
 	s.texture = BobView.texture(BobView.Face.JOY)
 	var k0 := BobView.scale_for(start_size)
-	var k1 := BobView.scale_for(end_size)
+	var k1 := BobView.scale_for(end_size) * 0.8
 	s.position = from
 	s.scale = Vector2.ONE * k0
 	var light := BobStreak.new()  # normal blending: over the sky an added orange would wash out to white
@@ -316,19 +366,57 @@ static func bob_flight(parent: Node, from: Vector2, to: Vector2, start_size: flo
 	parent.add_child(s)
 	light.ball = s
 	light.width = start_size * 0.8
-	var lift := from + Vector2(-from.distance_to(to) * 0.08, -minf(110.0, from.distance_to(to) * 0.35))
+	var c1 := from + Vector2(-30.0, -minf(110.0, 50.0 + from.distance_to(to) * 0.12))  # up first
+	var c2 := to + Vector2(-minf(220.0, from.distance_to(to) * 0.35), 70.0)  # comes in from below-left
 	var t := s.create_tween()
-	t.tween_property(s, "scale", Vector2.ONE * k0 * 1.3, 0.06).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	t.tween_property(s, "scale", Vector2.ONE * k0 * 1.35, 0.05).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	t.tween_method(func(u: float) -> void:
-		var e := u * (1.0 - u) * 0.9 + u * u  # leaves briskly, arrives fast
-		s.position = from.lerp(lift, e).lerp(lift.lerp(to, e), e)
+		var e := pow(u, 1.7)  # slow for the first third, then fast into the counter
+		s.position = from.bezier_interpolate(c1, c2, to, e)
 		light.follow(s.position)  # the streak's head moves with the ball, in the same step
 		s.rotation = -0.6 * u
-		s.scale = Vector2.ONE * lerpf(k0 * 1.1, k1, sqrt(u)), 0.0, 1.0, 0.4)
+		s.scale = Vector2.ONE * lerpf(k0 * 1.15, k1, e), 0.0, 1.0, 0.5)
 	t.tween_callback(func() -> void:
+		s.set_meta(&"landed", true)
 		arrived.call()
 		light.ball = null
 		s.queue_free())
+	s.tree_exiting.connect(_flier_gone.bind(s))  # landed, or the screen left with it in the air
+
+
+static func _flier_gone(ball: Node) -> void:
+	_fliers = maxi(_fliers - 1, 0)
+
+
+## "×N" for a streak of Red Bobs, popping at the pickup (effects units) beside him: big, rising
+## and fading in half a second, white, then yellow, orange and red as the streak grows.
+static func streak_pop(parent: Node, at: Vector2, n: int) -> void:
+	if is_instance_valid(_streak_badge):  # the new count takes the place of the last
+		_streak_badge.queue_free()
+	var node := Node2D.new()
+	_streak_badge = node
+	node.position = at + Vector2(30, -40)
+	var font := plus_font()
+	var text := "×%d" % n
+	var size := int(PLUS_SIZE * (0.62 + 0.05 * mini(n, 8)))
+	var colour := STREAK_TIERS[clampi((n - 2) / 2, 0, STREAK_TIERS.size() - 1)]
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	var base := Vector2(-w / 2, size * 0.36)
+	node.draw.connect(func() -> void:
+		node.draw_string_outline(font, base + Vector2(0, 8), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 28, Color(0.2, 0.02, 0.1, 0.4))
+		node.draw_string_outline(font, base, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 28, Color("4a0a24"))
+		node.draw_string_outline(font, base, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 12, colour.darkened(0.25))
+		node.draw_string(font, base, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, colour))
+	parent.add_child(node)
+	node.scale = Vector2.ONE * 0.4
+	node.rotation = -0.15
+	var t := node.create_tween().set_parallel(true)
+	t.tween_property(node, "scale", Vector2.ONE * 1.25, 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.tween_property(node, "rotation", 0.0, 0.2)
+	t.tween_property(node, "position:y", node.position.y - 80.0, 0.5).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	t.tween_property(node, "scale", Vector2.ONE, 0.15).set_delay(0.1)
+	t.tween_property(node, "modulate:a", 0.0, 0.2).set_delay(0.3)
+	t.chain().tween_callback(node.queue_free)
 
 
 class BobStreak extends Node2D:
@@ -385,24 +473,27 @@ static func bob_pop(parent: Node, at: Vector2, combo: int) -> void:
 		Confetti.make(parent, at).sparkle(8, SPARKS, Vector2(160, 520), 0.9, Vector2(0.3, 0.55))
 
 
-## Home: the doorway's warm light swelling over the yard (a big glow that breathes), long rays of
-## it, and embers rising from the hearth inside for a few seconds.
+## Home: the doorway's warm light (`at`: the middle of the doorway, effects units) spilling out
+## along the ground as a long, flat, warm pool that breathes, a softer glow filling the doorway,
+## long rays from it, and embers rising from the hearth inside for a few seconds.
 static func home_glow(parent: Node, at: Vector2) -> void:
-	var g := Sprite2D.new()
-	g.texture = glow_texture()
-	g.material = additive()
-	g.position = at
-	g.modulate = Color(1, 0.72, 0.38, 0.0)
-	g.scale = Vector2.ONE * 3.0
-	parent.add_child(g)
-	var t := g.create_tween()
-	t.tween_property(g, "modulate:a", 0.32, 0.5).set_trans(Tween.TRANS_SINE)
-	t.parallel().tween_property(g, "scale", Vector2.ONE * 6.5, 0.9).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
-	for i in 3:
-		t.tween_property(g, "modulate:a", 0.22, 0.45).set_trans(Tween.TRANS_SINE)
-		t.tween_property(g, "modulate:a", 0.3, 0.45).set_trans(Tween.TRANS_SINE)
-	t.tween_property(g, "modulate:a", 0.0, 0.8)
-	t.tween_callback(g.queue_free)
+	var ground := at + Vector2(0.0, 130.0)  # the threshold: the doorway's foot
+	for spec: Array in [[ground, Vector2(9.0, 1.6), 0.3], [at, Vector2(2.4, 3.2), 0.22]]:
+		var g := Sprite2D.new()
+		g.texture = glow_texture()
+		g.material = additive()
+		g.position = spec[0]
+		g.modulate = Color(1, 0.7, 0.36, 0.0)
+		g.scale = spec[1] * 0.5
+		parent.add_child(g)
+		var t := g.create_tween()
+		t.tween_property(g, "modulate:a", spec[2], 0.5).set_trans(Tween.TRANS_SINE)
+		t.parallel().tween_property(g, "scale", spec[1], 0.9).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+		for i in 3:
+			t.tween_property(g, "modulate:a", spec[2] * 0.7, 0.45).set_trans(Tween.TRANS_SINE)
+			t.tween_property(g, "modulate:a", spec[2], 0.45).set_trans(Tween.TRANS_SINE)
+		t.tween_property(g, "modulate:a", 0.0, 0.8)
+		t.tween_callback(g.queue_free)
 	rays(parent, at, Color(1, 0.8, 0.5, 0.3), 14, 560.0, 1.6)
 	var p := CPUParticles2D.new()
 	p.position = at + Vector2(0, 40)
@@ -427,27 +518,33 @@ static func home_glow(parent: Node, at: Vector2) -> void:
 	p.color_ramp = fade
 	parent.add_child(p)
 	p.emitting = true
-	p.get_tree().create_timer(2.6).timeout.connect(func() -> void:
-		if is_instance_valid(p):
-			p.emitting = false
-			p.get_tree().create_timer(p.lifetime + 0.1).timeout.connect(p.queue_free))
+	var stop := p.create_tween()  # owned by the embers: it goes with them if the screen is left
+	stop.tween_interval(2.6)
+	stop.tween_property(p, "emitting", false, 0.0)
+	stop.tween_interval(p.lifetime + 0.1)
+	stop.tween_callback(p.queue_free)
 
 
-## The win's shower over the results (`width` x `height`, screen units): 48 gold coins tumbling down,
-## glinting as they turn, with a rain of party confetti and twinkles.
+## The win's shower over the results (`width` x `height`, screen units): 26 gold coins tumbling down
+## in front of everything (sharp, spinning, glinting), a rain of shaded petals and beads where it is
+## asked (behind the card), gold motes twinkling, and the tinkle of the coins.
 static func coin_shower(parent: Node, width: float, height: float) -> void:
-	var coins := Confetti.make(parent, Vector2.ZERO)
-	coins.gravity = 1300.0
-	coins.drag = 0.9
-	coins.flutter = 60.0
-	coins.rain(48, width, [Confetti.Shape.COIN], GOLD, 1.5, Vector2(1.6, 2.2), 1.3)
+	var front: Node = parent.get_parent() if parent.get_parent() else parent  # the coins fall over the card
+	var holder := Node2D.new()
+	front.add_child(holder)
+	var coins := Confetti.make(holder, Vector2.ZERO)
+	coins.gravity = 1100.0
+	coins.drag = 0.8
+	coins.flutter = 40.0
+	coins.rain(26, width, [Confetti.Shape.COIN], GOLD, 1.7, Vector2(1.8, 2.4), 1.0)
 	var paper := Confetti.make(parent, Vector2.ZERO)
 	paper.gravity = 700.0
 	paper.drag = 1.6
 	paper.flutter = 560.0
-	paper.rain(90, width, PARTY_SHAPES, PARTY, 1.3, Vector2(2.6, 3.4), 1.0)
-	var twinkle := Confetti.make(parent, Vector2(width / 2, height * 0.3))
-	twinkle.sparkle(16, SPARKS, Vector2(200, 700), 1.1, Vector2(0.5, 0.9), width * 0.4)
+	paper.rain(80, width, PARTY_SHAPES, PARTY, 1.2, Vector2(2.6, 3.4), 1.0)
+	var motes := Confetti.make(parent, Vector2(width / 2, height * 0.3))
+	motes.sparkle(20, GOLD, Vector2(200, 700), 0.8, Vector2(0.6, 1.1), width * 0.45)
+	Audio.play_sfx(&"coins")
 
 
 ## A hit, painted to sit with the art: a soft burst of light with ragged, tapering rays (no hard
@@ -529,11 +626,12 @@ static func splash(parent: Node, at: Vector2, size := 1.0) -> void:
 		ring_node.position = at
 		ring_node.scale = Vector2(1.0, 0.2)
 		parent.add_child(ring_node)
-		var delay := k * 0.18
-		ring_node.get_tree().create_timer(delay).timeout.connect(func() -> void:
-			if is_instance_valid(ring_node):
-				ring(ring_node, Vector2.ZERO, 20.0, (130.0 + k * 60.0) * size, 0.7, Color(1, 1, 1, 0.85 - k * 0.3), 9.0 - k * 3.0))
-		ring_node.get_tree().create_timer(delay + 0.8).timeout.connect(ring_node.queue_free)
+		var later := ring_node.create_tween()  # owned by the ripple: it goes with it if the screen is left
+		later.tween_interval(k * 0.18)
+		later.tween_callback(Fx.ring.bind(ring_node, Vector2.ZERO, 20.0, (130.0 + k * 60.0) * size, 0.7,
+				Color(1, 1, 1, 0.85 - k * 0.3), 9.0 - k * 3.0))
+		later.tween_interval(0.8)
+		later.tween_callback(ring_node.queue_free)
 	dust(parent, at, int(8 * size), 260.0 * size, 0.0, 1.1 * size)  # foam spreading on the surface
 
 
@@ -897,8 +995,9 @@ static func warm_up(parent: Control) -> void:
 	bits.spray(2, [Confetti.Shape.PAPER], PARTY, Vector2(1, 2))
 	bits.sparkle(1, SPARKS, Vector2(1, 2))
 	parent.add_child(holder)
-	await parent.get_tree().create_timer(0.3).timeout
-	holder.queue_free()
+	var t := holder.create_tween()
+	t.tween_interval(0.3)
+	t.tween_callback(holder.queue_free)
 
 
 static func confetti_texture() -> Texture2D:
