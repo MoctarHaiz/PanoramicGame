@@ -18,6 +18,17 @@ uniform vec2 rim_dir = vec2(0.8, -0.6);  // towards the light, in texture space 
 uniform float warp_px = 0.0;
 uniform float warp_from = 0.5;
 uniform float opacity = 1.0;
+// A warm bounce from one side (the home fire): the colours multiplied towards `bounce_colour`, more on the
+// side `bounce_dir` (texture space) points to; dark pixels (the ink) stay dark, no light fringe.
+uniform float bounce = 0.0;
+uniform vec4 bounce_colour : source_color = vec4(1.35, 1.0, 0.7, 1.0);
+uniform vec2 bounce_dir = vec2(-1.0, 0.0);
+uniform float bounce_scale = 0.01;  // 1 / (half the frame's width, in local px): the sprite is an atlas region
+varying vec2 local_pos;
+
+void vertex() {
+	local_pos = VERTEX;
+}
 
 void fragment() {
 	vec2 uv = UV;
@@ -46,6 +57,10 @@ void fragment() {
 		float out_a = c.a + o * (1.0 - c.a);
 		vec3 rgb = (c.rgb * c.a + outline_colour.rgb * o * (1.0 - c.a)) / max(out_a, 0.001);
 		c = vec4(rgb, out_a);
+	}
+	if (bounce > 0.0) {
+		float side = smoothstep(-0.6, 0.9, dot(local_pos * bounce_scale, normalize(bounce_dir)));
+		c.rgb *= mix(vec3(1.0), bounce_colour.rgb, bounce * side);
 	}
 	c.rgb = mix(c.rgb, tint.rgb, amount);
 	COLOR = c;

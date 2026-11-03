@@ -21,9 +21,9 @@ USER_ART = {"kind": "user-generated", "url_or_tool": "the user's own image gener
             "prompt_or_source_record": "tools/art/ref/user/hero_sheet.png, hero_portrait.jpg"}
 
 
-USER_3D = {"kind": "user-generated", "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rendered by tools/art/blender/hero_render.py",
+USER_3D = {"kind": "user-generated", "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rebuilt for AAA in ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend (same identity: cleaned mesh, weights, textures, new actions; see hero3d/AUDIT.md), rendered by tools/art/blender/hero_render.py",
            "creator": "Haiz Studio", "license": "owned by Haiz Studio",
-           "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx"}
+           "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx; ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend"}
 
 
 def authored(tool: str) -> dict:

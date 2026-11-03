@@ -9,7 +9,10 @@ ground under his hips at rest: the anchor of ground frames) and the projected po
 hips, head, toes and hands (airborne frames hang from the hips, hanging ones from the hands).
 Also writes the menu and card pictures (portrait.png, stand_front.png, stand_side.png).
 
-    python3 tools/art/hero_atlas.py [RENDER_DIR]   # default ROOT/_agents/AAA/blender/render
+    python3 tools/art/hero_atlas.py [RENDER_DIR]   # default ROOT/_agents/AAA/hero3d/render/game
+
+(The AAA hero: rendered by hero_render.py from ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend, see
+ROOT/_agents/AAA/hero3d/render/render_all.sh; the interface pictures come from RENDER_DIR/../render_ui.)
 """
 import json
 import sys
@@ -21,7 +24,7 @@ from scipy import ndimage
 
 NEW = Path(__file__).resolve().parents[2]
 ROOT = next(p for p in NEW.parents if (p / "Making").is_dir())  # the folder with the user's Blender files
-RENDER = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "_agents/AAA/blender/render"
+RENDER = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "_agents/AAA/hero3d/render/p4/game"
 GROUND_SPEED = 8.0 * 960.0 / 1320.0 * 40.0  ## units a second the ground scrolls (World.SCROLL_SPEED)
 OUT = NEW / "assets/art/hero"
 SCALE = 0.40  ## render px -> atlas px (1024 renders: he stands ~690 px, ~276 px in the atlas; the ink line costs a little room)
@@ -58,8 +61,42 @@ def premultiplied_resize(img: Image.Image, k: float) -> np.ndarray:
     return np.concatenate([np.clip(rgb, 0, 1), al], -1)
 
 
-INK = np.array([0.16, 0.07, 0.04])  ## the ink of the outline: a warm dark brown (as hero_render.py's hull)
-INK_PX = 1.6  ## atlas px of ink round his outer silhouette (round 8: his only ink; no hull inside)
+INK = np.array([0.1, 0.045, 0.035])  ## the ink of the outline: a warm near-black brown (pass 3: darker, for the pale sky)
+INK_PX = 2.8  ## atlas px of ink round his outer silhouette (pass 3: 1.6 -> 2.2, "almost no value contrast against the sky")
+INK_PX_UI = 2.8  ## the same, scaled to the interface pictures (as before)
+
+
+SUN = np.array([-0.6, -0.8])  ## towards the sun on screen (x right, y down): upper left, as in the world
+RIM_PX = 3.4  ## atlas px of the hot rim on the sun side (hero pass 2: "a thick hot band, not a thin line")
+RIM_DAY = (np.array([1.0, 0.6, 0.24]), 0.55)  ## colour, strength (screen blend)
+RIM_SUNSET = (np.array([1.0, 0.48, 0.12]), 0.75)
+
+
+def sun_rim(arr: np.ndarray, px: float = RIM_PX, rim=RIM_DAY) -> np.ndarray:
+    """A thick hot band inside the silhouette, only on the edges that face the sun (the shadow side's
+    edges keep the dark of the form: no pale fringe inside the ink). Applied before inked()."""
+    a = arr[..., 3]
+    inside = a > 0.5
+    if not inside.any():
+        return arr
+    d, (iy, ix) = ndimage.distance_transform_edt(inside, return_indices=True)
+    yy, xx = np.mgrid[0:a.shape[0], 0:a.shape[1]]
+    vy, vx = iy - yy, ix - xx  # towards the nearest outside pixel: the edge's outward direction
+    n = np.hypot(vx, vy) + 1e-6
+    facing = (vx / n) * SUN[0] + (vy / n) * SUN[1]
+    f = np.clip((facing - 0.15) / 0.5, 0.0, 1.0)
+    f = f * f * (3 - 2 * f)
+    t = np.clip(1.0 - (d - 0.5) / px, 0.0, 1.0)
+    band = (t ** 1.6) * f * inside * rim[1]  # strongest at the edge, a soft fall into the form
+    lum = arr[..., :3] @ np.array([0.3, 0.59, 0.11])
+    band = band * (0.22 + 0.78 * np.clip(lum / 0.4, 0.0, 1.0))  # the black hair stays black (a faint warm sheen)
+    rgb = arr[..., :3]
+    # (pass 3) towards the hot colour, not a screen blend: white fur and boot trim turn warm, never paler
+    # ("pale whitish edges, halos"); skin and scarf brighten into it
+    lit = rgb + (rim[0][None, None, :] - rgb) * band[..., None]
+    out = arr.copy()
+    out[..., :3] = lit
+    return out
 
 
 def inked(arr: np.ndarray, px: float = INK_PX) -> np.ndarray:
@@ -139,7 +176,7 @@ def main() -> None:
         origin = points.get("origin")
         meta[name] = {"fps": fps, "loop": loop, "frames": [], "k": k, "points": points, "origin": origin}
         for i in idx:
-            arr = inked(premultiplied_resize(Image.open(files[i]), k))
+            arr = inked(sun_rim(premultiplied_resize(Image.open(files[i]), k)))
             ys, xs = np.nonzero(arr[..., 3] > 0.004)
             x0, x1 = max(xs.min() - PAD, 0), min(xs.max() + PAD + 1, arr.shape[1])
             y0, y1 = max(ys.min() - PAD, 0), min(ys.max() + PAD + 1, arr.shape[0])
@@ -192,7 +229,7 @@ def main() -> None:
     print(f"{len(frames)} frames, {len(names)} pages, {total / 1e6:.2f} Mpx")
 
 
-def trimmed(path: Path, height: int) -> np.ndarray:
+def trimmed(path: Path, height: int, sunset: bool = False) -> np.ndarray:
     """A render cut to what it shows and reduced to `height` px."""
     img = Image.open(path).convert("RGBA")
     box = img.getchannel("A").point(lambda v: 255 if v > 2 else 0).getbbox()
@@ -200,7 +237,8 @@ def trimmed(path: Path, height: int) -> np.ndarray:
     arr = premultiplied_resize(img, height / img.height)
     pad = np.zeros((arr.shape[0] + 8, arr.shape[1] + 8, 4), np.float32)
     pad[4:-4, 4:-4] = arr
-    return inked(pad, INK_PX * height / 300.0)  # (as thick, for its size, as in the game)
+    pad = sun_rim(pad, RIM_PX * height / 300.0, RIM_SUNSET if sunset else RIM_DAY)
+    return inked(pad, INK_PX_UI * height / 300.0)  # (as thick, for its size, as in the game before pass 3)
 
 
 def save(arr: np.ndarray, name: str, pad: int = 8) -> None:
@@ -212,26 +250,39 @@ def save(arr: np.ndarray, name: str, pad: int = 8) -> None:
     print(name, out.shape[1], out.shape[0])
 
 
-def grounded(arr: np.ndarray) -> np.ndarray:
-    """A figure standing on a soft contact shadow (warm dark, blurred) under his feet."""
+def grounded(arr: np.ndarray, airborne: bool = False) -> np.ndarray:
+    """A figure on the ground (hero pass 2: "floats, no contact shadow"): a wide soft pool of warm-dark
+    shade under him and a tight dark contact where his boots (or his seat) touch the ground."""
     h, w = arr.shape[:2]
-    out = np.zeros((h + int(h * 0.05), w, 4), np.float32)
-    feet = np.nonzero(arr[int(h * 0.95):, :, 3] > 0.5)[1]
-    cx = feet.mean() if feet.size else w / 2
-    span = (feet.max() - feet.min()) if feet.size else w * 0.4
+    extra = int(h * (0.1 if airborne else 0.06))
+    out = np.zeros((h + extra, w, 4), np.float32)
+    a = arr[..., 3]
+    rows = np.nonzero(a.max(1) > 0.5)[0]
+    bottom = rows.max() if rows.size else h - 1
+    band = a[max(0, bottom - int(h * 0.035)):bottom + 1] > 0.5  # what touches the ground
+    cols = np.nonzero(band.any(0))[0]
+    cx = cols.mean() if cols.size else w / 2
+    span = (cols.max() - cols.min()) if cols.size else w * 0.4
     yy, xx = np.mgrid[0:out.shape[0], 0:w]
-    rx, ry = span * 0.62 + w * 0.08, h * 0.022
-    d = ((xx - cx) / rx) ** 2 + ((yy - (h - h * 0.006)) / ry) ** 2
-    shade = np.clip(1.0 - d, 0.0, 1.0) ** 1.5 * 0.55
-    out[..., :3] = np.array([0.12, 0.05, 0.04])
+    gy = bottom + h * (0.05 if airborne else 0.004)  # (a leap: the shadow on the ground below him)
+    rx, ry = span * 0.58 + w * 0.1, h * 0.03
+    pool = np.clip(1.0 - ((xx - cx) / rx) ** 2 - ((yy - gy) / ry) ** 2, 0.0, 1.0) ** 1.4 * 0.5
+    contact = np.zeros((out.shape[0], w), np.float32)
+    foot = band.any(0).astype(np.float32)
+    contact[int(gy) - 1:int(gy) + 2, :] = foot[None, :]
+    contact = ndimage.gaussian_filter(contact, (h * 0.006 + 1.0, h * 0.01 + 1.0))
+    contact = np.clip(contact / max(contact.max(), 1e-6), 0, 1) * (0.3 if airborne else 0.72)
+    shade = 1.0 - (1.0 - pool) * (1.0 - contact)
+    out[..., :3] = np.array([0.1, 0.045, 0.04])
     out[..., 3] = shade
-    a = arr[..., 3:4]
+    fa = a[..., None]
     top = out[:h]
-    top[..., :3] = arr[..., :3] * a + top[..., :3] * (1 - a)
-    top[..., 3:4] = a + top[..., 3:4] * (1 - a)
+    top[..., :3] = arr[..., :3] * fa + top[..., :3] * (1 - fa)
+    top[..., 3:4] = fa + top[..., 3:4] * (1 - fa)
     return out
 
 
+WIN_AIRBORNE = True  ## (hero pass 4: the win is a leap: his shadow on the ground below, softer)
 MENU_PIXELS = 550000  ## the menu picture's pixel budget (with its padding and shadow: no more than round 6's 0.61 Mpx)
 
 
@@ -242,7 +293,7 @@ def pictures() -> None:
     menu and cards expect), the win card's cheer, the game over's defeat (down on one knee, a hand
     on the ground), and the turnaround stands."""
     ui = RENDER.parent / "render_ui"
-    hero = trimmed(ui / "menu_hero/000.png", 1100)
+    hero = trimmed(ui / "menu_hero/000.png", 1100, sunset=True)
     menu = hero
     if hero.shape[0] * hero.shape[1] > MENU_PIXELS:  # a wide pose: as many pixels as an upright one
         k = (MENU_PIXELS / (hero.shape[0] * hero.shape[1])) ** 0.5
@@ -263,8 +314,8 @@ def pictures() -> None:
     full = np.zeros((752, 660, 4), np.float32)
     full[:min(752, arr.shape[0]), :min(660, arr.shape[1])] = arr[:752, :660]
     save(full, "portrait.png", pad=0)
-    save(grounded(trimmed(ui / "win_front/000.png", 900)), "hero_win.png")
-    save(grounded(trimmed(ui / "defeat/000.png", 640)), "hero_defeat.png")
+    save(grounded(trimmed(ui / "win_front/000.png", 900, sunset=True), airborne=WIN_AIRBORNE), "hero_win.png")
+    save(grounded(trimmed(ui / "defeat/000.png", 640, sunset=True)), "hero_defeat.png")
     save(trimmed(RENDER / "idle_front/000.png", 640), "stand_front.png")
     save(trimmed(RENDER / "idle/000.png", 560), "stand_side.png")
 

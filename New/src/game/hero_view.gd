@@ -114,7 +114,9 @@ func _init() -> void:
 	# and a thin dark edge (both stay inside the atlas' 3 px of padding)
 	# (round 4: the ink line and the warm rim are now in the cel-shaded render itself; the shader
 	# only adds a touch of the sun's warmth on the lit edge)
-	_material.set_shader_parameter(&"rim", 1.0)  # (round 8: "backlit by the sun but front-lit")
+	# (hero pass 2: no shader rim: on the atlas' ink it drew a pale band, "a white sticker outline";
+	# the hot sun-side rim is now in the frames, inside the ink: tools/art/hero_atlas.py sun_rim())
+	_material.set_shader_parameter(&"rim", 0.0)
 	_material.set_shader_parameter(&"rim_px", 2.6)
 	_material.set_shader_parameter(&"rim_colour", Color(1.0, 0.86, 0.6))
 	_material.set_shader_parameter(&"rim_dir", Vector2(-0.6, -0.8))
@@ -407,6 +409,10 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 		_material.set_shader_parameter(&"tint", Color(1.0, 0.45, 0.35))
 	_material.set_shader_parameter(&"opacity", visible_k)
 	_material.set_shader_parameter(&"outline_opacity", visible_k * 0.9)  # (his white wraps against the pale sky)
+	# (hero pass 3) at home the campfire, on his left, warms that side of him
+	var home_k := clampf(_end_time / 0.5, 0.0, 1.0) if phase == &"home" else 0.0
+	_material.set_shader_parameter(&"bounce", 0.6 * home_k)
+	_material.set_shader_parameter(&"bounce_scale", 2.0 / maxf(float(region[2]), 1.0))
 	_update_shadow(w, p)
 	if is_instance_valid(_under):
 		_under.queue_redraw()

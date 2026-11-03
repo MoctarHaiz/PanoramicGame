@@ -293,3 +293,61 @@ win and defeat renders; (6) the studio logo; (7) the null texture on the first b
   (STAND_PX 160) and bigger on screen (DRAW_SCALE 1.52: 10 % bigger than round 7), same sheet size.
 - Results: captures and before_after.png in _agents/AAA/art/round_8/; tests log
   _agents/AAA/art/round_8_tests.log. Hero atlas 9.29 Mpx (round 7: 9.49).
+
+## Hero AAA pass (hero3d specialist, live in the user's Blender window)
+
+- The hero now comes from `ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend` (every edit made live through
+  `hero3d/scripts/bl.py`; the user's `Making/` files only read). The audit, each fix and its shots:
+  `hero3d/AUDIT.md`. In short: one character; welded (the 341 UV-seam pieces creased the shading); the
+  muscles calmed into large planes (voxel copy low-passed, the skin shrink-wrapped onto it through a
+  faded group; the user's shape kept as the shape key `AAA_original`); the fringe bent up off his eyes;
+  custom shading normals (skin in planes, face and hair to the head's sphere); rigid armour; a
+  Corrective Smooth on the joints; the loincloth's thigh weights spread along the cloth (no more sheet
+  across the forward thigh); new bones for the scarf's tail and the hair; the base colour cleaned of
+  baked light (eyes and brows kept as painted); one material per region (`m["toon"]`).
+- Actions: `AAA_run` (authored for the game at 26 frames a second: IK foot paths, the planted foot at the
+  ground's speed, so `run_fps` is ~26 and `HeroView.RUN_FPS` keeps the boot planted), `AAA_jump` (the
+  landing planted and flowing into the run's first frame), `AAA_idle`, `AAA_die`; the scarf's tail and
+  the hair simulated and keyed into each (`tools/art/blender/hero_secondary.py`). `ARM["aaa_actions"]`
+  maps them; hero_render.py's `sample_jog()` uses the run as authored (the key art keeps the user's lunge).
+- `toon_material()` → `_region_toon()` for the AAA regions: a cool sky fill on the edges away from the
+  sun, the face lifted out of the deep shade, painted-metal glints on the armour, fur strands on the
+  loincloth. The user's file and the bandit render as before.
+- Renders: `hero3d/render/render_all.sh` → `hero3d/render/game` and `hero3d/render/render_ui`;
+  `tools/art/hero_atlas.py` reads `hero3d/render/game` by default.
+- Results: atlas 8.99 Mpx (3 pages), run_fps 25.4; tests with the bot 1023 checks, 0 failed (exit 0,
+  `hero3d/tests.log`); captures `hero3d/captures/`; before/after `hero3d/before_after/`.
+
+### Hero pass 2 (after the blind judges' h01 critique)
+- `tools/art/blender/hero_toon_aaa.py`: the AAA regions' form shading (4 bands, soft terminator, a cool bounce
+  in the front shade, sun-side sheen hotspots, occlusion, hair strand groups with a broken highlight band,
+  fur tufts and darker roots and underside with a stepped edge, matte scuffed boots and gloves, the engraved
+  steel chakram). `hero_render.py` uses it for every material with `m["toon"]` in the AAA file; importable
+  (`main()` guarded), interface unchanged; the body mesh is the rig's largest child (the chakram is a child too).
+- The pale inner band in play ("white sticker outline") is gone: HeroView's shader rim is off; the hot sun-side
+  rim is drawn into the frames by `hero_atlas.py` `sun_rim()` (inside the silhouette, only on edges facing the
+  sun, under the ink; hotter for the interface pictures); `grounded()` is now a soft pool plus a dark contact.
+- The interface poses are authored by hand on the timeline (`AAA_key_menu`, `AAA_key_win`, `AAA_key_defeat`;
+  `pose_authored()` in hero_render.py): contrapposto with the chakram raised, a joyful knee-up fist pump,
+  sat down dazed rubbing his head. Atlas 8.99 Mpx; tests 1023 checks, 0 failed; captures `hero3d/captures_p2/`.
+
+### Hero pass 3 (after h02: first blind wins on win and game over; the menu lost)
+- Key art re-authored on the timeline: the menu a lunge-throw (one line from the back foot to the throwing
+  hand, the chakram leaving the fingers towards the title, the head lifted and turned to us above the arm);
+  the win side-on with a fist punched up and the armoured fist pumped at the chest (no raised knee); the
+  defeat a comic slump with three dizzy stars (`AAA_DizzyStar_*`, head-bone children shown only for it).
+- Sunset light: a deeper, slightly cooler front, no sunset sheen, a hotter, wider sun-side rim, a small warm
+  face fill. Day: a little more saturation in the light.
+- `hero_atlas.py`: `sun_rim()` lerps towards a hot orange (no pale halo on white fur and boot trim); in-game
+  ink thicker and darker (`INK_PX` 2.2, `INK` (0.10, 0.045, 0.035)); the interface pictures keep 1.6-scaled ink.
+- `actor.gdshader`: an optional warm `bounce` from one side (multiply, ink stays dark); HeroView uses it at
+  home (the campfire on his left).
+
+### Hero pass 4 (after h03: "readability beats backlight", "style mismatch with the chunky UI")
+- Bold cel look (`hero_toon_aaa.py` HERO_TOON=bold, the default): two bands with a crisp terminator, a hot rim
+  band on the silhouette (screen space), no skin bounce or sheen, big skin normal planes, inner ink lines on
+  the body again, outer ink 2.8 px in play and scaled in the interface pictures; the interface pictures
+  front-lit from the front-left (the sunset is the hot back rim); deeper blue boots and gloves; a flat red
+  scarf. Key art re-keyed: the throw with the chakram up in the dark sky, a side-on victory leap (shadow on the
+  ground below), the dazed slump with bigger stars, an orbit trail and a swirl. Atlas 9.08 Mpx; tests
+  1023/0. Every pass's packed set: `ROOT/_agents/AAA/hero3d/passes/` (README there).

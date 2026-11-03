@@ -12,8 +12,13 @@ action or a pose for every frame and renders it; the edited scene can be saved a
   both hands go in DIR/<anim>/points.json: the game places airborne frames by the hips and finds the
   planted foot with them.
 
+The hero comes from ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend (the AAA rebuild of the user's model: welded,
+calmer muscles, the fringe off his eyes, rigid armour, joint smoothing, the scarf's tail and hair on their
+own bones, a cleaned base colour, one material per region, its own actions: see hero3d/AUDIT.md and
+hero3d/render/render_all.sh). The user's ROOT/Making/Animation.blend still renders as before (the bandit).
+
 Usage:
-  Blender -b ROOT/Making/Animation.blend --python tools/art/blender/hero_render.py -- \
+  Blender -b ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend --python tools/art/blender/hero_render.py -- \
       --out DIR [--anims run,jump] [--size 768] [--test] [--save ROOT/_agents/AAA/blender/hero.blend]
 """
 import json
@@ -42,8 +47,13 @@ TEST = bool(arg("--test", False))
 
 SC = bpy.context.scene
 ARM = bpy.data.objects["1_Run"]
-MESH = next(o for o in ARM.children if o.type == "MESH")
+MESH = max((o for o in ARM.children if o.type == "MESH"), key=lambda o: len(o.data.vertices))  # (the body, not a prop)
 ACTIONS = {"run": "mixamo.com", "idle": "mixamo.com.001", "jump": "mixamo.com.002", "die": "mixamo.com.003"}
+# ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend (the AAA hero): its own actions (the run authored at the
+# game's cadence, the landing flowing into it, the hair and scarf's follow-through keyed in)
+AAA = bool(ARM.get("aaa"))
+if ARM.get("aaa_actions"):
+    ACTIONS = dict(json.loads(ARM["aaa_actions"]), user_run=ACTIONS["run"])
 P = "mixamorig:"
 
 
@@ -66,7 +76,7 @@ def setup_scene():
     r.image_settings.file_format = "PNG"
     r.image_settings.color_mode = "RGBA"
     r.image_settings.color_depth = "8"
-    SC.eevee.taa_render_samples = 16 if TEST else 64
+    SC.eevee.taa_render_samples = 16 if TEST else int(os.environ.get("HERO_SAMPLES", "64"))
     # New (round 3, "a vinyl action figure"): no plastic sheen on the skin (rougher, less
     # specular), a little warm light under it (subsurface), the muscle grooves of the normal map
     # flattened; the user's colours, model and proportions unchanged
@@ -261,10 +271,13 @@ LEGS = [P + s + b for s in ("Left", "Right") for b in ("UpLeg", "Leg", "Foot", "
 ARMS = [P + s + b for s in ("Left", "Right") for b in ("Arm", "ForeArm")]
 
 
-def sample_jog(frame):
+def sample_jog(frame, user=False):
     """The run with shorter strides (STRIDE of its leg swing), so his feet keep pace with the game's
-    ground; its flight and bounce shrink with it, the planted foot stays on the ground."""
-    run = sample("run", frame)
+    ground; its flight and bounce shrink with it, the planted foot stays on the ground.
+    (The AAA file's run is authored at the game's cadence and ground speed: used as it is.)"""
+    if AAA and not user:
+        return sample("run", frame)
+    run = sample("user_run" if AAA else "run", frame)
     low_run = min(bone_z("RightToe_End"), bone_z("LeftToe_End"))
     stand = sample("idle", 1)
     pose = dict(run)
@@ -316,18 +329,35 @@ def pose_catch(t):
 
 
 def throw_arm(stage):
-    """The near (right) arm: 0 drawn back behind his head, 1 the release reaching forward."""
+    """The near (right) arm: 0 drawn back behind his head, 1 the release reaching forward.
+    (AAA: with the body in it: the chest coils back on the wind-up, the right shoulder back and the
+    armoured arm forward for balance; on the release the chest whips through, the shoulder leads, the
+    armoured arm swings back; the head stays on the target.)"""
     if stage == 0:
         turn("Spine1", -9)
+        if AAA:
+            turn("Spine1", -16, axis=(0.0, 0.0, 1.0))  # coiled: the right shoulder back
+            turn("Spine", -5)
         turn("Head", 4)
         aim("RightArm", -1.0, 0.25, 0.3)
         aim("RightForeArm", 0.35, 1.0, 0.15)
         aim("RightHand", 0.8, 0.5)
+        if AAA:
+            aim("LeftArm", 0.75, -0.35, -0.3)
+            aim("LeftForeArm", 0.9, 0.3, -0.1)
+            turn("Head", 10, axis=(0.0, 0.0, 1.0))  # eyes stay on the target
     else:
         turn("Spine1", 8)
+        if AAA:
+            turn("Spine1", 14, axis=(0.0, 0.0, 1.0))  # through: the right shoulder leads
+            turn("Spine", 6)
         aim("RightArm", 1.0, 0.1, 0.18)
         aim("RightForeArm", 1.0, 0.05, 0.05)
         aim("RightHand", 1.0, -0.15)
+        if AAA:
+            aim("LeftArm", -0.8, -0.45, -0.3)
+            aim("LeftForeArm", -0.55, -0.1, -0.1)
+            turn("Head", -8, axis=(0.0, 0.0, 1.0))
 
 
 def pose_throw(i, stage):
@@ -446,7 +476,7 @@ def pose_menu(kind):
 def pose_menu_throw():
     """The title screen: mid-throw, a ring leaving his hand, three-quarters towards us."""
     reset_turn()
-    apply(sample_jog(3))
+    apply(sample_jog(3, user=True))  # (the key art keeps the user's lunge)
     throw_arm(1)
     aim("LeftArm", -0.8, -0.25, -0.3)
     aim("LeftForeArm", -0.55, 0.35)
@@ -518,6 +548,20 @@ def _ring_in_hand(hand_bone="RightHand"):
     ring.rotation_euler = (math.radians(78), math.radians(-14), 0.0)
 
 
+def pose_authored(name, chakram=False, stars=False):
+    """An interface pose authored by hand in the live window (ROOT/_agents/AAA/hero3d/scripts/p2_pose.py),
+    kept as a one-frame action; the chakram (bone-parented to his right hand) shown for the title screen."""
+    reset_turn()
+    apply(sample(name, 1))
+    ring = bpy.data.objects.get("AAA_Chakram")
+    if ring is not None:
+        ring.hide_render = not chakram
+    for ob in bpy.data.objects:  # (pass 3) the dizzy stars over his head in the defeat picture
+        if ob.name.startswith(("AAA_DizzyStar", "AAA_DizzyTrail", "AAA_DizzySwirl")):
+            ob.hide_render = not stars
+    bpy.context.view_layer.update()
+
+
 def pose_key_art():
     """The title screen (round 7): the throw, caught as the ring leaves his hand (round 4's dynamic
     pose), turned three-quarters to us, his head turned to us and lifted so his face shows; the ring
@@ -584,11 +628,18 @@ def pose_seated():
     bpy.context.view_layer.update()
 
 
+def pose_turn(k):
+    """The turnaround (reviews only, not in the game): standing, turned k quarters."""
+    apply(sample("idle", 1))
+    ARM.rotation_euler.z = math.radians(-90.0 * k)
+    bpy.context.view_layer.update()
+
+
 def reset_turn():
     ARM.rotation_euler.z = 0.0
-    ring = bpy.data.objects.get("MenuRing")  # only the title screen's picture holds a ring
-    if ring:
-        ring.hide_render = True
+    for ob in bpy.data.objects:  # only the title screen's picture holds a ring, only the defeat has stars
+        if ob.name in ("MenuRing", "AAA_Chakram") or ob.name.startswith(("AAA_DizzyStar", "AAA_DizzyTrail", "AAA_DizzySwirl")):
+            ob.hide_render = True
     bpy.context.view_layer.update()
 
 
@@ -612,6 +663,12 @@ def anims():
     out["menu_hero"] = ("front", [lambda: pose_key_art()], 0.1, 7.0)
     out["defeat"] = ("front", [lambda: pose_seated()], -0.15, 3.0)
     out["win_front"] = ("front", [lambda: pose_celebrate()], 0.15, 7.0)
+    if "key_menu" in ACTIONS:  # (hero pass 2: the poses authored by hand on the timeline)
+        out["menu_hero"] = ("front", [lambda: pose_authored("key_menu", chakram=True)], -0.06, 6.0)
+        out["win_front"] = ("front", [lambda: pose_authored("key_win")], -0.03, 7.0)
+        out["defeat"] = ("front", [lambda: pose_authored("key_defeat", stars=True)], 0.03, -9.0)  # (looking down a little: he sits on the ground)
+    if arg("--turn"):  # the turnaround, for reviews (--anims turn --turn)
+        out["turn"] = ("front", [lambda k=k: pose_turn(k) for k in range(4)], 0.0)
     return out
 
 
@@ -849,6 +906,9 @@ def _math(nt, op, a, b=None, clamp=False):
 
 
 def toon_material(m, mode):
+    if m.get("toon") and AAA:  # the AAA hero's regions: their own form shading (hero_toon_aaa.py)
+        _aaa_toon().build(m, mode)
+        return
     nt = m.node_tree
     out = next(n for n in nt.nodes if n.type == "OUTPUT_MATERIAL")
     bsdf = next((n for n in nt.nodes if n.type == "BSDF_PRINCIPLED"), None)
@@ -965,9 +1025,95 @@ def toon_material(m, mode):
     nt.links.new(_math(nt, "MULTIPLY", hair, 0.05), tint.inputs["Factor"])
     nt.links.new(hair_hi.outputs["Result"], tint.inputs["A"])
     tint.inputs["B"].default_value = (0.2, 0.25, 0.6, 1)
+    final = tint.outputs["Result"]
+    region = m.get("toon")
+    if region:  # the AAA file: one material per region (ROOT/_agents/AAA/hero3d), each its own treatment
+        final = _region_toon(nt, m, mode, region, final, ramp, edge_k, toward, lit_colour)
     em = nt.nodes.new("ShaderNodeEmission")
-    nt.links.new(tint.outputs["Result"], em.inputs["Color"])
+    nt.links.new(final, em.inputs["Color"])
     nt.links.new(em.outputs[0], out.inputs["Surface"])
+
+
+def _aaa_toon():
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import hero_toon_aaa
+    return hero_toon_aaa
+
+
+# per region (AAA file, pass 1; pass 2 uses hero_toon_aaa.py): (cool fill rim strength, metal glint strength)
+REGION_TOON = {
+    "day": {"cool": (0.42, 0.56, 1.0), "cool_k": 0.16, "glint": 0.42},
+    "sunset": {"cool": (0.42, 0.36, 0.95), "cool_k": 0.22, "glint": 0.32},
+}
+
+
+def _mix_rgb(nt, blend, fac, a, b):
+    n = nt.nodes.new("ShaderNodeMix")
+    n.data_type = "RGBA"
+    n.blend_type = blend
+    if isinstance(fac, (int, float)):
+        n.inputs["Factor"].default_value = fac
+    else:
+        nt.links.new(fac, n.inputs["Factor"])
+    for sock, v in (("A", a), ("B", b)):
+        if isinstance(v, tuple):
+            n.inputs[sock].default_value = (*v[:3], 1.0)
+        else:
+            nt.links.new(v, n.inputs[sock])
+    return n.outputs["Result"]
+
+
+def _region_toon(nt, m, mode, region, colour, ramp, edge_k, toward, lit_colour):
+    """The AAA hero's regions: a cool sky fill on the edges away from the sun (every region), a face that
+    never sinks into the deep shade, painted-metal glints on the armour (a crisp highlight, no plastic
+    sheen), fur strands and a root-to-tip value on the loincloth (not flat paper)."""
+    cfg = REGION_TOON[mode]
+    el = ramp.color_ramp.elements
+    if region in ("face", "eye", "hand"):  # readable: the shade lifted towards the mid band
+        lift = 0.62 if region == "face" else 0.4
+        for e in el:
+            c = e.color
+            mid = el[2].color if len(el) > 2 else el[-1].color
+            if e.position < 0.3:
+                e.color = tuple(c[i] * (1 - lift) + mid[i] * lift for i in range(3)) + (1.0,)
+    # the cool fill: edges facing away from the sun take a little sky
+    away = _math(nt, "SUBTRACT", 1.0, toward)
+    cool = _math(nt, "MULTIPLY", _math(nt, "MULTIPLY", edge_k, away), cfg["cool_k"] * (0.4 if region == "hair" else 1.0))
+    colour = _mix_rgb(nt, "SCREEN", cool, colour, cfg["cool"])
+    if region in ("armour_blue", "armour_silver"):
+        # metal: a darker core shade and a crisp glint where the key light reflects (thresholded gloss)
+        for e in el:
+            if e.position < 0.3:
+                e.color = tuple(x * 0.82 for x in e.color[:3]) + (1.0,)
+        gl = _node(nt, "ShaderNodeBsdfGlossy", Roughness=0.12)
+        s2r = nt.nodes.new("ShaderNodeShaderToRGB")
+        nt.links.new(gl.outputs[0], s2r.inputs[0])
+        bw = nt.nodes.new("ShaderNodeRGBToBW")
+        nt.links.new(s2r.outputs["Color"], bw.inputs[0])
+        g = _math(nt, "MAXIMUM", _math(nt, "MINIMUM", _math(nt, "MULTIPLY", _math(nt, "SUBTRACT", bw.outputs[0], 0.9), 8.0), 1.0), 0.0)
+        colour = _mix_rgb(nt, "ADD", _math(nt, "MULTIPLY", g, cfg["glint"] * float(os.environ.get("GLINT_K", "1"))), colour, (1.0, 0.96, 0.88))
+    if region == "fur":
+        # strands: noise on the rest shape, stretched along his height (it follows the cloth), and
+        # the roots under the belt darker than the tips
+        at = nt.nodes.new("ShaderNodeAttribute")
+        at.attribute_name = "rest_co"
+        mp = nt.nodes.new("ShaderNodeMapping")
+        mp.inputs["Scale"].default_value = (140.0, 140.0, 9.0)
+        nt.links.new(at.outputs["Vector"], mp.inputs["Vector"])
+        nz = _node(nt, "ShaderNodeTexNoise", Detail=3.0, Roughness=0.55)
+        nz.inputs["Scale"].default_value = 1.0
+        nt.links.new(mp.outputs[0], nz.inputs["Vector"])
+        sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+        nt.links.new(at.outputs["Vector"], sep.inputs[0])
+        tip = _math(nt, "MAXIMUM", _math(nt, "MINIMUM", _math(nt, "MULTIPLY", _math(nt, "SUBTRACT", 0.07, sep.outputs["Z"]), 4.0), 1.0), 0.0)
+        strand = _math(nt, "ADD", _math(nt, "MULTIPLY", nz.outputs["Fac"], 0.3), 0.82)
+        val = _math(nt, "MULTIPLY", strand, _math(nt, "ADD", _math(nt, "MULTIPLY", tip, 0.12), 0.9))
+        cr = nt.nodes.new("ShaderNodeCombineColor")
+        for i in range(3):
+            nt.links.new(val, cr.inputs[i])
+        colour = _mix_rgb(nt, "MULTIPLY", 1.0, colour, cr.outputs[0])
+        colour = _mix_rgb(nt, "MULTIPLY", 1.0, colour, (1.0, 0.97, 0.9))  # warm cream, never grey paper
+    return colour
 
 
 def ink_hull(ob, width):
@@ -1117,10 +1263,14 @@ def toon_setup():
     SC.view_settings.exposure = 0.0
     SC.world.node_tree.nodes["Background"].inputs["Strength"].default_value = 0.0
     # (round 8: "hatching on the skin reads as grime": the painted grooves almost gone)
-    flatten_textures(r=int(os.environ.get("FLAT_R", "10")), k=float(os.environ.get("FLAT_K", "0.95")))
+    if not MESH.get("aaa_textures"):  # (the AAA file's base colour is already cleaned)
+        flatten_textures(r=int(os.environ.get("FLAT_R", "10")), k=float(os.environ.get("FLAT_K", "0.95")))
     rig = bpy.data.objects["LightRig"]
     # the world's sun: upper left on screen, a little towards us (day) or behind him (sunset)
-    key = add_sun("ToonKey", (1.0, 1.0, 1.0), 3.2, aim_from=(-0.45, 0.65, 0.6) if mode == "day" else (0.55, 0.62, 0.45), angle=1.0)
+    # (hero pass 4, the AAA file: "readability beats physically correct backlight": the interface pictures are
+    # lit from the front-left like the level, the sun behind him is the shader's hot back rim)
+    key_from = (-0.45, 0.65, 0.6) if (mode == "day" or (AAA and os.environ.get("HERO_TOON", "bold") == "bold")) else (0.55, 0.62, 0.45)
+    key = add_sun("ToonKey", (1.0, 1.0, 1.0), 3.2, aim_from=key_from, angle=1.0)
     key.parent = rig
     # a warm bounce from the front (screen right and towards us): his face and chest in the mid band,
     # not the shade (round 6: "his face is entirely in shadow")
@@ -1129,7 +1279,8 @@ def toon_setup():
     fill.parent = rig
     if mode == "sunset":  # and a small light on his face, placed for each pose (face_light())
         data = bpy.data.lights.new("FaceLight", "POINT")
-        data.energy = float(os.environ.get("FACE_W", "1.6"))
+        data.color = (1.0, 0.78, 0.6)
+        data.energy = float(os.environ.get("FACE_W", "0.9" if AAA else "1.6"))  # (AAA: a small warm face fill)
         data.shadow_soft_size = 0.05
         data.use_custom_distance = True
         data.cutoff_distance = 0.32
@@ -1149,6 +1300,11 @@ def toon_setup():
             # inked(). The bandit (dark skin, the lines don't show) and the props keep theirs.
             if ob != MESH or arg("--character") == "bandit":
                 ink_hull(ob, INK_WIDTH if ob == MESH else INK_WIDTH * 0.6)
+    if AAA:  # the props hidden until their pose (the chakram) get their shading too
+        _aaa_toon().build_all(bpy.data.objects, mode)
+        hull = float(os.environ.get("HERO_HULL", "0.0026"))
+        if hull > 0:  # (pass 4) inner ink lines (limb over body), the same weight everywhere: the calmed
+            ink_hull(MESH, hull)  # muscles no longer catch it (round 8 removed it for "grime")
 
 # ------------------------------------------------------------------ render
 
@@ -1229,4 +1385,5 @@ def main():
         bpy.ops.wm.save_as_mainfile(filepath=save, copy=True)
 
 
-main()
+if __name__ == "__main__":  # (Blender's --python runs it as __main__; importing it only defines things)
+    main()
