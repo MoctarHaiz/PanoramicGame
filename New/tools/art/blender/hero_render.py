@@ -22,6 +22,7 @@ import os
 import sys
 
 import bpy
+import numpy as np
 from bpy_extras.object_utils import world_to_camera_view
 from mathutils import Matrix, Quaternion, Vector
 
@@ -466,6 +467,10 @@ def pose_menu_throw():
         b.inputs["Emission Color"].default_value = (0.3, 0.75, 1.0, 1)
         b.inputs["Emission Strength"].default_value = 0.25
         ring.data.materials.append(m)
+        if arg("--style", "toon") == "toon":  # steel in the cel look: light and dark bands, inked
+            b.inputs["Base Color"].default_value = (0.22, 0.45, 0.88, 1)
+            toon_material(m, "sunset" if arg("--light", "day") == "sunset" else "day")
+            ink_hull(ring, INK_WIDTH * 0.5)
     ring.hide_render = False
     hand = ARM.matrix_world @ ARM.pose.bones[P + "RightHand"].tail
     ring.location = hand + Vector((-0.02, -0.06, 0.02))
@@ -478,26 +483,21 @@ def pose_menu_throw():
 
 
 def pose_defeat():
-    """Game over: sat down hard on the ground, dazed, one hand to his head, the other propping him
-    up behind, his knees up, his face turned to us."""
+    """Game over: down on one knee, one hand on the ground, the other on his knee, looking up at us,
+    dazed but unbeaten (a clear silhouette: the knee, the arm to the ground, the raised head)."""
     reset_turn()
-    apply(sample("idle", 1))
-    aim("RightUpLeg", 1.0, 0.15)
-    aim("RightLeg", 0.45, -1.0)
-    aim("RightFoot", 1.0, -0.3)
-    aim("LeftUpLeg", 1.0, 0.0, -0.15)
-    aim("LeftLeg", 0.9, -0.55)
-    aim("LeftFoot", 1.0, -0.2)
-    turn("Spine", -12)
-    aim("RightArm", 0.35, 0.75, 0.35)
-    aim("RightForeArm", -0.55, 0.8, 0.1)
-    aim("RightHand", -0.6, 0.4)
-    aim("LeftArm", -0.55, -0.85, -0.3)
-    aim("LeftForeArm", -0.35, -0.95, -0.1)
-    turn("Head", -10)
-    hips = bone_z("Hips")
-    shift_hips(0.0, 0.11 - hips)  # sitting: his hips on the ground
-    ARM.rotation_euler.z = math.radians(38.0)
+    pose_kneel()
+    aim("RightArm", 0.15, -1.0, 0.35)
+    aim("RightForeArm", 0.35, -0.95, 0.15)
+    aim("RightHand", 0.5, -0.85)
+    aim("LeftArm", 0.6, -0.6, -0.25)
+    aim("LeftForeArm", 0.9, -0.2, -0.1)
+    turn("Spine", -16)
+    turn("Spine1", -6)
+    turn("Neck", -12)
+    turn("Head", -14)
+    plant(0.0, knees=True)
+    ARM.rotation_euler.z = math.radians(-40.0)  # seen from the side, turned to us
     bpy.context.view_layer.update()
 
 
@@ -526,7 +526,7 @@ def anims():
     out["win"] = ("side", [lambda i=i: pose_win(i / 23.0) for i in range(24)], 0.2)
     out["menu"] = ("front", [lambda k=k: pose_menu(k) for k in range(4)], 0.1)
     out["menu_hero"] = ("front", [lambda: pose_menu_throw()], 0.1)
-    out["defeat"] = ("front", [lambda: pose_defeat()], 0.0)
+    out["defeat"] = ("side", [lambda: pose_defeat()], 0.0)
     out["win_front"] = ("side", [lambda: pose_win(0.62, face_turn=-100.0)], 0.2)
     return out
 
@@ -713,6 +713,209 @@ def bandit_anims():
     out["b_club"] = ("other_side", [lambda: club_alone()])
     return out
 
+
+# ------------------------------------------------------------------ the toon look (round 4)
+# One rendering language with the painted world (like PoP: The Lost Crown's characters): flat cel
+# bands from the world's sun (no specular sheen, no normal-map muscle grooves), a cool violet shade
+# band (a warm-dark one when backlit), a warm rim on the edges facing the sun, the hair as a dark
+# blue-black mass with a painted highlight band, and an ink line: an inverted hull (thin, on every
+# contour and where one limb crosses another); tools/art/hero_atlas.py thickens it round the
+# silhouette.
+
+TOON = {
+    # shade, mid, lit (multipliers of the albedo), rim colour, rim strength, rim width
+    "day": ((0.5, 0.43, 0.62), (0.8, 0.72, 0.7), (1.06, 0.98, 0.88), (1.0, 0.8, 0.5), 0.55, 0.58),
+    "sunset": ((0.6, 0.43, 0.45), (0.82, 0.64, 0.58), (1.05, 0.86, 0.68), (1.0, 0.55, 0.2), 1.1, 0.5),
+}
+INK = (0.055, 0.025, 0.035)
+INK_WIDTH = 0.0042  ## scene units (about 1.3 px in the game's atlas)
+
+
+def _node(nt, kind, **inputs):
+    n = nt.nodes.new(kind)
+    for k, v in inputs.items():
+        n.inputs[k].default_value = v
+    return n
+
+
+def _math(nt, op, a, b=None, clamp=False):
+    n = nt.nodes.new("ShaderNodeMath")
+    n.operation = op
+    n.use_clamp = clamp
+    for i, v in enumerate((a, b)):
+        if v is None:
+            continue
+        if isinstance(v, (int, float)):
+            n.inputs[i].default_value = v
+        else:
+            nt.links.new(v, n.inputs[i])
+    return n.outputs[0]
+
+
+def toon_material(m, mode):
+    nt = m.node_tree
+    out = next(n for n in nt.nodes if n.type == "OUTPUT_MATERIAL")
+    bsdf = next((n for n in nt.nodes if n.type == "BSDF_PRINCIPLED"), None)
+    if bsdf is None:
+        return
+    emit = bsdf.inputs["Emission Strength"].default_value
+    if emit > 0.5:  # glowing eyes stay as they are
+        return
+    base_link = next((l for l in nt.links if l.to_socket == bsdf.inputs["Base Color"]), None)
+    if base_link:
+        albedo = base_link.from_socket
+    else:
+        rgb = nt.nodes.new("ShaderNodeRGB")
+        rgb.outputs[0].default_value = bsdf.inputs["Base Color"].default_value
+        albedo = rgb.outputs[0]
+    shade, mid, lit, rim_c, rim_k, rim_w = TOON[mode]
+    diffuse = _node(nt, "ShaderNodeBsdfDiffuse", Color=(1, 1, 1, 1))
+    s2r = nt.nodes.new("ShaderNodeShaderToRGB")
+    nt.links.new(diffuse.outputs[0], s2r.inputs[0])
+    bw = nt.nodes.new("ShaderNodeRGBToBW")
+    nt.links.new(s2r.outputs["Color"], bw.inputs[0])
+    ramp = nt.nodes.new("ShaderNodeValToRGB")
+    ramp.color_ramp.interpolation = "LINEAR"
+    el = ramp.color_ramp.elements
+    el[0].position, el[0].color = 0.0, (*shade, 1)
+    el[1].position, el[1].color = 1.0, (*lit, 1)
+    for pos, col in ((0.16, shade), (0.22, mid), (0.5, mid), (0.56, lit)):
+        e = el.new(pos)
+        e.color = (*col, 1)
+    nt.links.new(bw.outputs[0], ramp.inputs["Fac"])
+    colour = nt.nodes.new("ShaderNodeMix")
+    colour.data_type = "RGBA"
+    colour.blend_type = "MULTIPLY"
+    colour.inputs["Factor"].default_value = 1.0
+    nt.links.new(albedo, colour.inputs["A"])
+    nt.links.new(ramp.outputs["Color"], colour.inputs["B"])
+    # view-space normal: how much it faces away from us (the edge), and towards the sun's side
+    geo = nt.nodes.new("ShaderNodeNewGeometry")
+    vt = nt.nodes.new("ShaderNodeVectorTransform")
+    vt.vector_type = "NORMAL"
+    vt.convert_from, vt.convert_to = "WORLD", "CAMERA"
+    nt.links.new(geo.outputs["Normal"], vt.inputs[0])
+    sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+    nt.links.new(vt.outputs[0], sep.inputs[0])
+    facing = _math(nt, "ABSOLUTE", sep.outputs["Z"])
+    edge = _math(nt, "SUBTRACT", 1.0, facing)
+    edge_k = _math(nt, "MAXIMUM", _math(nt, "MINIMUM", _math(nt, "MULTIPLY", _math(nt, "SUBTRACT", edge, rim_w), 5.0), 1.0), 0.0)
+    toward = _math(nt, "ADD", _math(nt, "MULTIPLY", sep.outputs["X"], -0.7), _math(nt, "MULTIPLY", sep.outputs["Y"], 0.7))
+    toward = _math(nt, "MAXIMUM", _math(nt, "MINIMUM", _math(nt, "MULTIPLY", toward, 2.2), 1.0), 0.0)
+    rim = _math(nt, "MULTIPLY", _math(nt, "MULTIPLY", edge_k, toward), rim_k)
+    rim_rgb = nt.nodes.new("ShaderNodeMix")
+    rim_rgb.data_type = "RGBA"
+    rim_rgb.blend_type = "ADD"
+    nt.links.new(rim, rim_rgb.inputs["Factor"])
+    nt.links.new(colour.outputs["Result"], rim_rgb.inputs["A"])
+    rim_rgb.inputs["B"].default_value = (*rim_c, 1)
+    # the hair (the darkest of the albedo): blue-black, with a painted highlight band across it
+    luma = nt.nodes.new("ShaderNodeRGBToBW")
+    nt.links.new(albedo, luma.inputs[0])
+    hair = _math(nt, "SUBTRACT", 1.0, _math(nt, "MINIMUM", _math(nt, "MAXIMUM", _math(nt, "MULTIPLY", _math(nt, "SUBTRACT", luma.outputs[0], 0.07), 12.0), 0.0), 1.0))
+    band = _math(nt, "MULTIPLY",
+                 _math(nt, "MAXIMUM", _math(nt, "MINIMUM", _math(nt, "MULTIPLY", _math(nt, "SUBTRACT", sep.outputs["Y"], 0.32), 10.0), 1.0), 0.0),
+                 _math(nt, "MAXIMUM", _math(nt, "MINIMUM", _math(nt, "MULTIPLY", _math(nt, "SUBTRACT", 0.62, sep.outputs["Y"]), 10.0), 1.0), 0.0))
+    hair_hi = nt.nodes.new("ShaderNodeMix")
+    hair_hi.data_type = "RGBA"
+    hair_hi.blend_type = "ADD"
+    nt.links.new(_math(nt, "MULTIPLY", _math(nt, "MULTIPLY", band, hair), 0.2 if mode == "day" else 0.12), hair_hi.inputs["Factor"])
+    nt.links.new(rim_rgb.outputs["Result"], hair_hi.inputs["A"])
+    hair_hi.inputs["B"].default_value = (0.55, 0.62, 0.85, 1)
+    tint = nt.nodes.new("ShaderNodeMix")
+    tint.data_type = "RGBA"
+    tint.blend_type = "ADD"
+    nt.links.new(_math(nt, "MULTIPLY", hair, 0.05), tint.inputs["Factor"])
+    nt.links.new(hair_hi.outputs["Result"], tint.inputs["A"])
+    tint.inputs["B"].default_value = (0.2, 0.25, 0.6, 1)
+    em = nt.nodes.new("ShaderNodeEmission")
+    nt.links.new(tint.outputs["Result"], em.inputs["Color"])
+    nt.links.new(em.outputs[0], out.inputs["Surface"])
+
+
+def ink_hull(ob, width):
+    """The ink line: a hull a little larger than the body, its inside faces only (backface culling)."""
+    ink = bpy.data.materials.get("Ink")
+    if ink is None:
+        ink = bpy.data.materials.new("Ink")
+        ink.use_nodes = True
+        nt = ink.node_tree
+        for n in list(nt.nodes):
+            if n.type != "OUTPUT_MATERIAL":
+                nt.nodes.remove(n)
+        em = _node(nt, "ShaderNodeEmission", Color=(*INK, 1))
+        nt.links.new(em.outputs[0], next(n for n in nt.nodes if n.type == "OUTPUT_MATERIAL").inputs["Surface"])
+        ink.use_backface_culling = True
+    ob.data.materials.append(ink)
+    md = ob.modifiers.new("Ink", "SOLIDIFY")
+    md.thickness = width
+    md.offset = 1.0
+    md.use_flip_normals = True
+    md.use_rim = False
+    md.material_offset = len(ob.data.materials) - 1
+
+
+def _box(a, r):
+    """A box blur of radius r (pixels) along both axes, wrapping (cumulative sums)."""
+    for axis in (0, 1):
+        c = np.cumsum(np.concatenate([a.take(range(-r - 1, 0), axis), a, a.take(range(0, r), axis)], axis), axis)
+        n = a.shape[axis]
+        a = (c.take(range(2 * r + 1, 2 * r + 1 + n), axis) - c.take(range(0, n), axis)) / (2 * r + 1)
+    return a
+
+
+def flatten_textures(size=2048, r=4, k=0.6):
+    """The base colour pictures have the muscles painted in (dark grooves): a softened copy, mixed
+    back in, so the cel bands carry the form instead of the painted grooves."""
+    done = {}
+    for m in MESH.data.materials:
+        if not m or not m.node_tree:
+            continue
+        bsdf = next((n for n in m.node_tree.nodes if n.type == "BSDF_PRINCIPLED"), None)
+        if bsdf is None:
+            continue
+        tex = next((n for n in m.node_tree.nodes if n.type == "TEX_IMAGE" and any(
+            l.to_node == bsdf or l.to_node.type in ("RGBTOBW",) for l in n.outputs[0].links)), None)
+        if tex is None or tex.image is None:
+            continue
+        if tex.image.name not in done:
+            img = tex.image.copy()
+            img.scale(size, size)
+            px = np.empty(size * size * 4, np.float32)
+            img.pixels.foreach_get(px)
+            a = px.reshape(size, size, 4)
+            soft = _box(_box(a[..., :3], r), r)
+            a[..., :3] = a[..., :3] * (1.0 - k) + soft * k
+            img.pixels.foreach_set(a.ravel())
+            done[tex.image.name] = img
+        tex.image = done[tex.image.name]
+
+
+def toon_setup():
+    mode = "sunset" if arg("--light", "day") == "sunset" else "day"
+    for ob in list(bpy.data.objects):
+        if ob.type == "LIGHT":
+            bpy.data.objects.remove(ob, do_unlink=True)
+    SC.view_settings.view_transform = "Standard"
+    SC.view_settings.look = "None"
+    SC.view_settings.exposure = 0.0
+    SC.world.node_tree.nodes["Background"].inputs["Strength"].default_value = 0.0
+    flatten_textures()
+    rig = bpy.data.objects["LightRig"]
+    # the world's sun: upper left on screen, a little towards us (day) or behind him (sunset)
+    key = add_sun("ToonKey", (1.0, 1.0, 1.0), 3.2, aim_from=(-0.45, 0.65, 0.6) if mode == "day" else (0.55, 0.62, 0.45), angle=1.0)
+    key.parent = rig
+    seen = set()
+    for ob in bpy.data.objects:
+        if ob.type != "MESH" or ob.hide_render:
+            continue
+        for m in ob.data.materials:
+            if m and m.name not in seen and m.name != "Ink":
+                seen.add(m.name)
+                toon_material(m, mode)
+        if ob == MESH or (ob.parent == ARM and ob.data.materials and ob.data.materials[0].name != "Eyes"):
+            ink_hull(ob, INK_WIDTH if ob == MESH else INK_WIDTH * 0.6)
+
 # ------------------------------------------------------------------ render
 
 POINTS = {"hips": ("Hips", "head"), "head": ("HeadTop_End", "head"), "toe_r": ("RightToe_End", "head"),
@@ -778,6 +981,8 @@ def main():
     if arg("--character") == "bandit":
         make_bandit()
         table = bandit_anims()
+    if arg("--style", "toon") == "toon":
+        toon_setup()
     wanted = arg("--anims", ",".join(table)).split(",")
     for name in wanted:
         render(name, *table[name])

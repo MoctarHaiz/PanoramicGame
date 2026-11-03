@@ -101,11 +101,11 @@ func _init(w: World, b: World.Bandit) -> void:
 	_material = ShaderMaterial.new()
 	_material.shader = preload("res://src/game/actor.gdshader")
 	# as on Panoramic: a warm rim on its sun side and a thin dark edge, so it reads at phone size
-	_material.set_shader_parameter(&"rim", 0.8)
+	_material.set_shader_parameter(&"rim", 0.4)  # (the ink and rim are in its cel-shaded render)
 	_material.set_shader_parameter(&"rim_px", 2.0)
 	_material.set_shader_parameter(&"rim_colour", Color(1.0, 0.8, 0.55))
 	_material.set_shader_parameter(&"rim_dir", Vector2(-0.6, -0.8))
-	_material.set_shader_parameter(&"outline_px", 1.2)
+	_material.set_shader_parameter(&"outline_px", 0.0)
 	_material.set_shader_parameter(&"outline_colour", Color(0.08, 0.03, 0.1, 0.85))
 	_sprite.material = _material
 	add_child(_sprite)

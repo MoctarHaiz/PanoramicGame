@@ -20,7 +20,7 @@ import numpy as np
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).parent))
-from hero_atlas import bleed, premultiplied_resize  # noqa: E402
+from hero_atlas import bleed, inked, premultiplied_resize  # noqa: E402
 
 NEW = Path(__file__).resolve().parents[2]
 ROOT = next(p for p in NEW.parents if (p / "Making").is_dir())
@@ -41,7 +41,7 @@ def frame(anim: str, i: int):
     points = json.loads((folder / "points.json").read_text())
     img = Image.open(folder / f"{i:03d}.png")
     k = SCALE * 1024.0 / points["size"]
-    arr = premultiplied_resize(img, k)
+    arr = inked(premultiplied_resize(img, k), 2.0)  # a strong outline: he reads on the grass
     origin = np.array(points["origin"]) * k
     pts = {key: np.array(v) * k for key, v in points["frames"][i].items()}
     return arr, origin, pts

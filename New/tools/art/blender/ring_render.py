@@ -58,15 +58,15 @@ links.new(sep.outputs["X"], comb.inputs["X"])
 links.new(sep.outputs["Y"], comb.inputs["Y"])
 links.new(comb.outputs["Vector"], length.inputs[0])
 ramp = nodes.new("ShaderNodeValToRGB")
-ramp.color_ramp.elements[0].position = 0.86
+ramp.color_ramp.elements[0].position = 0.93
 ramp.color_ramp.elements[0].color = (1, 1, 1, 1)
 ramp.color_ramp.elements[1].position = 0.98
 ramp.color_ramp.elements[1].color = (0, 0, 0, 1)
 links.new(length.outputs["Value"], ramp.inputs["Fac"])
-bsdf.inputs["Emission Color"].default_value = (0.35, 0.8, 1.0, 1)
+bsdf.inputs["Emission Color"].default_value = (0.15, 0.5, 1.0, 1)
 gain = nodes.new("ShaderNodeMath")
 gain.operation = "MULTIPLY"
-gain.inputs[1].default_value = 9.0
+gain.inputs[1].default_value = 3.0
 links.new(ramp.outputs["Color"], gain.inputs[0])
 links.new(gain.outputs["Value"], bsdf.inputs["Emission Strength"])
 ring.data.materials.append(mat)

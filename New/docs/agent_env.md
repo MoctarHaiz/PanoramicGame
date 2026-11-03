@@ -142,3 +142,36 @@ Worktree: `_agents/wt/env/New`. Captures: `_agents/AAA/env/round_<n>/`. Owns `wo
   -> 0.37 MB): world art 19.2 -> 19.0 MB.
 - Timer lambdas: none left in world_view.gd (its two delayed calls became tweens on their nodes in
   round 2); the one in base is in src/ui/results_panel.gd:175 (ux).
+
+## Round 4
+
+- The seam (a dark purple rectangle with a hard left edge right of the pillar): my cast shadow,
+  opaque at the wall's cell edge while the eroded wall stands further in. The shadow now fades in
+  from the wall (cast_shade()), softer and less purple, lighter over the front blades.
+- Values: haze only on the far layers (mesas, far hills, the far tree row); the mid hills, the nearer
+  tree rows and the tall grass darker and richer (haze.gdshader `tint`); haze bands thinned.
+- Sun: a smaller hot disc, a golden bloom, a wide orange halo (it read as a grey-white smudge).
+- Earth forms: walls in beds of rock (a dark crack under each bed, its top face lit, each bed its own
+  tone), darker where they meet the ground; banks muddy at the waterline with a wandering edge.
+- The vine hangs between knots tied at different heights, each span its own sag (not a straight
+  stripe under the HUD); his hands follow it (WorldView adds sag_at()).
+- Clouds flatter and longer, lavender shade and peach-gold light (the mesas' palette), painted marks.
+- Acacias: each leans its own way (a skew about its foot), on top of the size, width and grove changes.
+- Home: the family shaded and lit (a shadow tone, a lit mid-tone, a rim; the pot round, lit, a glint);
+  the hut's long shadow on the yard's grass.
+- Camera: on a high ledge (feet above y ~300) it stays close and rises with him (his feet 74 % down,
+  never above the vine under the HUD), only where all of World.camera_must_see() fits and stays
+  fitting a further ~1.4 s of run ahead (it is down again before a drop ahead must show); clamped to
+  that rect every frame. Gameplay's camera checks pass (1015 checks). The climb shot's moment is at
+  the top of the steps over the pool, which must show: that shot keeps the whole height.
+- Memory: world art 19.0 MB (clouds smaller; nothing added).
+- QA round 4: the seam (ENV-1) fixed as above, front_cast trimmed to the blades' lower half at 45 %;
+  the island's hard cut (ENV-2): the hanging masses stay 44 units inside the ledge's ends, a ledge's
+  ends taper rounder and deeper, and the old strip of earth under a ledge's cells (it stopped square
+  a cell before the end) is no longer drawn (underside.png no longer loaded); the Red Bobs at the bottom
+  of the climb shot: the foreground clumps are lower (24-40 units, rarely 44-62), none hides them;
+  GP-1: the camera draws back faster (9/s); the world effects node lost its z_index 10 (it drew over
+  the HUD): it stays over the level by being WorldView's last child.
+- Perf (iPhone 15, whole level): texture memory in play 77.2 MB (under 80), 92.8 after a pause,
+  113.6 back on the menu; worst own work in play 7.55 ms; level open worst frame 119 ms (81 in my
+  round 3 run; the merge now adds the warm-up deferred, and the machine was shared).

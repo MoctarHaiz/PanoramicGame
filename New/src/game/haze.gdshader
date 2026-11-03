@@ -5,9 +5,10 @@ shader_type canvas_item;
 uniform vec4 haze_colour : source_color = vec4(0.96, 0.78, 0.57, 1.0);
 uniform float amount : hint_range(0.0, 1.0) = 0.3;
 uniform float foot : hint_range(0.0, 1.0) = 0.25;  // extra haze over the lowest part of the sprite
+uniform vec4 tint : source_color = vec4(1.0);  // round 4: near layers darker and richer (haze only far away)
 
 void fragment() {
 	vec4 t = texture(TEXTURE, UV);
 	float k = clamp(amount + foot * smoothstep(0.6, 1.0, UV.y), 0.0, 1.0);
-	COLOR = vec4(mix(t.rgb, haze_colour.rgb, k), t.a * COLOR.a);
+	COLOR = vec4(mix(t.rgb * tint.rgb, haze_colour.rgb, k), t.a * COLOR.a);
 }

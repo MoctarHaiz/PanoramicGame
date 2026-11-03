@@ -98,3 +98,17 @@ kept alive by test lambdas that capture them).
 - perf: RAM column (MEMORY_STATIC). Merge: menu 63, run 112 before the pause, menu again 140.6 MB; RAM 143 MB in
   play; draw calls 187 mean / 512 max (down); level open 317 ms; frames pass.
 - Outputs: AAA/qa/round_3/ (bugs.md, audit, sheets, crops, perf_*).
+
+## Round 4 (audit of the round 3 merge, d289a14)
+
+- Seam = TerrainView's cast shadow (`cast` + `front_cast`), found by A/B hiding (`strip.gd --hide`, new). The island's
+  "hard cut" = the `mass` layer past the island's end. The "white ring face" Bob = WorldView._on_bob's ring/glow in
+  view.fx (z 10) drawn over the joy-faced flier in _fliers (z 0).
+- Merge points: hide list misses the tutorial and start card (ghosts when paused in a lesson: new capture shots
+  `lesson`, `lesson_pause`); warm-up works (level open 102-124 ms wall, 63 ms own, was ~310); fireworks in, but the
+  win reveal peaks at 959 draw calls / ~10k objects and the confetti lands on the text.
+- Perf iPhone 15: play 77.3 MB until the first pause, then 92.9 (pause panel +9, countdown digit +8); results 105.5;
+  menu after a run 113.7 MB; RAM 55-120 MB.
+- `_gp_camera` (gameplay) is flaky under load: 1-2 failures per full run, frames 36-39 (camera eases behind a jump in
+  camera_must_see). Reported; not my function.
+- capture: `throw`/`hurt` bandit placed short of a wall.

@@ -72,14 +72,16 @@ def sun() -> Image.Image:
     s = 512
     yy, xx = np.mgrid[0:s, 0:s]
     r = np.hypot(xx - s / 2, yy - s / 2) / (s / 2)
-    disc_r = 0.11
+    disc_r = 0.08
     disc = 1 - smooth(disc_r - 0.012, disc_r + 0.004, r)
     # round 2: the sun now sits low in the picture: a tighter, more golden glow (the wide pale one
     # washed out the left third of the screen)
-    glow = np.exp(-(r / 0.14) ** 2) * 0.85 + np.exp(-(r / 0.32) ** 1.6) * 0.38 + np.exp(-(r / 0.8) ** 2) * 0.1
+    # round 4: a warm sun with a soft bloom (it read as a grey-white smudge): a smaller hot disc,
+    # a golden bloom round it, a faint wide orange halo
+    glow = np.exp(-(r / 0.1) ** 2) * 0.9 + np.exp(-(r / 0.26) ** 1.5) * 0.5 + np.exp(-(r / 0.7) ** 2) * 0.14
     glow *= 1 - smooth(0.85, 1.0, r)
-    core = hexc("fff4d0")
-    halo = hexc("ff9c3c")
+    core = hexc("ffeab4")
+    halo = hexc("ff8a28")
     # additive: the colour is the light added; alpha unused (1) but kept for premultiplication
     light = halo * glow[..., None] + (core - halo * glow[..., None]) * disc[..., None]
     a = np.clip(np.maximum(glow, disc), 0, 1)
@@ -135,11 +137,12 @@ def cloud(seed: int, w: int = 1000, h: int = 440) -> Image.Image:
         mid = 1 - abs(i / (n - 1) - 0.4) * 1.6
         rad = r.uniform(70, 100) * (0.6 + 0.8 * max(mid, 0.15))
         cy = base - rad * r.uniform(0.45, 0.75)
-        puff(cx, cy, rad * 1.15, rad)
+        cy = base - rad * r.uniform(0.25, 0.4)  # round 4: low, long heads (painted like the mesas)
+        puff(cx, cy, rad * 1.7, rad * 0.62)
         for _ in range(5):  # puffs crowning each head
             a = r.uniform(np.pi * 1.1, np.pi * 1.9)
             pr = rad * r.uniform(0.38, 0.62)
-            puff(cx + np.cos(a) * rad * 0.7, cy + np.sin(a) * rad * 0.62, pr * 1.1, pr)
+            puff(cx + np.cos(a) * rad * 0.9, cy + np.sin(a) * rad * 0.4, pr * 1.6, pr * 0.6)
     for x in np.linspace(w * 0.08, w * 0.92, 14):  # the long flat base
         puff(x + r.uniform(-12, 12), base - r.uniform(4, 20), r.uniform(60, 90), r.uniform(24, 34))
     dens *= 1 - smooth(base + 4, base + 34, yy)  # a flat bottom, softly
@@ -150,11 +153,12 @@ def cloud(seed: int, w: int = 1000, h: int = 440) -> Image.Image:
     lam = normals_light(height, 1.0)
     under = smooth(base - 110, base + 10, yy)  # the shaded belly
     t = np.clip(lam * 1.15 - under * 0.45 + 0.08, 0, 1)
-    col = ramp(t, [(0.0, "8ea4c6"), (0.32, "b7c3d8"), (0.58, "eadfd6"), (0.8, "fff3e2"), (1.0, "fffbf2")])
+    # round 4: the mesas' palette: lavender in the shade (not a heavy blue), peach and gold where lit
+    col = ramp(t, [(0.0, "8f7f9f"), (0.32, "b49fb2"), (0.58, "e6c1ac"), (0.8, "ffdcb0"), (1.0, "fff0d2")])
     # the sun side: a warm gold rim where the cloud thins towards the upper left
     edge = np.clip(cov - np.roll(np.roll(cov, 9, axis=0), 9, axis=1), 0, 1)
-    col = mix(col, hexc("fff0c4"), blur(edge, 2.0) * 0.7)
-    col += strokes(h, w, r, length=30, width=2.0, wrap_x=False)[..., None] * 3
+    col = mix(col, hexc("ffd890"), blur(edge, 2.0) * 0.7)
+    col += strokes(h, w, r, length=60, width=2.0, wrap_x=False)[..., None] * 7  # long painted marks
     a = np.clip(cov, 0, 1) * (0.94 - 0.25 * under)  # the belly lets a little sky through
     img = dither_rgba(np.clip(col, 0, 255), a, r)
     img = img.crop(img.getbbox())
@@ -466,7 +470,7 @@ def fg_grass() -> Image.Image:
     x = rng.uniform(0, 120)
     while x < w - 60:
         half = rng.uniform(50, 140)
-        tall = rng.uniform(34, 56) if rng.random() < 0.8 else rng.uniform(66, 96)
+        tall = rng.uniform(24, 40) if rng.random() < 0.85 else rng.uniform(44, 62)  # (round 4: lower: nothing hidden)
         clumps.append((x + half, half, tall))
         x += half * 2 + rng.uniform(10, 150)  # (round 2: denser, a frame along the whole edge)
     for cx, half, tall in clumps:

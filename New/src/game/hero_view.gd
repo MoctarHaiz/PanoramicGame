@@ -112,11 +112,13 @@ func _init() -> void:
 	_material.shader = preload("res://src/game/actor.gdshader")
 	# so he reads at phone size: a warm rim on the edges facing the sun (2-3 px on a 1179 px screen)
 	# and a thin dark edge (both stay inside the atlas' 3 px of padding)
-	_material.set_shader_parameter(&"rim", 1.35)
-	_material.set_shader_parameter(&"rim_px", 3.0)
+	# (round 4: the ink line and the warm rim are now in the cel-shaded render itself; the shader
+	# only adds a touch of the sun's warmth on the lit edge)
+	_material.set_shader_parameter(&"rim", 0.45)
+	_material.set_shader_parameter(&"rim_px", 2.0)
 	_material.set_shader_parameter(&"rim_colour", Color(1.0, 0.86, 0.6))
 	_material.set_shader_parameter(&"rim_dir", Vector2(-0.6, -0.8))
-	_material.set_shader_parameter(&"outline_px", 1.8)
+	_material.set_shader_parameter(&"outline_px", 0.0)
 	_material.set_shader_parameter(&"outline_colour", Color(0.08, 0.03, 0.05, 1.0))
 	_sprite.material = _material
 	add_child(_sprite)

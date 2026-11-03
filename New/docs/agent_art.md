@@ -188,3 +188,29 @@ win and defeat renders; (6) the studio logo; (7) the null texture on the first b
   gameover, game, climb, hang, home), strips `round_3/strips/` (bandit_swing, hurt, run, home).
 - Short: the sitting defeat reads as falling at card size (UX shows it tilted); at phone size the
   bandit's swing is still small; the hero in play is still small (env's zoom).
+
+## Round 4: one rendering language (cel shading, ink)
+
+- `hero_render.py` `toon_setup()` (default; `--style pbr` keeps the old look): every material
+  becomes a cel shader (Diffuse -> Shader to RGB -> 3 soft bands: cool violet shade, warm mid, warm
+  lit; times the albedo; an emission, so no specular sheen at all), a warm rim on the edges facing
+  the sun (view-space normal, upper left on screen), the hair blue-black with a painted highlight
+  band; one key sun in the world's direction (upper left; behind him for `--light sunset`), no
+  other light, Standard view transform. The base colour picture's painted muscle grooves are
+  softened (`flatten_textures()`: a box-blurred copy mixed in at 60 %). An ink line: an inverted
+  hull (Solidify, flipped, backface-culled dark emission, 0.0042 units), also on the bandit's mask,
+  club and crest and on the menu's ring.
+- `hero_atlas.py` / `bandit_sheet.py`: `inked()` thickens the ink round the outer silhouette (1.6
+  atlas px; 2.0 for the bandit; scaled for the interface pictures); the inside lines stay thin.
+- In-game: the shader's own outline is off (the render carries it), its rim a light touch.
+- The ring: no pale halo or launch disc in RingView; the 3D ring's inner glow thinner and bluer,
+  inked (`fx/ring_spin.png`).
+- The Red Bob "white ring face": it is the pickup's glow (`Fx.glow(... 0.25 ...)` in
+  `WorldView._on_bob`, env's file; and audio's `Fx.bob_pop`) drawn as a small disc over the
+  flying Bob's face: asked env/audio to start it bigger than the ball or draw it behind.
+- The interface pictures (`--light sunset`): the bands lifted (the backlit front read as a black
+  shape on the win card), the orange rim kept. Defeat: on one knee, a hand to the ground, head up,
+  seen from the side turned to us (the sitting pose read as a fall).
+- Atlas: SCALE 0.41 -> 0.40 so the ink line costs no memory: 9.49 Mpx in 3 pages (round 3: 9.56).
+- Tests with the bot: 1012 checks, 0 failed, exit 0; the bot gets home (3 lives, 82 Red Bobs).
+- Captures `_agents/AAA/art/round_4/` (iPhone 15, --ads=off) and `before_after.png`.

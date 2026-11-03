@@ -24,7 +24,7 @@ ROOT = next(p for p in NEW.parents if (p / "Making").is_dir())  # the folder wit
 RENDER = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "_agents/AAA/blender/render"
 GROUND_SPEED = 8.0 * 960.0 / 1320.0 * 40.0  ## units a second the ground scrolls (World.SCROLL_SPEED)
 OUT = NEW / "assets/art/hero"
-SCALE = 0.41  ## render px -> atlas px (1024 renders: he stands ~690 px, ~283 px in the atlas)
+SCALE = 0.40  ## render px -> atlas px (1024 renders: he stands ~690 px, ~276 px in the atlas; the ink line costs a little room)
 DRAW_HEIGHT = 150.0  ## units he stands in the game (GameArt.HERO_DRAW_HEIGHT)
 STAND_PX = 690.0  ## his standing height (boots to hair) in a 1024 render
 PAGE = 2048
@@ -56,6 +56,25 @@ def premultiplied_resize(img: Image.Image, k: float) -> np.ndarray:
     al = small[..., 3:4]
     rgb = np.where(al > 1e-4, small[..., :3] / np.maximum(al, 1e-4), 0.0)
     return np.concatenate([np.clip(rgb, 0, 1), al], -1)
+
+
+INK = np.array([0.055, 0.025, 0.035])  ## the ink of the outline (as in hero_render.py's hull)
+INK_PX = 1.6  ## atlas px the outline round the silhouette is thickened by (the hull draws ~1.3 more)
+
+
+def inked(arr: np.ndarray, px: float = INK_PX) -> np.ndarray:
+    """A frame with a thicker ink line round its outer silhouette (anti-aliased), under the figure:
+    the cel look's outline reads against the pale sky at phone size, inside lines stay thin."""
+    a = arr[..., 3]
+    d = ndimage.distance_transform_edt(a < 0.5)
+    ring = np.clip(px + 0.5 - d, 0.0, 1.0)
+    out = np.zeros_like(arr)
+    out[..., :3] = INK
+    out[..., 3] = ring
+    fa = a[..., None]
+    out[..., :3] = arr[..., :3] * fa + out[..., :3] * (1.0 - fa)
+    out[..., 3] = a + ring * (1.0 - a)
+    return out
 
 
 def bleed(page: np.ndarray) -> np.ndarray:
@@ -120,7 +139,7 @@ def main() -> None:
         origin = points.get("origin")
         meta[name] = {"fps": fps, "loop": loop, "frames": [], "k": k, "points": points, "origin": origin}
         for i in idx:
-            arr = premultiplied_resize(Image.open(files[i]), k)
+            arr = inked(premultiplied_resize(Image.open(files[i]), k))
             ys, xs = np.nonzero(arr[..., 3] > 0.004)
             x0, x1 = max(xs.min() - PAD, 0), min(xs.max() + PAD + 1, arr.shape[1])
             y0, y1 = max(ys.min() - PAD, 0), min(ys.max() + PAD + 1, arr.shape[0])
@@ -178,7 +197,10 @@ def trimmed(path: Path, height: int) -> np.ndarray:
     img = Image.open(path).convert("RGBA")
     box = img.getchannel("A").point(lambda v: 255 if v > 2 else 0).getbbox()
     img = img.crop(box)
-    return premultiplied_resize(img, height / img.height)
+    arr = premultiplied_resize(img, height / img.height)
+    pad = np.zeros((arr.shape[0] + 8, arr.shape[1] + 8, 4), np.float32)
+    pad[4:-4, 4:-4] = arr
+    return inked(pad, INK_PX * height / 300.0)  # (as thick, for its size, as in the game)
 
 
 def save(arr: np.ndarray, name: str, pad: int = 8) -> None:

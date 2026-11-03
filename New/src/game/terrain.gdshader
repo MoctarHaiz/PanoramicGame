@@ -87,6 +87,17 @@ void fragment() {
 	float below_top = smoothstep(4.0, 30.0, depth);  // not on the grass lip
 	c *= mix(vec3(1.0), sun_tint, lit * 1.0 * below_top);
 	c *= mix(vec3(1.0), shade_tint * 0.82, (away * 0.95 - bounce) * below_top);
+	// round 4: the rock of a wall in beds: a dark crack under each bed, its top face lit, each bed
+	// its own tone; the foot of a wall darker where it meets the ground (occlusion)
+	if (width < 200.0 && depth > 34.0) {
+		float by = level_pos.y + (noise(level_pos.x * 0.021) - 0.5) * 10.0;
+		float f = fract(by / 38.0);
+		float bed_k = smoothstep(34.0, 60.0, depth);
+		c *= 1.0 - 0.38 * (1.0 - smoothstep(0.0, 0.06, f)) * bed_k;
+		c *= 1.0 + 0.16 * smoothstep(0.06, 0.1, f) * (1.0 - smoothstep(0.12, 0.26, f)) * bed_k;
+		c *= 1.0 + (hash(floor(by / 38.0) + float(cell.x)) - 0.5) * 0.12 * bed_k;
+		c *= mix(0.62, 1.0, smoothstep(0.0, 48.0, to_foot));
+	}
 	// under the grass: the overhanging lip's occlusion, deep and soft, then the soil comes back
 	float under = 1.0 - smoothstep(4.0, 40.0, depth);
 	c *= 1.0 - under * 0.55;
@@ -96,7 +107,8 @@ void fragment() {
 	c *= mix(1.0, 0.55 + 0.45 * smoothstep(0.0, 16.0, to_bottom), ledge);
 	float taper = 0.0;
 	if (ledge > 0.5) {
-		float cut = max(depth - 12.0, 0.0) * 0.85 + noise(level_pos.y * 0.2 + float(cell.x)) * 3.0;
+		// (round 4: rounder, deeper: a one-cell ledge no longer ends in a straight vertical edge)
+		float cut = max(depth - 6.0, 0.0) * 1.3 + noise(level_pos.y * 0.2 + float(cell.x)) * 4.0;
 		taper = cells.g < 0.5 ? 1.0 - smoothstep(cut - 0.7, cut + 0.7, from_left) : 0.0;
 		taper = max(taper, cells.b < 0.5 ? 1.0 - smoothstep(cut - 0.7, cut + 0.7, from_right) : 0.0);
 	}

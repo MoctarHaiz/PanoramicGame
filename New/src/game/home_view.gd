@@ -75,12 +75,14 @@ func build() -> void:
 	spill_add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	_spill.material = spill_add
 	yard.add_child(_spill)
-	var shade := Sprite2D.new()  # the hut's shadow on the ground, falling a little to the right
-	shade.texture = TerrainView.soft_disc()
-	shade.modulate = Color(0.16, 0.05, 0.1, 0.6)
-	shade.position = Vector2(hut_left + float(hut_info["size"][0]) * 0.56, GROUND + 6.0)
-	shade.scale = Vector2(float(hut_info["size"][0]) * 1.2, 40.0) / 64.0
-	back.add_child(shade)
+	var shade := Sprite2D.new()  # the hut's shadow on the ground, falling to the right (round 4: over the
+	shade.texture = TerrainView.cast_shade()  # grass of the yard, long: the sun is low on the left)
+	shade.centered = false
+	shade.modulate = Color(0.16, 0.08, 0.16, 0.6)
+	var hut_w := float(hut_info["size"][0])
+	shade.position = Vector2(hut_left + hut_w * 0.45, GROUND - 16.0)
+	shade.scale = Vector2(hut_w * 1.3 / 64.0, 34.0 / 32.0)
+	yard.add_child(shade)
 	var hut := _sprite("home_hut", 1.0)
 	hut.position = Vector2(hut_left, GROUND + 4.0)
 	hut.material = form(1.0)
@@ -270,8 +272,10 @@ class Villager extends Node2D:
 	func _draw() -> void:
 		var tall := 128.0 if kind == &"woman" else (82.0 if kind == &"child" else 134.0)
 		var bob := sin(_clock * (2.0 if kind == &"child" else 1.2)) * 1.2 + (sin(_clock * 9.0) * 3.0 * _arms if cheer else 0.0)
-		var dark := Color(0.26, 0.16, 0.17)  # (at the back of the yard: not as dark as the play)
-		var rim := Color(0.95, 0.62, 0.32)
+		# round 4: shaded and lit, not cut-outs: a shadow tone, a lit mid-tone on the sun's side, a rim
+		var dark := Color(0.3, 0.18, 0.16)
+		var lit := Color(0.52, 0.33, 0.24)
+		var rim := Color(0.98, 0.68, 0.38)
 		var wrap := Color(0.62, 0.12, 0.1) if kind != &"child" else Color(0.85, 0.55, 0.15)
 		var head := Vector2(0, -tall + 10.0 + bob)
 		var waist := -tall * 0.5 + bob
@@ -298,8 +302,18 @@ class Villager extends Node2D:
 				draw_line(head + o + Vector2(-4, -24), head + o + Vector2(4, -24), c, 4.0)
 			elif kind == &"elder":  # a staff
 				draw_line(hand_r + o + Vector2(0, -50), hand_r + o + Vector2(2, 70), c, 4.0)
+		# the lit side: the body again, narrower and to the left (a rounded form turned to the sun)
+		var lit_body := PackedVector2Array()
+		for q in body:
+			lit_body.append(Vector2(q.x * 0.55 - 3.5, q.y))
+		draw_colored_polygon(lit_body, lit)
+		draw_circle(head + Vector2(-2.5, -1.5), (9.0 if kind != &"child" else 7.5) * 0.62, lit)
+		if kind == &"woman":  # the clay pot: shaded round, lit on the left, a glint
+			draw_circle(head + Vector2(-2.5, -17), 6.0, Color(0.72, 0.38, 0.22))
+			draw_circle(head + Vector2(-4.5, -19), 1.8, Color(1.0, 0.82, 0.6))
 		var band := PackedVector2Array([Vector2(-12.5, waist - 8), Vector2(12.5, waist - 8), Vector2(14, waist + 10), Vector2(-14, waist + 10)])
 		draw_colored_polygon(band, wrap)
+		draw_colored_polygon(PackedVector2Array([band[1], band[2], band[2] + Vector2(-9, 0), band[1] + Vector2(-8, 0)]), wrap.darkened(0.35))
 		draw_line(Vector2(-12.5, waist - 8), Vector2(12.5, waist - 8), wrap.lightened(0.4), 1.5)
 
 	func _shift(points: PackedVector2Array, o: Vector2) -> PackedVector2Array:

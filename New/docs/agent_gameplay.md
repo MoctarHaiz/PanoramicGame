@@ -273,3 +273,20 @@ Measured at the hang and climb moments (the camera drawn back to 0.867 on every 
 - Static rules: the HUD band and above the vine; right of play x 960 (bandits wait there on wide
   phones: a bonus, not a need; cover with a light hand); behind his back (play x < his x - 72);
   below play y ~606 (the soil band, the water body under a pool's surface).
+
+## Round 4 (QA's GP-1: `_gp_camera` flaky)
+
+Cause (QA): the check ran 40 real frames at 4x game speed, so how far the run got depended on the
+machine's frame rate; when what must be seen jumps (the first wall's top entering the 320 units
+ahead: its top from his head to y 104, ~200 units) the camera eases to it (NEED_GROW 40/s, ~0.12 s
+to within 1.5 units) and the check failed if its window ended inside that ease.
+- `game_screen.gd`: `_process` keeps its delta (`_dt`); `_gameplay_camera` and `_keep_fair` use it
+  instead of the engine's frame time, so a test can step the camera by hand.
+- `_gp_camera`: the game screen is stepped by hand, CAMERA_STEP 1/30 s x 90 (3 s, the jump comes at
+  ~1.1 s for "stepped right", ~2.9 s for "start"): the same frames on any machine. It proves: the
+  screen shows play x to 960 while he plays; the camera always shows what it eases toward; and what
+  must be seen is inside the safe area under the HUD within CAMERA_GRACE (0.15 s) of growing.
+- Mutations: NEED_GROW 40 -> 3 fails it (stepped right at step 38, start at step 86, every 16:9
+  device); the clamp off fails it on every device and moment.
+- The camera needn't rise sooner: what makes it jump is 320 units ahead, more than a second before
+  he gets there; it is there 0.12 s later.

@@ -22,7 +22,7 @@ from paint import blur, dither_rgba, hexc, mix, poly_mask, save, smooth  # noqa:
 PX = 2
 SPAN, H = 160, 72  # round 2: taller, for the tendrils hanging from it
 TOP = 4.0  # the rope's centre at its ends, in units from the top (his hands grip about y 6)
-SAG = 5.0  # round 2: a shallower rest sag (the view bends it where he hangs)
+SAG = 0.0  # round 4: straight here: the view hangs each span between its knots (vine_view.gd)
 
 
 def rope_y(t):

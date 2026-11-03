@@ -6,13 +6,16 @@ extends Node
 ##     --out=build/strips/run.png [--frames=12] [--every=2] [--crop=x,y,w,h] [--cols=6]
 ##     [--moment="ticks >= 250"] [--bot] [--warm=30] [--act=throw@0,jump@10]
 ##     [--bandit=220] [--hurt=1] [--bobs=90] [--hang=1] [--scale=0.5] [--size=1280x720]
-##     [--at=2440] [--y=380] [--lives=1] [--falls=1] [--film=DIR] [--layers=1]
+##     [--at=2440] [--y=380] [--lives=1] [--falls=1] [--film=DIR] [--layers=1] [--hide=cast,FrontGrass]
 ## Each picture is drawn on demand (_draw_now): macOS skips drawing covered windows.
 ##
 ## Film mode (--film=DIR): every kept frame is saved whole (DIR/0001.png, ...) instead of a sheet,
 ## then made into DIR.mp4 if ffmpeg is installed (H.264, 60 / --every frames a second): a store
 ## preview video, or a moment to step through. --frames=900 --every=2 --size=2868x1320 --bot is a
 ## 30 s App Store preview at 30 fps. (Recorded at --fixed-fps 60, so the timing is exact.)
+## --hide hides every node of the game screen with one of those names (wildcards allowed), for A/B
+## pictures: which layer draws a flaw (e.g. TerrainView's named layers: mass, soil, spires, under,
+## roots, caps, ends, tufts, drape, foot, cast; WorldView's FrontGrass, HomeFront).
 ## Layers mode (--layers=1): one frame, built up layer by layer (the world view's layers in drawing
 ## order, the background's split into its own), one picture per layer added, to check depth, z-order
 ## and what each layer brings; the names are printed and saved next to the sheet (.txt).
@@ -110,6 +113,9 @@ func _ready() -> void:
 	game._start()
 	if a.has("bot"):
 		game.autopilot = Bot.new(7)
+	for name: String in String(a.get("hide", "")).split(",", false):
+		for n: Node in game.find_children(name, "CanvasItem", true, false):
+			n.visible = false
 	var acts := {}
 	for item: String in String(a.get("act", "")).split(",", false):
 		var at := item.split("@")

@@ -67,7 +67,7 @@ func _draw() -> void:
 	draw_texture_rect_region(TEXTURE, Rect2(-RADIUS, -RADIUS, RADIUS * 2, RADIUS * 2), Rect2(f * px, 0, px, px))
 	var spin := _clock * 18.0
 	draw_set_transform(hand, 0.0, Vector2(_turn(), 1.0))
-	draw_arc(Vector2.ZERO, RADIUS * 0.62, spin, spin + 0.9, 12, Color(HOT, 0.7), 2.0, true)
+	draw_arc(Vector2.ZERO, RADIUS * 0.62, spin, spin + 0.7, 12, Color(HOT, 0.55), 1.6, true)  # a glint running round the steel
 	draw_set_transform(Vector2.ZERO)
 
 
@@ -92,13 +92,8 @@ func _draw_glow() -> void:
 					PackedColorArray([Color(0.3, 0.6, 1.0, a), Color(0.3, 0.6, 1.0, b), Color(0.3, 0.6, 1.0, b), Color(0.3, 0.6, 1.0, a)]))
 	# the halo
 	_glow.draw_set_transform(Vector2.ZERO, 0.0, Vector2(k, 1.0))
-	for i in 2:  # (slimmer: the 3D ring carries its own glowing edge)
-		_glow.draw_arc(Vector2.ZERO, RADIUS * 0.75, 0, TAU, 40, Color(0.2, 0.55, 1.0, 0.14 - i * 0.05), 8.0 + i * 6.0, true)
+	# (round 4: no pale halo round it, no launch disc: it read as a pool float; a steel ring)
 	_glow.draw_set_transform(Vector2.ZERO)
-	# the flash where it leaves his hand
-	if _clock < 0.12:
-		var f := 1.0 - _clock / 0.12
-		_glow.draw_circle(Vector2.ZERO, RADIUS * (1.2 + 1.4 * (1.0 - f)), Color(0.6, 0.85, 1.0, 0.5 * f))
 	# sparks shed into the air
 	for s in _sparks:
 		var p := _glow.to_local(get_parent().to_global(Vector2(s.x, s.y)))

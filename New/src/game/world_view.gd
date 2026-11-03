@@ -73,7 +73,8 @@ func setup(w: World) -> void:
 	_add_grade()
 	fx = Node2D.new()
 	fx.scale = Vector2.ONE * 0.5
-	fx.z_index = 10  # over everything in the level (the Red Bobs included)
+	# (over everything in the level by its place, the last child: round 4: no z_index, which put the
+	# effects over the HUD too)
 	add_child(fx)
 
 	w.bob_collected.connect(_on_bob)

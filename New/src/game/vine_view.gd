@@ -17,6 +17,9 @@ const CATCH_KICK := 170.0  ## units/s down when he catches it (it gives ~11 unit
 const STIFF := 230.0  ## the spring (1/s²): about 2.4 bounces a second
 const DAMP := 7.0  ## (1/s): 2-3 bounces before it settles
 const REACH := 95.0  ## units either side of his hands over which the vine bends
+const SAG_MIN := 5.0  ## round 4: units a span hangs down between its knots, from ..
+const SAG_MAX := 10.0  ## .. to
+const KNOT_RANGE := 3.0  ## units a knot is tied above or below the line
 
 var view_left := 0.0
 var view_width := World.VIEW_W
@@ -49,10 +52,27 @@ func _process(_delta: float) -> void:
 	queue_redraw()
 
 
-## How far down the vine is at play x (units): his weight, and a slow breeze.
+## How far down the vine is at play x (units): each span hanging between its knots (round 4: knots
+## at different heights, a different sag each: not a straight stripe under the HUD), his weight, and
+## a slow breeze.
 func sag_at(x: float) -> float:
+	var lx := x + scroll
+	var i := floori(lx / SPAN)
+	var t := lx / SPAN - i
+	var knots := lerpf(_knot(i), _knot(i + 1), t)
+	var hang := sin(PI * t) * (SAG_MIN + (SAG_MAX - SAG_MIN) * _rand(i * 7 + 3))
 	var weight := dip * exp(-pow((x - _hold_x) / REACH, 2.0))
-	return weight + sin(_clock * 1.3 + (x + scroll) * 0.021) * 0.8
+	return knots + hang + weight + sin(_clock * 1.3 + lx * 0.021) * 0.8
+
+
+## A knot's height (units) by its index: the vine is tied higher and lower along its length.
+func _knot(i: int) -> float:
+	return (_rand(i * 13 + 1) - 0.5) * 2.0 * KNOT_RANGE
+
+
+static func _rand(n: int) -> float:
+	var v := sin(n * 12.9898) * 43758.5453
+	return v - floorf(v)
 
 
 func _draw() -> void:

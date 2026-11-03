@@ -27,10 +27,16 @@ const STREAMER_COLOURS: Array[Color] = [Color("ffcf3a"), Color("f5b81c"), Color(
 		Color("fff1d0"), Color("4a43a8")]
 ## A firework's sparks: white-hot to gold to the sunset's orange and red.
 const FIREWORK: Array[Color] = [Color("fff6d8"), Color("ffd36b"), Color("ffab3a"), Color("ff6a3a")]
+## A shell's colour (one per shell): gold, rose, teal, orange, violet: bright on the dark sky behind.
+const FIREWORK_HUES: Array[Color] = [Color("ffc93a"), Color("ff4f86"), Color("3fe6d2"), Color("ff8a2a"), Color("b98aff")]
 ## The mix of confetti pieces: shaded petals and glass beads, a few sequins (gold motes are sparkles).
 const PARTY_SHAPES := [Confetti.Shape.PETAL, Confetti.Shape.PETAL, Confetti.Shape.PETAL, Confetti.Shape.BEAD,
 		Confetti.Shape.BEAD, Confetti.Shape.SEQUIN]
-const PLUS_SIZE := 118  ## font size of the "+1" (design px)
+const PLUS_SIZE := 118  ## font size of the "+1" and the "×N" (design px): one size, scaled per use
+const PLUS_SCALE := 1.3  ## the "+1" drawn bigger than its glyphs' size (it reads at phone size)
+## The badges' outlines (px): the dark stroke and the warm rim. The "+1" and the "×N" share them and
+## the font size, so their glyphs are rasterised once (each size and outline is megabytes of pages).
+const BADGE_OUTLINES: Array[int] = [34, 16]
 ## The ring's light: white-hot core, its blue, a deeper blue at the edge.
 const RING_LIGHT: Array[Color] = [Color("ffffff"), Color("bfe6ff"), Color("6cc4ff"), Color("2f8bff")]
 ## A Red Bob's streak: hot gold to its red.
@@ -48,8 +54,7 @@ const IMPACTS := {
 }
 const FLASH_TIME := 0.035  ## the white of a blow: 2 frames, then the one hit shows (the views use it)
 const MAX_FLIERS := 6  ## Red Bobs flying to the counter at once (more just pop on it)
-const STREAK_SIZE_K := 0.8  ## the "×N" is drawn at PLUS_SIZE * this, always (scaled per step)
-const STREAK_SIZE := int(PLUS_SIZE * STREAK_SIZE_K)
+const STREAK_SIZE_K := 0.8  ## the "×N" shows at this share of PLUS_SIZE (its node's scale)
 ## The streak badge's colour per tier (2-3, 4-5, 6-7, 8+ in a row).
 const STREAK_TIERS: Array[Color] = [Color("ffffff"), Color("ffd84a"), Color("ff9a2a"), Color("ff4a3a")]
 
@@ -114,8 +119,9 @@ static func impact_burst(parent: Node, at: Vector2, away: Vector2, size: StringN
 			Vector2(0.2, 0.4))
 
 
-## The "+1" of a rescue: a chunky gold number with a deep crimson outline (the 2018 "+1" red on its
-## rim) that punches in, overshoots, floats up and shrinks away.
+## The "+1" of a knock-out: a bold gold number on a thick dark stroke with a warm gold rim and a drop
+## shadow, that pops in (0 to 1.5 to 1 in six frames), rises 40 units easing out, holds and fades.
+## (Drawn at PLUS_SIZE with BADGE_OUTLINES like the streak's "×N": one set of glyphs for both.)
 static func plus_one(parent: Node, at: Vector2) -> void:
 	var node := Node2D.new()
 	node.position = at
@@ -124,23 +130,24 @@ static func plus_one(parent: Node, at: Vector2) -> void:
 	var w := font.get_string_size("+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE).x
 	var base := Vector2(-w / 2, PLUS_SIZE * 0.36)  # the baseline that centres the figures on the node
 	node.draw.connect(func() -> void:
-		node.draw_string_outline(font, base + Vector2(0, 10), "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, 34, Color(0.24, 0.02, 0.12, 0.4))
-		node.draw_string_outline(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, 34, Color("5c0828"))
-		node.draw_string_outline(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, 16, Color("dd2a5f"))
+		node.draw_string_outline(font, base + Vector2(4, 12), "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, BADGE_OUTLINES[0], Color(0.08, 0.03, 0.0, 0.55))
+		node.draw_string_outline(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, BADGE_OUTLINES[0], Color("2a1204"))
+		node.draw_string_outline(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, BADGE_OUTLINES[1], Color("b8650c"))
 		node.draw_string(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, Color.WHITE))
 	parent.add_child(node)
-	node.scale = Vector2(0.3, 0.3)
-	node.rotation = -0.3
+	var big := PLUS_SCALE
+	node.scale = Vector2.ZERO
+	node.rotation = -0.2
 	var t := node.create_tween()
-	t.tween_property(node, "scale", Vector2(1.18, 1.18), 0.13).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	t.parallel().tween_property(node, "rotation", 0.1, 0.13).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	t.tween_property(node, "scale", Vector2(0.94, 0.94), 0.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	t.parallel().tween_property(node, "rotation", 0.0, 0.45).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
-	t.tween_interval(0.12)
-	t.tween_property(node, "scale", Vector2(0.55, 0.55), 0.24).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
-	t.parallel().tween_property(node, "modulate:a", 0.0, 0.24).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	t.tween_property(node, "scale", Vector2.ONE * 1.5 * big, 0.06).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	t.parallel().tween_property(node, "rotation", 0.06, 0.06)
+	t.tween_property(node, "scale", Vector2.ONE * big, 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.parallel().tween_property(node, "rotation", 0.0, 0.3).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+	t.tween_interval(0.35)
+	t.tween_property(node, "scale", Vector2.ONE * 0.7 * big, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	t.parallel().tween_property(node, "modulate:a", 0.0, 0.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	t.tween_callback(node.queue_free)
-	node.create_tween().tween_property(node, "position:y", at.y - 125.0, 0.9) \
+	node.create_tween().tween_property(node, "position:y", at.y - 80.0, 0.5) \
 			.set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
 
 
@@ -178,9 +185,9 @@ static func confetti_burst(parent: Node, at: Vector2) -> void:
 	c.drag = 1.4
 	c.flutter = 480.0
 	# big glossy streamers and ribbons in three sizes (the near ones bigger and fewer), tumbling
-	c.spray(34, STREAMERS, STREAMER_COLOURS, Vector2(700, 1700), Vector2.UP, 70.0, 2.0, Vector2(2.4, 3.2), 30.0)
-	c.spray(18, STREAMERS, STREAMER_COLOURS, Vector2(800, 1800), Vector2.UP, 60.0, 2.9, Vector2(2.4, 3.2), 30.0)
-	c.spray(7, STREAMERS, STREAMER_COLOURS, Vector2(900, 1900), Vector2.UP, 50.0, 3.9, Vector2(2.4, 3.2), 30.0)
+	c.spray(26, STREAMERS, STREAMER_COLOURS, Vector2(700, 1700), Vector2.UP, 70.0, 1.5, Vector2(2.4, 3.2), 30.0)
+	c.spray(14, STREAMERS, STREAMER_COLOURS, Vector2(800, 1800), Vector2.UP, 60.0, 2.1, Vector2(2.4, 3.2), 30.0)
+	c.spray(5, STREAMERS, STREAMER_COLOURS, Vector2(900, 1900), Vector2.UP, 50.0, 2.8, Vector2(2.4, 3.2), 30.0)
 	c.spray(20, [Confetti.Shape.PETAL, Confetti.Shape.BEAD], PARTY, Vector2(600, 1500), Vector2.UP, 75.0, 1.6,
 			Vector2(2.0, 2.8), 30.0)
 	c.sparkle(20, GOLD, Vector2(200, 600), 1.0)
@@ -188,28 +195,29 @@ static func confetti_burst(parent: Node, at: Vector2) -> void:
 
 ## Fireworks from `from` (a lower corner of the screen, effects units): three shells rise steeply,
 ## leaning a little towards the middle (`inward`: +1 from the left, -1 from the right), each bursting
-## high up into a bloom of light and 36 additive sparks with short tapered trails that fall, fade and
-## crackle. Best behind the people and panels: they are light in the sky.
+## high up into a wide bloom of its colour round a white-hot flash, and 40 sparks that fly out as
+## glowing comets, white-hot then coloured, falling, fading and glittering. All soft additive light.
+## Best behind the people and panels: they are light in the sky.
 static func fireworks(parent: Node, from: Vector2, inward: float) -> void:
 	var show := FireworkShow.new()
 	show.material = additive()
 	parent.add_child(show)
 	for i in 3:
-		show.launch(from, Vector2(inward * randf_range(0.06, 0.2), -1.0).normalized() * randf_range(1250.0, 1500.0),
+		show.launch(from, Vector2(inward * randf_range(0.06, 0.2), -1.0).normalized() * randf_range(1100.0, 1300.0),
 				i * 0.3)
 
 
 class FireworkShow extends Node2D:
 	const GRAVITY := 900.0
-	var _shells: Array[Vector4] = []  # x, y, delay, (unused)
+	var _shells: Array[Vector4] = []  # x, y, delay, hue index
 	var _shell_vel: Array[Vector2] = []
 	var _sparks: Array[Vector4] = []  # x, y, age, life
 	var _spark_vel: Array[Vector2] = []
 	var _spark_col: Array[Color] = []
-	var _blooms: Array[Vector3] = []  # x, y, age
+	var _blooms: Array[Vector4] = []  # x, y, age, hue index
 
 	func launch(at: Vector2, vel: Vector2, delay: float) -> void:
-		_shells.append(Vector4(at.x, at.y, delay, 0.0))
+		_shells.append(Vector4(at.x, at.y, delay, randi() % Fx.FIREWORK_HUES.size()))
 		_shell_vel.append(vel)
 
 	func _process(delta: float) -> void:
@@ -221,17 +229,17 @@ class FireworkShow extends Node2D:
 			_shell_vel[i].y += GRAVITY * delta
 			_shells[i].x += _shell_vel[i].x * delta
 			_shells[i].y += _shell_vel[i].y * delta
-			if randf() < delta * 60.0:  # the rising shell sheds a few sparks
+			if randf() < delta * 50.0:  # the rising shell sheds embers
 				_add_spark(Vector2(_shells[i].x, _shells[i].y), Vector2(randf_range(-40, 40), randf_range(20, 80)),
-						randf_range(0.2, 0.35), Fx.FIREWORK[2])
+						randf_range(0.25, 0.4), Fx.FIREWORK[1])
 			if _shell_vel[i].y > -120.0:  # near its top: it bursts
 				var at := Vector2(_shells[i].x, _shells[i].y)
+				var hue: Color = Fx.FIREWORK_HUES[int(_shells[i].w)]
 				Audio.play_sfx(&"firework")
-				_blooms.append(Vector3(at.x, at.y, 0.0))
-				for k in 36:
-					var dir := Vector2.from_angle(k * TAU / 36.0 + randf_range(-0.08, 0.08))
-					_add_spark(at, dir * randf_range(650.0, 1000.0), randf_range(1.0, 1.4),
-							Fx.FIREWORK[randi() % Fx.FIREWORK.size()])
+				_blooms.append(Vector4(at.x, at.y, 0.0, _shells[i].w))
+				for k in 40:
+					var dir := Vector2.from_angle(k * TAU / 40.0 + randf_range(-0.08, 0.08))
+					_add_spark(at, dir * randf_range(620.0, 980.0), randf_range(1.0, 1.45), hue)
 				_shells.remove_at(i)
 				_shell_vel.remove_at(i)
 		for i in range(_sparks.size() - 1, -1, -1):
@@ -246,7 +254,7 @@ class FireworkShow extends Node2D:
 				_spark_col.remove_at(i)
 		for i in range(_blooms.size() - 1, -1, -1):
 			_blooms[i].z += delta
-			if _blooms[i].z > 0.35:
+			if _blooms[i].z > 0.5:
 				_blooms.remove_at(i)
 		if _shells.is_empty() and _sparks.is_empty() and _blooms.is_empty():
 			queue_free()
@@ -257,28 +265,33 @@ class FireworkShow extends Node2D:
 		_spark_vel.append(vel)
 		_spark_col.append(colour)
 
+	## Everything is soft light (one texture, added): no lines.
 	func _draw() -> void:
 		var tex := Fx.glow_texture()
-		for b in _blooms:  # the burst's core: a flash of white-gold light that swells and fades
-			var k := b.z / 0.35
-			var r := 60.0 + 200.0 * (1.0 - pow(1.0 - k, 3.0))
-			draw_texture_rect(tex, Rect2(Vector2(b.x, b.y) - Vector2(r, r), Vector2(r, r) * 2), false,
-					Color(1, 0.92, 0.7, 0.85 * (1.0 - k)))
+		for b in _blooms:  # the burst: a white-hot flash in a wide bloom of its colour, swelling and fading
+			var k := b.z / 0.5
+			var hue: Color = Fx.FIREWORK_HUES[int(b.w)]
+			var r := 120.0 + 260.0 * (1.0 - pow(1.0 - k, 3.0))
+			_glow(tex, Vector2(b.x, b.y), r, Color(hue, 0.75 * (1.0 - k) * (1.0 - k)))
+			if k < 0.25:
+				_glow(tex, Vector2(b.x, b.y), 90.0 * (1.0 + k), Color(1, 0.97, 0.9, 1.0 - k / 0.25))
 		for s in _shells:
 			if s.z <= 0.0:
-				draw_texture_rect(tex, Rect2(Vector2(s.x, s.y) - Vector2(14, 14), Vector2(28, 28)), false, Fx.FIREWORK[0])
+				_glow(tex, Vector2(s.x, s.y), 22.0, Fx.FIREWORK[0])
 		for i in _sparks.size():
 			var s := _sparks[i]
 			var k := s.z / s.w
 			var fadeout := 1.0 - k * k
-			var crackle := 0.6 + 0.4 * sin(s.z * 55.0 + i) if k > 0.6 else 1.0  # twinkles as it dies
-			var c := Color(_spark_col[i], fadeout * crackle)
+			var glitter := (0.5 + 0.5 * sin(s.z * 60.0 + i * 1.7)) if k > 0.55 else 1.0  # twinkles as it dies
+			var hot := Color(1, 0.97, 0.88).lerp(_spark_col[i], minf(k * 2.5, 1.0))  # white-hot, then its colour
 			var head := Vector2(s.x, s.y)
-			var tail := head - _spark_vel[i] * 0.06  # a short trail, along the motion
-			draw_line(tail, head, Color(c, c.a * 0.5), 8.0 * (1.0 - 0.5 * k), true)
-			draw_line(tail.lerp(head, 0.6), head, c, 4.0, true)
-			var r := 10.0 * (1.0 - 0.4 * k)
-			draw_texture_rect(tex, Rect2(head - Vector2(r, r), Vector2(r, r) * 2), false, c)
+			for t in 5:  # a comet: its head and a tail of fading glow behind it
+				var back := head - _spark_vel[i] * (0.012 * t)
+				var r := (18.0 - 2.6 * t) * (1.0 - 0.35 * k)
+				_glow(tex, back, r, Color(hot, fadeout * glitter * (1.0 - t * 0.18)))
+
+	func _glow(tex: Texture2D, at: Vector2, r: float, colour: Color) -> void:
+		draw_texture_rect(tex, Rect2(at - Vector2(r, r), Vector2(r, r) * 2), false, colour)
 
 
 ## A reward landing in a counter: a small flash, a ring and a few stars.
@@ -495,7 +508,7 @@ static func bob_flight(parent: Node, from: Vector2, to: Vector2, start_size: flo
 		return
 	_fliers += 1
 	var s := Sprite2D.new()
-	s.texture = BobView.texture(BobView.Face.JOY)
+	s.texture = BobView.texture()  # the row's face for its first frames, then joy as it flies
 	var k0 := BobView.scale_for(start_size)
 	var k1 := BobView.scale_for(end_size) * 0.8
 	s.position = from
@@ -508,7 +521,8 @@ static func bob_flight(parent: Node, from: Vector2, to: Vector2, start_size: flo
 	var c1 := from + Vector2(-30.0, -minf(110.0, 50.0 + from.distance_to(to) * 0.12))  # up first
 	var c2 := to + Vector2(-minf(220.0, from.distance_to(to) * 0.35), 70.0)  # comes in from below-left
 	var t := s.create_tween()
-	t.tween_property(s, "scale", Vector2.ONE * k0 * 1.35, 0.05).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	t.tween_property(s, "scale", Vector2.ONE * k0 * 1.2, 0.05).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	t.tween_callback(func() -> void: s.texture = BobView.texture(BobView.Face.JOY))
 	t.tween_method(func(u: float) -> void:
 		var e := pow(u, 1.7)  # slow for the first third, then fast into the counter
 		s.position = from.bezier_interpolate(c1, c2, to, e)
@@ -534,20 +548,21 @@ static func streak_pop(parent: Node, at: Vector2, n: int) -> void:
 		_streak_badge.queue_free()
 	var node := Node2D.new()
 	_streak_badge = node
+	node.z_index = 2  # (in view.fx, z 10) over the Red Bobs flying to the counter (z 11), under the panels (20)
 	node.position = at + Vector2(30, -40)
 	var font := plus_font()
 	var text := "×%d" % n
-	# one font size and outline for every step (each new size would cache its own glyph pages:
-	# megabytes of texture per step); the badge grows with the node's scale instead
-	var grow := (0.62 + 0.05 * mini(n, 8)) / STREAK_SIZE_K
+	# one font size and outline for every step, the "+1"'s (each new size would cache its own glyph
+	# pages: megabytes of texture per step); the badge grows with the node's scale instead
+	var grow := (0.62 + 0.05 * mini(n, 8)) * STREAK_SIZE_K / 0.8
 	var colour := STREAK_TIERS[clampi((n - 2) / 2, 0, STREAK_TIERS.size() - 1)]
-	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, STREAK_SIZE).x
-	var base := Vector2(-w / 2, STREAK_SIZE * 0.36)
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE).x
+	var base := Vector2(-w / 2, PLUS_SIZE * 0.36)
 	node.draw.connect(func() -> void:
-		node.draw_string_outline(font, base + Vector2(0, 8), text, HORIZONTAL_ALIGNMENT_LEFT, -1, STREAK_SIZE, 28, Color(0.2, 0.02, 0.1, 0.4))
-		node.draw_string_outline(font, base, text, HORIZONTAL_ALIGNMENT_LEFT, -1, STREAK_SIZE, 28, Color("4a0a24"))
-		node.draw_string_outline(font, base, text, HORIZONTAL_ALIGNMENT_LEFT, -1, STREAK_SIZE, 12, colour.darkened(0.25))
-		node.draw_string(font, base, text, HORIZONTAL_ALIGNMENT_LEFT, -1, STREAK_SIZE, colour))
+		node.draw_string_outline(font, base + Vector2(4, 10), text, HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, BADGE_OUTLINES[0], Color(0.08, 0.03, 0.0, 0.5))
+		node.draw_string_outline(font, base, text, HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, BADGE_OUTLINES[0], Color("2a1204"))
+		node.draw_string_outline(font, base, text, HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, BADGE_OUTLINES[1], colour.darkened(0.35))
+		node.draw_string(font, base, text, HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, colour))
 	parent.add_child(node)
 	node.scale = Vector2.ONE * 0.4 * grow
 	node.rotation = -0.15
@@ -614,28 +629,29 @@ static func bob_pop(parent: Node, at: Vector2, combo: int) -> void:
 		Confetti.make(parent, at).sparkle(8, SPARKS, Vector2(160, 520), 0.9, Vector2(0.3, 0.55))
 
 
-## Home: the doorway's warm light (`at`: the middle of the doorway, effects units) spilling out
-## along the ground as a long, flat, warm pool that breathes, a softer glow filling the doorway,
-## long rays from it, and embers rising from the hearth inside for a few seconds.
+## Home: the doorway's warm light (`at`: the middle of the doorway, effects units) as soft light,
+## not a fill: a broad, faint warm halo in the air round the doorway, a long flat pool of it on the
+## ground at the threshold, both breathing; long rays from the doorway; embers rising from the hearth.
+## (Nothing fills the doorway itself: the hut's own firelight is there, and he stands in it.)
 static func home_glow(parent: Node, at: Vector2) -> void:
 	var ground := at + Vector2(0.0, 130.0)  # the threshold: the doorway's foot
-	for spec: Array in [[ground, Vector2(9.0, 1.6), 0.3], [at, Vector2(2.4, 3.2), 0.22]]:
+	for spec: Array in [[at + Vector2(0.0, -40.0), Vector2(9.0, 7.0), 0.13], [ground, Vector2(10.0, 1.5), 0.2]]:
 		var g := Sprite2D.new()
 		g.texture = glow_texture()
 		g.material = additive()
 		g.position = spec[0]
-		g.modulate = Color(1, 0.7, 0.36, 0.0)
-		g.scale = spec[1] * 0.5
+		g.modulate = Color(1, 0.78, 0.48, 0.0)
+		g.scale = spec[1] * 0.6
 		parent.add_child(g)
 		var t := g.create_tween()
-		t.tween_property(g, "modulate:a", spec[2], 0.5).set_trans(Tween.TRANS_SINE)
-		t.parallel().tween_property(g, "scale", spec[1], 0.9).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+		t.tween_property(g, "modulate:a", spec[2], 0.6).set_trans(Tween.TRANS_SINE)
+		t.parallel().tween_property(g, "scale", spec[1], 1.0).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
 		for i in 3:
-			t.tween_property(g, "modulate:a", spec[2] * 0.7, 0.45).set_trans(Tween.TRANS_SINE)
-			t.tween_property(g, "modulate:a", spec[2], 0.45).set_trans(Tween.TRANS_SINE)
+			t.tween_property(g, "modulate:a", spec[2] * 0.75, 0.5).set_trans(Tween.TRANS_SINE)
+			t.tween_property(g, "modulate:a", spec[2], 0.5).set_trans(Tween.TRANS_SINE)
 		t.tween_property(g, "modulate:a", 0.0, 0.8)
 		t.tween_callback(g.queue_free)
-	rays(parent, at, Color(1, 0.8, 0.5, 0.3), 14, 560.0, 1.6)
+	rays(parent, at, Color(1, 0.82, 0.55, 0.22), 14, 620.0, 1.8)
 	var p := CPUParticles2D.new()
 	p.position = at + Vector2(0, 40)
 	p.material = additive()
@@ -666,25 +682,39 @@ static func home_glow(parent: Node, at: Vector2) -> void:
 	stop.tween_callback(p.queue_free)
 
 
-## The win's shower over the results (`width` x `height`, screen units): 26 gold coins tumbling down
-## in front of everything (sharp, spinning, glinting), a rain of shaded petals and beads where it is
-## asked (behind the card), gold motes twinkling, and the tinkle of the coins.
+## The win's shower over the results (`width` x `height`, screen units): gold coins tumbling down,
+## glinting as they turn, and shaded petals and beads, in front of everything but only beside the card
+## (in the margins left and right of it: on the parchment they read as stains), passing behind the
+## card if they drift over it; gold motes twinkling in the margins; the tinkle of the coins.
 static func coin_shower(parent: Node, width: float, height: float) -> void:
-	var front: Node = parent.get_parent() if parent.get_parent() else parent  # the coins fall over the card
+	var front: Node = parent.get_parent() if parent.get_parent() else parent  # the panel: over everything
 	var holder := Node2D.new()
 	front.add_child(holder)
-	var coins := Confetti.make(holder, Vector2.ZERO)
-	coins.gravity = 1100.0
-	coins.drag = 0.8
-	coins.flutter = 40.0
-	coins.rain(26, width, [Confetti.Shape.COIN], GOLD, 1.7, Vector2(1.8, 2.4), 1.0)
-	var paper := Confetti.make(parent, Vector2.ZERO)
-	paper.gravity = 700.0
-	paper.drag = 1.6
-	paper.flutter = 560.0
-	paper.rain(80, width, PARTY_SHAPES, PARTY, 1.2, Vector2(2.6, 3.4), 1.0)
-	var motes := Confetti.make(parent, Vector2(width / 2, height * 0.3))
-	motes.sparkle(20, GOLD, Vector2(200, 700), 0.8, Vector2(0.6, 1.1), width * 0.45)
+	var card := Rect2(width * 0.3, 0.0, width * 0.4, height)  # the card, if the panel says where it is
+	var c: Variant = front.get(&"card")
+	if c is Control and is_instance_valid(c):
+		card = holder.get_global_transform().affine_inverse() * (c as Control).get_global_rect()
+	card = card.grow(12.0)
+	var sides := [Vector2(0.0, maxf(card.position.x, 0.0)), Vector2(card.end.x, maxf(width - card.end.x, 0.0))]
+	for side: Vector2 in sides:
+		if side.y < 20.0:
+			continue
+		var share := side.y / width
+		var coins := Confetti.make(holder, Vector2(side.x, 0.0))
+		coins.gravity = 1100.0
+		coins.drag = 0.8
+		coins.flutter = 40.0
+		coins.avoid = Rect2(card.position - Vector2(side.x, 0.0), card.size)
+		coins.rain(int(30 * share) + 6, side.y, [Confetti.Shape.COIN], GOLD, 1.7, Vector2(1.8, 2.4), 1.0)
+		var paper := Confetti.make(holder, Vector2(side.x, 0.0))
+		paper.gravity = 700.0
+		paper.drag = 1.6
+		paper.flutter = 560.0
+		paper.avoid = coins.avoid
+		paper.rain(int(80 * share) + 10, side.y, PARTY_SHAPES, PARTY, 1.3, Vector2(2.6, 3.4), 1.0)
+		var motes := Confetti.make(holder, Vector2(side.x + side.y / 2.0, height * 0.35))
+		motes.avoid = Rect2(card.position - motes.position, card.size)
+		motes.sparkle(8, GOLD, Vector2(120, 420), 0.8, Vector2(0.6, 1.1), side.y * 0.4)
 	Audio.play_sfx(&"coins")
 
 
@@ -1174,12 +1204,9 @@ static func warm_glyphs(parent: Node) -> void:
 
 static func _draw_badge_glyphs(text: Node2D) -> void:
 	var f := plus_font()
-	for o: int in [34, 16]:
-		text.draw_string_outline(f, Vector2(0, 10), "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, o)
-	text.draw_string(f, Vector2(0, 10), "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE)
-	for o: int in [28, 12]:
-		text.draw_string_outline(f, Vector2(0, 10), "×0123456789", HORIZONTAL_ALIGNMENT_LEFT, -1, STREAK_SIZE, o)
-	text.draw_string(f, Vector2(0, 10), "×0123456789", HORIZONTAL_ALIGNMENT_LEFT, -1, STREAK_SIZE)
+	for o: int in BADGE_OUTLINES:
+		text.draw_string_outline(f, Vector2(0, 10), "+×0123456789", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, o)
+	text.draw_string(f, Vector2(0, 10), "+×0123456789", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE)
 
 
 static func confetti_texture() -> Texture2D:

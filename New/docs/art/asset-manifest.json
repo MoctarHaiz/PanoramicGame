@@ -42,7 +42,7 @@
    "path": "assets/art/bandit/club.png",
    "status": "approved",
    "technical": {
-    "dimensions": "37x86",
+    "dimensions": "38x87",
     "alpha": true,
     "anchor": "bottom-centre at the boots",
     "frames": null,
@@ -174,7 +174,7 @@
    "path": "assets/art/hero/hero_atlas_0.png",
    "status": "approved",
    "technical": {
-    "dimensions": "2040x2032",
+    "dimensions": "2024x2044",
     "alpha": true,
     "anchor": "per hero_frames.json (ground origin / hips / hands)",
     "frames": null,
@@ -210,7 +210,7 @@
    "path": "assets/art/hero/hero_atlas_1.png",
    "status": "approved",
    "technical": {
-    "dimensions": "2036x2012",
+    "dimensions": "2048x1984",
     "alpha": true,
     "anchor": "per hero_frames.json (ground origin / hips / hands)",
     "frames": null,
@@ -246,7 +246,7 @@
    "path": "assets/art/hero/hero_atlas_2.png",
    "status": "approved",
    "technical": {
-    "dimensions": "2048x628",
+    "dimensions": "1956x612",
     "alpha": true,
     "anchor": "per hero_frames.json (ground origin / hips / hands)",
     "frames": null,
@@ -282,7 +282,7 @@
    "path": "assets/art/hero/hero_defeat.png",
    "status": "approved",
    "technical": {
-    "dimensions": "675x688",
+    "dimensions": "808x696",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -315,7 +315,7 @@
    "path": "assets/art/hero/hero_menu.png",
    "status": "approved",
    "technical": {
-    "dimensions": "803x1171",
+    "dimensions": "811x1179",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -348,7 +348,7 @@
    "path": "assets/art/hero/hero_win.png",
    "status": "approved",
    "technical": {
-    "dimensions": "389x961",
+    "dimensions": "401x969",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -414,7 +414,7 @@
    "path": "assets/art/hero/stand_front.png",
    "status": "approved",
    "technical": {
-    "dimensions": "274x656",
+    "dimensions": "286x664",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -447,7 +447,7 @@
    "path": "assets/art/hero/stand_side.png",
    "status": "approved",
    "technical": {
-    "dimensions": "310x576",
+    "dimensions": "320x584",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -842,7 +842,7 @@
    "path": "assets/art/ui/logo.png",
    "status": "approved",
    "technical": {
-    "dimensions": "1004x860",
+    "dimensions": "1373x760",
     "alpha": true,
     "anchor": "centre",
     "frames": null,
@@ -1102,7 +1102,7 @@
    "path": "assets/art/world/cloud_1.png",
    "status": "approved",
    "technical": {
-    "dimensions": "484x118",
+    "dimensions": "484x73",
     "alpha": true,
     "anchor": "per view",
     "frames": null,
@@ -1135,7 +1135,7 @@
    "path": "assets/art/world/cloud_2.png",
    "status": "approved",
    "technical": {
-    "dimensions": "478x92",
+    "dimensions": "500x69",
     "alpha": true,
     "anchor": "per view",
     "frames": null,
@@ -1168,7 +1168,7 @@
    "path": "assets/art/world/cloud_3.png",
    "status": "approved",
    "technical": {
-    "dimensions": "500x105",
+    "dimensions": "491x75",
     "alpha": true,
     "anchor": "per view",
     "frames": null,
@@ -1201,7 +1201,7 @@
    "path": "assets/art/world/cloud_4.png",
    "status": "approved",
    "technical": {
-    "dimensions": "495x112",
+    "dimensions": "492x77",
     "alpha": true,
     "anchor": "per view",
     "frames": null,

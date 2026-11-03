@@ -13,7 +13,8 @@ extends Node
 ## first time, then instant) and replayed to each moment.
 ##
 ## Shots: the screens of a store release. boot, menu (a returning player), first_menu (the first
-## launch: no best yet), start (the first run's card), game, throw (a ring flying at a bandit), hurt
+## launch: no best yet), start (the first run's card), lesson (the first run's first lesson: the
+## world held, the hand) and lesson_pause (paused during it), game, throw (a ring flying at a bandit), hurt
 ## (the instant after a hit), climb, hang, home (1.2 s after he is home: in the doorway, the
 ## HUD gone), pause, resume (the countdown after Resume),
 ## gameover (caught), fell (game over by a fall), win (these three once the panel's reveal is over:
@@ -28,7 +29,7 @@ const DEVICES := {
 	"iphone17promax_2868x1320": {"size": Vector2i(2868, 1320), "insets": Vector4(186, 0, 186, 63)},
 	"ipad13_2752x2064": {"size": Vector2i(2752, 2064), "insets": Vector4(0, 48, 0, 40)},
 }
-const SHOTS := ["boot", "menu", "first_menu", "start", "game", "throw", "hurt", "climb", "hang", "home", "pause", "resume",
+const SHOTS := ["boot", "menu", "first_menu", "start", "lesson", "lesson_pause", "game", "throw", "hurt", "climb", "hang", "home", "pause", "resume",
 		"gameover", "fell", "win", "settings", "settings_end"]
 ## Shots that start from another one's moment.
 const MOMENT_OF := {"pause": "game", "resume": "game", "throw": "game", "hurt": "game", "gameover": "climb",
@@ -165,6 +166,18 @@ func _capture(device: String, shot: String) -> void:
 			_bandit_ahead(game.world, 150.0)
 			await _wait_for(func() -> bool: return game.world.lives < lives, 3.0)
 			await _wait(0.12)
+		"lesson", "lesson_pause":  # the first run's first lesson (the world held, the hand), and paused in it
+			Save.tutorial_seen = false
+			Save.tutorial_learned = 0
+			Nav.go(&"game", {})
+			await _wait(1.0)
+			var game: Node = Nav.current
+			game._start()
+			await _wait_for(func() -> bool: return is_instance_valid(game._tutorial) and game._tutorial.lesson != 0, 10.0)
+			await _wait(0.8)
+			if shot == "lesson_pause":
+				game.pause_game()
+				await _wait(0.6)
 		"pause":
 			await _start_game("game")
 			await _wait(0.5)
@@ -220,9 +233,12 @@ func _start_game(moment: String) -> void:
 	Nav.current.autopilot = Bot.new(7)
 
 
-## Brings the last bandit (far away) `ahead` units in front of Panoramic, on his ground; the others
-## near him go.
+## Brings the last bandit (far away) `ahead` units in front of Panoramic, on his ground (closer if a
+## wall stands in the way: never drawn inside a pillar); the others near him go.
 func _bandit_ahead(w: World, ahead: float) -> void:
+	var wall := w.wall_ahead(w.x, w.y, ahead + 40.0, w.scroll)
+	if wall >= 0.0:
+		ahead = maxf(wall - w.x - 40.0, 90.0)
 	for b in w.bandits:
 		if absf(b.x - w.scroll - w.x) < 1500.0:
 			b.gone = true

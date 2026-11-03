@@ -235,3 +235,38 @@ A lighter pattern never cuts into a heavier one still playing; nothing plays whe
   after: no jump in play (load +12 MB: the two badges' glyphs), run 76.6 MB (budget 80), menu after
   86.6 MB; frames: worst own work 9.3 ms, wall p99 8.5 ms. The rest over 80 on the menu includes those
   12 MB of glyph pages: an MSDF title font (ux) would serve every size from one atlas.
+
+## Round 4 (2026-11-03): AAA/judge/j03 (effects)
+- Fireworks (`Fx.fireworks` / FireworkShow): all soft additive light, no lines: one colour per shell
+  (FIREWORK_HUES: gold, rose, teal, orange, violet), a wide bloom of that colour round a white-hot flash,
+  40 sparks drawn as glowing comets (a head and four fading glows behind, white-hot then coloured),
+  glittering as they die; shells a little lower so the bursts sit in the sky beside the card.
+- Confetti off the parchment: `Fx.coin_shower` rains coins, petals and beads only in the margins left and
+  right of the card (it reads the panel's `card` rect) and `Confetti.avoid` hides any piece, glint or
+  sparkle that drifts over the card (they pass behind it). Glints capped at 22 px (no lens-flare stars).
+- Home streamers: wider (54 x 15), shaded across their width (lit edge, glossy band, darker underside,
+  darker where the curl turns away), two fading afterimages when fast (motion blur), never edge-on thinner
+  than 55 %; sizes 1.5 / 2.1 / 2.8 (the closer home camera of env made the old sizes bury the hut).
+- "+1": white letters filled gold (shine_text), a thick dark brown stroke, a warm gold rim, a drop
+  shadow, drawn 1.3x; pops 0 -> 1.5 -> 1 in about six frames, rises 80 units, holds, shrinks away. It
+  shares the font size and outlines with the streak's "×N" (BADGE_OUTLINES, PLUS_SIZE): one set of glyphs.
+- Home light (`Fx.home_glow`): no fill in the doorway (the "flat orange arch"); a broad faint warm halo
+  round the doorway, a flat pool on the ground, both breathing, softer longer rays, embers. Satin and
+  ribbons no longer glint (the "blue-white lens-flare star" was a streamer's glint).
+- Perf (perf.tscn, iPhone 15, 40 s, merged d289a14's fx/confetti vs mine): texture memory load 77.6 ->
+  71.6 MB, run 94.9 -> 89.0, paused 86.9 -> 81.0, menu after 103.0 -> 97.0 (-6 MB: one set of badge
+  glyphs); worst own frame 8.0 vs 8.2 ms (one 16 ms render reading did not repeat).
+- Tests: 1013 checks, 0 failed, exit 0; --bot: home, 3 lives, 82 Red Bobs, 3 stars. No lambda error.
+
+## Round 4b (QA round 4: AU-1 white ring face, AU-2 win reveal)
+- The "white ring face": `_fliers.z_index = 11` (game_screen.gd, over view.fx at 10, under OVERLAY_Z 20;
+  UX still hides it under panels); the flier wears the row's face for its first frames (then joy) and pops
+  to 1.2x, not 1.35x; the "×N" badge is z 2 inside view.fx (12) so the fliers don't cover it.
+- The win reveal (perf.tscn full level, results phase, iPhone 15): draw calls max 959 (QA, round 3 merge) ->
+  595 (my round 4) -> 468 now; objects ~10 000 -> 2 690 -> 2 673. A scratch probe (removed) showed the
+  results screen costs 427 draw calls with no effect at all (the blurred game behind and the panel); the
+  effects now add at most ~40 on top (they added ~175): `Confetti` drew each sparkle's halo and star
+  alternately (two textures: two draw calls per sparkle) and its motion blur in piece order (a texture
+  change per piece). Both now go texture by texture and batch. Play max 515 -> 390.
+- Tests: 1012/1012 twice; one --bot run had 1 intermittent failure of a camera check ("stepped right",
+  env's camera, phone_1280x720 frame 39) that did not repeat.

@@ -30,11 +30,14 @@ const STRIPS := {
 ## Tree rows: scroll factor, spacing (level units of that layer), size (of the picture's height in
 ## units), ground y, haze, foot haze, share of empty slots, haze colour (the far rows sink into the
 ## cool blue of distance, the near one into the warm air at the horizon).
+## Round 4: haze only far away; the nearer rows darker and richer (TREE_TINT), so the play stands off
+## the backdrop at a glance.
 const TREE_ROWS := [
-	[0.11, 170.0, 70.0, 488.0, 0.62, 0.3, 0.35, Color(0.62, 0.68, 0.82)],
-	[0.2, 300.0, 132.0, 540.0, 0.34, 0.3, 0.45, Color(0.68, 0.72, 0.8)],
-	[0.31, 520.0, 250.0, 604.0, 0.1, 0.3, 0.4, Color(0.96, 0.78, 0.5)],
+	[0.11, 170.0, 70.0, 488.0, 0.55, 0.3, 0.35, Color(0.62, 0.68, 0.82)],
+	[0.2, 300.0, 132.0, 540.0, 0.12, 0.12, 0.45, Color(0.68, 0.72, 0.8)],
+	[0.31, 520.0, 250.0, 604.0, 0.0, 0.05, 0.4, Color(0.96, 0.78, 0.5)],
 ]
+const TREE_TINT := [Color(1, 1, 1), Color(0.8, 0.8, 0.76), Color(0.72, 0.7, 0.64)]
 ## animals.png (tools/art/savanna.py): two giraffes, an elephant, a herd of wildebeest (px regions)
 const ANIMALS := [Rect2(0, 0, 140, 220), Rect2(140, 12, 128, 208), Rect2(268, 68, 220, 152), Rect2(488, 132, 300, 88)]
 const CLOUD_SCALE := 2.0  ## cloud_N.png are stored at half size (soft, no detail to lose)
@@ -80,16 +83,15 @@ func _ready() -> void:
 	_painter(_draw_sun).material = add
 	_painter(_draw_clouds)
 	_painter(_draw_strip.bind(&"far_mesas"), true)
-	_painter(_draw_band.bind(470.0, 110.0, 0.08))  # (round 2: thinner bands of haze: values, not milk)
-	_painter(_draw_strip.bind(&"far_hills"), true).material = _haze([0, 0, 0, 0, 0.3, 0.0, 0, Color(0.64, 0.7, 0.84)])
-	_painter(_draw_trees.bind(0)).material = _haze(TREE_ROWS[0])
-	_painter(_draw_band.bind(528.0, 80.0, 0.12))
+	_painter(_draw_band.bind(470.0, 110.0, 0.06))  # (round 4: haze only around the far layers)
+	_painter(_draw_strip.bind(&"far_hills"), true).material = _haze([0, 0, 0, 0, 0.22, 0.0, 0, Color(0.64, 0.7, 0.84)])
+	_painter(_draw_trees.bind(0)).material = _haze(TREE_ROWS[0], TREE_TINT[0])
+	_painter(_draw_band.bind(528.0, 80.0, 0.04))
 	_painter(_draw_rays).material = add
-	_painter(_draw_strip.bind(&"mid_hills"), true).material = _haze([0, 0, 0, 0, 0.08, 0.0, 0, Color(0.96, 0.76, 0.52)])
-	_painter(_draw_trees.bind(1)).material = _haze(TREE_ROWS[1])
-	_painter(_draw_band.bind(588.0, 70.0, 0.08))
-	_painter(_draw_trees.bind(2)).material = _haze(TREE_ROWS[2])
-	_painter(_draw_strip.bind(&"near_grass"), true)
+	_painter(_draw_strip.bind(&"mid_hills"), true).material = _haze([0, 0, 0, 0, 0.0, 0.0, 0, Color(0.96, 0.76, 0.52)], Color(0.8, 0.78, 0.66))
+	_painter(_draw_trees.bind(1)).material = _haze(TREE_ROWS[1], TREE_TINT[1])
+	_painter(_draw_trees.bind(2)).material = _haze(TREE_ROWS[2], TREE_TINT[2])
+	_painter(_draw_strip.bind(&"near_grass"), true).material = _haze([0, 0, 0, 0, 0.0, 0.0, 0, Color(1, 1, 1)], Color(0.84, 0.74, 0.58))
 	_painter(_draw_lane).material = add  # (round 3) the low sun on the grass behind the play
 	_painter(_draw_motes).material = add
 	_painter(_draw_birds)
@@ -115,9 +117,10 @@ func _painter(fn: Callable, repeat := false) -> Painter:
 	return p
 
 
-func _haze(row: Array) -> ShaderMaterial:
+func _haze(row: Array, tint := Color.WHITE) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = preload("res://src/game/haze.gdshader")
+	m.set_shader_parameter(&"tint", tint)
 	m.set_shader_parameter(&"haze_colour", row[7])
 	m.set_shader_parameter(&"amount", row[4])
 	m.set_shader_parameter(&"foot", row[5])
@@ -189,7 +192,7 @@ func _draw_clouds(ci: CanvasItem) -> void:
 		if flip:  # a negative width mirrors the picture in place
 			rect.size.x = -size.x
 		# (round 2: quieter, and lit by the low sun: warm, not white blobs over the play)
-		ci.draw_texture_rect(tex, rect, false, Color(1.0, 0.88, 0.76, 0.72 - fade * 0.32))
+		ci.draw_texture_rect(tex, rect, false, Color(1.0, 0.96, 0.92, 0.78 - fade * 0.32))  # (round 4: warm in the picture)
 
 
 func _draw_strip(ci: CanvasItem, name: StringName) -> void:
@@ -287,7 +290,11 @@ func _draw_trees(ci: CanvasItem, row_index: int) -> void:
 			continue
 		if flip:  # a negative width mirrors the picture in place
 			rect.size.x = -size.x
-		ci.draw_texture_rect(tex, rect, false)
+		# round 4: each tree leans its own way (a skew about its foot): no two alike
+		var foot := Vector2(x, row[3])
+		ci.draw_set_transform_matrix(Transform2D(0.0, Vector2.ONE, (_hash(seed + 14) - 0.5) * 0.36, foot))
+		ci.draw_texture_rect(tex, Rect2(rect.position - foot, rect.size), false)
+		ci.draw_set_transform_matrix(Transform2D.IDENTITY)
 
 
 ## One of the animals in animals.png (ANIMALS), standing on `ground` at x, `k` times its size, its

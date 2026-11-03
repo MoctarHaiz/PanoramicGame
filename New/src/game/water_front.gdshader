@@ -30,6 +30,12 @@ void fragment() {
 	}
 	vec3 c = mix(shallow.rgb, deep.rgb, clamp((d - 3.0) / 46.0, 0.0, 1.0));
 	float a = smoothstep(0.0, 3.0, d) * mix(0.38, 0.8, clamp(d / 46.0, 0.0, 1.0));
+	// round 4: a bank (it fades into the ground) is muddy at the waterline, and its edge wanders
+	// (no straight glassy strip down the pool's side)
+	if (fade_left + fade_right > 0.0) {
+		c = mix(vec3(0.22, 0.2, 0.15), c, smoothstep(2.0, 18.0, d));
+		a *= 0.55 + 0.45 * sin(d * 0.37 + x * 0.21) * sin(d * 0.13 - x * 0.05);
+	}
 	// the foam lapping round it at the surface, bubbling
 	float lap = 1.0 - smoothstep(0.0, 3.2, abs(d - 0.8));
 	lap *= 0.65 + 0.35 * sin(x * 0.9 + t * 3.1) * sin(x * 0.37 - t * 1.7);

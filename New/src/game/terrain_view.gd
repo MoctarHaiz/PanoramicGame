@@ -11,8 +11,7 @@ extends Node2D
 ##          terrain.gdshader erodes a wall's sides instead. The banks of the pools slope into the
 ##          water in water.gdshader.)
 ##   mass   (round 2) the earth and rock a floating ledge carries under it, deepest under its middle
-##   under  lumps of earth and roots hanging under cells open below (floating ledges): their
-##          thickness varies along the ledge
+##   under  (round 4: no longer drawn: the masses make a ledge's underside)
 ##   caps   the grass along every walkable top (grass_cap.png), rounded ends wrapping the corners
 ##   roots  roots reaching into the soil under the grass
 ##   tufts  clumps of grass and wild flowers standing on some tops, swaying (sway.gdshader)
@@ -42,7 +41,7 @@ const TUFT := Vector2(64, 48)  ## tufts.png: one row of 8
 const FRONT_H := 24.0  ## front_grass.png: blades rise from 14 units under the surface
 const FRONT_BASE := 18.0
 const FOOT_SHADE := Color(0.18, 0.06, 0.14, 0.62)  ## at the foot of a wall
-const CAST_SHADE := Color(0.12, 0.08, 0.26, 0.78)  ## a wall's long shadow on the ground (round 2)
+const CAST_SHADE := Color(0.16, 0.1, 0.2, 0.55)  ## a wall's long shadow on the ground (round 4: softer, no seam)
 const CAST_K := 0.75  ## its length per unit of the wall's height (a low sun)
 const DRAPE := Vector2(30, 50)  ## grass_drape.png: two pieces (left side, right side), each this size
 const DRAPE_IN := 8.0  ## units of a drape over its own cell (the rest hangs past the open side)
@@ -50,6 +49,7 @@ const DRAPE_TOP := 12.0  ## units of a drape above the grass surface
 const SPIRE := Vector2(96, 560)  ## spires.png: three spires side by side, each this size (round 2: taller, no stretch)
 const MASS := Vector2(160, 120)  ## hanging.png: masses of earth hanging under a ledge, each this size
 const MASS_VARIANTS := 4
+const MASS_INSET := 44.0  ## units the masses stay in from a ledge's ends (its taper cuts up to ~34)
 const DIR := "res://assets/art/world/"
 
 var level: Level
@@ -120,7 +120,7 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 	soil.set_shader_parameter(&"rock_tex", load(DIR + "rock.png"))
 	var sway := ShaderMaterial.new()
 	sway.shader = preload("res://src/game/sway.gdshader")
-	for name: StringName in [&"mass", &"soil", &"spires", &"under", &"roots", &"caps", &"ends", &"tufts", &"drape", &"foot", &"cast"]:
+	for name: StringName in [&"mass", &"soil", &"spires", &"roots", &"caps", &"ends", &"tufts", &"drape", &"foot", &"cast"]:
 		var layer := Node2D.new()
 		layer.name = name
 		add_child(layer)
@@ -134,7 +134,7 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 	soil.set_shader_parameter(&"depth_tex", _depth_texture(first_col, end_col))
 	soil.set_shader_parameter(&"first_col", first_col)
 	var textures := {
-		&"soil": load(DIR + "terrain_shape.png"), &"under": load(DIR + "underside.png"),
+		&"soil": load(DIR + "terrain_shape.png"),
 		&"roots": load(DIR + "roots.png"), &"caps": load(DIR + "grass_cap.png"),
 		&"ends": load(DIR + "grass_ends.png"), &"tufts": load(DIR + "tufts.png"),
 		&"front": load(DIR + "front_grass.png"), &"foot": soft_disc(), &"cast": cast_shade(),
@@ -220,9 +220,8 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 	if not pole:
 		b[&"soil"].items.append([Rect2(x, y, T, T),
 				Rect2(mask * SHAPE_STRIDE + 4.0, variant * SHAPE_STRIDE + 4.0, 64, 64), Color.WHITE])
-	if open_s and not open_w and not open_e:
-		b[&"under"].items.append([Rect2(x, y + T - UNDER_TOP, T, UNDER_H),
-				Rect2(fposmod(x * PX, 1024.0), 0, T * PX, UNDER_H * PX), Color.WHITE])
+	# (round 4: no more strip of earth under a ledge's cells: it stopped square before the ledge's
+	# rounded ends; the masses below and the ledge's own shade make its underside)
 	if open_s and not pole and not (solid(c - 1, r) and not solid(c - 1, r + 1)):
 		_hang_masses(c, r, b[&"mass"])
 	if not open_n and _wall_foot(c, r):  # (round 2) the ground's grass runs on across a wall's foot
@@ -270,7 +269,8 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 		var length := minf(tall * T * CAST_K, run * T + 6.0)
 		if length > 40.0:
 			b[&"cast"].items.append([Rect2(x - 4.0, y - 20.0, length, 46.0), Rect2(0, 0, 64, 32), CAST_SHADE])
-			b[&"front_cast"].items.append([Rect2(x - 4.0, y - 12.0, length, 30.0), Rect2(0, 0, 64, 32), CAST_SHADE])
+			b[&"front_cast"].items.append([Rect2(x - 4.0, y - 8.0, length * 0.8, 18.0), Rect2(0, 0, 64, 32),
+					Color(CAST_SHADE, CAST_SHADE.a * 0.45)])  # (trimmed: only the blades' lower half)
 	b[&"front"].items.append([Rect2(x, y - FRONT_BASE + 4.0, T, FRONT_H),
 			Rect2(fposmod(x * PX, 1024.0), 0, T * PX, FRONT_H * PX), Color.WHITE])
 	# some tops get a clump of grass or flowers (never on the edge cells)
@@ -296,12 +296,18 @@ func _hang_masses(c: int, r: int, batch: Batch) -> void:
 	var deepest := minf(MASS.y * clampf(0.45 + n / 10.0, 0.45, 1.0), free * T * 0.55)
 	if deepest < 16.0:
 		return
+	var x0 := c * T + MASS_INSET  # round 4: the masses stay under the ledge, clear of its rounded ends
+	var x1 := (c + n) * T - MASS_INSET  # (they ran ~2 cells past them, their flat tops showing)
+	if x1 - x0 < 24.0:
+		return
 	for i in count:
 		var u := (i + 0.5) / count
 		var k := 0.5 + 0.5 * pow(sin(PI * u), 0.7) if count > 1 else 1.0
 		var width := minf(length / count * 1.45 + 24.0, 260.0) * (0.85 + 0.15 * k)
+		width = minf(width, x1 - x0)
+		var cx := clampf(c * T + u * length, x0 + width / 2, x1 - width / 2)
 		var v := _hash(c + i, r, MASS_VARIANTS)
-		var rect := Rect2(c * T + u * length - width / 2, (r + 1) * T - 10.0, width, deepest * k)
+		var rect := Rect2(cx - width / 2, (r + 1) * T - 10.0, width, deepest * k)
 		if _hash(c + i, r + 3, 2) == 0:
 			rect.size.x = -rect.size.x  # mirrored in place
 		batch.items.append([rect, Rect2(v * MASS.x * PX, 0, MASS.x * PX, MASS.y * PX), Color.WHITE])
@@ -369,7 +375,7 @@ static func cast_shade() -> ImageTexture:
 	var img := Image.create_empty(64, 32, false, Image.FORMAT_RGBA8)
 	for x in 64:
 		for y in 32:
-			var across := pow(1.0 - x / 63.0, 1.1)
+			var across := pow(1.0 - x / 63.0, 1.3) * smoothstep(0.0, 10.0, float(x))  # (round 4: no hard edge at the wall)
 			var band := 1.0 - pow(absf(y - 15.5) / 16.0, 2.0)
 			img.set_pixel(x, y, Color(1, 1, 1, clampf(across * band * 1.15, 0.0, 1.0)))
 	return ImageTexture.create_from_image(img)

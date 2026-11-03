@@ -30,8 +30,14 @@ const HEAD_ROOM := 132.0  ## screen units (of 640) over his head
 const HEAD := 74.0  ## play units from his centre up to the top of his head (drawn 150 tall from his feet)
 const HUD_BAND := 78.0  ## screen units kept for the HUD over the vine
 const VINE_TOP := -8.0  ## play y of the top of the vine (VineView)
-const ZOOM_OUT_RATE := 5.0  ## how fast the camera draws back (1/s), and closes in again
+const ZOOM_OUT_RATE := 9.0  ## how fast the camera draws back (1/s; round 4: faster, GP-1), and closes in again
 const ZOOM_IN_RATE := 1.4
+const HIGH_FROM := 340.0  ## play y of his feet where the camera starts to rise with him (a high ledge)
+const HIGH_FULL := 270.0  ## ... and where it has fully risen
+const HIGH_FEET := 0.74  ## risen, his feet this share of the screen down
+const HIGH_RATE := 2.5  ## how fast it rises and comes back down (1/s)
+const HIGH_DROP := 14.0  ## ... and how fast it comes down when what must be seen no longer fits
+const HIGH_LOOKAHEAD := 330.0  ## units further than the rules look for a drop ahead (~1.4 s of run)
 const HOME_PUSH := 1.4  ## at home the camera pushes in to the doorway, to this zoom (1: 640 units tall)
 const DEATH_PUSH := 1.2  ## caught: the camera closes in on him while he falls (World.DYING_TIME)
 const HOME_CX := 800.0  ## play x drawn to the middle of the screen at home (the hut, him at its door)
@@ -75,11 +81,14 @@ var _countdown := 0.0  # after Resume: seconds before the world moves again
 var _count_id := 0  # which Resume the countdown's numbers belong to
 var _spring_due := false  # the spring's sound waits for the end of the fall's beat
 var _zoom := 0.0  # the camera's zoom (1: the 640 units fill the screen's height); 0: not placed yet
+var _support := 0.0  # play y of the feet he last stood on (in the air only a fall moves it)
+var _high := 0.0  # 0..1: how far the camera has risen with him on a high ledge
 var _push := 1.0  # the camera pushed in at home (HOME_PUSH), or on him when caught (DEATH_PUSH)
 var _pit_scroll := -1.0  # the scroll the camera holds at while he drops into a pit (_gameplay_camera)
 var _pit_time := 0.0  # seconds since it began holding
 var _pit_seen := false  # the hold began while he was still in the picture, dropping in
 var _need := Rect2()  # what must be seen (World.camera_must_see()), eased
+var _dt := 0.0  # this frame's seconds (_process's delta: a test may step it by hand)
 const NEED_EASE := 12.0  ## 1/s: how fast the camera lets go of what needn't be seen any more (~0.2 s)
 const NEED_GROW := 40.0  ## 1/s: how fast it takes in more (~0.06 s)
 ## Caught: his last beat is framed with him this far across the screen (he fell near its left edge),
@@ -126,6 +135,7 @@ func enter(data: Dictionary) -> void:
 	hud.setup(world)
 	hud.pause_pressed.connect(pause_game)
 	_fliers = Node2D.new()
+	_fliers.z_index = 11  # New (audio): over the effects layer (view.fx, z 10): the pickup's ring never covers its face
 	add_child(_fliers)
 	world.jumped.connect(func() -> void: Audio.play_sfx(&"jump"))
 	world.landed.connect(_on_landed)
@@ -185,6 +195,7 @@ func _layout() -> void:
 
 
 func _process(delta: float) -> void:
+	_dt = delta
 	_clock += delta
 	_freeze = maxf(_freeze - delta, 0.0)
 	if _ready_to_start and autopilot:
@@ -216,9 +227,26 @@ func _process(delta: float) -> void:
 func _place_camera(delta: float) -> void:
 	var p := world.draw_hero()
 	var inset := Device.insets().x
-	var goal := minf(base_zoom((_clip.size.x - inset) / _k), follow_zoom(world, p))
+	# round 4: up on a high ledge the camera stays close and rises with him (gameplay measured the
+	# lower half of those shots free: _keep_fair still brings in whatever must be seen)
+	var feet := p.y + World.HERO_SIZE.y / 2
+	if _zoom <= 0.0 or (world.on_ground and not world.hanging) or feet > _support:
+		_support = feet  # what he stands on (in the air, only a fall moves it)
+	var vine_framed := world.state == World.State.RUNNING and (world.hanging or world.rising_to_vine())
+	var high := 0.0 if vine_framed else smoothstep(HIGH_FROM, HIGH_FULL, _support)
+	var base := base_zoom((_clip.size.x - inset) / _k)
+	# only where all the player must see (gameplay: World.camera_must_see()) fits under the HUD up close
+	var need := world.camera_must_see()
+	# (looking further ahead than the rules: the camera is down again before a drop ahead must show)
+	var low := maxf(need.end.y, _lowest_ahead(world, World.SEE_AHEAD_DOWN + HIGH_LOOKAHEAD) + 24.0)
+	var fits := low - need.position.y + HUD_BAND / (_k * base) <= _clip.size.y / (_k * base) - 4.0
+	if not fits:
+		high = 0.0
+	var goal := lerpf(minf(base, follow_zoom(world, p)), base, _high)
 	if _zoom <= 0.0:  # the first frame: framed at once, no drift in from nowhere
 		_zoom = goal
+		_high = high
+	_high = lerpf(_high, high, 1.0 - exp(-delta * (HIGH_RATE if fits else HIGH_DROP)))
 	_zoom = lerpf(_zoom, goal, 1.0 - exp(-delta * (ZOOM_OUT_RATE if goal < _zoom else ZOOM_IN_RATE)))
 	var home := world.state == World.State.WON
 	var caught := world.state == World.State.DEAD and world.death_reason == &"bandit"
@@ -227,6 +255,15 @@ func _place_camera(delta: float) -> void:
 	var shake := _trauma * _trauma * SHAKE * Prefs.shake()  # New: the player can turn it off
 	var zoom_k := _k * _zoom
 	var at := Vector2(inset, _clip.size.y - World.VIEW_H * zoom_k)
+	if _high > 0.001:  # risen: his feet HIGH_FEET down the screen, never above the vine under the HUD
+		var bottom_top := World.VIEW_H - _clip.size.y / zoom_k  # (the play y at the top, ground on the bottom)
+		var vine_top := VINE_TOP - HUD_BAND / zoom_k
+		var top := clampf(_support - HIGH_FEET * _clip.size.y / zoom_k, vine_top, bottom_top)
+		if world.state == World.State.RUNNING and _vine_in_reach(world):
+			top = vine_top  # where a jump reaches the vine: it shows under the HUD
+		# and what must be seen stays in view, the whole time (under the HUD band, above the bottom)
+		top = clampf(top, need.end.y - _clip.size.y / zoom_k, need.position.y - HUD_BAND / zoom_k)
+		at.y = -lerpf(bottom_top, top, _high) * zoom_k
 	if _push > 1.0001 and home:  # New: the push draws the hut and him to the middle of the screen as it goes
 		# in (about the doorway, a 4:3 iPad lost the hut's right half past its edge)
 		var u := clampf((_push - 1.0) / maxf(HOME_PUSH / _zoom - 1.0, 0.01), 0.0, 1.0)
@@ -262,7 +299,7 @@ func _gameplay_camera(zoom: float, at: Vector2) -> Array:
 	var u := 0.0  # how far his last beat's framing has come
 	if _pit_scroll >= 0.0:
 		at.x += (world.draw_scroll() - _pit_scroll) * zoom
-		_pit_time += get_process_delta_time()
+		_pit_time += _dt
 		u = smoothstep(0.0, DEATH_FRAME_TIME, _pit_time) if _pit_seen else 0.0
 	if world.state == World.State.DEAD and world.death_reason == &"bandit":
 		u = smoothstep(0.0, DEATH_FRAME_TIME, world.end_time)
@@ -280,7 +317,7 @@ func _gameplay_camera(zoom: float, at: Vector2) -> Array:
 func _keep_fair(zoom: float, at: Vector2) -> Array:
 	var need := world.camera_must_see()
 	if _need.size != Vector2.ZERO:  # eased: quickly where more must be seen, gently where less (no snap)
-		var dt := get_process_delta_time()
+		var dt := _dt
 		var grow := 1.0 - exp(-dt * NEED_GROW)
 		var shrink := 1.0 - exp(-dt * NEED_EASE)
 		var lo := Vector2(lerpf(_need.position.x, need.position.x, grow if need.position.x < _need.position.x else shrink),
@@ -347,6 +384,22 @@ static func _jump_top(y: float, vy: float) -> float:
 		y += vy
 		vy += World.GRAVITY
 	return y
+
+
+## The lowest grass top or pool surface within `reach` units ahead of him (play y), at least his feet
+## (World._ground_ahead()'s look, further).
+static func _lowest_ahead(w: World, reach: float) -> float:
+	var feet := w.y + World.HERO_SIZE.y / 2
+	var lowest := feet
+	var c0 := floori((w.scroll + w.x - World.HERO_SIZE.x / 2) / Level.TILE)
+	var c1 := floori((w.scroll + w.x + reach) / Level.TILE)
+	for c in range(maxi(c0, 0), mini(c1, Level.COLS - 1) + 1):
+		for r in range(clampi(floori((feet - 1.0) / Level.TILE), 0, Level.ROWS - 1), Level.ROWS):
+			var k := w.level.kind_at(c, r)
+			if k == Level.Kind.TOP or k == Level.Kind.WATER:
+				lowest = maxf(lowest, r * Level.TILE)
+				break
+	return minf(lowest, World.VIEW_H - 24.0)
 
 
 ## Standing where a jump takes him to the top of the screen (the vine), under open sky.

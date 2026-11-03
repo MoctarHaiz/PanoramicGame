@@ -13,7 +13,7 @@ enum Shape { PAPER, RIBBON, SEQUIN, STAR, LEAF, CHIP, COIN, PETAL, BEAD, STREAME
 const SIZES := {
 	Shape.PAPER: Vector2(19, 12), Shape.RIBBON: Vector2(30, 10), Shape.SEQUIN: Vector2(13, 13),
 	Shape.STAR: Vector2(19, 19), Shape.LEAF: Vector2(27, 14), Shape.CHIP: Vector2(15, 13), Shape.COIN: Vector2(22, 22),
-	Shape.PETAL: Vector2(18, 11), Shape.BEAD: Vector2(10, 10), Shape.STREAMER: Vector2(54, 9),
+	Shape.PETAL: Vector2(18, 11), Shape.BEAD: Vector2(10, 10), Shape.STREAMER: Vector2(54, 15),
 }
 const STREAK_SPEED := 420.0  ## faster than this (px/s), a piece leaves a smear
 
@@ -28,6 +28,8 @@ var drag := 2.5
 var flutter := 500.0
 ## Pieces flash when they face the light (paper, sequins); matte ones (leaves, stone) don't.
 var glints := true
+## Pieces inside this rectangle (local units) aren't drawn: they pass behind it (a card's words).
+var avoid := Rect2()
 
 var _pieces: Array[Piece] = []
 var _sparkles: Array[Sparkle] = []
@@ -161,29 +163,46 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
 	# Motion blur first, under the pieces: a fast piece leaves a faint copy of itself stretched back
-	# along its path (its own shape and colour: a blur, never a thin stick).
+	# along its path (its own shape and colour: a blur, never a thin stick). Shape by shape, like the
+	# pieces: one texture at a time batches into one draw call.
+	for shape: int in Shape.values():
+		if shape == Shape.COIN:  # a coin is solid metal: no blur
+			continue
+		_draw_blur(shape)
+	draw_set_transform(Vector2.ZERO)
+	_draw_pieces()
+
+
+func _draw_blur(shape: int) -> void:
 	for p in _pieces:
-		if p.age < 0.0 or p.age >= p.life or p.shape == Shape.COIN:  # a coin is solid metal: no blur
+		if p.shape != shape or p.age < 0.0 or p.age >= p.life or avoid.has_point(p.pos):
 			continue
 		var speed := p.vel.length()
 		if speed > STREAK_SPEED:
 			var k := minf((speed - STREAK_SPEED) / 600.0, 1.0)
 			var c := _shade(p)
+			if p.shape == Shape.STREAMER or p.shape == Shape.RIBBON:  # a ribbon leaves two fading afterimages of itself
+				for back in [0.022, 0.044]:
+					draw_set_transform(p.pos - p.vel * back, p.turn, Vector2(1.0, maxf(absf(cos(p.flip)), 0.55)))
+					draw_texture_rect(_textures[p.shape], Rect2(-p.size / 2, p.size), false, Color(c, c.a * 0.3 * k * (1.0 - back * 12.0)))
+				continue
 			c.a *= 0.35 * k
 			var stretch := 1.0 + 1.6 * k
 			draw_set_transform(p.pos - p.vel * 0.018, p.vel.angle(), Vector2(stretch, 0.75))
 			draw_texture_rect(_textures[p.shape], Rect2(-p.size / 2, p.size), false, c)
-	draw_set_transform(Vector2.ZERO)
+
+
+func _draw_pieces() -> void:
 	for shape: int in Shape.values():
 		var tex: Texture2D = _textures[shape]
 		for p in _pieces:
-			if p.shape != shape or p.age < 0.0 or p.age >= p.life:
+			if p.shape != shape or p.age < 0.0 or p.age >= p.life or avoid.has_point(p.pos):
 				continue
 			var face := cos(p.flip)
 			var w := 1.0 if p.shape == Shape.BEAD else maxf(absf(face), 0.14)  # a bead is round from every side
 			var grow := minf(p.age / 0.06, 1.0)  # pieces open out of the burst
 			# a long ribbon twists across its width (keeping its length); a flat piece turns edge-on
-			var twist := Vector2(1.0, maxf(w, 0.3)) if p.shape == Shape.STREAMER or p.shape == Shape.RIBBON else Vector2(w, 1.0)
+			var twist := Vector2(1.0, maxf(w, 0.55)) if p.shape == Shape.STREAMER or p.shape == Shape.RIBBON else Vector2(w, 1.0)
 			draw_set_transform(p.pos, p.turn, twist * grow)
 			draw_texture_rect(tex, Rect2(-p.size / 2, p.size), false, _shade(p))
 	draw_set_transform(Vector2.ZERO)
@@ -196,23 +215,29 @@ func _draw_lights() -> void:
 			if p.age < 0.0 or p.age >= p.life:
 				continue
 			var g := _glint(p)
-			if g < 0.08:
+			if g < 0.08 or avoid.has_point(p.pos):
 				continue
-			var r := (p.size.x + p.size.y) * 0.75 * g
+			var r := minf((p.size.x + p.size.y) * 0.75, 22.0) * g  # a glint, never a lens-flare star
 			_lights.draw_set_transform(p.pos, p.turn * 0.3, Vector2.ONE)
 			_lights.draw_texture_rect(_flare, Rect2(-Vector2(r, r), Vector2(r, r) * 2), false,
 					Color(1, 0.97, 0.88, 0.85 * g * _fade(p.age, p.life)))
-	for s in _sparkles:
-		if s.age >= s.life:
-			continue
-		var k := s.age / s.life
-		var pop := minf(k / 0.15, 1.0)
-		var tw := 0.75 + 0.25 * sin(s.twinkle + s.age * 22.0)
-		var r := s.size * pop * tw * (1.0 - 0.5 * k)
-		var c := Color(s.colour, (1.0 - k * k))
-		_lights.draw_set_transform(s.pos, s.turn, Vector2.ONE)
-		_lights.draw_texture_rect(Fx.glow_texture(), Rect2(-Vector2(r, r) * 1.1, Vector2(r, r) * 2.2), false, Color(c, c.a * 0.45))
-		_lights.draw_texture_rect(_flare, Rect2(-Vector2(r, r), Vector2(r, r) * 2), false, c)
+	# the sparkles: every halo first, then every star (one texture at a time: they batch into two
+	# draw calls, not two per sparkle)
+	for pass_ in 2:
+		var tex := Fx.glow_texture() if pass_ == 0 else _flare
+		for s in _sparkles:
+			if s.age >= s.life or avoid.has_point(s.pos):
+				continue
+			var k := s.age / s.life
+			var pop := minf(k / 0.15, 1.0)
+			var tw := 0.75 + 0.25 * sin(s.twinkle + s.age * 22.0)
+			var r := s.size * pop * tw * (1.0 - 0.5 * k)
+			var c := Color(s.colour, (1.0 - k * k))
+			_lights.draw_set_transform(s.pos, s.turn, Vector2.ONE)
+			if pass_ == 0:
+				_lights.draw_texture_rect(tex, Rect2(-Vector2(r, r) * 1.1, Vector2(r, r) * 2.2), false, Color(c, c.a * 0.45))
+			else:
+				_lights.draw_texture_rect(tex, Rect2(-Vector2(r, r), Vector2(r, r) * 2), false, c)
 	_lights.draw_set_transform(Vector2.ZERO)
 
 
@@ -230,7 +255,7 @@ func _shade(p: Piece) -> Color:
 
 ## How much a piece catches the light (0 to 1): for an instant as it turns full face.
 func _glint(p: Piece) -> float:
-	if p.shape == Shape.LEAF or p.shape == Shape.CHIP or p.shape == Shape.PETAL:
+	if p.shape in [Shape.LEAF, Shape.CHIP, Shape.PETAL, Shape.STREAMER, Shape.RIBBON]:  # satin and leaves: their sheen is in their shading
 		return 0.0
 	return pow(maxf(cos(p.flip + p.glint_phase), 0.0), 24.0) * maxf(cos(p.flip), 0.0)
 
@@ -298,13 +323,15 @@ static func _bake_textures() -> void:
 		var spec := pow(maxf(1.0 - (u - Vector2(-0.35, -0.4)).length() / 0.3, 0.0), 2.0)
 		var rim := smoothstep(0.7, 0.95, r) * (1.0 - light) * 0.3
 		return Vector2(0.45 + 0.45 * light + 0.6 * spec + rim, (0.96 - r) * 12.0))
-	# A streamer: a long satin ribbon in a double curl, a glossy band of light along its crest.
-	_textures[Shape.STREAMER] = _bake(Vector2i(96, 18), func(u: Vector2) -> Vector2:
-		var wave := sin(u.x * PI * 2.0) * 0.5
-		var d := 1.0 - absf(u.y - wave) / 0.36
+	# A streamer: a wide satin ribbon in a gentle double curl, shaded across its width (lit edge on
+	# top, a glossy band, its underside darker) and darker where the curl turns away from the light.
+	_textures[Shape.STREAMER] = _bake(Vector2i(96, 30), func(u: Vector2) -> Vector2:
+		var wave := sin(u.x * PI * 2.0) * 0.32
+		var across := (u.y - wave) / 0.6  # -1 at its top edge, 1 at its bottom edge
 		var slope := cos(u.x * PI * 2.0)
-		var gloss := pow(maxf(0.0, 1.0 - absf(u.y - wave + 0.12)) , 6.0) * 0.35
-		return Vector2(0.7 + 0.22 * slope + gloss, minf(d * 6.0, 1.0 - pow(absf(u.x), 6.0))))
+		var shade := 0.82 - 0.22 * across + 0.12 * slope
+		var gloss := 0.35 * exp(-pow((across + 0.35) * 4.0, 2.0))
+		return Vector2(shade + gloss, minf((1.0 - absf(across)) * 8.0, (1.0 - pow(absf(u.x), 8.0)) * 6.0)))
 	# A glint: a hot core, four thin spikes and a soft halo.
 	_flare = _bake(Vector2i(64, 64), func(u: Vector2) -> Vector2:
 		var r := u.length()
