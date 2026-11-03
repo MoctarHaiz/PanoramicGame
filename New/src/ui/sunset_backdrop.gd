@@ -8,11 +8,13 @@ extends Control
 ## and buttons sit on the calmer left, the hero portrait on the right.
 
 const DIR := "res://assets/art/world/"
-const HORIZON := 0.74  ## share of the height
+const HORIZON := 0.74  ## share of the height (by default: see `horizon`)
 const SUN_X := 0.36
 
 ## Where the sun is, as shares of the size (the menu puts it behind Panoramic, away from the buttons).
 var sun_at := Vector2(SUN_X, HORIZON - 0.13)
+## Where the land meets the sky, as a share of the height (lower: more sky, the frame not cut in half).
+var horizon := HORIZON
 ## The large acacia framing the left edge and the baobab near it (off where a character stands there).
 var framing_tree := true
 ## Pollen specks drifting up (off on the menu: they read as stars in a lit sky).
@@ -86,8 +88,8 @@ func _sun() -> Vector2:
 
 
 func _draw_sky(ci: CanvasItem) -> void:
-	ci.draw_texture_rect(_tex[&"sunset_sky"], Rect2(0, 0, size.x, size.y * (HORIZON + 0.06)), false)
-	ci.draw_rect(Rect2(0, size.y * (HORIZON + 0.05), size.x, size.y), Color("3a1a30"))
+	ci.draw_texture_rect(_tex[&"sunset_sky"], Rect2(0, 0, size.x, size.y * (horizon + 0.06)), false)
+	ci.draw_rect(Rect2(0, size.y * (horizon + 0.05), size.x, size.y), Color("3a1a30"))
 
 
 ## Long clouds lit from below by the sun gone down: the level's painted clouds, stretched wide,
@@ -112,7 +114,7 @@ func _draw_sun(ci: CanvasItem) -> void:
 	ci.draw_texture_rect(_tex[&"sun"], Rect2(c - Vector2(glow, glow) / 2, Vector2(glow, glow)), false, Color(1, 0.8, 0.6, 0.9))
 	# the warm air along the horizon either side of the sun
 	var band := Vector2(size.y * 2.6, size.y * 0.42)
-	ci.draw_texture_rect(_tex[&"sun"], Rect2(Vector2(c.x, size.y * HORIZON) - band / 2, band), false, Color(1, 0.7, 0.45, 0.55))
+	ci.draw_texture_rect(_tex[&"sun"], Rect2(Vector2(c.x, size.y * horizon) - band / 2, band), false, Color(1, 0.7, 0.45, 0.55))
 	# a blown-out disc: many soft rings added up, white-hot in its middle, blooming into the sky
 	# (no hard cut-out edge)
 	for i in 12:
@@ -138,7 +140,7 @@ func _draw_strip(ci: CanvasItem, name: StringName, drop: float, units_per_px: fl
 	var tex: Texture2D = _tex[name]
 	var k := _k() * units_per_px
 	var h := tex.get_height() * k
-	var bottom := size.y * (HORIZON + drop) + (size.y * 0.02 if name == &"sunset_far" else 0.0)
+	var bottom := size.y * (horizon + drop) + (size.y * 0.02 if name == &"sunset_far" else 0.0)
 	if name == &"sunset_grass":
 		bottom = size.y + 4.0
 	var src_x := fposmod(_clock * drift / k + 300.0, tex.get_width())
@@ -150,10 +152,10 @@ func _draw_trees(ci: CanvasItem) -> void:
 	var dark := Color(0.2, 0.1, 0.17)
 	var k := _k()
 	if framing_tree:
-		_tree(ci, &"tree_acacia_1", Vector2(size.x * 0.0 + 40.0 * k, size.y * (HORIZON + 0.2)), 360.0 * k, dark, true)
-	_tree(ci, &"tree_acacia_2", Vector2(size.x * 0.6, size.y * (HORIZON + 0.06)), 120.0 * k, Color(0.3, 0.14, 0.24), false)
+		_tree(ci, &"tree_acacia_1", Vector2(size.x * 0.0 + 40.0 * k, size.y * (horizon + 0.2)), 360.0 * k, dark, true)
+	_tree(ci, &"tree_acacia_2", Vector2(size.x * 0.6, size.y * (horizon + 0.06)), 120.0 * k, Color(0.3, 0.14, 0.24), false)
 	if framing_tree:
-		_tree(ci, &"tree_baobab_1", Vector2(size.x * 0.17, size.y * (HORIZON + 0.07)), 140.0 * k, Color(0.3, 0.15, 0.26), false)
+		_tree(ci, &"tree_baobab_1", Vector2(size.x * 0.17, size.y * (horizon + 0.07)), 140.0 * k, Color(0.3, 0.15, 0.26), false)
 
 
 func _tree(ci: CanvasItem, name: StringName, foot: Vector2, height: float, tint: Color, flip: bool) -> void:

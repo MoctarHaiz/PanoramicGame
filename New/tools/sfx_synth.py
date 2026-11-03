@@ -445,6 +445,17 @@ def coins(v: int) -> np.ndarray:
     return room(out, 0.12, 0.4, 8000)
 
 
+def firework(v: int) -> np.ndarray:
+    seed(1090 + v)
+    out = buf(1.1)
+    place(out, 0, whoosh(0.22, 1500, 5000, 1.2, 0.85), 0.25)
+    place(out, 0.22, snap(0.02, 1500, 5000, 0.004), 0.8)
+    place(out, 0.22, thud(0.12, 250, 900, 1 + 0.08 * v, 0.03), 0.6)
+    place(out, 0.22, thump(110, 50, 0.2, 0.06, 2.0), 0.4)
+    place(out, 0.3, grains(0.7, 34, 2500, 9000, length=(0.002, 0.006), decay=0.2), 0.3)
+    return phone(room(out, 0.2, 0.9, 6000))
+
+
 # ---------------------------------------------------------------- interface
 
 def button(v: int) -> np.ndarray:
@@ -595,6 +606,8 @@ RECIPES = {
                  "with two bells (the win stinger lands on it)."),
     "sfx_coins": (coins, 2, -21.0, "The coin shower: a light rain of small metal tinkles thinning out over 1.5 s, "
                   "a few coins bouncing on wood."),
+    "sfx_firework": (firework, 3, -24.0, "A firework over the results: a short rising hiss, a soft pop, a "
+                     "crackle of sparks falling away; quiet, under the win stinger."),
     "sfx_button": (button, 3, -22.0, "Button tap: a soft, round, bubbly 'boop' (A4, B4, C#5 takes) with a small "
                    "plastic tock; short and friendly."),
     "sfx_panel_open": (lambda v: panel(True), 1, -24.0, "Panel opens: a soft rising swoosh into a pop on E5."),

@@ -15,7 +15,7 @@ var _dragging := false
 
 func _init(start := 1.0) -> void:
 	value = clampf(start, 0.0, 1.0)
-	custom_minimum_size = Vector2(250, 58)
+	custom_minimum_size = Vector2(250, 46)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	size_flags_vertical = Control.SIZE_SHRINK_CENTER
 
@@ -50,7 +50,7 @@ func _set_from(x: float) -> void:
 func _draw() -> void:
 	var r := size.y / 2
 	var ci := get_canvas_item()
-	var groove := Rect2(Vector2(0, r * 0.45), Vector2(size.x, r * 1.1))
+	var groove := Rect2(Vector2(0, r * 0.62), Vector2(size.x, r * 0.76))
 	var gr := groove.size.y / 2
 	GlossStyle.fill_rounded(ci, groove.grow(1.0), gr + 1.0, Color(1, 1, 0.95, 0.7), Color(1, 1, 0.95, 0.7))
 	GlossStyle.fill_rounded(ci, groove, gr, INK, INK)
@@ -62,11 +62,6 @@ func _draw() -> void:
 		GlossStyle.fill_rounded(ci, fill, gr - 3.5, Color("ffe066"), Color("e8860e"))
 		GlossStyle.fill_rounded(ci, Rect2(fill.position + Vector2(5, 2), Vector2(maxf(fill.size.x - 10, 0), 4)), 2.0,
 				Color(1, 1, 0.9, 0.75), Color(1, 1, 0.9, 0.5))
-	# the step marks along the whole groove (the scale reads even when it is full)
-	for i in range(1, STEPS):
-		var x := lerpf(r, size.x - r, float(i) / STEPS)
-		if absf(x - cx) > r * 0.7:
-			draw_circle(Vector2(x, r), 2.4, Color(INK, 0.45) if x > cx else Color("b8600c"), true, -1, true)
 	var knob_r := r - 2.0
 	var centre := Vector2(cx, r)
 	draw_circle(centre + Vector2(0, 4), knob_r, Color(Ui.NIGHT, 0.3), true, -1, true)

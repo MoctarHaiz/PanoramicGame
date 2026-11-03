@@ -239,6 +239,9 @@ func _warning_on(device: String) -> void:
 	Engine.time_scale = 6.0
 	while game.world.state == World.State.RUNNING and game.world.ticks < 9000:
 		await process_frame
+	for i in 40:  # home: his arrival framed (the watch looks on: the world calls it no more)
+		watch.act(game.world) if game.world.state == World.State.WON else null
+		await process_frame
 	Engine.time_scale = 1.0
 	var late: Array = watch.rows.filter(func(r: Array) -> bool: return r[1] > r[0])
 	var warn: Array = watch.rows.filter(func(r: Array) -> bool: return r[2] >= 0).map(func(r: Array) -> float: return (r[2] - r[1]) * World.TICK)
@@ -249,6 +252,10 @@ func _warning_on(device: String) -> void:
 			device, watch.rows.size(), late.size(), late.map(func(r: Array) -> String: return "#%d %d ticks late" % [r[3], r[1] - r[0]]),
 			"%.2f" % (leads[0] * World.TICK) if not leads.is_empty() else "-", "%.2f" % (leads[-1] * World.TICK) if not leads.is_empty() else "-",
 			"%.2f" % warn[0] if not warn.is_empty() else "-", World.State.keys()[game.world.state], game.world.lives])
+	print("  camera %s: base zoom %.3f, zoom %.3f..%.3f; play x shown to %.0f at least (2017: 960); the vine at %.0f at the highest (HUD band ends at %.0f), under the HUD %d ticks in all, %.2f s at most at once (tick %d, %s); a landing's ground down to %.0f (screen %.0f tall); at home %d frames with him outside the safe area" % [
+			device, game.base_zoom((game._clip.size.x - Device.insets().x) / game._k), watch.zooms.x, watch.zooms.y, watch.least_right,
+			watch.vine_top, game.HUD_BAND, watch.vine_hidden, watch.vine_longest[0] * World.TICK, watch.vine_longest[1], watch.vine_longest[2],
+			watch.landing_low, game._clip.size.y, watch.home_out])
 	game.queue_free()
 	Nav.reset()
 	Nav.custom_viewport = root
@@ -264,6 +271,18 @@ class Watch extends RefCounted:
 	var insets: Vector4
 	var seen := {}  # bandit id -> [tick in the 2017 window, tick on screen, tick its club reached him (-1)]
 	var rows: Array = []  # [2017 tick, screen tick, reach tick, id] per bandit that came
+	## Over the run, from the real camera: the least play x shown at the safe area's right edge while
+	## he plays (2017: 960), the highest the vine came on screen when it mattered (screen units; the
+	## HUD band ends at HUD_BAND), the lowest a landing's grass went (screen units; the screen ends at
+	## the clip's height), the zooms seen, and his body's screen box at home (inside the safe area?).
+	var least_right := INF
+	var vine_top := INF
+	var landing_low := -INF
+	var zooms := Vector2(INF, -INF)
+	var home_out := 0
+	var vine_hidden := 0  # ticks the vine was under the HUD band while it mattered
+	var vine_run := 0  # the current run of such ticks, and the longest (with its tick and what he did)
+	var vine_longest := [0, 0, ""]
 
 	func _init(r: BotReplay, g: Node, ins: Vector4) -> void:
 		replay = r
@@ -272,7 +291,30 @@ class Watch extends RefCounted:
 
 	func act(w: World) -> void:
 		var zoom: float = game._stage.scale.x
-		var right: float = (game._clip.size.x - insets.z - game._stage.position.x) / zoom  # the safe area's edge, play x
+		var at: Vector2 = game._stage.position
+		var right: float = (game._clip.size.x - insets.z - at.x) / zoom  # the safe area's edge, play x
+		least_right = minf(least_right, right)
+		zooms = Vector2(minf(zooms.x, zoom), maxf(zooms.y, zoom))
+		if w.hanging or w.vine_catchable():
+			var vy: float = at.y + World.VINE_SEEN * zoom
+			vine_top = minf(vine_top, vy)
+			if vy < game.HUD_BAND - 2.0:
+				vine_hidden += 1
+				vine_run += 1
+				if vine_run > vine_longest[0]:
+					vine_longest = [vine_run, w.ticks, "hanging" if w.hanging else ("rising" if w.rising_to_vine() else "on a ledge, y %.0f" % w.y)]
+			else:
+				vine_run = 0
+		else:
+			vine_run = 0
+		var land := w.ticks_to_land()
+		if land > 0:
+			landing_low = maxf(landing_low, at.y + w._ground_ahead() * zoom)
+		if w.state == World.State.WON:
+			var p := w.draw_hero()
+			var box := Rect2(at + Vector2(p.x - 40.0, p.y - 80.0) * zoom, Vector2(80.0, 144.0) * zoom)
+			var safe := Rect2(insets.x, 0.0, game._clip.size.x - insets.x - insets.z, game._clip.size.y)
+			home_out += 0 if safe.encloses(box) else 1
 		for b in w.bandits:
 			if not b.active or b.health <= 0:
 				continue

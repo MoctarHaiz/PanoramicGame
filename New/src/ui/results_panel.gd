@@ -3,7 +3,8 @@ extends RefCounted
 ## The end of a run, over the game (GamePanel), told in order so the eye can follow it:
 ## - Home: a gold ribbon; the three stars slam into their carved sockets one after the other, each
 ##   with a burst and its note (the third shakes the card), coins and confetti rain in front of
-##   everything; then the Red Bobs roll up with ticks; a NEW BEST stamp slams in last. Panoramic
+##   everything; then the Red Bobs roll up with ticks; a NEW BEST stamp slams in last (in its own row
+##   under the count, so it covers nothing and stays on the card). Panoramic
 ##   stands at the left with his arms up, in a pool of gold light, a big burst of rays turning
 ##   behind the card.
 ## - A lost run: a crimson GAME OVER ribbon and what happened under it; the Red Bobs roll up, then
@@ -21,7 +22,7 @@ const COUNT_TIME := 0.7  ## seconds the Red Bobs take to roll up
 
 ## Opens the results over `game` (the game screen). `news`: what Save.record_run found new.
 static func open(game: Control, world: World, news: Dictionary, home: Callable, again: Callable,
-		share: Callable) -> GamePanel:
+		share: Callable, hide: Array = []) -> GamePanel:
 	var won := world.state == World.State.WON
 	var body := VBoxContainer.new()
 	body.add_theme_constant_override(&"separation", 14)
@@ -60,6 +61,11 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 		bar.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		lines.add_child(bar)
 	body.add_child(well)
+	var slot := Control.new()  # a new best's stamp lands here, in its own room: it covers nothing
+	slot.custom_minimum_size = Vector2(0, 64)
+	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	slot.visible = news.get("best_bobs", false)
+	body.add_child(slot)
 	var buttons := HBoxContainer.new()
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	buttons.add_theme_constant_override(&"separation", 22)
@@ -83,12 +89,12 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 	var title := TranslationServer.translate("HOME_REACHED" if won else "GAME_OVER")
 	var panel: GamePanel
 	if won:  # warm and radiant
-		panel = GamePanel.open(game, title, Ui.Tone.GOLD, body, _hero(true), Color(0.28, 0.1, 0.03, 0.3),
-				Color(1, 0.78, 0.4, 0.75), true)
+		panel = GamePanel.open(game, title, Ui.Tone.GOLD, body, _hero(true), Color(0.16, 0.05, 0.02, 0.55),
+				Color(1, 0.78, 0.4, 0.75), false, hide)
 	else:  # cold and dim
-		panel = GamePanel.open(game, title, Ui.Tone.CRIMSON, body, _hero(false), Color(0.02, 0.04, 0.12, 0.62),
-				Color(0.5, 0.6, 1.0, 0.25))
-	_reveal(game, panel, world, stars, bobs, total, bar, well, news.get("best_bobs", false), buttons, go)
+		panel = GamePanel.open(game, title, Ui.Tone.CRIMSON, body, _hero(false), Color(0.02, 0.03, 0.1, 0.66),
+				Color(0.5, 0.6, 1.0, 0.25), false, hide)
+	_reveal(game, panel, world, stars, bobs, total, bar, slot, news.get("best_bobs", false), buttons, go)
 	return panel
 
 
@@ -96,7 +102,7 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 static func _stars_stage(stars: Array[Control]) -> Control:
 	var stage := Control.new()
 	stage.custom_minimum_size = Vector2(0, 168)
-	var burst := Rays.new(720, Color(1, 0.85, 0.45, 0.5), 18)
+	var burst := Rays.new(860, Color(1, 0.86, 0.48, 0.62), 18)  # the one sunburst of the win
 	burst.material = Fx.additive()
 	stage.add_child(burst)
 	var glow := TextureRect.new()
@@ -122,7 +128,10 @@ static func _stars_stage(stars: Array[Control]) -> Control:
 		slot.add_child(StarBadge.new(side, false))
 		var star := StarBadge.new(side, true)
 		star.visible = false
+		star.set_meta(&"tilt", [-0.24, 0.0, 0.24][i])  # the outer two lean out
 		slot.add_child(star)
+		var socket := slot.get_child(0) as Control
+		socket.rotation = star.get_meta(&"tilt")
 		row.add_child(slot)
 		stars.append(star)
 	stage.resized.connect(func() -> void:
@@ -136,30 +145,31 @@ static func _stars_stage(stars: Array[Control]) -> Control:
 static func _hero(won: bool) -> TextureRect:
 	var art := TextureRect.new()
 	var path := HERO_WIN if won else HERO_LOSE
-	if ResourceLoader.exists(path):
-		art.texture = load(path)
-	else:
-		art.texture = HERO_STAND if won else HERO_DOWN
+	var rendered := ResourceLoader.exists(path)  # the art track's renders carry their own light
+	art.texture = load(path) if rendered else (HERO_STAND if won else HERO_DOWN)
 	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
-	var lit := ShaderMaterial.new()
-	lit.shader = preload("res://src/ui/hero.gdshader")
 	if won:
 		art.set_meta(&"tall", 1.12)  # arms up: he stands a head above the card
 	else:
-		art.set_meta(&"tall", 0.72)  # on one knee: about three quarters of his standing height
-		art.set_meta(&"overlap", 0.04)  # his boots reach right: clear of the Home button
-		lit.set_shader_parameter(&"grade", Vector3(0.78, 0.82, 0.98))
-		lit.set_shader_parameter(&"rim_colour", Color(0.7, 0.8, 1.0))
-		lit.set_shader_parameter(&"sky_colour", Color(0.5, 0.5, 0.9))
-		lit.set_shader_parameter(&"shade", 0.55)
-	art.material = lit
+		art.set_meta(&"tall", 0.62)  # sitting dazed on the ground, upright, against the card's edge
+		art.set_meta(&"overlap", 0.12)  # one group with the card
+	if not rendered:  # the crops from the user's studio renders: lit by the screen here
+		var lit := ShaderMaterial.new()
+		lit.shader = preload("res://src/ui/hero.gdshader")
+		if not won:
+			art.set_meta(&"tall", 0.86)
+			lit.set_shader_parameter(&"grade", Vector3(0.78, 0.82, 0.98))
+			lit.set_shader_parameter(&"rim_colour", Color(0.7, 0.8, 1.0))
+			lit.set_shader_parameter(&"sky_colour", Color(0.5, 0.5, 0.9))
+			lit.set_shader_parameter(&"shade", 0.55)
+		art.material = lit
 	return art
 
 
 ## The choreography, one beat after the other (each step is skipped if the panel is gone).
 static func _reveal(game: Control, panel: GamePanel, world: World, stars: Array[Control], bobs: DisplayText,
-		total: String, bar: WayBar, well: Control, best: bool, _buttons: Control, go: JuicyButton) -> void:
+		total: String, bar: WayBar, slot: Control, best: bool, _buttons: Control, go: JuicyButton) -> void:
 	var tree := game.get_tree()
 	var won := world.state == World.State.WON
 	if not won:
@@ -172,9 +182,9 @@ static func _reveal(game: Control, panel: GamePanel, world: World, stars: Array[
 		for i in world.stars():
 			_slam_star(tree, stars[i], i, t + i * STAR_STEP, panel)
 		t += maxi(world.stars(), 1) * STAR_STEP + 0.05
-		tree.create_timer(t - 0.1).timeout.connect(func() -> void:
-			if not is_instance_valid(panel):
-				return
+		var party := panel.create_tween()  # owned by the panel: it never outlives it
+		party.tween_interval(t - 0.1)
+		party.tween_callback(func() -> void:
 			var back := Node2D.new()  # behind the card: it flies out from under its top
 			back.scale = Vector2.ONE * 0.5
 			panel.add_child(back)
@@ -183,19 +193,16 @@ static func _reveal(game: Control, panel: GamePanel, world: World, stars: Array[
 			var rain := Node2D.new()  # coins and confetti in front of everything, full bright
 			panel.add_child(rain)
 			Fx.coin_shower(rain, panel.size.x, panel.size.y)
-			var front := Node2D.new()  # and from both lower corners
-			front.scale = Vector2.ONE * 0.5
-			panel.add_child(front)
-			var view := panel.size * 2.0
-			Fx.confetti_burst(front, Vector2(view.x * 0.04, view.y * 1.02))
-			Fx.confetti_burst(front, Vector2(view.x * 0.96, view.y * 1.02)))
+			var view := panel.size * 2.0  # New (audio): fireworks in the sky behind him and the card
+			Fx.fireworks(back, Vector2(view.x * 0.04, view.y * 1.02), 1.0)
+			Fx.fireworks(back, Vector2(view.x * 0.96, view.y * 1.02), -1.0))
 	_count_up(tree, bobs, world.bobs, total, t, panel)
 	t += COUNT_TIME + 0.1
 	if bar:
 		bar.fill_from(t - 0.1)
 		t += 0.6
 	if best:
-		_stamp(tree, panel, well, t + 0.1)
+		_stamp(tree, panel, slot, t + 0.1)
 
 
 ## A star slams into its socket: from big and turned to a little small, then its size, a burst of
@@ -212,9 +219,11 @@ static func _slam_star(tree: SceneTree, star: Control, i: int, delay: float, pan
 	var t := star.create_tween()
 	t.set_parallel(true)
 	t.tween_property(star, "modulate:a", 1.0, 0.06)
-	t.tween_property(star, "rotation", 0.0, 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	t.tween_property(star, "scale", Vector2.ONE * 0.92, 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	t.chain().tween_property(star, "scale", Vector2.ONE, 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	var tilt: float = star.get_meta(&"tilt", 0.0)
+	t.tween_property(star, "rotation", tilt, 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	t.tween_property(star, "scale", Vector2.ONE * 0.9, 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	t.chain().tween_property(star, "scale", Vector2.ONE * 1.12, 0.08).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	t.chain().tween_property(star, "scale", Vector2.ONE, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	await tree.create_timer(0.14).timeout
 	if not is_instance_valid(panel):
 		return
@@ -228,7 +237,23 @@ static func _slam_star(tree: SceneTree, star: Control, i: int, delay: float, pan
 	Fx.badge_burst(fx, at)
 	if i == 2:
 		_shake(panel.card, 3.0)
+	var flare := TextureRect.new()  # a glow that blooms behind it as it lands, then breathes
+	flare.texture = Fx.glow_texture()
+	flare.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	flare.material = Fx.additive()
+	flare.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	flare.size = star.size * 2.4
+	flare.position = star.size / 2 - flare.size / 2
+	flare.pivot_offset = flare.size / 2
+	flare.modulate = Color(1, 0.85, 0.4, 0.9)
+	flare.show_behind_parent = true
+	star.add_child(flare)
+	var bloom := flare.create_tween()
+	bloom.tween_property(flare, "modulate:a", 0.35, 0.5).from(0.9)
 	if Prefs.motion():
+		bloom.tween_property(flare, "modulate:a", 0.55, 1.0).set_trans(Tween.TRANS_SINE)
+		bloom.tween_property(flare, "modulate:a", 0.35, 1.0).set_trans(Tween.TRANS_SINE)
+		bloom.set_loops()
 		var shine := star.create_tween().set_loops()
 		shine.tween_interval(1.4 + i * 0.35)
 		shine.tween_property(star, "scale", Vector2.ONE * 1.08, 0.12).set_trans(Tween.TRANS_SINE)
@@ -256,9 +281,9 @@ static func _count_up(tree: SceneTree, value: DisplayText, target: int, suffix: 
 	bump.tween_property(value, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
-## NEW BEST!: a red stamp with a crown slams onto the corner of the count, tilted, the card shakes,
-## light and sparkles burst under it.
-static func _stamp(tree: SceneTree, panel: GamePanel, well: Control, delay: float) -> void:
+## NEW BEST!: a red stamp with a crown slams into its row under the count, a little tilted, the card
+## shakes, light and sparkles burst under it.
+static func _stamp(tree: SceneTree, panel: GamePanel, slot: Control, delay: float) -> void:
 	await tree.create_timer(delay).timeout
 	if not is_instance_valid(panel):
 		return
@@ -267,13 +292,10 @@ static func _stamp(tree: SceneTree, panel: GamePanel, well: Control, delay: floa
 	stamp.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stamp.size = chip.get_combined_minimum_size()
 	stamp.add_child(chip)
-	var holder := panel.card.get_parent() as Control  # the panel's group: it scales with the card
-	holder.add_child(stamp)
-	var to_local := holder.get_global_transform().affine_inverse()
-	var corner := to_local * (well.get_global_rect().position + Vector2(well.get_global_rect().size.x, 0))
-	stamp.position = corner - Vector2(stamp.size.x * 0.72, stamp.size.y * 0.55)
+	slot.add_child(stamp)  # in its own row of the card, between the count and the buttons
+	stamp.position = (slot.size - stamp.size) / 2
 	stamp.pivot_offset = stamp.size / 2
-	stamp.rotation = -0.14
+	stamp.rotation = -0.06
 	stamp.scale = Vector2.ONE * 1.6
 	stamp.modulate.a = 0.0
 	var t := stamp.create_tween().set_parallel(true)
@@ -343,6 +365,13 @@ class WayBar extends Control:
 		GlossStyle.fill_rounded(ci, f, rad, Color("ffd34a"), Color("e8860e"))
 		GlossStyle.fill_rounded(ci, Rect2(f.position + Vector2(6, 3), Vector2(maxf(w - 12, 0), 5)), 2.5,
 				Color(1, 1, 0.9, 0.7), Color(1, 1, 0.9, 0.4))
+		# milestones every quarter: gold studs once passed, pale ones still ahead
+		for q in range(1, 4):
+			var m := Vector2(r.position.x + r.size.x * q / 4.0, r.get_center().y)
+			var passed := q / 4.0 <= _shown
+			draw_circle(m, 7.5, Card.INK, true, -1, true)
+			draw_circle(m, 5.5, Color("fff0b0") if passed else Color("c8a27a"), true, -1, true)
+			draw_circle(m - Vector2(1.5, 1.5), 2.0, Color(1, 1, 1, 0.9 if passed else 0.4), true, -1, true)
 		# the goal: the house on a gold disc, part of the bar
 		var hc := Vector2(size.x - 24.0, size.y / 2)
 		draw_circle(hc, 25.0, Card.INK, true, -1, true)

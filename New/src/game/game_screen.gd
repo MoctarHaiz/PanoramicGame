@@ -80,10 +80,14 @@ var _pit_scroll := -1.0  # the scroll the camera holds at while he drops into a 
 var _pit_time := 0.0  # seconds since it began holding
 var _pit_seen := false  # the hold began while he was still in the picture, dropping in
 var _need := Rect2()  # what must be seen (World.camera_must_see()), eased
-const NEED_EASE := 12.0  ## 1/s: how fast the camera follows a change in what must be seen (~0.2 s)
+const NEED_EASE := 12.0  ## 1/s: how fast the camera lets go of what needn't be seen any more (~0.2 s)
+const NEED_GROW := 40.0  ## 1/s: how fast it takes in more (~0.06 s)
 ## Caught: his last beat is framed with him this far across the screen (he fell near its left edge),
 ## brought there over DEATH_FRAME_TIME seconds of the ending.
 const DEATH_FRAME := 0.4
+## The panels, the start card, the lessons and the resume countdown are drawn over the world's effects
+## (WorldView.fx is at z 10: a knock-out's "+1" landed on the pause panel's buttons).
+const OVERLAY_Z := 20
 const DEATH_FRAME_TIME := 0.5
 ## New (UX): no ad banner while playing unless the config asks for one ([ads] banner_in_play): under
 ## the swipe area it invites accidental clicks (AdMob's placement policy); pause and results show it.
@@ -110,7 +114,7 @@ func enter(data: Dictionary) -> void:
 	_stage.add_child(view)
 	view.setup(world)
 	_flash = TextureRect.new()
-	_flash.texture = Fx.vignette_texture()
+	_flash.texture = Fx.edge_texture()  # New (audio): the red of a blow at the edges only
 	_flash.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_flash.stretch_mode = TextureRect.STRETCH_SCALE
 	_flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -133,6 +137,7 @@ func enter(data: Dictionary) -> void:
 	world.thrown.connect(_on_thrown)
 	add_child(Footsteps.new(world, view.get(&"_hero")))  # steps on the run animation's foot contacts
 	add_child(Feel.new(self, world, view))  # knockbacks, climb grabs, vine creaks, the music's drive
+	Fx.warm_glyphs(self)  # the "+1" and "×N" glyphs now, not at the first knock-out or streak
 	world.bumped.connect(_on_bumped)
 	world.splashed.connect(_on_splashed)
 	world.fell.connect(_on_fell)
@@ -147,9 +152,11 @@ func enter(data: Dictionary) -> void:
 	_layout()
 	_start_card = _make_start_card()
 	add_child(_start_card)
+	_start_card.z_index = OVERLAY_Z
 	if Tutorial.pending():
 		_tutorial = Tutorial.new(self, world)
 		add_child(_tutorial)
+		_tutorial.z_index = OVERLAY_Z
 	Audio.play_music(&"game")
 	Services.ads.show_banner(_banner_in_play)
 	Services.analytics.log_event("level_start")
@@ -272,9 +279,15 @@ func _gameplay_camera(zoom: float, at: Vector2) -> Array:
 ## the ground he will land on. Takes and returns the stage's zoom and position ([zoom, at]).
 func _keep_fair(zoom: float, at: Vector2) -> Array:
 	var need := world.camera_must_see()
-	if _need.size != Vector2.ZERO:  # eased (a change in what must be seen never snaps the picture)
-		var k := 1.0 - exp(-get_process_delta_time() * NEED_EASE)
-		need = Rect2(_need.position.lerp(need.position, k), _need.size.lerp(need.size, k))
+	if _need.size != Vector2.ZERO:  # eased: quickly where more must be seen, gently where less (no snap)
+		var dt := get_process_delta_time()
+		var grow := 1.0 - exp(-dt * NEED_GROW)
+		var shrink := 1.0 - exp(-dt * NEED_EASE)
+		var lo := Vector2(lerpf(_need.position.x, need.position.x, grow if need.position.x < _need.position.x else shrink),
+				lerpf(_need.position.y, need.position.y, grow if need.position.y < _need.position.y else shrink))
+		var hi := Vector2(lerpf(_need.end.x, need.end.x, grow if need.end.x > _need.end.x else shrink),
+				lerpf(_need.end.y, need.end.y, grow if need.end.y > _need.end.y else shrink))
+		need = Rect2(lo, hi - lo)
 	_need = need
 	var insets := Device.insets()
 	var area := Rect2(insets.x, HUD_BAND, _clip.size.x - insets.x - insets.z, _clip.size.y - HUD_BAND)
@@ -288,6 +301,16 @@ func _keep_fair(zoom: float, at: Vector2) -> Array:
 	at.x = clampf(at.x, lo.x, hi.x)
 	at.y = clampf(at.y, maxf(lo.y, _clip.size.y - World.VIEW_H * zoom), hi.y)
 	return [zoom, at]
+
+
+## For the framing (env): the part of the screen that matters for play now (screen units): what
+## World.camera_must_see() asks, where the camera puts it. Outside it, and outside the HUD, nothing
+## the player needs is ever drawn: behind his back, above the vine, below the ground he can come
+## down to, right of the play window's edge (960; bandits wait there on a wide screen: a bonus, not
+## a need). Foreground framing (leaves, rocks, a vignette) may cover the rest of the screen.
+func play_area_on_screen() -> Rect2:
+	var zoom := _stage.scale.x
+	return Rect2(_stage.position + _need.position * zoom, _need.size * zoom)
 
 
 ## The play window's part on screen now (play units): what the camera shows.
@@ -499,10 +522,10 @@ func _impact(kind: StringName, kick := Vector2.ZERO) -> void:
 		_kick += kick
 
 
-## A ring thrown: its whoosh, a flash at his hand, its light in flight, a small recoil.
+## A ring thrown: its whoosh, its light in flight (following RingView, which launches it from his
+## hand with its own flash), a small recoil.
 func _on_thrown(r: World.Ring) -> void:
 	Audio.play_sfx(&"throw")
-	Fx.ring_launch(view.fx, Vector2(r.x + 12.0, r.y + 14.0) * 2.0)
 	Fx.ring_flight(view.fx, world, r)
 	_jolt(0.0, Vector2(-1.5, 0.0))
 
@@ -533,41 +556,6 @@ func _streak_end(serial: int, length: int) -> void:
 
 var _bob_serial := 0  # Red Bobs taken (the streak's chord waits for the last of a run)
 
-
-## "×N" while Red Bobs come in a quick run: a gold badge pinned over the counter's lower right
-## corner, that pops, bigger each time, and fades.
-var _tag: Control
-
-
-func _combo_tag(n: int) -> void:
-	if is_instance_valid(_tag):
-		_tag.queue_free()
-	# New (UX): beside him, where the eye is, warmer and bigger each step of the streak (gold, orange,
-	# red), rising as it fades
-	var tone := Ui.Tone.GOLD if n < 5 else (Ui.Tone.SUNSET if n < 8 else Ui.Tone.CRIMSON)
-	var chip := Ui.chip("×%d" % n, tone, 40)  # one font size (each new size caches its glyphs): scaled to grow
-	var grow := (34.0 + mini(n, 10) * 3.0) / 40.0
-	_tag = Control.new()
-	_tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_tag.size = chip.get_combined_minimum_size()
-	_tag.add_child(chip)
-	add_child(_tag)
-	var hero := view.hero_screen_rect()
-	var at := Vector2(hero.end.x + 6.0, hero.position.y - _tag.size.y * 0.2)
-	var v := get_viewport_rect().size
-	at = at.clamp(Vector2(Device.insets().x + 8.0, 70.0), v - _tag.size - Vector2(Device.insets().z + 8.0, 8.0))
-	_tag.position = at
-	_tag.pivot_offset = _tag.size / 2
-	_tag.scale = Vector2.ONE * 0.3 * grow
-	_tag.rotation = -0.18
-	var tag := _tag
-	var t := tag.create_tween()
-	t.tween_property(tag, "scale", Vector2.ONE * 1.3 * grow, 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	t.parallel().tween_property(tag, "rotation", -0.06, 0.18)
-	t.tween_property(tag, "scale", Vector2.ONE * grow, 0.1)
-	t.tween_property(tag, "position:y", at.y - 40.0, 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	t.parallel().tween_property(tag, "modulate:a", 0.0, 0.35).set_delay(0.15)
-	t.tween_callback(tag.queue_free)
 
 
 ## The Red Bob flies from where it was (WorldView units) to the counter.
@@ -655,10 +643,13 @@ func _on_fell(lives: int) -> void:
 	_red_flash(0.4)
 
 
-## The edges of the screen glow red for a moment (not a filter over the whole picture).
+## The edges of the screen glow red for 2-3 frames (Fx.edge_texture: never a wash over the picture,
+## so the blow itself reads).
 func _red_flash(alpha: float) -> void:
 	_flash.modulate.a = alpha
-	create_tween().tween_property(_flash, "modulate:a", 0.0, 0.25).set_delay(0.04)
+	var t := create_tween()
+	t.tween_interval(0.017)
+	t.tween_property(_flash, "modulate:a", 0.0, 0.05)
 
 
 ## The end of a run: its sound, the music muffled (the stinger takes over with the results).
@@ -720,7 +711,8 @@ func pause_game() -> void:
 	Audio.duck_music(true)
 	Audio.play_sfx(&"panel_open")
 	Services.ads.show_banner(true)
-	_overlay = PausePanel.open(self, resume_game, _go_home)
+	_overlay = PausePanel.open(self, resume_game, _go_home, [hud, _fliers, view.fx])  # New: a clean picture behind
+	_overlay.z_index = OVERLAY_Z
 
 
 func resume_game() -> void:
@@ -756,6 +748,7 @@ func _count_pop(n: int, id: int) -> void:
 	label.depth = 4.0
 	label.refresh()
 	add_child(label)
+	label.z_index = OVERLAY_Z
 	label.size = label.get_combined_minimum_size()
 	label.position = get_viewport_rect().size / 2 - label.size / 2
 	label.pivot_offset = label.size / 2
@@ -784,7 +777,8 @@ func _show_results(news: Dictionary) -> void:
 	hud.leave()
 	Services.ads.show_banner(true)
 	_overlay = ResultsPanel.open(self, world, news, _go_home, _play_again,
-			func() -> void: Services.share.share_run(world.bobs, world.stars()))
+			func() -> void: Services.share.share_run(world.bobs, world.stars()), [hud, _fliers, view.fx])
+	_overlay.z_index = OVERLAY_Z
 	Services.push.request_permission_once()
 
 

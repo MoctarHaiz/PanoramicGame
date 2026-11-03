@@ -114,3 +114,31 @@ Worktree: `_agents/wt/env/New`. Captures: `_agents/AAA/env/round_<n>/`. Owns `wo
   SavannaView is drawn in 16 canvas items (draw calls, ENV-3): to spread and batch.
 - The climb and hang shots must frame the whole height (fairness): their composition rests on the
   backdrop; more landmarks and a stronger lit lane would help there.
+
+## Round 3
+
+- Framing for the full-height shots (climb, hang): acacia boughs hang in along the top of the screen,
+  near the camera (canopy.png, SavannaView.top): dark, out of focus, a warm rim, the same size on screen
+  whatever the zoom, under the HUD and above the vine (72 units at most). Vultures circle over the
+  plain in the middle of the sky.
+- Values: the sun lower (y 255: its glow off the HUD, half behind the far cliffs); the light grade's
+  edges and bottom deeper, but not over the play lane (60-90 % down: a dark threat never sinks into a
+  dark corner) and the bottom band only under the ground line; a warm light on the grass behind the
+  runners (the lit lane): art's crimson-and-black bandit reads against it (hurt, throw, game shots).
+- Home: a cooking fire in the yard (drawn: flames, stones, a pot, its light, smoke) and three of the
+  family (a woman with a pot on her head, a child, an elder with a staff: drawn silhouettes with a warm
+  rim and a coloured wrap) who raise their arms when he is home; the palisade in stretches of
+  different height, wear and gaps; the jamb and wall right of the doorway drawn over him only from
+  World.HOME_CHEER (art: his walk in passes behind it). No new pictures (memory).
+- Water: the reeds at the banks are mirrored in the pools.
+- ENV-1, the level open (QA: 300-317 ms worst frame): props are found and drawn a chunk at a time as
+  the camera gets there (each chunk one canvas item: no more 400 sprites); the ground's picture of the
+  map is worked out on the frame after the rest (both frames are under the wipe's cover); the world's
+  shaders are compiled in the menu (WorldView.warm_up(), unseen); the level's scripts load on a
+  thread in the menu (GameArt.preload_art: a 3-line edit in art's file, they took ~160 ms in the open
+  frame). Worst frame of the open: 279-385 -> 83 ms (iPhone 15, perf.tscn). The world's part of the
+  open frame: 58 -> 15 ms.
+- Memory: canopy.png stored at half size (0.1 MB); home_hut_front.png cropped to what is drawn (0.63
+  -> 0.37 MB): world art 19.2 -> 19.0 MB.
+- Timer lambdas: none left in world_view.gd (its two delayed calls became tweens on their nodes in
+  round 2); the one in base is in src/ui/results_panel.gd:175 (ux).

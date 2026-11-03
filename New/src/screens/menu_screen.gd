@@ -44,6 +44,7 @@ func enter(_data: Dictionary) -> void:
 	_backdrop.motes = false  # no specks in a lit sky
 	_backdrop.clouds = true
 	_backdrop.shafts = 2.4
+	_backdrop.horizon = 0.8  # more sky: the horizon doesn't cut the frame in half
 	add_child(_backdrop)
 	_hero_tex = load(HERO_ART) if ResourceLoader.exists(HERO_ART) else HERO_STAND
 	# the bloom around the low sun
@@ -63,11 +64,8 @@ func enter(_data: Dictionary) -> void:
 	_front.stretch_mode = TextureRect.STRETCH_TILE
 	_front.modulate = Color(0.55, 0.45, 0.52)
 	_hero = _picture(_hero_tex)
-	var lit := ShaderMaterial.new()
-	lit.shader = preload("res://src/ui/hero.gdshader")
-	lit.set_shader_parameter(&"rim_dir", Vector2(1.0, -0.2))  # the sun is on his right (our right)
-	lit.set_shader_parameter(&"rim_px", 8.0)
-	_hero.material = lit
+	if _hero_tex == HERO_STAND:  # the art track's render carries its own backlight; the crop gets it here
+		_hero.material = _backlit()
 	add_child(_hero)
 	add_child(_front)
 	add_child(_vignette())
@@ -133,7 +131,7 @@ func enter(_data: Dictionary) -> void:
 	_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if Save.games_played > 0:
 		_row.add_child(_best_plaque())
-	var settings := Ui.icon_button("gear-six-fill", Ui.Tone.WHITE, 84.0, 28.0)  # cream, as the plaque
+	var settings := Ui.icon_button("gear-chunky", Ui.Tone.WHITE, 84.0, 28.0)  # cream, as the plaque; a gear, not a flower
 	settings.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	settings.pressed.connect(func() -> void: Nav.go(&"settings", {}, settings.get_global_rect().get_center()))
 	_row.add_child(settings)
@@ -145,6 +143,20 @@ func enter(_data: Dictionary) -> void:
 	_arrive()
 	Audio.play_music(&"menu")
 	Services.ads.show_banner(true)
+
+
+## The sunset's light on the studio-lit crop: a warm rim all round his outline (the sun is right
+## behind him), his front in warm shadow (hero.gdshader).
+static func _backlit() -> ShaderMaterial:
+	var lit := ShaderMaterial.new()
+	lit.shader = preload("res://src/ui/hero.gdshader")
+	# the sun right behind him: a warm rim all round his outline, his front in warm shadow
+	lit.set_shader_parameter(&"rim_dir", Vector2(0.75, -0.65))
+	lit.set_shader_parameter(&"rim_px", 8.0)
+	lit.set_shader_parameter(&"sky_colour", Color(1.0, 0.66, 0.36))
+	lit.set_shader_parameter(&"sky_rim", 0.85)
+	lit.set_shader_parameter(&"shade", 0.42)
+	return lit
 
 
 func _exit_tree() -> void:
@@ -186,7 +198,7 @@ func _best_plaque() -> PanelContainer:
 	words.add_theme_constant_override(&"separation", -6)
 	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	words.alignment = BoxContainer.ALIGNMENT_CENTER
-	words.add_child(Ui.label(tr("BEST").to_upper(), 24, Color("a4561e"), Ui.font_title, HORIZONTAL_ALIGNMENT_LEFT))
+	words.add_child(Ui.label(tr("BEST").to_upper(), 28, Color("a4561e"), Ui.font_title, HORIZONTAL_ALIGNMENT_LEFT))
 	var count := Ui.display_text(str(Save.best_bobs), 46, Color("5a2408"), Color(0, 0, 0, 0), Color("3a1206"))
 	count.align = HORIZONTAL_ALIGNMENT_LEFT
 	count.outline_width = 0.0
@@ -263,12 +275,14 @@ func _layout() -> void:
 	_shadow.size = Vector2(w * 1.15, w * 0.16)  # under both boots of his wide stance
 	_shadow.position = feet - Vector2(_shadow.size.x * 0.5, _shadow.size.y * 0.45)
 	# the sun, low, between him and the title: it rims him and fills the middle with light
-	var sun := Vector2(_hero.position.x + w + maxf(v.x * 0.07, 70.0), v.y * 0.6)
+	# the sun right behind him, low: he stands against it, rim-lit, and the title column keeps calm
+	# sky behind it
+	var sun := _hero.position + Vector2(w * 0.5, h * 0.42)
 	_backdrop.sun_at = sun / v
 	_halo_glow.size = Vector2(v.y * 1.5, v.y * 1.5)
 	_halo_glow.position = sun - _halo_glow.size / 2
 	# the column on the right of the sun
-	var column_left := minf(sun.x + v.x * 0.04, v.x - insets.z - 18.0 - 470.0)
+	var column_left := minf(_hero.position.x + w + v.x * 0.06, v.x - insets.z - 18.0 - 470.0)
 	_hero_side.custom_minimum_size.x = maxf(column_left - insets.x - 18.0, 0.0)
 	var free := v.y - insets.y - Device.bottom_with_banner() - 36.0
 	var logo_h := clampf(free - 124.0 - 92.0 - 50.0 - _ribbon.size.y * 0.55, 170.0, 300.0)  # air above and below
@@ -286,7 +300,9 @@ func _layout() -> void:
 	_logo.position = Vector2((box_w - logo_w) / 2, 0)
 	_logo.pivot_offset = _logo.size / 2
 	# across the foot of the words
-	_ribbon_fit.position = Vector2((box_w - ribbon_size.x) / 2, logo_h - ribbon_size.y * 0.45)
+	# under the words (the emblem takes the logo's left third)
+	var under := clampf(_logo.position.x + logo_w * 0.63 - ribbon_size.x / 2, 0.0, box_w - ribbon_size.x)
+	_ribbon_fit.position = Vector2(under, logo_h - ribbon_size.y * 0.3)
 
 
 ## The entrance, played as the transition opens.

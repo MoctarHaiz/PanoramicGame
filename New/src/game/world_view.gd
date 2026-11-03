@@ -69,6 +69,7 @@ func setup(w: World) -> void:
 	w.hurt.connect(func(_b: World.Bandit, _l: int) -> void: _hero.hurt())
 	add_child(_home.front)
 	add_child(_background.front)
+	add_child(_background.top)  # (round 3) the boughs framing the top of the screen
 	_add_grade()
 	fx = Node2D.new()
 	fx.scale = Vector2.ONE * 0.5
@@ -85,11 +86,51 @@ func setup(w: World) -> void:
 	refresh()
 
 
+
+## Round 3: the world's shaders, compiled before the level opens (warm_up()).
+const SHADERS := ["res://src/game/terrain.gdshader", "res://src/game/water.gdshader",
+		"res://src/game/water_front.gdshader", "res://src/game/haze.gdshader", "res://src/game/light_grade.gdshader",
+		"res://src/game/form.gdshader", "res://src/game/sway.gdshader", "res://src/game/actor.gdshader",
+		"res://src/game/flash.gdshader", "res://src/game/shine_text.gdshader"]
+
+
+## Draws each of the world's shaders once, unseen (a pixel in a corner, nearly transparent, for half
+## a second), so they are compiled before the level opens (GameArt calls it from the menu once the
+## level's scripts are loaded): they cost ~60 ms in the frame the level first showed.
+static func warm_up() -> void:
+	var tree := Engine.get_main_loop() as SceneTree
+	if not tree or not tree.root:
+		return
+	var holder := Node2D.new()
+	holder.name = &"ShaderWarmUp"
+	for path: String in SHADERS:
+		var r := ColorRect.new()
+		r.size = Vector2.ONE
+		r.modulate.a = 0.02
+		var m := ShaderMaterial.new()
+		m.shader = load(path)
+		r.material = m
+		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		holder.add_child(r)
+	tree.root.add_child.call_deferred(holder)  # (called from a menu's _ready too: the root may be busy)
+	holder.create_tween().tween_callback(holder.queue_free).set_delay(0.5)  # (dies with it: no timer)
+
+
 ## The painted ground (TerrainView), from a little before the map to past its end for wide screens.
+## Round 3: its picture of the map is worked out on the next frame (both are under the screen
+## wipe's cover): the frame the level opened in was too long (ENV-1).
 func _add_ground() -> void:
 	_ground = TerrainView.new()
 	_level_root.add_child(_ground)
-	_ground.build(world.level, -12, Level.COLS + EXTRA_COLUMNS)
+	if is_inside_tree():
+		get_tree().process_frame.connect(_build_ground, CONNECT_ONE_SHOT)
+	else:
+		_build_ground()
+
+
+func _build_ground() -> void:
+	if not _ground.is_built():
+		_ground.build(world.level, -12, Level.COLS + EXTRA_COLUMNS)
 
 
 ## HOME: the homestead over the last screen; Panoramic walks into the hut's doorway.
@@ -228,7 +269,11 @@ func refresh(delta := 0.0) -> void:
 	_ground.front.position.x = -scroll
 	_ground.ensure(scroll - view_left - 96.0, scroll - view_left + view_width + 96.0)
 	_ground.build_ahead(scroll - view_left + view_width)
+	_props.ensure(scroll - view_left - 96.0, scroll - view_left + view_width + 96.0)
+	_props.build_ahead(scroll - view_left + view_width)
 	_home.front.position.x = -scroll
+	# (round 3) the jamb and the wall right of the doorway go over him from his walk in
+	_home.front.visible = world.state == World.State.WON and world.end_time >= World.HOME_CHEER
 	_place_grade()
 	_watch_splashes(scroll)
 	_place_hero(delta)

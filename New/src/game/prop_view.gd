@@ -8,6 +8,9 @@ extends Node2D
 ##   - reeds stand in the water against each bank and at the foot of each pole in a pool (a
 ##     shoreline, instead of water cut square against the soil).
 ## Drawing only: nothing here is solid.
+## Round 3: built a chunk of columns at a time as the camera gets there (ensure(), build_ahead()), each
+## chunk one canvas item drawing its pictures (it was 400 sprites made when the level opened); reeds
+## are mirrored in the water under them.
 
 const DIR := "res://assets/art/world/"
 ## 2017 tile id -> [picture, where its foot goes in the cell (in cells, from the top left),
@@ -34,31 +37,56 @@ const DRESSING := [
 ]
 const SINK := 5.0  ## dressing stands this far into the grass band
 const HOME_COL := 765  ## the homestead has its own composition from here
+const CHUNK := 16  ## columns per chunk (as TerrainView)
+const REFLECT := Color(0.42, 0.58, 0.68, 0.42)  ## a reed's reflection in the pool (round 3)
 
 var _tex := {}
 var _tree_anchor := {}  # tree picture -> x of its trunk (tools/art/trees.py)
+var _items := []  # the props of the chunk being built: [[texture, rect, colour], ...]
+var _built := {}  # first column of each chunk built so far -> true
+var _first_col := 0
+var _end_col := 0
+var _level: Level
+var _solid: Callable
+var _dressing_total := 0.0
+
+
+class Chunk extends Node2D:
+	## Pictures drawn once (Godot keeps the commands until a redraw).
+	var items := []  # [texture, rect (a negative size mirrors), colour]
+
+	func _draw() -> void:
+		for it: Array in items:
+			draw_texture_rect(it[0], it[1], false, it[2])
 
 
 func build(level: Level, solid: Callable, first_col: int, end_col: int) -> void:
+	_level = level
+	_solid = solid
+	_first_col = first_col
+	_end_col = end_col
 	var info: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(DIR + "tree_info.json"))
 	for name: String in info:
 		_tree_anchor[StringName(name)] = float(info[name].anchor_x)
-	for c in range(0, Level.COLS):
+	for d: Array in DRESSING:
+		_dressing_total += d[1]
+
+
+## The props standing in columns c0 .. c1 - 1 (anchored there).
+func _scan(c0: int, c1: int) -> void:
+	for c in range(maxi(c0, 0), mini(c1, Level.COLS)):
 		for r in Level.ROWS:
-			var id := level.id_at(c, r)
+			var id := _level.id_at(c, r)
 			if DECOR.has(id):
 				var d: Array = DECOR[id]
 				var foot: Vector2 = (Vector2(c, r) + d[1]) * Level.TILE
 				_add(d[0], foot, d[2], _hash(c, r, 2) == 0, Color.WHITE)
-	_bank_reeds(level, first_col, end_col)
-	var total := 0.0
-	for d: Array in DRESSING:
-		total += d[1]
-	for c in range(first_col + 2, mini(end_col, HOME_COL)):
+	_bank_reeds(_level, c0, c1)
+	for c in range(maxi(c0, _first_col + 2), mini(c1, mini(_end_col, HOME_COL))):
 		for r in range(1, Level.ROWS):
-			if not _dress_here(level, solid, c, r):
+			if not _dress_here(_level, _solid, c, r):
 				continue
-			var pick := float(_hash(c, r + 3, 1000)) / 1000.0 * total
+			var pick := float(_hash(c, r + 3, 1000)) / 1000.0 * _dressing_total
 			for d: Array in DRESSING:
 				pick -= d[1]
 				if pick <= 0.0:
@@ -83,6 +111,8 @@ func _bank_reeds(level: Level, first_col: int, end_col: int) -> void:
 			var x := (c + 0.5 + side * 0.5) * Level.TILE + side * (5.0 + _hash(c, side + 7, 6))
 			var height := 40.0 + _hash(c, side + 9, 18)
 			_add(&"prop_reeds", Vector2(x, r * Level.TILE + 16.0), height, side < 0, Color(0.92, 0.94, 0.9))
+			# its reflection: upside down under the surface, in the water's colours
+			_add(&"prop_reeds", Vector2(x, r * Level.TILE + 6.0), -height * 0.7, side < 0, REFLECT)
 
 
 ## A grass top in the middle of a run of at least 6, not under Red Bobs, about one in eight.
@@ -100,20 +130,52 @@ func _dress_here(level: Level, solid: Callable, c: int, r: int) -> bool:
 	return true
 
 
+## A picture standing with its foot at `foot` (level units), `height` units tall (0: its own size; less
+## than 0: upside down, hanging from `foot`: a reflection), kept for its chunk.
 func _add(name: StringName, foot: Vector2, height: float, flip: bool, colour: Color) -> void:
 	if not _tex.has(name):
 		_tex[name] = load(DIR + String(name) + ".png")
 	var tex: Texture2D = _tex[name]
-	var s := Sprite2D.new()
-	s.texture = tex
-	s.centered = false
-	var k := 0.5 if height <= 0.0 else height / tex.get_height()  # pictures are 2 px per unit
-	s.scale = Vector2(k, k)
-	s.offset = Vector2(-_tree_anchor.get(name, tex.get_width() / 2.0), -tex.get_height())
-	s.position = foot
-	s.flip_h = flip and not _tree_anchor.has(name)
-	s.modulate = colour
-	add_child(s)
+	var k := 0.5 if height == 0.0 else absf(height) / tex.get_height()  # pictures are 2 px per unit
+	var size := tex.get_size() * k
+	var rect := Rect2(foot.x - _tree_anchor.get(name, tex.get_width() / 2.0) * k, foot.y - size.y, size.x, size.y)
+	if flip and not _tree_anchor.has(name):  # a negative width mirrors the picture in place
+		rect.size.x = -rect.size.x
+	if height < 0.0:  # upside down under the foot (a negative height mirrors the picture in place)
+		rect = Rect2(rect.position.x, foot.y, rect.size.x, -size.y)
+	_items.append([tex, rect, colour])
+
+
+## Draws the chunks of props between level x0 and x1 (units) not drawn yet (and one chunk either side:
+## trees reach past their column).
+func ensure(x0: float, x1: float) -> void:
+	var c := _first_col + maxi(floori((x0 / Level.TILE - _first_col) / CHUNK) - 1, 0) * CHUNK
+	while c < _end_col and c * Level.TILE < x1 + CHUNK * Level.TILE:
+		_build_chunk(c)
+		c += CHUNK
+
+
+## Draws the next chunk not drawn yet after level x (units), if any: a frame's share of the work.
+func build_ahead(x: float) -> void:
+	var c := _first_col + floori((x / Level.TILE - _first_col) / CHUNK) * CHUNK
+	while c < _end_col:
+		if not _built.has(c):
+			_build_chunk(c)
+			return
+		c += CHUNK
+
+
+func _build_chunk(c0: int) -> void:
+	if _built.has(c0):
+		return
+	_built[c0] = true
+	_items = []
+	_scan(c0, mini(c0 + CHUNK, _end_col))
+	if _items.is_empty():
+		return
+	var chunk := Chunk.new()
+	chunk.items = _items
+	add_child(chunk)
 
 
 static func _hash(a: int, b: int, n: int) -> int:

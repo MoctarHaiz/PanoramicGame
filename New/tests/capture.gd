@@ -16,8 +16,8 @@ extends Node
 ## launch: no best yet), start (the first run's card), game, throw (a ring flying at a bandit), hurt
 ## (the instant after a hit), climb, hang, home (1.2 s after he is home: in the doorway, the
 ## HUD gone), pause, resume (the countdown after Resume),
-## gameover (caught), fell (game over by a fall), win, settings, settings_end (scrolled to the bottom:
-## About and the version).
+## gameover (caught), fell (game over by a fall), win (these three once the panel's reveal is over:
+## the stars, the count, the new best), settings, settings_end (scrolled to the bottom).
 
 ## Screen size (landscape) and safe-area margins (left, top, right, bottom) in device pixels.
 const DEVICES := {
@@ -183,13 +183,12 @@ func _capture(device: String, shot: String) -> void:
 			var game: Node = Nav.current
 			game.autopilot = null
 			game.world._die(&"bandit" if shot == "gameover" else &"fall")
-			# his death plays first, then the panel arrives and settles (its buttons last)
-			await _wait((World.DYING_TIME if shot == "gameover" else World.FALL_DEATH_TIME) + 1.5)
+			await _results(game)
 		"win":
 			await _start_game("home")
 			await get_tree().process_frame
 			Nav.current.autopilot = null
-			await _wait(4.5)
+			await _results(Nav.current)
 		"settings":
 			Nav.go(&"settings")
 			await _wait(1.0)
@@ -235,6 +234,17 @@ func _bandit_ahead(w: World, ahead: float) -> void:
 	b.y = w.ground_y + 10.0
 	b.prev_x = b.x
 	b.prev_y = b.y
+
+
+## Waits for the end panel (after his death or his arrival home), then for its whole reveal: the stars,
+## the count rolling up, the way bar, the "new best" stamp (about 2.4 s for a win, 2.6 with a new best,
+## 1.5 for a loss: REVEAL covers them all, so the numbers are final).
+const REVEAL := 3.4
+
+
+func _results(game: Node) -> void:
+	await _wait_for(func() -> bool: return game._results_shown, 8.0)
+	await _wait(REVEAL)
 
 
 ## Waits until `done` is true, at most `seconds`.

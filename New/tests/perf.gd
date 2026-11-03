@@ -2,7 +2,8 @@ extends Node
 ## Performance check: plays the level at a phone's size, off screen, the bot's recorded run giving
 ## the input (BotReplay: no look-ahead cost in the frame), and reports per phase (menu, the run,
 ## paused, the end panel, the menu again) the texture and video memory, draw calls, objects, the
-## work done per frame (worst and 99th percentile) and the node count, against the budgets:
+## work done per frame (worst and 99th percentile), the memory the CPU side uses (RAM: sounds,
+## scripts, nodes; debug builds) and the node count, against the budgets:
 ## texture memory under 80 MB, no frame of play over 16 ms of work (desktop), no node left behind
 ## once back on the menu. Exit code 1 if one fails. It also lists the pictures first loaded during
 ## the run (each one a hitch and more memory: they belong in the preload) and the memory over time.
@@ -217,6 +218,7 @@ func _process(_delta: float) -> void:
 			["texture_mb", (Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED) - _own_target) / MB],
 			["video_mb", (Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) - _own_target) / MB],
 			["buffer_mb", Performance.get_monitor(Performance.RENDER_BUFFER_MEM_USED) / MB],
+			["ram_mb", Performance.get_monitor(Performance.MEMORY_STATIC) / MB],  # sounds, scripts, pictures' CPU copies (debug builds)
 			["nodes", Performance.get_monitor(Performance.OBJECT_NODE_COUNT)],
 			["orphans", Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)]]:
 		m.get_or_add(pair[0], []).append(float(pair[1]))
@@ -264,8 +266,8 @@ func _wait(seconds: float) -> void:
 ## Prints the table and the verdicts, saves them as JSON. Returns true if every budget holds.
 func _report(device: String, px: Vector2i, out: String) -> bool:
 	var table := {}
-	print("\n%-11s %6s %8s %8s %8s %7s %8s %8s %8s %6s %7s %7s %9s %7s" % ["phase", "frames", "work avg", "work p99", "work max", ">16ms",
-			"script", "render", "texture", "video", "draws", "objects", "primitive", "nodes"])
+	print("\n%-11s %6s %8s %8s %8s %7s %8s %8s %8s %6s %6s %7s %7s %9s %7s" % ["phase", "frames", "work avg", "work p99", "work max", ">16ms",
+			"script", "render", "texture", "video", "RAM", "draws", "objects", "primitive", "nodes"])
 	for phase: String in ["menu", "load", "run", "paused", "results", "menu_again"]:
 		if not _samples.has(phase):
 			continue
@@ -279,9 +281,9 @@ func _report(device: String, px: Vector2i, out: String) -> bool:
 		row.render_cpu_ms_p99 = snappedf(_percentile(m.render_cpu_ms, 0.99), 0.01)
 		row.frames_over_budget = m.work_ms.filter(func(v: float) -> bool: return v > FRAME_BUDGET_MS).size()
 		table[phase] = row
-		print("%-11s %6d %8.2f %8.2f %8.2f %7d %8.2f %8.2f %7.1fM %5.1fM %6.0f %7.0f %9.0f %7.0f" % [phase, row.frames, row.work_ms_mean,
+		print("%-11s %6d %8.2f %8.2f %8.2f %7d %8.2f %8.2f %7.1fM %5.1fM %5.0fM %6.0f %7.0f %9.0f %7.0f" % [phase, row.frames, row.work_ms_mean,
 				row.work_ms_p99, row.work_ms_max, row.frames_over_budget, row.script_ms_p99, row.render_cpu_ms_p99,
-				row.texture_mb_max, row.video_mb_max, row.draw_calls_max, row.objects_max, row.primitives_max, row.nodes_max])
+				row.texture_mb_max, row.video_mb_max, row.ram_mb_max, row.draw_calls_max, row.objects_max, row.primitives_max, row.nodes_max])
 	print("(work: wall ms per frame; script and render: 99th percentile ms)")
 	var texture_peak := 0.0
 	for phase: String in table:

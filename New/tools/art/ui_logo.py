@@ -5,8 +5,8 @@ upper left like the 3D hero, so the title belongs with him.
     python3 tools/art/ui_logo.py      # assets/art/ui/logo.png (replaces the flat SVG one of logo.py)
 
 - An isihlangu shield of cowhide (cream, dark brown patches, dark leather laces threaded down its
-  middle, its stick through it with a tuft of fur at the top) stands behind the words, one long
-  assegai leaning behind it; the shield's rim is bevelled and catches the light.
+  middle, its stick through it with a tuft of fur at the top) stands whole at the left of the words,
+  one long assegai leaning behind it; the shield's rim is bevelled and catches the light.
 - CHAKA over ZULU in Fredoka (assets/fonts, SIL OFL) at its boldest and a little wide: a gold face
   (pale yellow at the top to deep orange at the foot) with a rounded bevel (normals from the letters'
   distance field: lit top-left edges, shaded bottom-right ones, a hot specular), a thin light line
@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "assets/art/ui/logo.png"
 FONT = ROOT / "assets/fonts/Fredoka.ttf"
 SS = 2  # drawn at twice the size, then halved (smooth edges)
-W, H = 1240, 860  # final size in px
+W, H = 1560, 760  # final size in px: the emblem beside the words, one mark
 LIGHT = np.array([-0.5, -0.7, 0.55])
 LIGHT = LIGHT / np.linalg.norm(LIGHT)
 INK = np.array([46, 13, 4], float)
@@ -102,13 +102,13 @@ def shield_layers(w: int, h: int, cx: float, cy: float, sh: float):
     yy, xx = np.mgrid[0:h, 0:w].astype(float)
     # one long assegai behind, leaning right: a wooden shaft, a bound grip, a long iron leaf blade
     # with a ridge down its middle (one, not two: two blades either side read as ears)
-    ang = 0.5
+    ang = -0.42  # leaning left, away from the words
     d = np.array([np.sin(ang), -np.cos(ang)])
     n = np.array([d[1], -d[0]])
     u = (xx - cx) * d[0] + (yy - cy) * d[1]
     v = (xx - cx) * n[0] + (yy - cy) * n[1]
-    shaft = (np.abs(v) < sh * 0.02) & (u > -sh * 0.66) & (u < sh * 0.5)
-    blade_u = (u - sh * 0.5) / (sh * 0.36)
+    shaft = (np.abs(v) < sh * 0.02) & (u > -sh * 0.62) & (u < sh * 0.42)
+    blade_u = (u - sh * 0.42) / (sh * 0.3)
     leaf = np.sin(np.clip(blade_u, 0, 1) ** 0.55 * np.pi)  # widest near its foot, a sharp point
     blade = (blade_u >= 0) & (blade_u <= 1) & (np.abs(v) < sh * 0.05 * leaf)
     m = ndimage.gaussian_filter((shaft | blade).astype(float), 1.0)
@@ -165,13 +165,13 @@ def shield_layers(w: int, h: int, cx: float, cy: float, sh: float):
     return layers
 
 
-def text_layers(w: int, h: int, lines: list) -> tuple:
-    """CHAKA over ZULU: (layers back to front, the letters' mask)."""
+def text_layers(w: int, h: int, lines: list, cx: float) -> tuple:
+    """CHAKA over ZULU, centred on x = cx: (layers back to front, the letters' mask)."""
     m = np.zeros((h, w))
     tops = []
     for text, size, cy in lines:
         tm = text_mask(text, size)
-        paste(m, tm, w / 2, cy)
+        paste(m, tm, cx, cy)
         tops.append((cy, size))
     m = ndimage.gaussian_filter(m, 0.7)
     ow = h * 0.022  # the outline's width
@@ -209,10 +209,10 @@ def main() -> None:
     w, h = W * SS, H * SS
     rgb = np.zeros((h, w, 3))
     a = np.zeros((h, w))
-    cx, cy = w * 0.5, h * 0.575
+    cx, cy = w * 0.21, h * 0.54  # the emblem stands whole at the left of the words
     for lr, la in shield_layers(w, h, cx, cy, h * 0.78):
         rgb, a = over(rgb, a, lr, la)
-    layers, _ = text_layers(w, h, [("CHAKA", int(h * 0.26), h * 0.39), ("ZULU", int(h * 0.32), h * 0.69)])
+    layers, _ = text_layers(w, h, [("CHAKA", int(h * 0.31), h * 0.33), ("ZULU", int(h * 0.38), h * 0.71)], w * 0.63)
     for lr, la in layers:
         rgb, a = over(rgb, a, lr, la)
     img = Image.fromarray(np.dstack([np.clip(rgb, 0, 255), np.clip(a, 0, 1) * 255]).astype(np.uint8), "RGBA")

@@ -16,6 +16,7 @@
   mote.png        a soft speck of glowing dust (pollen in the light)
   bird.png        a bird far away, 4 wing frames in a row
   animals.png     (round 2) giraffes, an elephant, wildebeest: far away among the tree rows
+  canopy.png      (round 3) acacia boughs hanging in along the top of the screen, near the camera
 
 Every strip is 1 pixel per design unit for far layers and 2 for nearer ones; the game scrolls them
 at different speeds (src/game/savanna_view.gd). The trees standing in the savanna are made by
@@ -589,6 +590,52 @@ def animals() -> Image.Image:
 ANIMALS = [(70, 110), (64, 104), (110, 76), (150, 44)]  # units of each animal in animals.png
 
 
+def canopy() -> Image.Image:
+    """New (env, round 3): the frame along the top of the screen: acacia boughs hanging in from
+    just in front of the camera, dark against the sky (out of focus), a warm rim where the low sun
+    catches their lower edges, gaps of sky between the clumps. 2048 x 160 px at 2 px a screen unit
+    (1024 x 80), tiles in x; clumps reach 22-66 units down (never to the vine, under the HUD)."""
+    w, h = 2048, 160
+    rng = np.random.default_rng(97)
+    polys, ells, lines = [], [], []
+    x = rng.uniform(0, 80)
+    while x < w:
+        span = rng.uniform(150, 420)
+        if rng.random() < 0.3:  # a gap of open sky
+            x += span * 0.6
+            continue
+        depth = rng.uniform(44, 132)  # px: how far this bough hangs down
+        cx = x + span / 2
+        # the bough: a branch from the top edge, forking, pads of leaves on its twigs
+        bx, by = cx + rng.uniform(-span * 0.3, span * 0.3), depth * 0.55
+        lines.append(((cx - span * 0.45, -4, bx, by), rng.uniform(5, 9)))
+        lines.append(((bx, by, cx + span * 0.45, rng.uniform(-4, 20)), rng.uniform(3, 6)))
+        for _ in range(int(span / 20)):  # flat acacia pads, each a cloud of small leaflets
+            px = cx + rng.uniform(-0.5, 0.5) * span
+            py = rng.uniform(0.0, 1.0) ** 1.6 * depth * (1.0 - abs(px - cx) / span * 0.8)
+            rx = rng.uniform(16, 38)
+            ry = rx * rng.uniform(0.28, 0.4)
+            ells.append((px, py, rx * 0.6, ry * 0.6))
+            for _ in range(int(rx * 1.2)):
+                a = rng.uniform(0, 2 * np.pi)
+                rr = np.sqrt(rng.uniform(0, 1))
+                ells.append((px + np.cos(a) * rx * rr, py + np.sin(a) * ry * rr, rng.uniform(2.0, 5.0), rng.uniform(1.4, 3.0)))
+            if rng.random() < 0.6:
+                lines.append(((bx, by, px, py), rng.uniform(1.2, 2.4)))
+        x += span * rng.uniform(0.75, 1.1)
+    cov = poly_mask(w, h, polys, ellipses=ells, lines=lines)
+    cov = np.maximum(cov, np.roll(poly_mask(w, h, polys, ellipses=[(e[0] - w, *e[1:]) for e in ells] + [(e[0] + w, *e[1:]) for e in ells],
+                                            lines=[((a - w, b, c - w, d), lw) for (a, b, c, d), lw in lines] + [((a + w, b, c + w, d), lw) for (a, b, c, d), lw in lines]), 0, axis=1))
+    leaf = blur(rng.standard_normal((h, w)), 1.2, wrap_x=True)  # ragged leafy edges
+    cov = np.clip(cov * (1.0 + 0.35 * leaf) - 0.1 * (leaf < -0.8), 0, 1)
+    cov = np.clip(blur(cov, 1.6, wrap_x=True) * 1.25, 0, 1)  # near the camera: soft
+    yy = np.arange(h)[:, None] * np.ones((1, w))
+    col = mix(hexc("20190f"), hexc("2f2a17"), smooth(0, h, yy))
+    rim = np.clip(cov - np.roll(np.roll(cov, -4, axis=0), 3, axis=1), 0, 1)  # lower left edges, to the sun
+    col = mix(col, hexc("d89448"), blur(rim, 1.2, wrap_x=True) * 0.75)
+    return dither_rgba(col, cov, rng)
+
+
 def haze() -> Image.Image:
     w, h = 16, 256
     y = np.linspace(0, 1, h)[:, None] * np.ones((1, w))
@@ -718,6 +765,8 @@ def main() -> None:
         save(fg_grass(), "fg_grass.png")
     if want("animals"):
         save(animals(), "animals.png")
+    if want("canopy"):
+        save(canopy().resize((1024, 80), Image.LANCZOS), "canopy.png")  # (out of focus: half size is enough)
     if want("sunset"):
         sunset_set()
     if want("small"):

@@ -318,7 +318,7 @@ func blocks(pos: Vector2) -> bool:
 
 
 ## The way home: a sunken groove with the sandy path still to go (dashes), a thick gold fill with a
-## moving sheen to where he is, Panoramic's face in a gold ring at its tip, a flag halfway, and the
+## lit top edge to where he is, Panoramic's face in a gold ring at its tip, a flag halfway, and the
 ## house on a glowing gold disc at the end.
 class _Track extends Control:
 	const HEAD := preload("res://assets/art/ui/head.png")
@@ -362,10 +362,6 @@ class _Track extends Control:
 			_rounded(fill, Color("e07a0c"), fill.size.y / 2)
 			_rounded(Rect2(fill.position, Vector2(fill.size.x, fill.size.y * 0.6)), Color("ffcf3a"), fill.size.y * 0.3)
 			_rounded(Rect2(fill.position + Vector2(5, 3), Vector2(maxf(fill.size.x - 10, 0), 4)), Color(1, 1, 0.9, 0.8), 2.0)
-			# a sheen running along the fill
-			var sx := fposmod(_clock * 150.0, fill_w + 80.0) - 40.0
-			if sx > 0 and sx < fill_w - 10:
-				draw_rect(Rect2(fill.position.x + sx, fill.position.y + 2, 9, fill.size.y - 4), Color(1, 1, 1, 0.45))
 		# a little flag halfway
 		var mx := x0 + w * 0.5
 		var passed := mx <= x0 + fill_w

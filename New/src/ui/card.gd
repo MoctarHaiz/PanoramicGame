@@ -18,7 +18,7 @@ const TRIM_BOTTOM := Color("e0901c")
 const PAPER := preload("res://assets/art/ui/paper.png")
 
 var top_colour := Ui.CREAM
-var bottom_colour := Ui.SAND
+var bottom_colour := Color("ebcb92")  ## the parchment darkens towards its foot
 var radius := 34.0
 var _framed := true
 
@@ -39,25 +39,20 @@ func _init(margin := Vector4(34, 40, 34, 34), light := false) -> void:
 	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED  # the hide grain tiles
 
 
-## A sunken area inside a card's cream body: sand, its top edge in shade and its bottom edge lit.
-static func well(corner := 20) -> StyleBoxFlat:
-	var s := StyleBoxFlat.new()
-	s.bg_color = Color("efcf98")
-	s.set_corner_radius_all(corner)
-	s.corner_detail = 10
-	s.border_width_top = 5
-	s.border_width_bottom = 2
-	s.border_width_left = 2
-	s.border_width_right = 2
-	s.border_color = Color("b98348")
-	s.border_blend = true
-	s.anti_aliasing = true
+## A sunken area inside a card's cream body: deeper sand in the shade of its upper edge, warmer
+## and lighter towards its foot, a fine brown outline, a lit lip under it (GlossStyle, no gloss).
+static func well(corner := 20) -> GlossStyle:
+	var s := GlossStyle.new(Color("d9b075"), Color("f6dcaa"), Color(0, 0, 0, 0), corner, 0.0)
+	s.set_outline(Color("a8743c"), 2.5)
+	s.gloss = 0.0
+	s.spark = 0.0
+	s.rim = 0.0
+	s.shadow.shadow_color = Color(1, 1, 0.95, 0.75)  # the lit lip under it
+	s.shadow.shadow_size = 0
+	s.shadow.shadow_offset = Vector2(0, 3)
 	s.set_content_margin_all(16)
 	s.content_margin_left = 22
 	s.content_margin_right = 22
-	s.shadow_color = Color(1, 1, 0.95, 0.7)  # the lit lip under it
-	s.shadow_size = 0
-	s.shadow_offset = Vector2(0, 2)
 	return s
 
 
@@ -90,11 +85,13 @@ func _draw() -> void:
 		_fill(_rounded(body, inner), top_colour, bottom_colour)
 	if _framed:
 		# the body sits under the frame: a shadow along its top; a soft light in its middle
-		_fill(_rounded(Rect2(body.position, Vector2(body.size.x, maxf(30.0, inner * 2.0 + 2.0))), inner), Color(0.35, 0.12, 0.0, 0.28),
+		_fill(_rounded(Rect2(body.position, Vector2(body.size.x, maxf(40.0, inner * 2.0 + 10.0))), inner), Color(0.35, 0.12, 0.0, 0.38),
 				Color(0.35, 0.12, 0.0, 0.0))
 		for side: float in [0.0, 1.0]:  # and along its sides
-			var band := Rect2(body.position + Vector2(side * (body.size.x - 14.0), inner * 0.6), Vector2(14.0, body.size.y - inner * 1.2))
-			_fill_h(band, Color(0.35, 0.12, 0.0, 0.16 * (1.0 - side)), Color(0.35, 0.12, 0.0, 0.16 * side))
+			var band := Rect2(body.position + Vector2(side * (body.size.x - 22.0), inner * 0.6), Vector2(22.0, body.size.y - inner * 1.2))
+			_fill_h(band, Color(0.35, 0.12, 0.0, 0.22 * (1.0 - side)), Color(0.35, 0.12, 0.0, 0.22 * side))
+		var foot := Rect2(body.position + Vector2(inner * 0.6, body.size.y - 18.0), Vector2(body.size.x - inner * 1.2, 18.0))
+		_fill(_rounded(foot, 0.0), Color(0.35, 0.12, 0.0, 0.0), Color(0.35, 0.12, 0.0, 0.14))  # and its foot
 		_glow(Rect2(body.position + body.size * Vector2(0.1, 0.12), body.size * Vector2(0.8, 0.6)))
 		_studs(r)
 	else:  # glass: a light top edge and a fine gold line inside
@@ -151,7 +148,7 @@ func _glow(area: Rect2) -> void:
 		for j in 32:
 			var a := j * TAU / 32
 			pts.append(c + Vector2(cos(a) * area.size.x * 0.5 * k, sin(a) * area.size.y * 0.5 * k))
-		draw_colored_polygon(pts, Color(1, 1, 0.94, 0.06))
+		draw_colored_polygon(pts, Color(1, 1, 0.94, 0.085))
 
 
 ## A rounded rectangle as points (each corner a quarter circle).

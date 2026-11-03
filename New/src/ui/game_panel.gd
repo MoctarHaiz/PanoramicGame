@@ -1,8 +1,9 @@
 class_name GamePanel
 extends Control
-## A panel over the game (pause, results). Behind it the game is taken once as a picture, shrunk
-## and drawn back stretched (a soft blur, Ui.blurred_snapshot: no shader, no screen-sized copy kept),
-## tinted and vignetted, so the HUD and the scene step back and the panel owns the screen. A Card in
+## A panel over the game (pause, results). Behind it the game is taken once as a picture, with the
+## HUD and the flying effects hidden for that frame (no ghost of a heart or a "+1" in it), shrunk and
+## drawn back stretched (a soft blur, Ui.blurred_snapshot: no shader, no screen-sized copy kept),
+## under a dark scrim and a vignette, so the scene steps back and the panel owns the screen. A Card in
 ## the middle of the safe area, its title on a ribbon over its top edge; a character (`art`) at its
 ## left, overlapping its edge, standing in a pool of light with his shadow under his feet; the group
 ## is centred. The card pops in opaque (0.7 -> 1.06 -> 1, a back-ease), the ribbon drops in after
@@ -15,6 +16,9 @@ var _pop: Control
 var _ground: TextureRect
 var _shadow: TextureRect
 var _rays: Rays
+var _back: Control  # the picture behind, its scrim and vignette
+var _picture: TextureRect
+var _hidden: Array[CanvasItem] = []  # what it hid behind it, shown again when it goes
 var _top := 0.0
 var _min_w := 560.0
 var _k := 1.0  # shrink to fit a small screen
@@ -23,31 +27,32 @@ var _u := 0.7  # the entrance's pop
 
 ## Opens a panel over `host` (the game screen). `veil`: the colour the game behind is washed with
 ## (its alpha: how much); `glow`: the light the character stands in; `rays`: a big burst of light
-## turning behind the card (a win).
+## turning behind the card; `hide`: what to leave out of the picture behind (the HUD, the effects).
+## The panel shows a frame later, once that picture is taken.
 static func open(host: Control, title: String, tone: Ui.Tone, body: Control, character: Control = null,
-		veil := Color(0.08, 0.03, 0.1, 0.55), glow := Color(1, 0.8, 0.45, 0.55), rays := false) -> GamePanel:
+		veil := Color(0.05, 0.02, 0.08, 0.62), glow := Color(1, 0.8, 0.45, 0.55), rays := false,
+		hide: Array = []) -> GamePanel:
 	var p := GamePanel.new()
 	p.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var behind := Ui.blurred_snapshot(host.get_viewport())  # before the panel is drawn
 	host.add_child(p)
-	p._build(title, tone, body, character, veil, glow, rays, behind)
+	p._build(title, tone, body, character, veil, glow, rays)
+	p._snapshot_then_enter(hide)
 	return p
 
 
 func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tint: Color, glow: Color,
-		rays: bool, behind: Texture2D) -> void:
-	var back := Control.new()  # the blurred game, its tint and vignette: what fades in
-	back.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	back.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(back)
-	if behind:
-		var picture := TextureRect.new()
-		picture.texture = behind
-		picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		picture.stretch_mode = TextureRect.STRETCH_SCALE
-		picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		back.add_child(picture)
+		rays: bool) -> void:
+	_back = Control.new()  # the blurred game, its tint and vignette: what fades in
+	_back.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_back.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_back)
+	var back := _back
+	_picture = TextureRect.new()
+	_picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_picture.stretch_mode = TextureRect.STRETCH_SCALE
+	_picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	back.add_child(_picture)
 	var veil := ColorRect.new()
 	veil.color = tint
 	veil.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -58,7 +63,7 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 	vignette.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	vignette.stretch_mode = TextureRect.STRETCH_SCALE
 	vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	vignette.modulate = Color(0.04, 0.0, 0.03, 0.85)
+	vignette.modulate = Color(0.02, 0.0, 0.02, 0.95)
 	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	back.add_child(vignette)
 	if rays:
@@ -72,7 +77,7 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 	add_child(_pop)
 	card = Card.new(Vector4(46, 64, 46, 40))
 	card.add_child(body)
-	banner = Banner.new(title, tone, 46)
+	banner = Banner.new(title, tone, 54)
 	banner.size = banner.custom_minimum_size
 	_top = banner.size.y * 0.55
 	_min_w = maxf(banner.size.x + 60.0, 600.0)
@@ -102,7 +107,31 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 	Device.changed.connect(_place)
 	card.size = card.get_combined_minimum_size()
 	_place()
-	# the entrance: the backdrop dims in, the card pops in opaque, the ribbon drops, he slides in
+
+
+## Hides `hide` (and itself) for one drawn frame and takes the picture behind from it, then
+## enters. What it hid stays hidden while the panel is up (some effects draw over everything) and
+## comes back when the panel goes.
+func _snapshot_then_enter(hide: Array) -> void:
+	for n: CanvasItem in hide:
+		if is_instance_valid(n) and n.visible:
+			n.visible = false
+			_hidden.append(n)
+	if DisplayServer.get_name() == "headless":
+		_enter()
+		return
+	visible = false
+	await RenderingServer.frame_post_draw
+	if not is_inside_tree():
+		return
+	_picture.texture = Ui.blurred_snapshot(get_viewport(), 5)
+	visible = true
+	_enter()
+
+
+## The entrance: the backdrop dims in, the card pops in opaque, the ribbon drops, he slides in.
+func _enter() -> void:
+	var back := _back
 	back.modulate.a = 0.0
 	var t := create_tween().set_parallel(true)
 	t.tween_property(back, "modulate:a", 1.0, 0.2)
@@ -125,6 +154,9 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 func _exit_tree() -> void:
 	if Device.changed.is_connected(_place):
 		Device.changed.disconnect(_place)
+	for n: CanvasItem in _hidden:
+		if is_instance_valid(n):
+			n.visible = true
 
 
 func _set_pop(u: float) -> void:

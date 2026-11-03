@@ -222,3 +222,54 @@ flying at it than it has health: no spray of rings (the win strip's "ring spam a
   framing, before the shake); keep it in any rewrite: `_gp_camera` fails on every device without it.
 - Evidence: `_agents/AAA/gameplay/round_2/` (strips/, screens/ for iPhone 15, 1280x720, iPad,
   flow/ with flow_tour.gd, warning_probe.log).
+
+## Round 3
+
+Merged base a31d267 (991 checks, 0 failed with --bot). env rewrote `_place_camera` (closer zoom on
+wide phones, at most 1.26, at least 1040 play units shown; the iPad draws back to 960); my
+`_gameplay_camera()` call runs after its framing; `_keep_fair` uses env's HUD_BAND (78).
+After the merge reset: `--import` was needed (new class `Feel` unknown to the class cache: the game
+screen failed to compile in `-s` probes).
+
+### Fairness on the merged camera (probes.gd --probe=warning, every device)
+
+The probe now also reports, from the real camera (stage zoom and position, base_zoom()): the least
+play x shown at the safe area's right edge while he plays, the vine's screen y whenever it matters
+and how long it stays under the HUD band, how low a landing's ground goes on screen, and whether he
+stays inside the safe area at home. Final run (all six devices): 31 bandits each, none later than on
+the 2017 screen (0-0.3 s earlier; the shortest time a bandit was on screen before its club reached
+him 1.75-1.78 s on phones, 1.53 s on the iPad); play x shown >= 1033 on 16:9, 953-962 on the
+iPhones/iPad only in the camera kicks env applies after the clamp (<= 9 units, ~0.1 s); the vine
+under the HUD at most 0.10 s at once (13-16 ticks in a whole run), at the start of a climb onto a
+high ledge; the landing ground always on screen (<= 619 of 640); at home always inside the safe area.
+
+Fixed on the way:
+- The vine stayed under the HUD for up to 0.35 s while he stood on the 10-tile wall's top (y 192),
+  from where a jump reaches it (he stands there ~0.3 s): `vine_catchable()` now also counts the
+  ledge he is climbing to, or a fall is coming down on (`_land_y` from the look-ahead), and the
+  must-see rect grows fast (NEED_GROW 40/s) and shrinks gently (NEED_EASE 12/s).
+- `camera_must_see()` also keeps on screen what a jump from here can go for (a Red Bob, a ledge and
+  who stands on it, within the jump's height over the next 320 units), not empty sky: so foreground
+  framing can't hide reachable Red Bobs, and the camera isn't drawn back for nothing.
+
+### Flow review (real screen, art's 3D bandit with strike(), audio's knock-back; scratch copy of base)
+
+Start card, tutorial lesson holding through pause and countdown, a hit-stop pause, the death beat:
+all as round 2. The bandit's club draws back over the last 0.15 s and the blow lands as it meets him,
+he is knocked back and stays on screen: reads as caused. One bug: the world's effects layer
+(WorldView.fx, z 10) drew over the pause panel (a knock-out's "+1" on the Sounds button, sparks on
+its edge), and would over the results panel, the start card, the lessons and the countdown: these
+are now at OVERLAY_Z 20 (game_screen.gd). Test in `_gp_flow`.
+
+### For env: what foreground framing may cover
+
+`GameScreen.play_area_on_screen()` (new): the screen rect that matters for play now (World.
+camera_must_see() where the camera puts it). Everything outside it and outside the HUD may be covered.
+Measured at the hang and climb moments (the camera drawn back to 0.867 on every device):
+- hang: free left of his back 25-41 % of the width, right of play x 960 27-37 % on phones (2 % on
+  the iPad), the bottom 5 % (under the ground he can land on); the top is the HUD band.
+- climb (on the staircase, the vine within reach): free left 25-34 %, right 27-37 % (2 % iPad), and
+  the bottom 57 % (the water far under the stairs: no landing there within 320 units).
+- Static rules: the HUD band and above the vine; right of play x 960 (bandits wait there on wide
+  phones: a bonus, not a need; cover with a light hand); behind his back (play x < his x - 72);
+  below play y ~606 (the soil band, the water body under a pool's surface).

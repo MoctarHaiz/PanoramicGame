@@ -1,9 +1,10 @@
 class_name StartCard
 extends Control
-## Before the first touch the world waits (the 2017 "Ready"): "TAP TO START" breathing, a hand
-## tapping beside it. The first time, nothing else: the moves are taught when they are needed
-## (Tutorial). Later runs show the five moves above it on a strip of dark glass, each with its own
-## gesture, so every control stays easy to find.
+## Before the first touch the world waits (the 2017 "Ready"): a small prompt low on the screen, out
+## of the scene's way: "Tap to start" breathing on a pill of dark glass, a hand tapping beside it.
+## The first time, nothing else: the moves are taught when they are needed (Tutorial). Later runs
+## show the five moves above it on a strip of dark glass, each with its own gesture, so every
+## control stays easy to find.
 
 
 func _init(first_run: bool) -> void:
@@ -38,12 +39,12 @@ func _init(first_run: bool) -> void:
 	go_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	go_row.add_theme_constant_override(&"separation", 6)
 	go_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var hand := Gesture.new(Gesture.Kind.TAP, 120.0, true)
+	var hand := Gesture.new(Gesture.Kind.TAP, 84.0, true)
 	hand.badge = false
 	go_row.add_child(hand)
-	var go := Ui.display_text(tr("TAP_TO_START"), 64, Ui.WHITE, Ui.NIGHT, Color("ffd98a"))
-	go.tracking = 5.0  # the outlines of "a" and "p" fused at this size
-	go.depth = 6.0
+	var go := Ui.display_text(tr("TAP_TO_START"), 44, Ui.WHITE, Ui.NIGHT, Color("ffd98a"))
+	go.tracking = 3.0  # the outlines of "a" and "p" fused at this size
+	go.depth = 4.0
 	go.refresh()
 	go.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	go_row.add_child(go)
@@ -72,5 +73,7 @@ func _fit(box: Control) -> void:
 	var k := clampf(room / maxf(need.x, 1.0), 0.1, 1.0)
 	box.size = need
 	box.pivot_offset = need / 2
-	box.position = Vector2(insets.x + (size.x - insets.x - insets.z - need.x) / 2, (size.y - need.y) / 2)
+	# below the middle, its foot just above the row of Red Bobs at the start
+	box.position = Vector2(insets.x + (size.x - insets.x - insets.z - need.x) / 2,
+			size.y * 0.66 - need.y * (0.5 + 0.5 * k))
 	box.scale = Vector2.ONE * k

@@ -15,7 +15,7 @@ const DIR := "res://assets/art/world/"
 ## sun centre: share of the visible width, y (the upper left, where the light on every painted thing
 ## comes from). Round 2: low over the escarpments (was y 64, behind the hearts): a golden-hour sun in
 ## the picture, everything rimmed and casting long shadows away from it
-const SUN_AT := Vector2(0.1, 200.0)
+const SUN_AT := Vector2(0.1, 255.0)  # (round 3: lower, its glow off the HUD, half behind the far cliffs)
 const SUN_SIZE := 640.0
 const RAYS_ORIGIN := Vector2(80, 80)  ## where the sun is in the rays, in units (tools/art/savanna.py)
 const RAYS_SIZE := Vector2(1280, 820)  ## drawn size of rays.png in units (stored at half that)
@@ -39,6 +39,8 @@ const TREE_ROWS := [
 const ANIMALS := [Rect2(0, 0, 140, 220), Rect2(140, 12, 128, 208), Rect2(268, 68, 220, 152), Rect2(488, 132, 300, 88)]
 const CLOUD_SCALE := 2.0  ## cloud_N.png are stored at half size (soft, no detail to lose)
 const FRONT_SCROLL := 1.35  ## the foreground grass moves faster than the ground
+const TOP_SCROLL := 1.25  ## the boughs along the top of the screen (round 3), near the camera too
+const CANOPY_H := 72.0  ## screen units they hang down at most (under the HUD band, over the vine)
 const FRONT_DROP := 12.0  ## units its picture reaches below the bottom of the screen
 
 ## Play units visible left of the play window and the visible width (set by WorldView).
@@ -52,6 +54,7 @@ var _trees: Array[Texture2D] = []
 var _tree_anchor: Array[float] = []
 var _painters: Array[Node2D] = []
 var front: Node2D  ## the foreground grass (WorldView adds it above the actors)
+var top: Node2D  ## round 3: acacia boughs framing the top of the screen (WorldView, above the actors)
 
 
 class Painter extends Node2D:
@@ -87,6 +90,7 @@ func _ready() -> void:
 	_painter(_draw_band.bind(588.0, 70.0, 0.08))
 	_painter(_draw_trees.bind(2)).material = _haze(TREE_ROWS[2])
 	_painter(_draw_strip.bind(&"near_grass"), true)
+	_painter(_draw_lane).material = add  # (round 3) the low sun on the grass behind the play
 	_painter(_draw_motes).material = add
 	_painter(_draw_birds)
 	_tex[&"fg_grass"] = load(DIR + "fg_grass.png")
@@ -94,6 +98,11 @@ func _ready() -> void:
 	front.paint = _draw_front
 	front.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	_painters.append(front)
+	_tex[&"canopy"] = load(DIR + "canopy.png")
+	top = Painter.new()
+	top.paint = _draw_top
+	top.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	_painters.append(top)
 
 
 func _painter(fn: Callable, repeat := false) -> Painter:
@@ -206,6 +215,25 @@ func _draw_front(ci: CanvasItem) -> void:
 			Rect2(src_x, 0, x1 - x0, h))
 
 
+## Round 3: the boughs along the top of the screen, the same size on screen whatever the zoom
+## (canopy.png is 2 px a screen unit), passing a little faster than the ground.
+func _draw_top(ci: CanvasItem) -> void:
+	var tex: Texture2D = _tex[&"canopy"]
+	var k := view_width / maxf(get_viewport_rect().size.x, 1.0)  # play units per screen unit
+	var x0 := _x0()
+	var x1 := _x1()
+	var px_per_unit := tex.get_height() / CANOPY_H  # (drawn a little smaller than its 80 units)
+	var src_x := fposmod((scroll * TOP_SCROLL + x0) / k * px_per_unit, tex.get_width())
+	ci.draw_texture_rect_region(tex, Rect2(x0, view_top - k, x1 - x0, CANOPY_H * k),
+			Rect2(src_x, 0, (x1 - x0) / k * px_per_unit, tex.get_height()))
+
+
+## Round 3: the low sun warming the grass behind the runners: the play lane is the brightest band,
+## dark bandits and the hero stand out against it.
+func _draw_lane(ci: CanvasItem) -> void:
+	ci.draw_texture_rect(_tex[&"haze"], Rect2(_x0(), 470.0, _x1() - _x0(), 130.0), false, Color(1.0, 0.72, 0.4, 0.2))
+
+
 ## A soft band of warm air across the view.
 func _draw_band(ci: CanvasItem, y: float, height: float, alpha: float) -> void:
 	ci.draw_texture_rect(_tex[&"haze"], Rect2(_x0(), y - height / 2, _x1() - _x0(), height), false,
@@ -293,13 +321,22 @@ func _draw_motes(ci: CanvasItem) -> void:
 		ci.draw_texture_rect(tex, Rect2(x - r, y - r, r * 2, r * 2), false, Color(1, 0.85, 0.55, a))
 
 
-## A few birds far away, crossing the sky now and then in a loose line.
+## A few birds far away, crossing the sky now and then in a loose line; round 3: and vultures
+## circling slowly over the plain (they give the empty middle of the sky some life).
 func _draw_birds(ci: CanvasItem) -> void:
 	var tex: Texture2D = _tex[&"bird"]
 	var fw := tex.get_width() / 4.0
 	var fh := float(tex.get_height())
 	var x0 := _x0()
 	var w := _x1() - x0
+	for v in 3:
+		var cx := x0 + fposmod(w * (0.55 + v * 0.13) - scroll * 0.06, w + 300.0) - 150.0
+		var a := _clock * (0.32 + v * 0.05) + v * 2.1
+		var r := 34.0 + v * 9.0
+		var flap := int(fposmod(_clock * 6.0 + v, 4.0)) if fposmod(_clock * 0.4 + v * 0.3, 1.0) < 0.15 else 1
+		var s := 0.62 - v * 0.06
+		ci.draw_texture_rect_region(tex, Rect2(cx + cos(a) * r * 1.6, 300.0 + v * 14.0 + sin(a) * r * 0.45, fw * s, fh * s),
+				Rect2(flap * fw, 0, fw, fh), Color(0.32, 0.24, 0.26, 0.9))
 	var period := 38.0
 	var t := fposmod(_clock + 9.0, period) / period
 	for i in 5:

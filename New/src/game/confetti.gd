@@ -7,13 +7,13 @@ extends Node2D
 ## pieces smear along their path. Everything is drawn in a few batched calls, then the node frees
 ## itself. Made by Fx (rescue, game over, the bushes, the stone).
 
-enum Shape { PAPER, RIBBON, SEQUIN, STAR, LEAF, CHIP, COIN, PETAL, BEAD }
+enum Shape { PAPER, RIBBON, SEQUIN, STAR, LEAF, CHIP, COIN, PETAL, BEAD, STREAMER }
 
 ## Size of each shape in design px at size 1.
 const SIZES := {
 	Shape.PAPER: Vector2(19, 12), Shape.RIBBON: Vector2(30, 10), Shape.SEQUIN: Vector2(13, 13),
 	Shape.STAR: Vector2(19, 19), Shape.LEAF: Vector2(27, 14), Shape.CHIP: Vector2(15, 13), Shape.COIN: Vector2(22, 22),
-	Shape.PETAL: Vector2(18, 11), Shape.BEAD: Vector2(10, 10),
+	Shape.PETAL: Vector2(18, 11), Shape.BEAD: Vector2(10, 10), Shape.STREAMER: Vector2(54, 9),
 }
 const STREAK_SPEED := 420.0  ## faster than this (px/s), a piece leaves a smear
 
@@ -160,16 +160,20 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
-	# Smears first, under the pieces.
+	# Motion blur first, under the pieces: a fast piece leaves a faint copy of itself stretched back
+	# along its path (its own shape and colour: a blur, never a thin stick).
 	for p in _pieces:
-		if p.age < 0.0 or p.age >= p.life:
+		if p.age < 0.0 or p.age >= p.life or p.shape == Shape.COIN:  # a coin is solid metal: no blur
 			continue
 		var speed := p.vel.length()
-		if speed > STREAK_SPEED and p.shape != Shape.COIN:  # a coin is solid metal: no paper smear
+		if speed > STREAK_SPEED:
 			var k := minf((speed - STREAK_SPEED) / 600.0, 1.0)
 			var c := _shade(p)
-			c.a *= 0.4 * k
-			draw_line(p.pos - p.vel * 0.04, p.pos, c, p.size.y * 0.7)
+			c.a *= 0.35 * k
+			var stretch := 1.0 + 1.6 * k
+			draw_set_transform(p.pos - p.vel * 0.018, p.vel.angle(), Vector2(stretch, 0.75))
+			draw_texture_rect(_textures[p.shape], Rect2(-p.size / 2, p.size), false, c)
+	draw_set_transform(Vector2.ZERO)
 	for shape: int in Shape.values():
 		var tex: Texture2D = _textures[shape]
 		for p in _pieces:
@@ -178,7 +182,9 @@ func _draw() -> void:
 			var face := cos(p.flip)
 			var w := 1.0 if p.shape == Shape.BEAD else maxf(absf(face), 0.14)  # a bead is round from every side
 			var grow := minf(p.age / 0.06, 1.0)  # pieces open out of the burst
-			draw_set_transform(p.pos, p.turn, Vector2(w, 1.0) * grow)
+			# a long ribbon twists across its width (keeping its length); a flat piece turns edge-on
+			var twist := Vector2(1.0, maxf(w, 0.3)) if p.shape == Shape.STREAMER or p.shape == Shape.RIBBON else Vector2(w, 1.0)
+			draw_set_transform(p.pos, p.turn, twist * grow)
 			draw_texture_rect(tex, Rect2(-p.size / 2, p.size), false, _shade(p))
 	draw_set_transform(Vector2.ZERO)
 
@@ -292,6 +298,13 @@ static func _bake_textures() -> void:
 		var spec := pow(maxf(1.0 - (u - Vector2(-0.35, -0.4)).length() / 0.3, 0.0), 2.0)
 		var rim := smoothstep(0.7, 0.95, r) * (1.0 - light) * 0.3
 		return Vector2(0.45 + 0.45 * light + 0.6 * spec + rim, (0.96 - r) * 12.0))
+	# A streamer: a long satin ribbon in a double curl, a glossy band of light along its crest.
+	_textures[Shape.STREAMER] = _bake(Vector2i(96, 18), func(u: Vector2) -> Vector2:
+		var wave := sin(u.x * PI * 2.0) * 0.5
+		var d := 1.0 - absf(u.y - wave) / 0.36
+		var slope := cos(u.x * PI * 2.0)
+		var gloss := pow(maxf(0.0, 1.0 - absf(u.y - wave + 0.12)) , 6.0) * 0.35
+		return Vector2(0.7 + 0.22 * slope + gloss, minf(d * 6.0, 1.0 - pow(absf(u.x), 6.0))))
 	# A glint: a hot core, four thin spikes and a soft halo.
 	_flare = _bake(Vector2i(64, 64), func(u: Vector2) -> Vector2:
 		var r := u.length()

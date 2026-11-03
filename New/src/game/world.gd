@@ -251,6 +251,7 @@ var _phase_tick := 0
 var _jump_tick := -99  # the tick of the last jump
 var _land_tick := -1  # ticks_to_land(), worked out at this tick
 var _land_in := -1
+var _land_y := 0.0  # where the last look-ahead's landing stands him (his centre y)
 var _doom_tick := -1  # falling_to_death(), worked out at this tick
 var _doomed := false
 
@@ -895,7 +896,11 @@ func _look_for_landing(horizon: int, start_vy := NAN) -> int:
 		var body := Rect2(x - HERO_SIZE.x / 2, py - HERO_SIZE.y / 2, HERO_SIZE.x, HERO_SIZE.y)
 		var top := _find(body, Level.Kind.TOP, 0.0, sc)
 		if top.x >= 0:
-			return t if py - (top.y * TILE - HERO_SIZE.y / 2) <= maxf(v, 0.0) + CLIMB_SNAP else CLIMB
+			if py - (top.y * TILE - HERO_SIZE.y / 2) > maxf(v, 0.0) + CLIMB_SNAP:
+				return CLIMB
+			if is_nan(start_vy):  # (not a jump being tried out)
+				_land_y = top.y * TILE - HERO_SIZE.y / 2
+			return t
 		if py - HERO_SIZE.y / 2 > VIEW_H:
 			return OUT
 		var chest := Rect2(x - HERO_SIZE.x / 4, py - HERO_SIZE.y / 2, HERO_SIZE.x / 2, HERO_SIZE.y)
@@ -926,13 +931,22 @@ func ground_below(at_x: float, from_y: float) -> float:
 
 
 ## For the camera: whether the vine matters now: he hangs from it, rises to it, or a jump from where
-## he is would reach it (a ledge high enough; a fall that still has its jump).
+## he is would reach it (a ledge high enough; a fall that still has its jump), or will from where he
+## is about to stand (the top of the ledge he climbs, the ledge a fall comes down on): so the camera
+## has drawn back by the time he stands there (the 10-tile wall's top is 2 tiles wide: 0.3 s).
 func vine_catchable() -> bool:
 	if hanging or rising_to_vine():
 		return true
-	if jumping or climbing or state != State.RUNNING:
+	if state != State.RUNNING:
 		return false
-	return y - JUMP_RISE <= 0.0 and ceiling_above(x, y - HERO_SIZE.y / 2, scroll) < 0.0
+	var stand := y
+	if climbing:
+		stand = _climb_to
+	elif not on_ground and vy >= 0.0 and ticks_to_land() > 0:
+		stand = _land_y
+	elif jumping:
+		return false
+	return stand - JUMP_RISE <= 0.0 and ceiling_above(x, stand - HERO_SIZE.y / 2, scroll) < 0.0
 
 
 ## For the camera (GameScreen keeps it on screen whatever the framing): the part of the play window,
@@ -941,7 +955,8 @@ func vine_catchable() -> bool:
 ## - across, from just behind him to the play window's right edge: bandits wake there, so the
 ##   time they are seen before they reach him is never shorter than in 2017;
 ## - down, the grass or water he stands on or could drop to in the next SEE_AHEAD_DOWN units;
-## - up, his head, or the vine when it matters (vine_catchable()).
+## - up, what a jump from here reaches (Red Bobs, ledges), or the vine when it matters
+##   (vine_catchable()).
 ## The run over: caught, him where he lies; into a pit, him and the water; home, him and the door.
 func camera_must_see() -> Rect2:
 	var top := y - HERO_SIZE.y / 2 - SEE_ABOVE
@@ -953,9 +968,40 @@ func camera_must_see() -> Rect2:
 		var bottom := VIEW_H if death_reason == &"fall" else minf(end_at.y + HERO_SIZE.y / 2 + 40.0, VIEW_H)
 		top = minf(end_at.y, VIEW_H - HERO_SIZE.y) - HERO_SIZE.y / 2 - SEE_ABOVE
 		return Rect2(end_at.x - 110.0, top, 220.0, bottom - top)
-	# nothing over the vine matters (rising to it, his box goes past the top: he is drawn under it)
+	# up to his head, and to whatever a jump from here can go for (a Red Bob, a ledge and who stands on
+	# it); nothing over the vine matters (rising to it, his box goes past the top: he is drawn under it)
+	top = minf(y - HERO_SIZE.y / 2, _reachable_top()) - SEE_ABOVE
 	top = VINE_SEEN if vine_catchable() else maxf(top, VINE_SEEN)
 	return Rect2(x - SEE_BEHIND, top, VIEW_W - (x - SEE_BEHIND), _ground_ahead() + 24.0 - top)
+
+
+## The top of the highest thing a jump from here can go for in the next SEE_AHEAD_DOWN units: a Red
+## Bob, or a ledge's grass less the height of whoever may stand on it, between his head and the top
+## of the jump (from where he stands or climbs to, or of the jump he is in); INF if none.
+func _reachable_top() -> float:
+	var apex := y
+	if climbing:
+		apex = _climb_to - JUMP_RISE
+	elif not jumping:
+		apex = y - JUMP_RISE
+	else:
+		var v := vy
+		while v < 0.0:
+			apex += v
+			v += GRAVITY
+	var head := y - HERO_SIZE.y / 2
+	var r0 := maxi(floori((apex - HERO_SIZE.y / 2) / TILE), 0)
+	var r1 := mini(floori(head / TILE), Level.ROWS - 1)
+	var c0 := maxi(floori((scroll + x - HERO_SIZE.x / 2) / TILE), 0)
+	var c1 := mini(floori((scroll + x + SEE_AHEAD_DOWN) / TILE), Level.COLS - 1)
+	for r in range(r0, r1 + 1):
+		for c in range(c0, c1 + 1):
+			var k := level.kind_at(c, r)
+			if k == Level.Kind.BOB:
+				return r * TILE
+			if k == Level.Kind.TOP:
+				return r * TILE - HERO_SIZE.y
+	return INF
 
 
 ## The lowest grass top or pool surface he could come down to within SEE_AHEAD_DOWN units ahead (play

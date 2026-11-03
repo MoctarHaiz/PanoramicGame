@@ -77,6 +77,19 @@ class Batch extends Node2D:
 			draw_texture_rect_region(texture, it[0], it[1], it[2])
 
 
+func _init() -> void:
+	front = Node2D.new()  # (made here: WorldView places it before the ground is built)
+	front.name = &"FrontGrass"
+	var front_cast := Node2D.new()  # the walls' shadows over the blades too (above every chunk's)
+	front_cast.z_index = 1
+	front.add_child(front_cast)
+
+
+## Whether build() has run (WorldView builds the ground a frame after the rest, under the wipe).
+func is_built() -> bool:
+	return level != null
+
+
 func build(lvl: Level, first_col: int, end_col: int) -> void:
 	level = lvl
 	_c0 = first_col - 1
@@ -115,13 +128,8 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 	_layers[&"soil"].material = soil
 	_layers[&"soil"].texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR  # data atlas: no mipmaps
 	_layers[&"tufts"].material = sway
-	front = Node2D.new()
-	front.name = &"FrontGrass"
 	_layers[&"front"] = front
-	var front_cast := Node2D.new()  # the walls' shadows over the blades too (above every chunk's)
-	front_cast.z_index = 1
-	front.add_child(front_cast)
-	_layers[&"front_cast"] = front_cast
+	_layers[&"front_cast"] = front.get_child(0)
 
 	soil.set_shader_parameter(&"depth_tex", _depth_texture(first_col, end_col))
 	soil.set_shader_parameter(&"first_col", first_col)
@@ -141,6 +149,8 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 ## used to be built whole when it opened (800 columns, ~75 ms in one frame); now WorldView asks
 ## for what is on screen and one more chunk ahead each frame.
 func ensure(x0: float, x1: float) -> void:
+	if not is_built():
+		return
 	var c := _first_col + maxi(floori((x0 / T - _first_col) / CHUNK), 0) * CHUNK
 	while c < _end_col and c * T < x1:
 		_build_chunk(c)
@@ -149,6 +159,8 @@ func ensure(x0: float, x1: float) -> void:
 
 ## Builds the next chunk not built yet after level x (units), if any: a frame's share of the work.
 func build_ahead(x: float) -> void:
+	if not is_built():
+		return
 	var c := _first_col + maxi(floori((x / T - _first_col) / CHUNK), 0) * CHUNK
 	while c < _end_col:
 		if not _built.has(c):

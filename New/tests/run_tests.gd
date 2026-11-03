@@ -582,12 +582,23 @@ const FAST := 20.0  ## Engine.time_scale while screens are tested (tweens, timer
 
 
 ## Collects the errors and warnings Godot prints (push_error, failed checks, script errors).
+## Errors raised inside the headless stand-in renderer (servers/rendering/dummy) are its own, not the
+## game's: it creates textures without a lock, so a picture loading on a thread can collide with one made
+## on the main thread ("Parameter t is null" in texture_2d_initialize, once in a while on a cold disk
+## cache). They are counted in `harness` and printed, not failed; every windowed capture, strip and perf
+## run (the real renderer) would show a real one.
 class ErrorLog extends Logger:
 	var lines := PackedStringArray()
+	var harness := PackedStringArray()
 	var _mutex := Mutex.new()
 
 	func _log_error(function: String, file: String, line: int, code: String, rationale: String, _editor_notify: bool,
 			error_type: int, script_backtraces: Array[ScriptBacktrace]) -> void:
+		if "/rendering/dummy/" in file:
+			_mutex.lock()
+			harness.append("%s (%s:%d)" % [rationale if rationale else code, file.get_file(), line])
+			_mutex.unlock()
+			return
 		# where in our scripts it came from (the innermost frame), and from which thread
 		var at := ""
 		for bt in script_backtraces:
@@ -765,6 +776,8 @@ func _test_screens() -> void:
 			await _close(vp)
 	Engine.time_scale = 1.0
 	OS.remove_logger(log)
+	if not log.harness.is_empty():
+		print("  (headless renderer, not the game: %s)" % [log.harness])
 	Save.language = ""
 	Save.apply_language()
 	print("  %d screens checked (%d buttons, texts and lists), %d frames a second" % [shown, _layout_checked, Engine.get_frames_per_second()])
@@ -954,13 +967,17 @@ func _open(shot: String, data := {}) -> void:
 		"gameover":
 			game.autopilot = Scripted.new()
 			await _wait(1.0)
+			Save.best_bobs = 0  # a new best: its stamp is part of the panel to check
 			game.world._die(&"bandit")
-			await _wait(World.DYING_TIME + 2.0)  # his death, then the panel and its reveal
+			await _wait(World.DYING_TIME + Capture.REVEAL)  # his death, then the panel and its whole reveal
 		"win":
 			game._start()  # (a run is under way: the start card has gone)
+			Save.best_bobs = 0
+			Save.best_stars = 0
+			game.world.bobs = 40
 			game.world.state = World.State.WON
 			game.world.won.emit()
-			await _wait(World.HOME_TIME + 4.0)
+			await _wait(World.HOME_TIME + Capture.REVEAL + 0.6)
 
 
 ## What's wrong with the layout on screen: buttons and texts outside the safe area or the screen,
@@ -1204,6 +1221,8 @@ func _test_audio() -> void:
 	_check(Audio.sfx_count == before + 2, "footsteps follow the 3D hero's run clock, through a throw too")
 	for n: Node in [hero3d, feet2]:
 		n.free()
+	# round 3: fireworks have a sound; the confetti has streamers
+	_check(Audio.has_sfx(&"firework") and Confetti.SIZES.has(Confetti.Shape.STREAMER), "fireworks sound; the confetti has streamers")
 	for p: AudioStreamPlayer in Audio._sfx + Audio._ui + [Audio._music, Audio._music_out, Audio._drive, Audio._ambience]:
 		p.stop()
 
@@ -1585,6 +1604,7 @@ func _gp_flow() -> void:
 	p._start()
 	p._process(0.02)
 	p.pause_game()
+	_check(_absolute_z(p._overlay) > _absolute_z(p.view.fx), "the pause panel is drawn over the world's effects (z %d over %d)" % [_absolute_z(p._overlay), _absolute_z(p.view.fx)])
 	var t: int = p.world.ticks
 	for i in 20:
 		p._process(0.05)
@@ -1943,6 +1963,11 @@ func _gp_staging() -> void:
 	q._move(&"throw")
 	_check(q.world.falling_to_death() and q.world._actions.is_empty(), "swipes and taps are ignored while he drops into a pit he can't leave")
 	q.free()
+	var e := _standing_world()  # what must be seen reaches up to what a jump can go for, not empty sky
+	var at_start := e.camera_must_see().position.y
+	e.scroll = 50 * 32.0 - e.x  # the Red Bobs at row 7 over the block at columns 59-71 are a jump away
+	_check(_near(at_start, e.y - 64.0 - World.SEE_ABOVE) and e.camera_must_see().position.y <= 7 * 32.0 - World.SEE_ABOVE,
+			"the camera must show the Red Bobs a jump can reach (%.0f), only his head under empty sky (%.0f)" % [e.camera_must_see().position.y, at_start])
 	var v := _standing_world()
 	v.scroll = 180 * 32.0 - v.x
 	v.y = 6 * 32 - 64.0
@@ -2046,7 +2071,58 @@ func _test_env() -> void:
 	var door_x := HomeView.DOOR_RIGHT - float(info.door_w) / 2.0
 	_check(float(info.door_h) >= GameArt.HERO_DRAW_HEIGHT + 15.0, "the doorway is taller than him (%d)" % info.door_h)
 	_check(absf(World.HOME_X - door_x) + 35.0 <= float(info.door_w) / 2.0, "he stops inside the doorway (nothing of the hut over him)")
+	# round 3: props are made a chunk at a time as the camera gets there; reeds mirrored in the pools
+	var props := PropView.new()
+	add_child(props)
+	props.build(Level.load_default(), func(c: int, r: int) -> bool: return Level.load_default().kind_at(clampi(c, 0, Level.COLS - 1), mini(r, Level.ROWS - 1)) in [Level.Kind.TOP, Level.Kind.SIDE], -12, Level.COLS + 70)
+	_check(props.get_child_count() == 0, "no props are made when the level opens")
+	props.ensure(0.0, 1400.0)
+	var first := props.get_child_count()
+	props.ensure(5200.0, 6600.0)  # the long pool from column 160
+	var reflected := 0
+	for chunk: Node in props.get_children():
+		for it: Array in chunk.items:
+			reflected += 1 if (it[1] as Rect2).size.y < 0.0 else 0
+	_check(first > 0 and first <= 6, "the first screen's props: a few chunks (%d)" % first)
+	_check(reflected >= 2, "reeds are mirrored in the water (%d)" % reflected)
+	props.queue_free()
+	# the ground is worked out on the frame after the level opens (both under the wipe)
+	var view := WorldView.new()
+	add_child(view)
+	var wv := World.new()
+	wv.stand_at_start()
+	view.setup(wv)
+	var built_at_once: bool = view._ground.is_built()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_check(not built_at_once and view._ground.is_built(), "the ground is built the frame after the rest")
+	# home: a fire and people at it; the doorway's jamb goes over him only from his walk in
+	_check(view._home._fire != null and view._home._villagers.size() == HomeView.VILLAGERS.size(), "a cooking fire and people at home")
+	_check(not view._home.front.visible, "the jamb is not drawn over him before he walks in")
+	wv.state = World.State.WON
+	wv.end_time = World.HOME_CHEER + 0.1
+	view.refresh(0.0)
+	_check(view._home.front.visible, "it is from his walk in (World.HOME_CHEER)")
+	_check(view._background.top != null and view._background.top.is_inside_tree(), "boughs frame the top of the screen")
+	view.queue_free()
+	# the world's shaders are compiled before the level opens, then the drawing that did it goes
+	WorldView.warm_up()
+	await get_tree().process_frame  # (added deferred: the root may be busy when the menu calls it)
+	_check(get_tree().root.has_node(^"ShaderWarmUp"), "the shader warm-up draws once")
+	await get_tree().create_timer(0.7).timeout
+	_check(not get_tree().root.has_node(^"ShaderWarmUp"), "and leaves nothing behind")
 	# no timer outlives the level screen (QA ENV-2)
 	_check(not FileAccess.get_file_as_string("res://src/game/world_view.gd").contains("create_timer("),
 			"the world view's delayed calls are tied to its nodes")
 
+
+## A canvas item's z as drawn: its z_index plus its parents' while relative.
+func _absolute_z(item: CanvasItem) -> int:
+	var z := 0
+	var n: Node = item
+	while n is CanvasItem:
+		z += (n as CanvasItem).z_index
+		if not (n as CanvasItem).z_as_relative:
+			break
+		n = n.get_parent()
+	return z

@@ -542,7 +542,9 @@ def main() -> None:
     info = {}
     img, front, i = hut(168, 300, True, 61)  # round 2: bigger, its doorway taller than him
     save(img, "home_hut.png")
-    save(front, "home_hut_front.png")
+    left = front.getbbox()[0] // 4 * 4  # round 3: only the part drawn (the wall right of the doorway)
+    save(front.crop((left, 0, front.width, front.height)), "home_hut_front.png")
+    i["front_crop_x"] = left / PX
     info["home_hut"] = i
     img = rondavel()
     save(img, "home_hut_small.png")

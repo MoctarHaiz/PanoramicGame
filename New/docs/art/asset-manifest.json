@@ -1064,6 +1064,39 @@
    }
   },
   {
+   "id": "world-canopy",
+   "role": "level world layer or terrain texture",
+   "path": "assets/art/world/canopy.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "1024x80",
+    "alpha": true,
+    "anchor": "per view",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette",
+    "light-direction"
+   ],
+   "source": {
+    "kind": "authored-procedural",
+    "url_or_tool": "tools/art/savanna.py / terrain.py",
+    "creator": "Claude for Haiz Studio",
+    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
+    "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
    "id": "world-cloud_1",
    "role": "level world layer or terrain texture",
    "path": "assets/art/world/cloud_1.png",
@@ -1630,7 +1663,7 @@
    "path": "assets/art/world/home_hut_front.png",
    "status": "approved",
    "technical": {
-    "dimensions": "736x668",
+    "dimensions": "432x668",
     "alpha": true,
     "anchor": "bottom-centre at the ground",
     "frames": null,

@@ -85,3 +85,16 @@ kept alive by test lambdas that capture them).
   play 85-87 MB before the first pause (combo chip font sizes: +4 MB per size), menu again 110 MB; load 303 ms.
 - README testing section: perf.tscn, --quick, --film, --layers, --lang=en,fr.
 - Outputs: AAA/qa/round_2/ (bugs.md, audit, audit_ads, sheets, strips, perf_*).
+
+## Round 3 (review of the round 2 merge, 828261b)
+
+- Merge: footsteps fixed (run_frame), bandit flash shared, results pictures fine. Lost: UX's one-size "×N"
+  (`_combo_tag`, dead code) under audio's `Fx.streak_pop`, which draws a new font size per streak step:
+  +6 MB texture per step (8 steps in the first second: 64 -> 112 MB), the same in RAM.
+- Capture: gameover/fell/win wait for `_results_shown` + REVEAL 3.4 s (final counts, stamp). Tests use the same
+  REVEAL and force a new best: the stamp now fails on iPad (off screen) and covers the score everywhere (UX).
+- The headless "Parameter t is null" came back with the preloads drained: it's the dummy renderer, not the game.
+  ErrorLog now counts errors raised in servers/rendering/dummy as harness notes (printed, not failed).
+- perf: RAM column (MEMORY_STATIC). Merge: menu 63, run 112 before the pause, menu again 140.6 MB; RAM 143 MB in
+  play; draw calls 187 mean / 512 max (down); level open 317 ms; frames pass.
+- Outputs: AAA/qa/round_3/ (bugs.md, audit, sheets, crops, perf_*).

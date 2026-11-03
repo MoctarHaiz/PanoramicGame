@@ -19,6 +19,14 @@ const STONE_DUST: Array[Color] = [Color("c69c6d"), Color("f1d0ad"), Color("a57b4
 const STONE_CHIPS: Array[Color] = [Color("a57b4f"), Color("8a6440"), Color("c69c6d"), Color("6e4c2e")]
 const LEAVES: Array[Color] = [Color("99ce40"), Color("8abd31"), Color("76a22a"), Color("aedb5a")]
 const CHALK: Array[Color] = [Color(1, 1, 1)]
+## The streamers of a burst: glossy satin streamers and a few petals that tumble (their size varies;
+## short wavy ribbons read as letters at a distance, so they are left out).
+const STREAMERS := [Confetti.Shape.STREAMER, Confetti.Shape.STREAMER, Confetti.Shape.STREAMER, Confetti.Shape.PETAL]
+## Their colours, curated: gold, the sunset's red and coral, cream, his indigo.
+const STREAMER_COLOURS: Array[Color] = [Color("ffcf3a"), Color("f5b81c"), Color("e8452e"), Color("ff7a52"),
+		Color("fff1d0"), Color("4a43a8")]
+## A firework's sparks: white-hot to gold to the sunset's orange and red.
+const FIREWORK: Array[Color] = [Color("fff6d8"), Color("ffd36b"), Color("ffab3a"), Color("ff6a3a")]
 ## The mix of confetti pieces: shaded petals and glass beads, a few sequins (gold motes are sparkles).
 const PARTY_SHAPES := [Confetti.Shape.PETAL, Confetti.Shape.PETAL, Confetti.Shape.PETAL, Confetti.Shape.BEAD,
 		Confetti.Shape.BEAD, Confetti.Shape.SEQUIN]
@@ -40,6 +48,8 @@ const IMPACTS := {
 }
 const FLASH_TIME := 0.035  ## the white of a blow: 2 frames, then the one hit shows (the views use it)
 const MAX_FLIERS := 6  ## Red Bobs flying to the counter at once (more just pop on it)
+const STREAK_SIZE_K := 0.8  ## the "×N" is drawn at PLUS_SIZE * this, always (scaled per step)
+const STREAK_SIZE := int(PLUS_SIZE * STREAK_SIZE_K)
 ## The streak badge's colour per tier (2-3, 4-5, 6-7, 8+ in a row).
 const STREAK_TIERS: Array[Color] = [Color("ffffff"), Color("ffd84a"), Color("ff9a2a"), Color("ff4a3a")]
 
@@ -54,6 +64,7 @@ static var _glow_tex: Texture2D
 static var _impact_tex: Texture2D
 static var _puff_tex: Texture2D
 static var _vignette_tex: Texture2D
+static var _edge_tex: Texture2D
 static var _additive: CanvasItemMaterial
 static var _shine: ShaderMaterial
 static var _plus_font: Font
@@ -96,6 +107,7 @@ static func advance_knocks(delta: float) -> void:
 static func impact_burst(parent: Node, at: Vector2, away: Vector2, size: StringName, tint: Color) -> void:
 	var k: float = IMPACTS[size].scale
 	glow(parent, at, Color(1, 1, 1, 0.9), 0.12 * k, 0.4 * k, FLASH_TIME * 1.5)
+	glint(parent, at, 55.0 * k, 0.065)  # 4 frames: crisp, gone before the reaction
 	ring(parent, at, 14.0 * k, 110.0 * k, 0.22, Color(tint.lerp(Color.WHITE, 0.4), 0.85), 5.0 * k)
 	shards(parent, at, away, IMPACTS[size].shards, k, tint)
 	Confetti.make(parent, at).sparkle(int(4 * k), [Color.WHITE, tint.lightened(0.4)], Vector2(160, 420), 0.7 * k,
@@ -162,13 +174,111 @@ static func badge_burst(parent: Node, at: Vector2) -> void:
 static func confetti_burst(parent: Node, at: Vector2) -> void:
 	glow(parent, at, Color(1, 0.9, 0.65, 0.8), 0.3, 1.6, 0.35)
 	var c := Confetti.make(parent, at)
-	c.gravity = 950.0
-	c.drag = 1.5
-	c.flutter = 520.0
-	c.spray(56, PARTY_SHAPES, PARTY, Vector2(700, 1700), Vector2.UP, 70.0, 1.0, Vector2(2.2, 3.0), 30.0)
-	c.spray(26, PARTY_SHAPES, PARTY, Vector2(800, 1800), Vector2.UP, 60.0, 1.6, Vector2(2.2, 3.0), 30.0)
-	c.spray(10, PARTY_SHAPES, PARTY, Vector2(900, 1900), Vector2.UP, 50.0, 2.3, Vector2(2.2, 3.0), 30.0)
+	c.gravity = 900.0
+	c.drag = 1.4
+	c.flutter = 480.0
+	# big glossy streamers and ribbons in three sizes (the near ones bigger and fewer), tumbling
+	c.spray(34, STREAMERS, STREAMER_COLOURS, Vector2(700, 1700), Vector2.UP, 70.0, 2.0, Vector2(2.4, 3.2), 30.0)
+	c.spray(18, STREAMERS, STREAMER_COLOURS, Vector2(800, 1800), Vector2.UP, 60.0, 2.9, Vector2(2.4, 3.2), 30.0)
+	c.spray(7, STREAMERS, STREAMER_COLOURS, Vector2(900, 1900), Vector2.UP, 50.0, 3.9, Vector2(2.4, 3.2), 30.0)
+	c.spray(20, [Confetti.Shape.PETAL, Confetti.Shape.BEAD], PARTY, Vector2(600, 1500), Vector2.UP, 75.0, 1.6,
+			Vector2(2.0, 2.8), 30.0)
 	c.sparkle(20, GOLD, Vector2(200, 600), 1.0)
+
+
+## Fireworks from `from` (a lower corner of the screen, effects units): three shells rise steeply,
+## leaning a little towards the middle (`inward`: +1 from the left, -1 from the right), each bursting
+## high up into a bloom of light and 36 additive sparks with short tapered trails that fall, fade and
+## crackle. Best behind the people and panels: they are light in the sky.
+static func fireworks(parent: Node, from: Vector2, inward: float) -> void:
+	var show := FireworkShow.new()
+	show.material = additive()
+	parent.add_child(show)
+	for i in 3:
+		show.launch(from, Vector2(inward * randf_range(0.06, 0.2), -1.0).normalized() * randf_range(1250.0, 1500.0),
+				i * 0.3)
+
+
+class FireworkShow extends Node2D:
+	const GRAVITY := 900.0
+	var _shells: Array[Vector4] = []  # x, y, delay, (unused)
+	var _shell_vel: Array[Vector2] = []
+	var _sparks: Array[Vector4] = []  # x, y, age, life
+	var _spark_vel: Array[Vector2] = []
+	var _spark_col: Array[Color] = []
+	var _blooms: Array[Vector3] = []  # x, y, age
+
+	func launch(at: Vector2, vel: Vector2, delay: float) -> void:
+		_shells.append(Vector4(at.x, at.y, delay, 0.0))
+		_shell_vel.append(vel)
+
+	func _process(delta: float) -> void:
+		for i in range(_shells.size() - 1, -1, -1):
+			var s := _shells[i]
+			if s.z > 0.0:
+				_shells[i].z -= delta
+				continue
+			_shell_vel[i].y += GRAVITY * delta
+			_shells[i].x += _shell_vel[i].x * delta
+			_shells[i].y += _shell_vel[i].y * delta
+			if randf() < delta * 60.0:  # the rising shell sheds a few sparks
+				_add_spark(Vector2(_shells[i].x, _shells[i].y), Vector2(randf_range(-40, 40), randf_range(20, 80)),
+						randf_range(0.2, 0.35), Fx.FIREWORK[2])
+			if _shell_vel[i].y > -120.0:  # near its top: it bursts
+				var at := Vector2(_shells[i].x, _shells[i].y)
+				Audio.play_sfx(&"firework")
+				_blooms.append(Vector3(at.x, at.y, 0.0))
+				for k in 36:
+					var dir := Vector2.from_angle(k * TAU / 36.0 + randf_range(-0.08, 0.08))
+					_add_spark(at, dir * randf_range(650.0, 1000.0), randf_range(1.0, 1.4),
+							Fx.FIREWORK[randi() % Fx.FIREWORK.size()])
+				_shells.remove_at(i)
+				_shell_vel.remove_at(i)
+		for i in range(_sparks.size() - 1, -1, -1):
+			_sparks[i].z += delta
+			_spark_vel[i] -= _spark_vel[i] * minf(1.6 * delta, 0.5)
+			_spark_vel[i].y += GRAVITY * 0.35 * delta
+			_sparks[i].x += _spark_vel[i].x * delta
+			_sparks[i].y += _spark_vel[i].y * delta
+			if _sparks[i].z > _sparks[i].w:
+				_sparks.remove_at(i)
+				_spark_vel.remove_at(i)
+				_spark_col.remove_at(i)
+		for i in range(_blooms.size() - 1, -1, -1):
+			_blooms[i].z += delta
+			if _blooms[i].z > 0.35:
+				_blooms.remove_at(i)
+		if _shells.is_empty() and _sparks.is_empty() and _blooms.is_empty():
+			queue_free()
+		queue_redraw()
+
+	func _add_spark(at: Vector2, vel: Vector2, life: float, colour: Color) -> void:
+		_sparks.append(Vector4(at.x, at.y, 0.0, life))
+		_spark_vel.append(vel)
+		_spark_col.append(colour)
+
+	func _draw() -> void:
+		var tex := Fx.glow_texture()
+		for b in _blooms:  # the burst's core: a flash of white-gold light that swells and fades
+			var k := b.z / 0.35
+			var r := 60.0 + 200.0 * (1.0 - pow(1.0 - k, 3.0))
+			draw_texture_rect(tex, Rect2(Vector2(b.x, b.y) - Vector2(r, r), Vector2(r, r) * 2), false,
+					Color(1, 0.92, 0.7, 0.85 * (1.0 - k)))
+		for s in _shells:
+			if s.z <= 0.0:
+				draw_texture_rect(tex, Rect2(Vector2(s.x, s.y) - Vector2(14, 14), Vector2(28, 28)), false, Fx.FIREWORK[0])
+		for i in _sparks.size():
+			var s := _sparks[i]
+			var k := s.z / s.w
+			var fadeout := 1.0 - k * k
+			var crackle := 0.6 + 0.4 * sin(s.z * 55.0 + i) if k > 0.6 else 1.0  # twinkles as it dies
+			var c := Color(_spark_col[i], fadeout * crackle)
+			var head := Vector2(s.x, s.y)
+			var tail := head - _spark_vel[i] * 0.06  # a short trail, along the motion
+			draw_line(tail, head, Color(c, c.a * 0.5), 8.0 * (1.0 - 0.5 * k), true)
+			draw_line(tail.lerp(head, 0.6), head, c, 4.0, true)
+			var r := 10.0 * (1.0 - 0.4 * k)
+			draw_texture_rect(tex, Rect2(head - Vector2(r, r), Vector2(r, r) * 2), false, c)
 
 
 ## A reward landing in a counter: a small flash, a ring and a few stars.
@@ -207,6 +317,27 @@ static func knock_out(parent: Node, at: Vector2, feet: Vector2) -> void:
 			Vector2(0.6, -1).normalized(), 70.0, 1.0, Vector2(0.55, 0.85))
 	stars.sparkle(6, RING_SPARKS, Vector2(160, 420), 1.0, Vector2(0.3, 0.55))
 	dust(parent, feet, 10, 260.0, 0.0, 1.3)
+
+
+## A metal glint: a four-point star of thin light that flicks open and shrinks away in `time`.
+static func glint(parent: Node, at: Vector2, size: float, time: float) -> void:
+	var node := Node2D.new()
+	node.position = at
+	node.rotation = randf_range(-0.3, 0.3)
+	node.material = additive()
+	parent.add_child(node)
+	var state := [0.0]
+	node.draw.connect(func() -> void:
+		var k: float = state[0]
+		var r := size * (0.6 + 0.4 * sin(minf(k * 2.0, 1.0) * PI * 0.5)) * (1.0 - k)
+		var c := Color(1, 1, 1, 1.0 - k * k)
+		node.draw_line(Vector2(-r, 0), Vector2(r, 0), c, 3.0 * (1.0 - k) + 1.0, true)
+		node.draw_line(Vector2(0, -r * 0.7), Vector2(0, r * 0.7), c, 3.0 * (1.0 - k) + 1.0, true))
+	var t := node.create_tween()
+	t.tween_method(func(k: float) -> void:
+		state[0] = k
+		node.queue_redraw(), 0.0, 1.0, time)
+	t.tween_callback(node.queue_free)
 
 
 ## Streaks of light flung out from a hit (`towards`: the way the blow went), each a tapered line
@@ -308,12 +439,20 @@ class RingFlight extends Node2D:
 	var _flying := true
 	var _at := Vector2.ZERO
 
+	## The ring's picture (WorldView's RingView for it), where its light goes: RingView launches it
+	## from his hand, so the light follows the picture, not the rules.
+	func _ring_view() -> Node2D:
+		var rings: Variant = get_parent().get_parent().get(&"_rings") if get_parent() and get_parent().get_parent() else null
+		var v: Variant = (rings as Dictionary).get(ring.id) if rings is Dictionary else null
+		return v if is_instance_valid(v) else null
+
 	func _process(delta: float) -> void:
 		_clock += delta
 		if _flying:
 			_flying = world.rings.has(ring) and world.state == World.State.RUNNING
 		if _flying:
-			_at = Vector2(lerpf(ring.prev_x, ring.x, world.alpha) + 12.0, ring.y + 14.0) * 2.0
+			var drawn: Node2D = _ring_view()
+			_at = (drawn.position if drawn else Vector2(lerpf(ring.prev_x, ring.x, world.alpha) + 12.0, ring.y + 14.0)) * 2.0
 			_path.push_front(Vector3(_at.x, _at.y, 0.0))
 			if randf() < delta * 20.0:
 				_sparks.append(Vector4(_at.x + randf_range(-14, 14), _at.y + randf_range(-18, 18), 0.0, randf_range(0.2, 0.4)))
@@ -398,23 +537,25 @@ static func streak_pop(parent: Node, at: Vector2, n: int) -> void:
 	node.position = at + Vector2(30, -40)
 	var font := plus_font()
 	var text := "×%d" % n
-	var size := int(PLUS_SIZE * (0.62 + 0.05 * mini(n, 8)))
+	# one font size and outline for every step (each new size would cache its own glyph pages:
+	# megabytes of texture per step); the badge grows with the node's scale instead
+	var grow := (0.62 + 0.05 * mini(n, 8)) / STREAK_SIZE_K
 	var colour := STREAK_TIERS[clampi((n - 2) / 2, 0, STREAK_TIERS.size() - 1)]
-	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
-	var base := Vector2(-w / 2, size * 0.36)
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, STREAK_SIZE).x
+	var base := Vector2(-w / 2, STREAK_SIZE * 0.36)
 	node.draw.connect(func() -> void:
-		node.draw_string_outline(font, base + Vector2(0, 8), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 28, Color(0.2, 0.02, 0.1, 0.4))
-		node.draw_string_outline(font, base, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 28, Color("4a0a24"))
-		node.draw_string_outline(font, base, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 12, colour.darkened(0.25))
-		node.draw_string(font, base, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, colour))
+		node.draw_string_outline(font, base + Vector2(0, 8), text, HORIZONTAL_ALIGNMENT_LEFT, -1, STREAK_SIZE, 28, Color(0.2, 0.02, 0.1, 0.4))
+		node.draw_string_outline(font, base, text, HORIZONTAL_ALIGNMENT_LEFT, -1, STREAK_SIZE, 28, Color("4a0a24"))
+		node.draw_string_outline(font, base, text, HORIZONTAL_ALIGNMENT_LEFT, -1, STREAK_SIZE, 12, colour.darkened(0.25))
+		node.draw_string(font, base, text, HORIZONTAL_ALIGNMENT_LEFT, -1, STREAK_SIZE, colour))
 	parent.add_child(node)
-	node.scale = Vector2.ONE * 0.4
+	node.scale = Vector2.ONE * 0.4 * grow
 	node.rotation = -0.15
 	var t := node.create_tween().set_parallel(true)
-	t.tween_property(node, "scale", Vector2.ONE * 1.25, 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.tween_property(node, "scale", Vector2.ONE * 1.25 * grow, 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	t.tween_property(node, "rotation", 0.0, 0.2)
 	t.tween_property(node, "position:y", node.position.y - 80.0, 0.5).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
-	t.tween_property(node, "scale", Vector2.ONE, 0.15).set_delay(0.1)
+	t.tween_property(node, "scale", Vector2.ONE * grow, 0.15).set_delay(0.1)
 	t.tween_property(node, "modulate:a", 0.0, 0.2).set_delay(0.3)
 	t.chain().tween_callback(node.queue_free)
 
@@ -899,6 +1040,23 @@ static func puff_texture() -> Texture2D:
 
 
 ## Edges fading to a clear middle (white: tinted by its user), for the pulse of a blow.
+## The edges of the screen only (white: tinted by its user), for the red of a blow: clear over
+## most of the picture, so the blow itself stays readable.
+static func edge_texture() -> Texture2D:
+	if not _edge_tex:
+		var g := GradientTexture2D.new()
+		g.width = 256
+		g.height = 256
+		g.fill = GradientTexture2D.FILL_RADIAL
+		g.fill_from = Vector2(0.5, 0.5)
+		g.fill_to = Vector2(1.05, 0.5)
+		g.gradient = Gradient.new()
+		g.gradient.offsets = PackedFloat32Array([0.0, 0.62, 0.82, 1.0])
+		g.gradient.colors = PackedColorArray([Color(1, 1, 1, 0), Color(1, 1, 1, 0), Color(1, 1, 1, 0.45), Color(1, 1, 1, 1)])
+		_edge_tex = g
+	return _edge_tex
+
+
 static func vignette_texture() -> Texture2D:
 	if not _vignette_tex:
 		var g := GradientTexture2D.new()
@@ -987,9 +1145,9 @@ static func warm_up(parent: Control) -> void:
 	glow_dot.material = additive()
 	glow_dot.scale = Vector2(0.05, 0.05)
 	holder.add_child(glow_dot)
-	var text := Node2D.new()  # the "+1"
+	var text := Node2D.new()
 	text.material = shine_material()
-	text.draw.connect(func() -> void: text.draw_string(plus_font(), Vector2(0, 10), "1", HORIZONTAL_ALIGNMENT_LEFT, -1, 8))
+	text.draw.connect(_draw_badge_glyphs.bind(text))
 	holder.add_child(text)
 	var bits := Confetti.make(holder, Vector2.ZERO)
 	bits.spray(2, [Confetti.Shape.PAPER], PARTY, Vector2(1, 2))
@@ -998,6 +1156,30 @@ static func warm_up(parent: Control) -> void:
 	var t := holder.create_tween()
 	t.tween_interval(0.3)
 	t.tween_callback(holder.queue_free)
+
+
+## The "+1" and the streak's "×N" glyphs, rasterised once (at the sizes and outlines they use) by an
+## invisible node under `parent` that then goes: the level calls it as it loads, so no knock-out or
+## streak in play allocates them (each size and outline is megabytes of glyph pages).
+static func warm_glyphs(parent: Node) -> void:
+	var text := Node2D.new()
+	text.modulate.a = 0.01
+	text.material = shine_material()
+	text.draw.connect(_draw_badge_glyphs.bind(text))
+	parent.add_child(text)
+	var t := text.create_tween()
+	t.tween_interval(0.1)
+	t.tween_callback(text.queue_free)
+
+
+static func _draw_badge_glyphs(text: Node2D) -> void:
+	var f := plus_font()
+	for o: int in [34, 16]:
+		text.draw_string_outline(f, Vector2(0, 10), "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, o)
+	text.draw_string(f, Vector2(0, 10), "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE)
+	for o: int in [28, 12]:
+		text.draw_string_outline(f, Vector2(0, 10), "×0123456789", HORIZONTAL_ALIGNMENT_LEFT, -1, STREAK_SIZE, o)
+	text.draw_string(f, Vector2(0, 10), "×0123456789", HORIZONTAL_ALIGNMENT_LEFT, -1, STREAK_SIZE)
 
 
 static func confetti_texture() -> Texture2D:

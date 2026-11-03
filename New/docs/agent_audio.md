@@ -199,3 +199,39 @@ A lighter pattern never cuts into a heavier one still playing; nothing plays whe
 - Perf (QA's perf.tscn copied in and removed, iPhone 15 size, 40 s): own work worst 9.6 ms, wall p99
   7.4 ms (PASS); draw calls mean 240 (QA's merged run: 198), max 552 (572); script p99 0.57 ms; texture
   memory 124 MB FAIL (env/art).
+
+## Round 3 (2026-11-03): AAA/judge/j02a (ours 6.17)
+- Win: the corner bursts were confetti_burst (stick smears) -> `Fx.fireworks` (FireworkShow: three shells rise
+  steeply from each lower corner, burst high into a white-gold bloom and 36 additive sparks with short
+  tapered trails that fall, fade and crackle; one `sfx_firework` per burst). Drawn behind him and the card
+  (the sky): UX's `results_panel.gd` two lines, marked New (audio).
+- Home: `confetti_burst` throws big glossy streamers (new STREAMER shape: a satin double curl with a gloss
+  band) and ribbons in three sizes (2.0 / 2.9 / 3.9) in a curated palette (gold, sunset red and coral,
+  cream, his indigo) plus petals and beads; they tumble (scaleX flip). Confetti's motion blur is now a
+  faint stretched copy of the piece along its path (no more thin stick lines: the "broom bristles").
+- Ring: drawn leaving his hand (`Fx.RING_HAND` = (-22, -44) units from the rules' spawn, measured on a
+  strip; `Fx.launch_offset` closes it in 0.1 s, cubic, most of it in the first frames), applied by Feel to
+  RingView and by my RingFlight; the launch flash at his hand; a crisp impact: + a 4-frame metal glint.
+- Vocal efforts: skipped. A synthesized voice (voiced grunt) can't be judged convincing without listening;
+  the unvoiced breath layers already in hurt and death stay. A recorded voice (the user, 3-4 takes each of
+  jump, hurt, death, bandit KO) would be the real fix.
+- Tests: 966 checks, 1 failed (QA's known headless boot texture race); a "Lambda capture at index 0 was
+  freed" error comes from timer lambdas in env's world_view.gd:193/281 and UX's results_panel.gd:175 (not
+  audio's): same fix as fx.gd's (a tween owned by the node).
+- After the art track's note: the red of a blow is ~3 frames (1 held, 3 fading) on `Fx.edge_texture()`
+  (red only in the outer ring of the screen; the game screen's `_flash` uses it). Art now launches the
+  ring from his hand in RingView, so my launch offset (Feel, RING_HAND, launch_offset) and my launch flash
+  are gone (they would double it); my flight light follows RingView's drawn position instead of the
+  rules' (it stays on the ring whatever RingView does). Home streamers only (short ribbons read as
+  letters).
+- Final: 967 checks, 0 failed, exit 0; --bot: home, 3 lives, 82 Red Bobs, 3 stars (exit 0).
+- Streamers twist across their width (Confetti: turning edge-on along their length made them "Z" glyphs).
+- QA AU-1 (major, texture memory): `Fx.streak_pop` drew the "×N" at a new font size per streak step, each
+  size caching its glyph pages (+6 MB a step). Now one size (`STREAK_SIZE`, outlines 28/12) grown by the
+  node's scale; the "+1" and "×N" glyphs are rasterised as the level loads (`Fx.warm_glyphs`, one line in
+  game_screen.enter) and at boot (`Fx.warm_up`), so nothing allocates during play.
+  perf.tscn, iPhone 15, 12 s, --jump-mb=0.5 (before = my fx.gd with the old badge put back):
+  before: 8 jumps of 6.0 MB at the first streak's pickups (0.12-1.0 s), run 112.6 MB, menu after 122.6 MB;
+  after: no jump in play (load +12 MB: the two badges' glyphs), run 76.6 MB (budget 80), menu after
+  86.6 MB; frames: worst own work 9.3 ms, wall p99 8.5 ms. The rest over 80 on the menu includes those
+  12 MB of glyph pages: an MSDF title font (ux) would serve every size from one atlas.

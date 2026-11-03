@@ -148,3 +148,43 @@ Done:
   (no 96 px atlas).
 - Boot: a dusk title card, the studio logo on a cream plaque in the kit's frame, a gold bar filling.
 - Start: "Tap to start" on dark glass, a chunkier hand.
+
+## Round 3
+
+Judged round 2: whole game 0/12, ours 6.17 (pause 7.5, game over 7, win 7, settings 7). Critique
+`AAA/judge/j02a/critique.md`; QA `AAA/qa/round_3/bugs.md` section 4.
+
+Done:
+- Panels: the HUD, the flying Red Bobs and the effects layer are hidden for the frame the picture
+  behind is taken from, and stay hidden while the panel is up (some effects draw over everything);
+  they come back when it goes (QA UX-4: no "+1", no ghost HUD). Darker scrim (0.6-0.66) and vignette;
+  blur at 1/32. Bigger ribbon (54).
+- Card: deeper parchment gradient, inner shadow on all four sides, stronger light in its middle; wells
+  are a GlossStyle gradient (shade at the top, lit lip below), not a flat tan box.
+- Pause: tiles 108 with two-line captions under all four (name; On/Off in green or grey for music and
+  sounds, an empty line for the others: aligned, nothing overlapping the tiles); Home in red, Controls
+  in gold.
+- Results: one sunburst (the stars'); the outer stars tilted, each slams with an overshoot and a glow
+  that blooms and breathes; no corner confetti "bristles"; NEW BEST in its own row under the count
+  (QA UX-1: it covered the score and left the iPad screen); the defeat hero against the card (one
+  group), upright; the way-home bar has milestones every quarter. The art track's renders (menu, win,
+  defeat) carry their own light: my hero.gdshader only lights my fallback crops now.
+- Menu: the sun right behind Panoramic (backlit), the horizon lower (0.8), the logo a horizontal lockup
+  with the whole emblem at the left of the words, the ribbon under the words, a chunky 8-tooth gear
+  (`assets/icons/gear-chunky.svg`, not a flower), BEST bigger, darker empty-star sockets.
+- Start: a small prompt (44 px on a glass pill, an 84 px hand) at two thirds down the screen.
+- Settings: over a scrim and vignette; the hero whole at the left only where there is room (never
+  behind the panel, the back button on the panel's corner, clear of him: QA UX-3); four groups (Sound,
+  Feel, Game, Help) each a sunken card of rows split by fine lines; group titles in the panel's own
+  brown with a coloured icon; slimmer sliders without the dotted ticks; a snail for reduce motion.
+- HUD: the moving sheen on the way-home bar removed (QA UX-5: it read as a stray pale rectangle).
+- game_screen.gd: `_combo_tag` deleted (QA UX-2: audio's `Fx.streak_pop` is the streak badge).
+- Tests: QA's round-3 `tests/run_tests.gd`, `capture.gd`, `perf.gd` copied unchanged (my `_test_ux`
+  is the same in them).
+- The win's party (confetti, coin shower) runs from a tween owned by the panel, not a SceneTree timer
+  lambda that could outlive it (audio: "Lambda capture at index 0 was freed").
+- Merge check: base (round 3, with art, env, audio) + my files in a scratch tree: game_screen.gd
+  merges clean three-way; results_panel.gd has one conflict at the coin shower (audio's two "New
+  (audio)" fireworks lines sit where I removed the corner confetti): resolved by keeping audio's lines.
+  On that tree: `run_tests.tscn -- --bot`: 1001 checks, 0 failed, exit 0, the bot home with 3 lives.
+  Captures `AAA/ux/round_3/{en,fr}` come from that tree.
