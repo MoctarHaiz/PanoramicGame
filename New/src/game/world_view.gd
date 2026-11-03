@@ -190,7 +190,8 @@ func _splash_check(id: int, level_x: float, feet: float, surface: float, scroll:
 		Fx.glow(fx, at0, Color(0.75, 0.9, 1.0, 0.9), 0.3, 1.6, 0.3)
 		Fx.ring(fx, at0, 20.0, 150.0, 0.35, Color(1, 1, 1, 0.9), 10.0)
 		var trail := Fx.trail(fx, _hero, Color(0.8, 0.93, 1.0, 0.55), 36.0, 0.22, true)
-		get_tree().create_timer(0.45).timeout.connect(func() -> void: trail.target = null)
+		# (New: timed on the trail itself, a tween dies with its node: a timer outlived the screen)
+		trail.create_tween().tween_callback(trail.set.bind(&"target", null)).set_delay(0.45)
 	if (into or out) and world.level.kind_at(int(level_x / Level.TILE), Level.ROWS - 2) == Level.Kind.WATER:
 		Fx.splash(fx, _fx(Vector2(level_x - scroll, surface)), size * (0.8 if out else 1.0))
 
@@ -207,10 +208,12 @@ func _add_grade() -> void:
 
 func _place_grade() -> void:
 	var size := Vector2(view_width, World.VIEW_H - view_top)
+	var m := _grade.material as ShaderMaterial
 	if _grade.size != size or _grade.position != Vector2(-view_left, view_top):
 		_grade.position = Vector2(-view_left, view_top)
 		_grade.size = size
-		(_grade.material as ShaderMaterial).set_shader_parameter(&"aspect", size.x / size.y)
+		m.set_shader_parameter(&"aspect", size.x / size.y)
+	m.set_shader_parameter(&"sun", (_background.sun_position() - _grade.position) / size)  # the light comes from it
 
 
 ## Places everything for the current frame (after the world has advanced).
@@ -236,6 +239,9 @@ func refresh(delta := 0.0) -> void:
 func _place_hero(delta: float) -> void:
 	var p := world.draw_hero()
 	_hero.show_state(world, p, delta)
+	_vine.hold(world.hanging and world.state == World.State.RUNNING, p.x, delta)
+	if world.hanging:  # (round 2) he hangs from the vine where it is: it dips under him
+		_hero.position.y += _vine.sag_at(p.x)
 	if world.climbing and not _was_climbing:  # his feet hit the wall: a puff of grit off its face
 		_dust(12, Vector2(60, 160), 26.0)
 	_was_climbing = world.climbing
@@ -278,10 +284,11 @@ func _on_bandit_hit(b: World.Bandit, knocked_out: bool) -> void:
 ## Home: confetti bursting out of the doorway as he goes in.
 func _on_won() -> void:
 	var door := Vector2(HomeView.DOOR_RIGHT - 40.0, HomeView.GROUND - 70.0)
-	get_tree().create_timer(0.55).timeout.connect(func() -> void: Fx.confetti_burst(fx, _fx(door)))
+	create_tween().tween_callback(Fx.confetti_burst.bind(fx, _fx(door))).set_delay(0.55)  # (dies with the view)
 
 
 func _on_hung() -> void:
+	_vine.caught()
 	var p := _fx(Vector2(world.x, HeroView.VINE_Y + 2.0))
 	Fx.ring(fx, p, 8.0, 60.0, 0.3, Color(1, 0.9, 0.55, 0.9), 8.0)
 	Confetti.make(fx, p).sparkle(5, Fx.SPARKS, Vector2(100, 260), 0.8, Vector2(0.3, 0.5))

@@ -2,17 +2,17 @@ class_name HomeView
 extends Node2D
 ## HOME, at the end of the level (tools/art/home.py): a Zulu homestead on the last screen. A
 ## palisade, a granary and smaller huts at the back, a carved HOME signpost, and the main beehive
-## hut whose low doorway Panoramic walks into when he gets home (World.HOME_X): the hut's wall
-## right of the doorway and a deepening shade inside it are drawn in front of him (`front`, added
-## by WorldView above the actors). He no longer walks in (drawn bigger than the 2017 sprite, he
-## is taller than the low doorway and showed over its arch): he stops before it, lit by the fire,
-## so `front` stays hidden. Firelight spills out of the doorway onto the ground and the fire flares
-## when he is home. Smoke rises from the apex. `back` and `front` are in level units.
+## hut whose doorway Panoramic walks into when he gets home (World.HOME_X). Round 2: the hut is
+## bigger, its doorway taller than him and centred where he stops (he stands in it, nothing over
+## him); the hut's wall right of the doorway, with its right post, is drawn in front of him
+## (`front`, added by WorldView above the actors), so walking on in he goes behind the jamb.
+## Firelight spills out of the doorway along the ground and the fire flares when he is home. Smoke
+## rises from the apex. `back` and `front` are in level units.
 
 const DIR := "res://assets/art/world/"
 const LEFT := Level.WIDTH - World.VIEW_W  ## level x of the last screen (the camera stops here)
 const GROUND := (Level.ROWS - 2) * Level.TILE  ## the top of the ground at the end
-const DOOR_RIGHT := 786.0  ## play x of the doorway's right edge: he is home at 790 (World.HOME_X)
+const DOOR_RIGHT := 840.0  ## play x of the doorway's right edge: he stops in it at 790 (World.HOME_X)
 
 var back: Node2D
 var yard: Node2D  ## over the ground's grass, under the actors (WorldView adds it after the ground)
@@ -29,7 +29,7 @@ func build() -> void:
 	back.name = &"HomeBack"
 	front = Node2D.new()
 	front.name = &"HomeFront"
-	front.visible = false  # he stops before the doorway: nothing of the hut is drawn over him
+
 	yard = Node2D.new()
 	yard.name = &"HomeYard"
 	var hut_info: Dictionary = info["home_hut"]
@@ -49,8 +49,8 @@ func build() -> void:
 	_spill = _sprite("home_glow", 1.0)  # the fire's light on the ground before the doorway
 	_spill.centered = true
 	_spill.offset = Vector2.ZERO
-	_spill.position = Vector2(hut_left + float(hut_info["door_x"]) - 10.0, GROUND + 4.0)
-	_spill.scale = Vector2(2.4, 0.5)
+	_spill.position = Vector2(hut_left + float(hut_info["door_x"]) + 10.0, GROUND + 6.0)
+	_spill.scale = Vector2(3.6, 0.62)  # (round 2: a long warm pool along the ground)
 	var spill_add := CanvasItemMaterial.new()
 	spill_add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	_spill.material = spill_add

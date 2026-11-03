@@ -14,9 +14,10 @@ The ground is drawn by src/game/terrain_view.gd in layers:
                   the surface, the lush band hangs over the soil, roots and shadow fade below it
   grass_ends.png  the rounded left and right ends of a cap (where a top meets an open side)
   underside.png   hanging roots and shadow under a cell open below, tiles in x
+  hanging.png     (round 2) masses of earth and rock hanging under floating ledges, 4 variants
   tufts.png       one row of grass clumps and wild flowers that stand on tops (they sway)
   front_grass.png short blades drawn in front of the runners' feet, tiles in x
-  spires.png      three sandstone stacks (64 x 420 units each) drawn for one-cell-wide walls
+  spires.png      three sandstone spires (96 x 560 units each) drawn for one-cell-wide walls
                   (the poles in the river) instead of their soil (tools/art/material.py)
 
     python3 tools/art/terrain.py
@@ -657,6 +658,68 @@ def underside() -> Image.Image:
     return dither_rgba(np.clip(col, 0, 255), alpha, rng)
 
 
+MASS_W, MASS_H = 160, 120  # units of one hanging mass (hanging.png: MASS_VARIANTS side by side)
+MASS_VARIANTS = 4
+
+
+def hanging_mass(rng) -> tuple:
+    """Round 2: the earth and rock a floating ledge carries under it, so it reads as a floating
+    island, not a tiled strip: a mass hanging from a flat top (under the ledge's soil), narrowing
+    down in lumps and boulders to an uneven point, soil at the top turning to stone, in the ledge's
+    own shade (lit from above: only its upper left catches a warm rim), roots dangling under it.
+    MASS_W x MASS_H units at 2 px."""
+    w, h = MASS_W * PX, MASS_H * PX
+    yy, xx = np.mgrid[0:h, 0:w].astype(float)
+    u = xx / w
+    # the bottom line: deepest a little off the middle, lumps along it
+    mid = rng.uniform(0.4, 0.6)
+    reach = np.clip(1.0 - np.abs(u - mid) / np.where(u < mid, mid, 1 - mid), 0, 1) ** 0.8
+    depth = ((0.15 + 0.85 * reach) * (h - 30 * PX) * (0.8 + 0.4 * noise1(w, 5, rng, 2)[None, :])
+             + (noise1(w, 14, rng, 3)[None, :] - 0.5) * 26 * PX * (0.3 + reach[:1]))
+    cov = smooth(1.5, -1.5, yy - depth)
+    for _ in range(int(rng.integers(3, 6))):  # boulders bulging out of the mass
+        bx = rng.uniform(0.2, 0.8) * w
+        by = float(depth[0, int(bx)]) * rng.uniform(0.55, 0.9)
+        br = rng.uniform(9, 17) * PX
+        cov = np.maximum(cov, smooth(br + 1.5, br - 1.5, np.hypot(xx - bx, (yy - by) * 1.1)))
+    cov *= smooth(0, 4 * PX, xx) * smooth(w, w - 4 * PX, xx)  # (the ends melt under the ledge's)
+    height = blur(cov, 5.0) * 26
+    lam = normals_light(height, 1.0)
+    rel = np.clip(yy / (h - 30 * PX), 0, 1)
+    col = ramp(rel, [(0, "7e4228"), (0.3, "5e3024"), (0.65, "45262e"), (1.0, "2c1a2c")])
+    grain = fbm(h, w, 18, 30, 4, rng, wrap_x=False)
+    chunks = blur(rng.standard_normal((h, w)), 6.0)
+    chunks = np.gradient(chunks / chunks.std(), axis=0) + np.gradient(chunks / chunks.std(), axis=1)
+    grain = grain + chunks * 0.6
+    col = col * (0.72 + 0.5 * lam[..., None]) * (0.86 + 0.28 * grain[..., None])
+    rim = np.clip(cov - np.roll(np.roll(cov, 3, axis=0), 3, axis=1), 0, 1) * (1 - rel) ** 1.5
+    col = mix(col, hexc("d08a52"), blur(rim, 1.0) * 0.7)
+    ink = np.clip(cov - np.roll(cov, -2, axis=0), 0, 1)  # its lower edge, an ink line
+    col = mix(col, hexc("22101a"), ink * 0.7)
+    roots = Image.new("L", (w * 3, h * 3), 0)
+    dr = ImageDraw.Draw(roots)
+    for _ in range(int(rng.integers(5, 9))):
+        x = rng.uniform(0.15, 0.85) * w
+        y = float(depth[0, int(x)]) - 3
+        length = rng.uniform(10, 26) * PX
+        sway = rng.uniform(-1, 1)
+        pts = [((x + np.sin(t * 3 + x) * 2 + sway * t * t * 8) * 3, (y + length * t) * 3) for t in np.linspace(0, 1, 8)]
+        for k in range(7):
+            dr.line([pts[k], pts[k + 1]], fill=255, width=max(1, int(rng.uniform(1.0, 2.0) * (1 - k / 9) * 3)))
+    rm = np.asarray(roots.resize((w, h), Image.LANCZOS), float) / 255 * (1 - cov)
+    col = mix(col, mix(ROOT, ROOT_HI, 0.25), rm)
+    alpha = np.clip(np.maximum(cov, rm), 0, 1)
+    return col, alpha
+
+
+def hanging() -> Image.Image:
+    rng = np.random.default_rng(91)
+    parts = [hanging_mass(rng) for _ in range(MASS_VARIANTS)]
+    col = np.concatenate([p[0] for p in parts], axis=1)
+    alpha = np.concatenate([p[1] for p in parts], axis=1)
+    return dither_rgba(np.clip(col, 0, 255), alpha, rng)
+
+
 EDGE_W, EDGE_H = 22, 64  # units of one rock edge piece
 
 
@@ -832,6 +895,7 @@ def main() -> None:
     if want("under"):
         save(underside(), "underside.png")
         save(roots_strip(), "roots.png")
+        save(hanging(), "hanging.png")
     if want("tufts"):
         save(tufts(), "tufts.png")
         save(front_grass(), "front_grass.png")

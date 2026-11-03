@@ -9,8 +9,8 @@ uniform vec2 rect_size = vec2(36.0, 100.0);
 uniform float x_offset = 0.0;  // level x of the rect
 uniform float fade_left = 0.0;
 uniform float fade_right = 0.0;
-uniform vec4 shallow : source_color = vec4(0.2, 0.72, 0.8, 1.0);
-uniform vec4 deep : source_color = vec4(0.03, 0.15, 0.38, 1.0);
+uniform vec4 shallow : source_color = vec4(0.1, 0.36, 0.4, 1.0);  // round 2: murky, not glass
+uniform vec4 deep : source_color = vec4(0.02, 0.1, 0.24, 1.0);
 
 void fragment() {
 	vec2 p = UV * rect_size;
@@ -29,7 +29,7 @@ void fragment() {
 		side *= smoothstep(0.0, fade_right, rect_size.x - p.x);
 	}
 	vec3 c = mix(shallow.rgb, deep.rgb, clamp((d - 3.0) / 46.0, 0.0, 1.0));
-	float a = smoothstep(0.0, 3.0, d) * mix(0.5, 0.85, clamp(d / 46.0, 0.0, 1.0));
+	float a = smoothstep(0.0, 3.0, d) * mix(0.38, 0.8, clamp(d / 46.0, 0.0, 1.0));
 	// the foam lapping round it at the surface, bubbling
 	float lap = 1.0 - smoothstep(0.0, 3.2, abs(d - 0.8));
 	lap *= 0.65 + 0.35 * sin(x * 0.9 + t * 3.1) * sin(x * 0.37 - t * 1.7);

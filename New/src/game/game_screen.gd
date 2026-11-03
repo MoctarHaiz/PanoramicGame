@@ -17,12 +17,22 @@ enum Phase { READY, PLAYING, PAUSED, COUNTDOWN, DYING, HOME, RESULTS }
 
 const SWIPE_MIN := 30.0  ## design units a finger must travel to be a swipe (when the screen's dpi is unknown)
 const SWIPE_MM := 4.0  ## the same travel on any screen (30 units was 3 mm on a phone, 9 mm on an iPad)
-## The camera: up high (hanging under the vine, on the tallest ledges) the world draws back from the
-## top of the screen, sky above, so he stays out of the HUD band; the ground stays where it is.
-const FRAME_TOP := 78.0  ## design units kept for the HUD when he is at the top
-const FRAME_FROM := 260.0  ## his centre (play y) where the camera starts to draw back
-const FRAME_FULL := 100.0  ## ... and where it is fully back (he hangs at World.VINE_DRAW_Y)
-const HOME_PUSH := 1.4  ## at home the camera pushes in to the doorway, this much
+## The camera (New, env). On a screen wider than the 2017 play window it closes in, as far as still
+## shows VIEW_AHEAD units right of the play window's left edge (the 2017 game showed 960, and a
+## bandit starts running as it crosses 960), at most ZOOM_MAX; a 4:3 iPad draws back instead to
+## show the whole 960. The bottom of the level stays on the bottom of the screen (the ground, the
+## pools, the bandits on it are always in view); when he goes up (a high ledge, a jump, the vine)
+## the camera draws back just enough to keep his head HEAD_ROOM under the top of the screen, and
+## the vine under the HUD (HUD_BAND) while he can reach it or hangs from it.
+const VIEW_AHEAD := 1040.0  ## play units at least, right of the play window's left edge
+const ZOOM_MAX := 1.26
+const HEAD_ROOM := 132.0  ## screen units (of 640) over his head
+const HEAD := 74.0  ## play units from his centre up to the top of his head (drawn 150 tall from his feet)
+const HUD_BAND := 78.0  ## screen units kept for the HUD over the vine
+const VINE_TOP := -8.0  ## play y of the top of the vine (VineView)
+const ZOOM_OUT_RATE := 5.0  ## how fast the camera draws back (1/s), and closes in again
+const ZOOM_IN_RATE := 1.4
+const HOME_PUSH := 1.4  ## at home the camera pushes in to the doorway, to this zoom (1: 640 units tall)
 const DEATH_PUSH := 1.2  ## caught: the camera closes in on him while he falls (World.DYING_TIME)
 const HOME_CX := 800.0  ## play x drawn to the middle of the screen at home (the hut, him at its door)
 const SHAKE := 22.0  ## design units of the strongest shake
@@ -64,8 +74,8 @@ var _k := 1.0  # the world's scale on screen (_layout)
 var _countdown := 0.0  # after Resume: seconds before the world moves again
 var _count_id := 0  # which Resume the countdown's numbers belong to
 var _spring_due := false  # the spring's sound waits for the end of the fall's beat
-var _frame := 1.0  # the camera drawn back (FRAME_TOP): 1 = the 640 units fill the screen
-var _push := 1.0  # the camera pushed in at home (HOME_PUSH)
+var _zoom := 0.0  # the camera's zoom (1: the 640 units fill the screen's height); 0: not placed yet
+var _push := 1.0  # the camera pushed in at home (HOME_PUSH), or on him when caught (DEATH_PUSH)
 var _pit_scroll := -1.0  # the scroll the camera holds at while he drops into a pit (_gameplay_camera)
 var _pit_time := 0.0  # seconds since it began holding
 var _pit_seen := false  # the hold began while he was still in the picture, dropping in
@@ -192,33 +202,33 @@ func _process(delta: float) -> void:
 	hud.refresh()
 
 
-## The world's place on screen: drawn back when he is up high, pushed in at home, and shaken (with
-## just enough zoom that the shake never bares an edge). Each is a zoom about its own point.
+## The world's place on screen: closed in on a wide screen and drawn back when he is up high (about
+## the bottom of the play window's left edge: the ground stays put), pushed in at home or on him
+## when caught, and shaken (with just enough zoom that the shake never bares an edge). Each is a
+## zoom about its own point.
 func _place_camera(delta: float) -> void:
 	var p := world.draw_hero()
-	var high := smoothstep(FRAME_FROM, FRAME_FULL, 0.0 if world.hanging else p.y)
-	if world.state == World.State.DEAD:
-		high = 0.0
-	_frame = lerpf(_frame, 1.0 - FRAME_TOP / World.VIEW_H * high, 1.0 - exp(-delta * 10.0))
+	var inset := Device.insets().x
+	var goal := minf(base_zoom((_clip.size.x - inset) / _k), follow_zoom(world, p))
+	if _zoom <= 0.0:  # the first frame: framed at once, no drift in from nowhere
+		_zoom = goal
+	_zoom = lerpf(_zoom, goal, 1.0 - exp(-delta * (ZOOM_OUT_RATE if goal < _zoom else ZOOM_IN_RATE)))
 	var home := world.state == World.State.WON
 	var caught := world.state == World.State.DEAD and world.death_reason == &"bandit"
-	var push := HOME_PUSH if home else (DEATH_PUSH if caught else 1.0)
+	var push := maxf(HOME_PUSH / _zoom, 1.0) if home else (DEATH_PUSH if caught else 1.0)
 	_push = lerpf(_push, push, 1.0 - exp(-delta * (2.6 if home else (1.6 if caught else 10.0))))
 	var shake := _trauma * _trauma * SHAKE * Prefs.shake()  # New: the player can turn it off
-	var zoom_k := _k
-	var at := Vector2(Device.insets().x, 0)
-	var door := at + Vector2(World.HOME_X + 30.0, World.VIEW_H - 100.0) * _k
-	var fall := at + Vector2(p.x, p.y + 40.0) * _k  # caught: the push closes in about where he falls
-	zoom_k *= _frame
-	at = at * _frame + Vector2(0, _clip.size.y) * (1.0 - _frame)
+	var zoom_k := _k * _zoom
+	var at := Vector2(inset, _clip.size.y - World.VIEW_H * zoom_k)
 	if _push > 1.0001 and home:  # New: the push draws the hut and him to the middle of the screen as it goes
 		# in (about the doorway, a 4:3 iPad lost the hut's right half past its edge)
-		var u := clampf((_push - 1.0) / (HOME_PUSH - 1.0), 0.0, 1.0)
-		var c := Vector2(at.x + HOME_CX * zoom_k, door.y)
+		var u := clampf((_push - 1.0) / maxf(HOME_PUSH / _zoom - 1.0, 0.01), 0.0, 1.0)
+		var c := at + Vector2(HOME_CX, World.VIEW_H - 100.0) * zoom_k
 		var target := Vector2(lerpf(c.x, _clip.size.x / 2.0, u), c.y)
 		zoom_k *= _push
 		at = at * _push + target - c * _push
 	elif _push > 1.0001:
+		var fall := at + Vector2(p.x, p.y + 40.0) * zoom_k  # caught: the push closes in about where he falls
 		zoom_k *= _push
 		at = at * _push + fall * (1.0 - _push)
 	var fair := _gameplay_camera(zoom_k, at)
@@ -267,7 +277,7 @@ func _keep_fair(zoom: float, at: Vector2) -> Array:
 		need = Rect2(_need.position.lerp(need.position, k), _need.size.lerp(need.size, k))
 	_need = need
 	var insets := Device.insets()
-	var area := Rect2(insets.x, FRAME_TOP, _clip.size.x - insets.x - insets.z, _clip.size.y - FRAME_TOP)
+	var area := Rect2(insets.x, HUD_BAND, _clip.size.x - insets.x - insets.z, _clip.size.y - HUD_BAND)
 	var fit := minf(area.size.x / need.size.x, area.size.y / need.size.y)
 	if zoom > fit:  # zoomed out about the middle of what must be seen
 		var c := at + need.get_center() * zoom
@@ -285,6 +295,41 @@ func visible_play_rect() -> Rect2:
 	var zoom := _stage.scale.x
 	var at := _stage.position
 	return Rect2(-at / zoom, _clip.size / zoom)
+
+
+## The camera's zoom on a screen showing `width` play units right of the play window's left edge
+## (at zoom 1: the 640 units fill its height): closed in as far as still shows VIEW_AHEAD (at most
+## ZOOM_MAX), or drawn back on a narrow screen (a 4:3 iPad) to show the whole 960 of the 2017 game.
+static func base_zoom(width: float) -> float:
+	return minf(maxf(width / VIEW_AHEAD, minf(1.0, width / World.VIEW_W)), ZOOM_MAX)
+
+
+## The closest the camera may come (zoom), the bottom of the level on the bottom of the screen: his
+## head HEAD_ROOM under the top of the screen (in a jump, the top of the jump, from take-off), and
+## the vine under the HUD while he hangs from it, rises to it, or stands where a jump reaches it.
+static func follow_zoom(w: World, p: Vector2) -> float:
+	var vine := (World.VIEW_H - HUD_BAND) / (World.VIEW_H - VINE_TOP)
+	if w.state == World.State.RUNNING and (w.hanging or w.rising_to_vine()):
+		return vine  # (the rules hold him at y 0 up there: he is drawn hanging under the vine)
+	var top := p.y - HEAD
+	if w.state == World.State.RUNNING and not w.on_ground and w.vy < 0.0:
+		top = minf(top, _jump_top(p.y, w.vy) - HEAD)
+	var z := (World.VIEW_H - HEAD_ROOM) / maxf(World.VIEW_H - top, 1.0)
+	return minf(z, vine) if w.state == World.State.RUNNING and _vine_in_reach(w) else z
+
+
+## The highest centre y a jump going up at `vy` (units a tick) from `y` reaches (the 40 Hz rules).
+static func _jump_top(y: float, vy: float) -> float:
+	while vy < 0.0:
+		y += vy
+		vy += World.GRAVITY
+	return y
+
+
+## Standing where a jump takes him to the top of the screen (the vine), under open sky.
+static func _vine_in_reach(w: World) -> bool:
+	return w.on_ground and not w.climbing and _jump_top(w.ground_y, -World.JUMP_SPEED) <= 0.0 \
+			and w.ceiling_above(w.x, w.ground_y - World.HERO_SIZE.y / 2, w.scroll) < 0.0
 
 
 ## The phase now (see Phase): followed every frame, so no change is missed.

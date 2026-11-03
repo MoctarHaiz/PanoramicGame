@@ -6,8 +6,8 @@ shader_type canvas_item;
 
 uniform vec2 rect_size = vec2(192.0, 140.0);
 uniform float x_offset = 0.0;  // level x of the rect, so neighbouring pools move as one sea
-uniform vec4 shallow : source_color = vec4(0.2, 0.72, 0.8, 1.0);
-uniform vec4 deep : source_color = vec4(0.03, 0.15, 0.38, 1.0);
+uniform vec4 shallow : source_color = vec4(0.13, 0.58, 0.66, 1.0);  // round 2: deeper, less candy
+uniform vec4 deep : source_color = vec4(0.02, 0.1, 0.26, 1.0);
 uniform vec4 sky_tint : source_color = vec4(1.0, 0.82, 0.62, 1.0);
 uniform vec4 foam : source_color = vec4(0.97, 0.99, 1.0, 1.0);
 uniform sampler2D soil_tex : source_color, repeat_enable, filter_linear_mipmap;  // the banks' earth
@@ -53,6 +53,12 @@ void fragment() {
 	vec3 sheet_col = mix(vec3(0.66, 0.95, 1.0), vec3(1.0, 0.96, 0.86), 0.15 + 0.35 * rip);
 	c = mix(c, sheet_col, sheet * 0.9);
 	c *= 1.0 - (smoothstep(5.0, 6.5, d) - smoothstep(6.5, 10.0, d)) * 0.35;
+	// round 2: the warm evening sky reflected in the water seen at a grazing angle: a band of gold
+	// under the surface turning to the sky's blue, broken into ripples, fading into the depth
+	float refl_k = (1.0 - smoothstep(6.0, 22.0, d)) * smoothstep(3.0, 6.0, d);
+	float ripple = smoothstep(0.35, 0.75, noise(vec2(x * 0.018 + t * 0.25, d * 0.55 - t * 0.4)));
+	vec3 refl = mix(sky_tint.rgb, vec3(0.55, 0.72, 0.86), smoothstep(6.0, 18.0, d));
+	c = mix(c, refl, refl_k * (0.25 + 0.45 * ripple));
 	// sun glitter on the sheet: short streaks sliding slowly
 	float g = noise(vec2(x * 0.06 - t * 0.35, d * 0.7));
 	c = mix(c, vec3(1.0, 0.98, 0.88), smoothstep(0.7, 0.9, g) * sheet * 0.8);

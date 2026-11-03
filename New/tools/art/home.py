@@ -38,11 +38,17 @@ THATCH = [(0.0, "5a3a2c"), (0.25, "8a5e36"), (0.5, "b78a4a"), (0.75, "dcb366"), 
 WOOD = [(0.0, "3a2620"), (0.4, "6a4a34"), (0.75, "9c7450"), (1.0, "d0a676")]
 
 
-def dome(R: float, H: float, w: int, h: int, cx: float, base: float):
-    """Mask, light and surface coordinates of a beehive dome (units -> px handled by caller)."""
+def dome(R: float, H: float, w: int, h: int, cx: float, base: float, tiers: int = 0, step: float = 0.0):
+    """Mask, light and surface coordinates of a beehive dome (units -> px handled by caller).
+    Round 2: with `tiers`, each tier of thatch juts out `step` px at its fringe over the one below
+    (a stepped, shaggy silhouette, not a smooth egg)."""
     yy, xx = np.mgrid[0:h, 0:w].astype(float)
     z = np.clip((base - yy) / H, 0, 1.2)  # height share
     half = R * np.clip(1 - np.clip(z, 0, 1) ** 1.9, 0, 1) ** 0.55
+    if tiers:
+        tz = z * (tiers + 0.6)
+        frac = tz - np.floor(tz)
+        half = half + step * (1.0 - frac) ** 1.6 * (z < 0.97) * (tz >= 1.0)
     u = np.clip((xx - cx) / np.maximum(half, 1e-3), -1.5, 1.5)
     inside = (np.abs(xx - cx) <= half) & (yy <= base) & (z <= 1)
     # profile tilt: how much the surface faces up at this height
@@ -87,7 +93,8 @@ def hut(R: float, H: float, door: bool, seed: int) -> tuple:
     cx = w / 2
     base = h - 2 * PX
     Rp, Hp = R * PX, H * PX
-    inside, lam, u, z = dome(Rp, Hp, w, h, cx, base)
+    tiers = 5  # round 2: fewer, chunkier tiers (8 thin ones read as noise at phone size)
+    inside, lam, u, z = dome(Rp, Hp, w, h, cx, base, tiers, 6.0 * PX)
     cov = inside.astype(float)
     # finial: a knot of bound straw on the apex
     apex_y = base - Hp
@@ -97,22 +104,22 @@ def hut(R: float, H: float, door: bool, seed: int) -> tuple:
     cov = np.maximum(cov, fin)
     strokes = thatch_strokes(w, h, inside, u, z, cx, base, Hp, rng)
     t = np.clip(lam * 0.95 + strokes * 0.16 + 0.05, 0, 1)
+    t = np.clip(t + 0.22 * (np.clip(z, 0, 1) - 0.45), 0, 1)  # round 2: lit from above, darker low down
     col = ramp(t, THATCH)
     # tiers of thatch: each ends in a jagged fringe of straw over the tier below, with a soft shadow
     # under it; a thin rope binds some of them
     yy, xx = np.mgrid[0:h, 0:w].astype(float)
     uu = np.clip(u, -1, 1)
     ring_rows = []
-    tiers = 8
     for k in range(1, tiers + 1):
         zk = k / (tiers + 0.6)
         jag = (blur(rng.standard_normal(w)[None, :], (0, 0.8))[0] * 5.0 + rng.uniform(-1, 1)) * PX
-        ring_y = base - zk * Hp + (uu ** 2) * 6 * PX * (1 - zk) + jag[None, :]
+        ring_y = base - zk * Hp + jag[None, :]
         dist = yy - ring_y
-        shade = np.exp(-np.clip(dist, 0, None) / (5.5 * PX)) * (dist > 0) * inside
-        fringe = np.exp(-np.clip(-dist, 0, None) / (3.0 * PX)) * (dist <= 0) * inside
-        col = mix(col, col * np.array([0.42, 0.34, 0.42]), shade * 0.9)
-        col = mix(col, np.minimum(col * 1.3, 255), fringe * 0.45)
+        shade = np.exp(-np.clip(dist, 0, None) / (8.0 * PX)) * (dist > 0) * inside
+        fringe = np.exp(-np.clip(-dist, 0, None) / (5.0 * PX)) * (dist <= 0) * inside
+        col = mix(col, col * np.array([0.38, 0.3, 0.4]), shade * 0.92)
+        col = mix(col, np.minimum(col * 1.35 + 6, 255), fringe * 0.5)
         if k % 2 == 0:  # a rope ring binding the tier, its twists catching the light
             rope_d = (dist + 7.0 * PX) / (1.3 * PX)
             rope = np.exp(-rope_d ** 2) * inside
@@ -154,9 +161,9 @@ def hut(R: float, H: float, door: bool, seed: int) -> tuple:
         side = -1 if x < cx else 1
         ln = rng.uniform(3, 11) * PX
         dtp.line([(x * SS, y * SS), ((x + side * ln * 0.7) * SS, (y + ln) * SS)], fill=255, width=max(1, int(1.0 * PX * SS)))
-    for x in np.arange(cx - Rp, cx + Rp, 2.0):
-        ln = rng.uniform(2, 7) * PX
-        dtp.line([(x * SS, (base - 2 * PX) * SS), ((x + rng.uniform(-2, 2) * PX) * SS, (base - 2 * PX + ln) * SS)], fill=255,
+    for x in np.arange(cx - Rp, cx + Rp, 2.0):  # round 2: the fringe at the foot blown by the breeze
+        ln = rng.uniform(3, 9) * PX
+        dtp.line([(x * SS, (base - 3 * PX) * SS), ((x + rng.uniform(1.5, 6) * PX) * SS, (base - 3 * PX + ln * 0.8) * SS)], fill=255,
                  width=max(1, int(0.9 * PX * SS)))
     tm = np.asarray(tips, float).reshape(h, SS, w, SS).mean(axis=(1, 3)) / 255
     tip_col = ramp(np.clip(0.7 - (xx - cx) / Rp * 0.45, 0, 1), THATCH)
@@ -176,8 +183,8 @@ def hut(R: float, H: float, door: bool, seed: int) -> tuple:
     info = {"size": [w / PX, h / PX], "base": (h - base) / PX}
     front = None
     if door:
-        dcx = cx - 0.42 * Rp
-        dw, dh = 40 * PX, 150 * PX
+        dcx = cx - 0.36 * Rp
+        dw, dh = 50 * PX, 176 * PX  # round 2: he is 150 tall and walks in upright
         arch_r = dw
         door_top = base - dh
         # the opening: a rectangle under a half-ellipse arch
@@ -233,7 +240,7 @@ def hut(R: float, H: float, door: bool, seed: int) -> tuple:
         keep = (xx >= dcx + dw - 1 * PX).astype(float)
         keep = blur(keep, 0.6)
         f_alpha = cov * keep * (1 - op)
-        dark = op * smooth(dcx - dw * 0.6, dcx + dw, xx) * 0.75
+        dark = op * smooth(dcx + dw * 0.55, dcx + dw, xx) * 0.6  # (round 2: only at the jamb's inner edge)
         f_col = np.where(dark[..., None] > f_alpha[..., None], hexc("140806") * np.ones_like(col), col)
         f_a = np.maximum(f_alpha, dark)
         front = dither_rgba(np.clip(f_col, 0, 255), f_a, rng)
@@ -267,11 +274,17 @@ def rondavel(seed: int = 83) -> Image.Image:
     # the roof: a cone, its eaves overhanging the wall in a shaggy fringe
     eave_y = top + 10 * PX
     apex_y = 18 * PX
-    roof_half = 104 * PX * np.clip((yy - apex_y) / (eave_y - apex_y), 0, 1)
+    tz = np.clip((yy - apex_y) / (eave_y - apex_y), 0, 1)
+    # round 2: thatched in tiers like the beehive huts (one style for the homestead): each tier's
+    # fringe juts out over the one below
+    tiers = 3
+    tk = tz * (tiers + 0.35)
+    frac = tk - np.floor(tk)
+    roof_half = 104 * PX * tz + 7 * PX * frac ** 1.6 * (tk >= 0.6)
     jag = blur(rng.standard_normal(w)[None, :], (0, 1.0))[0] * 4 * PX
     roof = (np.abs(xx - cx) <= roof_half) & (yy >= apex_y) & (yy <= eave_y + 6 * PX + jag[None, :])
     ru = np.clip((xx - cx) / np.maximum(roof_half, 1), -1, 1)
-    rl = np.clip(0.75 - ru * 0.5, 0, 1)
+    rl = np.clip(0.78 - ru * 0.5 - 0.18 * tz, 0, 1)  # lit from the upper left and from above
     straw = Image.new("L", (w, h), 128)
     dst = ImageDraw.Draw(straw)
     for _ in range(2600):
@@ -281,8 +294,11 @@ def rondavel(seed: int = 83) -> Image.Image:
         dst.line([(x0, y0), (x0 + lean, y0 + rng.uniform(8, 18) * PX)], fill=int(np.clip(rng.normal(128, 60), 0, 255)), width=2)
     st = np.asarray(straw, float) / 128 - 1
     r_col = ramp(np.clip(rl + st * 0.12, 0, 1), THATCH)
-    tiers = np.sin((yy - apex_y) / (eave_y - apex_y) * np.pi * 4.5) > 0.85
-    r_col = mix(r_col, r_col * np.array([0.55, 0.48, 0.5]), tiers * 0.6)
+    for k in range(1, tiers + 1):  # under each tier's fringe its shadow, the fringe itself lit
+        ring_y = apex_y + (eave_y - apex_y) * k / (tiers + 0.35) + jag[None, :] * 0.6
+        dist = yy - ring_y
+        r_col = mix(r_col, r_col * np.array([0.38, 0.3, 0.4]), np.exp(-np.clip(dist, 0, None) / (7 * PX)) * (dist > 0) * 0.9)
+        r_col = mix(r_col, np.minimum(r_col * 1.35 + 6, 255), np.exp(-np.clip(-dist, 0, None) / (4 * PX)) * (dist <= 0) * 0.5)
     r_col = mix(r_col, hexc("ffd08a"), np.clip(1 - (ru + 0.7) / 0.3, 0, 1) * 0.45)  # sun rim
     fin = poly_mask(w, h, [[(cx - 4 * PX, apex_y + 6 * PX), (cx + 4 * PX, apex_y + 6 * PX), (cx + 1.5 * PX, 2 * PX), (cx - 1.5 * PX, 2 * PX)]])
     # the eaves' shadow on the wall
@@ -333,9 +349,9 @@ def fence() -> Image.Image:
     run = 0.0  # stakes come in runs of similar height, the line of tops wanders
     while x < w:
         sw = rng.uniform(4, 10) * PX
-        run += rng.normal(0, 5.5) * PX
-        run = float(np.clip(run, -14 * PX, 22 * PX))
-        top = float(np.clip(16 * PX + run + rng.uniform(-8, 8) * PX, 0, 46 * PX))
+        run += rng.normal(0, 7.5) * PX  # round 2: the line of tops wanders more
+        run = float(np.clip(run, -16 * PX, 28 * PX))
+        top = float(np.clip(16 * PX + run + rng.uniform(-11, 11) * PX, 0, 52 * PX))
         if rng.random() < 0.08:  # now and then a tall forked post
             top = 0.0
         lean = rng.uniform(-2.5, 2.5) * PX
@@ -378,16 +394,49 @@ def sign() -> Image.Image:
     # carving: letters and a border of triangles, cut in (dark in the groove, a light lower-right lip)
     carve = Image.new("L", (w * SS, h * SS), 0)
     d = ImageDraw.Draw(carve)
-    font = ImageFont.truetype(str(ROOT / "assets/fonts/Fredoka.ttf"), int(25 * PX * SS))
-    try:
-        font.set_variation_by_axes([600])
-    except Exception:
-        pass
-    text = "HOME"
-    bbox = d.textbbox((0, 0), text, font=font)
-    tx = (50 * PX * SS) - (bbox[2] - bbox[0]) / 2
-    ty = ((by0 + by1) / 2 * SS) - (bbox[3] + bbox[1]) / 2
-    d.text((tx, ty), text, font=font, fill=255)
+    # round 2: the letters cut with a chisel (the rounded font read as a text layer pasted on):
+    # wedge strokes, a little uneven, as a hand would cut them
+    k = PX * SS
+    top_y, bot_y = by0 + 9 * PX, by1 - 9 * PX
+
+    def cut(pts):
+        d.polygon([((x + rng.uniform(-0.45, 0.45) * PX) * SS, (y + rng.uniform(-0.45, 0.45) * PX) * SS) for x, y in pts], fill=255)
+
+    def stroke(x0, y0, x1, y1, wd):
+        dx, dy = x1 - x0, y1 - y0
+        n = np.hypot(dx, dy)
+        nx, ny = -dy / n * wd / 2, dx / n * wd / 2
+        cut([(x0 + nx * 0.8, y0 + ny * 0.8), (x0 + (x1 - x0) * 0.5 + nx * 1.1, y0 + (y1 - y0) * 0.5 + ny * 1.1),
+             (x1 + nx * 0.8, y1 + ny * 0.8), (x1 - nx * 0.8, y1 - ny * 0.8),
+             (x0 + (x1 - x0) * 0.5 - nx * 1.1, y0 + (y1 - y0) * 0.5 - ny * 1.1), (x0 - nx * 0.8, y0 - ny * 0.8)])
+
+    sw = 4.6 * PX  # stroke width
+    lw = 15 * PX  # letter width
+    x = 12 * PX
+    hgt = bot_y - top_y
+    # H
+    stroke(x + sw / 2, top_y, x + sw / 2, bot_y, sw)
+    stroke(x + lw - sw / 2, top_y, x + lw - sw / 2, bot_y, sw)
+    stroke(x + sw / 2, top_y + hgt * 0.5, x + lw - sw / 2, top_y + hgt * 0.5, sw * 0.9)
+    x += lw + 3.5 * PX
+    # O: an eight-sided ring
+    ocx, ocy, rx, ry = x + lw / 2 + 0.5 * PX, (top_y + bot_y) / 2, lw / 2 + 0.5 * PX, hgt / 2
+    ring = [(ocx + rx * np.cos(a), ocy + ry * np.sin(a)) for a in np.linspace(0, 2 * np.pi, 9)[:8] + np.pi / 8]
+    cut(ring)
+    inner = [(ocx + (rx - sw) * np.cos(a), ocy + (ry - sw * 0.95) * np.sin(a)) for a in np.linspace(0, 2 * np.pi, 9)[:8] + np.pi / 8]
+    d.polygon([(px_ * SS, py_ * SS) for px_, py_ in inner], fill=0)
+    x += lw + 4.5 * PX
+    # M
+    stroke(x + sw / 2, top_y, x + sw / 2, bot_y, sw)
+    stroke(x + lw + 2 * PX - sw / 2, top_y, x + lw + 2 * PX - sw / 2, bot_y, sw)
+    stroke(x + sw * 0.6, top_y + 1 * PX, x + (lw + 2 * PX) / 2, top_y + hgt * 0.62, sw * 0.85)
+    stroke(x + lw + 2 * PX - sw * 0.6, top_y + 1 * PX, x + (lw + 2 * PX) / 2, top_y + hgt * 0.62, sw * 0.85)
+    x += lw + 2 * PX + 3.5 * PX
+    # E
+    stroke(x + sw / 2, top_y, x + sw / 2, bot_y, sw)
+    stroke(x + sw / 2, top_y + sw * 0.45, x + lw - 2 * PX, top_y + sw * 0.45, sw * 0.9)
+    stroke(x + sw / 2, top_y + hgt * 0.5, x + lw - 3.5 * PX, top_y + hgt * 0.5, sw * 0.85)
+    stroke(x + sw / 2, bot_y - sw * 0.45, x + lw - 2 * PX, bot_y - sw * 0.45, sw * 0.9)
     for i in range(14):  # small triangles along the top and bottom edges
         x0 = (10 + i * 6) * PX * SS
         d.polygon([(x0, (by0 + 3.5 * PX) * SS), (x0 + 4 * PX * SS, (by0 + 3.5 * PX) * SS), (x0 + 2 * PX * SS, (by0 + 6.5 * PX) * SS)], fill=255)
@@ -407,26 +456,28 @@ def sign() -> Image.Image:
             nail = poly_mask(w, h, [], ellipses=[(nx, ny, 1.8 * PX, 1.8 * PX)])
             col = mix(col, hexc("2a2220"), nail)
             col = mix(col, hexc("d8d0c8"), poly_mask(w, h, [], ellipses=[(nx - 0.5 * PX, ny - 0.5 * PX, 0.7 * PX, 0.7 * PX)]))
-    # the letters: an ink outline round them, then cream lit from the top
-    ink = np.clip(blur(cm, 1.6 * PX) * 3.0, 0, 1) * board
-    col = mix(col, hexc("1e0c06"), np.clip(ink - cm, 0, 1) * 0.9)
-    letters = mix(hexc("fff2d0"), hexc("ffc65a"), np.clip((yy - by0) / (by1 - by0), 0, 1))
-    letters = mix(letters, hexc("c0401a"), np.clip(shadow_in * 2, 0, 1) * 0.6)
+    # the letters: cut into the wood and painted, the paint worn off here and there; in each cut
+    # the wall on its upper left in shadow, the wall on its lower right catching the sun
+    lit_in = np.clip(cm - np.roll(np.roll(cm, -2, 0), -2, 1), 0, 1)
+    paint = smooth(0.32, 0.42, fbm(h, w, 10, 12, 3, rng, False))  # where the paint holds
+    letters = mix(hexc("f4e2b8"), hexc("e8a64a"), np.clip((yy - by0) / (by1 - by0), 0, 1))
+    letters = mix(col * 0.45, letters, paint[..., None])  # (worn: the bare cut wood shows)
+    letters = mix(letters, hexc("2a1208"), np.clip(shadow_in * 1.6, 0, 1) * 0.85)
+    letters = mix(letters, hexc("ffe6b0"), np.clip(lit_in * 1.6, 0, 1) * 0.6)
     col = mix(col, letters, groove)
-    col = mix(col, hexc("2a140c"), lip * 0.8 * board[..., None][..., 0])
     col = mix(post_col, col, board)
     edge = np.clip(board - np.roll(np.roll(board, 2, 0), 2, 1), 0, 1)
     col = mix(col, hexc("ffe2a8"), edge * 0.5)
     # a cord of beads tied where the board meets the post
     beads = []
     for i in range(7):
-        beads.append((57 * PX + np.sin(i * 0.9) * 2 * PX, by1 + 3 * PX + i * 2.6 * PX, 1.4 * PX, 1.4 * PX))
+        beads.append((57 * PX + np.sin(i * 0.9) * 2 * PX, by1 + 12 * PX + i * 2.6 * PX, 1.4 * PX, 1.4 * PX))
     bm = poly_mask(w, h, [], ellipses=beads)
     bead_col = np.where((np.floor(yy / (2.6 * PX)) % 3 == 0)[..., None], hexc("d23a28"), np.where((np.floor(yy / (2.6 * PX)) % 3 == 1)[..., None], hexc("f2f0e6"), hexc("2e5aa8")))
     col = mix(col, bead_col, bm)
     # a rope binding the board to the post
     for k in range(5):
-        ry = by1 - 10 * PX + k * 2.6 * PX
+        ry = by1 - 3 * PX + k * 2.6 * PX  # (round 2: below the letters)
         band = np.exp(-((yy - ry - (xx - 57 * PX) * 0.25) / (0.9 * PX)) ** 2) * (np.abs(xx - 57 * PX) < 7 * PX)
         col = mix(col, hexc("c8a878") * (1.0 - 0.25 * (k % 2)), np.clip(band, 0, 1))
         post = np.maximum(post, np.clip(band, 0, 1))
@@ -489,7 +540,7 @@ def glow() -> Image.Image:
 
 def main() -> None:
     info = {}
-    img, front, i = hut(150, 250, True, 61)
+    img, front, i = hut(168, 300, True, 61)  # round 2: bigger, its doorway taller than him
     save(img, "home_hut.png")
     save(front, "home_hut_front.png")
     info["home_hut"] = i

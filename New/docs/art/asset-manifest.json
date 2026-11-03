@@ -998,6 +998,39 @@
    }
   },
   {
+   "id": "world-animals",
+   "role": "level world layer or terrain texture",
+   "path": "assets/art/world/animals.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "788x220",
+    "alpha": true,
+    "anchor": "per view",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette",
+    "light-direction"
+   ],
+   "source": {
+    "kind": "authored-procedural",
+    "url_or_tool": "tools/art/savanna.py / terrain.py",
+    "creator": "Claude for Haiz Studio",
+    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
+    "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
    "id": "world-bird",
    "role": "level world layer or terrain texture",
    "path": "assets/art/world/bird.png",
@@ -1201,7 +1234,7 @@
    "path": "assets/art/world/far_mesas.png",
    "status": "approved",
    "technical": {
-    "dimensions": "2048x300",
+    "dimensions": "2048x360",
     "alpha": true,
     "anchor": "per view",
     "frames": null,
@@ -1394,6 +1427,39 @@
    }
   },
   {
+   "id": "world-hanging",
+   "role": "level world layer or terrain texture",
+   "path": "assets/art/world/hanging.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "1280x240",
+    "alpha": true,
+    "anchor": "per view",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette",
+    "light-direction"
+   ],
+   "source": {
+    "kind": "authored-procedural",
+    "url_or_tool": "tools/art/savanna.py / terrain.py",
+    "creator": "Claude for Haiz Studio",
+    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
+    "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
    "id": "world-haze",
    "role": "level world layer or terrain texture",
    "path": "assets/art/world/haze.png",
@@ -1531,7 +1597,7 @@
    "path": "assets/art/world/home_hut.png",
    "status": "approved",
    "technical": {
-    "dimensions": "664x568",
+    "dimensions": "736x668",
     "alpha": true,
     "anchor": "bottom-centre at the ground",
     "frames": null,
@@ -1564,7 +1630,7 @@
    "path": "assets/art/world/home_hut_front.png",
    "status": "approved",
    "technical": {
-    "dimensions": "664x568",
+    "dimensions": "736x668",
     "alpha": true,
     "anchor": "bottom-centre at the ground",
     "frames": null,
@@ -2290,7 +2356,7 @@
    "path": "assets/art/world/spires.png",
    "status": "approved",
    "technical": {
-    "dimensions": "384x840",
+    "dimensions": "576x1120",
     "alpha": true,
     "anchor": "per view",
     "frames": null,
@@ -2814,7 +2880,7 @@
    "path": "assets/art/world/vine.png",
    "status": "approved",
    "technical": {
-    "dimensions": "320x480",
+    "dimensions": "320x720",
     "alpha": true,
     "anchor": "top",
     "frames": null,

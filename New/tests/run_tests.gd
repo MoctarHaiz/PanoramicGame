@@ -26,6 +26,7 @@ func _ready() -> void:
 			_test_pause_anywhere, _test_replay_home, _test_contracts, _test_audio, _test_gameplay]
 	tests.append(_test_ux)
 	tests.append(_test_art)
+	tests.append(_test_env)
 	if "--bot" in OS.get_cmdline_user_args():
 		tests.append(_test_bot)
 	if "--quick" in OS.get_cmdline_user_args():  # without the screens (seconds instead of ~40 s)
@@ -1276,8 +1277,8 @@ func _gp_camera() -> void:
 				var zoom: float = game._stage.scale.x
 				var on_screen := Rect2(game._stage.position + need.position * zoom, need.size * zoom)
 				var insets := Device.insets()
-				var area := Rect2(insets.x, GameScreenScript().FRAME_TOP, game._clip.size.x - insets.x - insets.z,
-						game._clip.size.y - GameScreenScript().FRAME_TOP).grow(1.5)
+				var area := Rect2(insets.x, GameScreenScript().HUD_BAND, game._clip.size.x - insets.x - insets.z,
+						game._clip.size.y - GameScreenScript().HUD_BAND).grow(1.5)
 				if f > 8 and not area.encloses(on_screen):
 					bad.append("frame %d: must see %s, on screen %s, area %s" % [f, need, on_screen, area])
 			_check(bad.is_empty(), "%s, %s: the camera shows what the player must see %s" % [device, name, bad.slice(0, 2)])
@@ -1948,3 +1949,104 @@ func _gp_staging() -> void:
 	_check(v.vine_catchable() and not _standing_world().vine_catchable(), "from the high platform the vine is within reach, from the ground not")
 	_check(World.RISKY_BOBS.size() == Level.load_default().bobs_total - World.BOBS_REACHABLE and World.is_risky_bob(610, 12)
 			and Level.load_default().kind_at(610, 12) == Level.Kind.BOB, "the %d Red Bobs out of reach are listed for the views" % World.RISKY_BOBS.size())
+
+
+## Environment, light and camera (env track, round 2).
+func _test_env() -> void:
+	var cam: GDScript = load("res://src/game/game_screen.gd")
+	# the camera: on every screen at least the 2017 game's 960 units, 1040 where it fits (a bandit
+	# starts running as it crosses 960); a 4:3 iPad shows the whole 960
+	for width: float in [853.3, 960.0, 1137.8, 1291.5, 1352.0, 1490.0]:
+		var z: float = cam.base_zoom(width)
+		_check(width / z >= World.VIEW_W - 0.01, "the camera shows the 2017 width at %d units (%.0f)" % [width, width / z])
+		_check(width < cam.VIEW_AHEAD or width / z >= cam.VIEW_AHEAD - 0.01,
+				"and %d units where they fit (%.0f at %d)" % [cam.VIEW_AHEAD, width / z, width])
+	_check(cam.base_zoom(1291.5) > 1.2, "an iPhone 15 closes in on him (%.2f)" % cam.base_zoom(1291.5))
+	var w := _standing_world()
+	var on_ground: float = cam.follow_zoom(w, w.draw_hero())
+	_check(on_ground >= cam.base_zoom(1291.5), "running on the ground the camera stays in (%.2f)" % on_ground)
+	w.on_ground = false
+	w.vy = -World.JUMP_SPEED
+	var jump: float = cam.follow_zoom(w, w.draw_hero())
+	var head: float = cam._jump_top(w.y, w.vy) - cam.HEAD
+	_check(World.VIEW_H - (World.VIEW_H - head) * minf(jump, cam.ZOOM_MAX) >= cam.HEAD_ROOM - 0.5,
+			"a jump from the ground keeps his head under the top of the screen")
+	w.hanging = true
+	var vine: float = cam.follow_zoom(w, w.draw_hero())
+	_check(World.VIEW_H - (World.VIEW_H - cam.VINE_TOP) * vine >= cam.HUD_BAND - 0.5,
+			"hanging, the vine is drawn under the HUD (zoom %.2f)" % vine)
+	_check(World.VIEW_H * vine <= World.VIEW_H, "hanging, the ground stays in view (the bottom on the bottom)")
+	w.hanging = false
+	w.on_ground = true
+	w.vy = 0.0
+	w.ground_y = 8 * Level.TILE - World.HERO_SIZE.y / 2  # on a ledge from which a jump reaches the vine
+	w.y = w.ground_y
+	w.scroll = 170 * Level.TILE - w.x
+	_check(cam.follow_zoom(w, w.draw_hero()) <= vine + 0.001, "where a jump reaches the vine, it is in view")
+	# the ground: the depth picture (rewritten as running counts) matches the cell-by-cell count
+	var terrain := TerrainView.new()
+	add_child(terrain)
+	terrain.build(Level.load_default(), -12, Level.COLS + 70)
+	var img := (terrain._depth_texture(-12, Level.COLS + 70) as ImageTexture).get_image()
+	var same := true
+	for c in range(20, 90):  # (the climb wall, the pillar at 60, pools)
+		for r in Level.ROWS:
+			var depth := 0  # solid cells above, not stacks; the ground runs on under a wall's foot
+			if not terrain._wall_foot(c, r):
+				while depth < 15 and terrain.solid(c, r - depth - 1) and not terrain._in_pole(c, r - depth - 1):
+					depth += 1
+					if terrain._wall_foot(c, r - depth):
+						break
+			var left := 0
+			while left < 15 and terrain.solid(c - left - 1, r):
+				left += 1
+			var right := 0
+			while right < 15 and terrain.solid(c + right + 1, r):
+				right += 1
+			var foot := 0
+			while foot < 15 and terrain.solid(c, r + foot + 1) and (not terrain.solid(c - 1, r + foot + 1) or not terrain.solid(c + 1, r + foot + 1)):
+				foot += 1
+			var open_below := r < Level.ROWS - 1 and not terrain.solid(c, r + 1)
+			var px := img.get_pixel(c + 12, r)
+			same = same and px.r8 == depth and px.g8 == left and px.b8 == right and px.a8 == foot + (128 if open_below else 0)
+	_check(same, "the ground's depth picture matches a cell-by-cell count")
+	_check(terrain._wall_foot(62, 18), "the grass runs on across the foot of the pillar at column 60")
+	var cast := 0.0
+	var masses := 0
+	terrain.ensure(1800, 6400)
+	for b: Node in terrain._layers[&"cast"].get_children():
+		for it: Array in b.items:
+			if (it[0] as Rect2).position.x > 2100 and (it[0] as Rect2).position.x < 2120:
+				cast = (it[0] as Rect2).size.x
+	for b: Node in terrain._layers[&"mass"].get_children():
+		for it: Array in b.items:
+			var r: Rect2 = it[0]
+			if r.position.y > 7 * Level.TILE and r.position.y < 8 * Level.TILE and r.get_center().x > 167 * Level.TILE and r.get_center().x < 197 * Level.TILE:
+				masses += 1
+	_check(cast >= 120.0, "the pillar casts a long shadow along the ground (%.0f units)" % cast)
+	_check(masses >= 4, "earth and rock hang under the floating ledge at column 167 (%d)" % masses)
+	terrain.queue_free()
+	# the vine gives under him, bounces, settles; springs back when he lets go
+	var v := VineView.new()
+	v.hold(true, 300.0, 0.0)
+	v.caught()
+	var deepest := 0.0
+	for i in 90:
+		v.hold(true, 300.0, 1.0 / 60.0)
+		deepest = maxf(deepest, v.dip)
+	_check(deepest > VineView.HOLD_DIP + 3.0 and absf(v.dip - VineView.HOLD_DIP) < 1.0,
+			"the vine dips on the catch (%.1f) and settles (%.1f)" % [deepest, v.dip])
+	_check(v.sag_at(300.0) > v.sag_at(500.0) + 3.0, "it bends where he hangs, not along its whole length")
+	for i in 120:
+		v.hold(false, 300.0, 1.0 / 60.0)
+	_check(absf(v.dip) < 0.5, "it springs back when he lets go (%.2f)" % v.dip)
+	v.free()
+	# home: the doorway is taller than him and he stops inside it
+	var info: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(HomeView.DIR + "home.json")).home_hut
+	var door_x := HomeView.DOOR_RIGHT - float(info.door_w) / 2.0
+	_check(float(info.door_h) >= GameArt.HERO_DRAW_HEIGHT + 15.0, "the doorway is taller than him (%d)" % info.door_h)
+	_check(absf(World.HOME_X - door_x) + 35.0 <= float(info.door_w) / 2.0, "he stops inside the doorway (nothing of the hut over him)")
+	# no timer outlives the level screen (QA ENV-2)
+	_check(not FileAccess.get_file_as_string("res://src/game/world_view.gd").contains("create_timer("),
+			"the world view's delayed calls are tied to its nodes")
+

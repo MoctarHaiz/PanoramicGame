@@ -168,36 +168,75 @@ if __name__ == "__main__":
     main()
 
 
-def spire(seed: int, w: int = 128, h: int = 840) -> np.ndarray:
-    """A sandstone stack standing in the river (RGBA, 2 px a unit): wider at its foot, the outline
-    eroded into bulges and notches, rounded like a column (lit on the sun's side, a core shadow, a
-    little bounce on the far edge), the same weathered blocks as rock.png."""
+def spire(seed: int, w: int = 192, h: int = 1120) -> np.ndarray:
+    """A sandstone spire standing in the river (RGBA, 2 px a unit). Round 2: painted like the buttes
+    on the horizon (they belong together, not a tree trunk): a flat cap rock a little wider than
+    its neck, a column that wavers and pinches between soft bulges, flaring into talus at its
+    foot; vertical gullies down its faces; beds of paler and redder stone across it. Lit by the low
+    sun on the upper left: warm on that side with a hot rim on its edge and its top, violet shade on
+    the far side, the foot darker and damp."""
     rng = np.random.default_rng(seed)
     n = 512
-    tex_h = 34.0 * sandstone_height(n, rng)  # relief to light
-    top = 64  # rows lit and dropped (the shadows march over the top edge)
-    h += top
+    tex_h = sandstone_height(n, rng)
     yy, xx = np.mgrid[0:h, 0:w].astype(float)
-    t = yy / h  # 0 top .. 1 foot
-    wob = np.interp(yy[:, 0], np.linspace(0, h, 24), rng.normal(0, 1, 24))
-    wob = ndimage.gaussian_filter1d(wob, 6)
-    half = (31.0 + 22.0 * t[:, 0] ** 1.6 + 5.0 * wob)  # px: ~32 units wide at the top, ~53 at the foot
-    notch = ndimage.gaussian_filter1d(rng.normal(0, 1, h), 9) * 5.0
-    cx = w / 2.0 + ndimage.gaussian_filter1d(rng.normal(0, 1, h), 30) * 4.0
-    left = cx - half + notch
-    right = cx + half - notch * 0.6
+    y = np.arange(h, dtype=float)
+    t = y / h  # 0 top .. 1 foot
+    cap_h = rng.uniform(26, 40)
+    bulges = ndimage.gaussian_filter1d(rng.normal(0, 1, h), 55)
+    bulges = bulges / (np.abs(bulges).max() + 1e-6) * 9.0
+    pinch = np.zeros(h)
+    for _ in range(int(rng.integers(2, 4))):  # soft waists where a softer bed wore away
+        py = rng.uniform(0.18, 0.7) * h
+        pinch += np.exp(-((y - py) / rng.uniform(14, 26)) ** 2) * rng.uniform(5, 9)
+    half = 37.0 + 8.0 * t + bulges - pinch + 34.0 * smooth_np(0.7, 1.0, t) ** 1.8
+    capw = 47.0 + rng.uniform(0, 5)
+    cap = smooth_np(cap_h + 6, cap_h - 2, y)  # 1 on the cap rock
+    half = half * (1 - cap) + (capw - np.clip(4 - y, 0, 4) * 1.5) * cap
+    undercut = np.exp(-((y - cap_h - 7) / 6.0) ** 2) * 6.0  # in, just under the cap
+    half -= undercut
+    cx = w / 2.0 + ndimage.gaussian_filter1d(rng.normal(0, 1, h), 60) * 7.0
+    left = cx - half
+    right = cx + half
     u = np.clip((xx - left[:, None]) / np.maximum(right - left, 1)[:, None], 0.0, 1.0)  # 0..1 across
     inside = np.clip(np.minimum(xx - left[:, None], right[:, None] - xx) + 0.5, 0.0, 1.0)
-    # the column's round form as height, plus the stone's relief (tiled from the sandstone)
-    form = np.sqrt(np.clip(1.0 - (2.0 * u - 1.0) ** 2, 0.0, 1.0)) * 46.0
-    relief = tex_h[(yy.astype(int)) % n, (xx.astype(int) * 2) % n]
-    height = form + relief * 0.5
-    tones = hexc("c48650") * (0.9 + 0.2 * spectral(n, rng)[(yy.astype(int)) % n, (xx.astype(int) * 3) % n])[..., None]
-    rgb = light(height / 34.0, tones, relief=34.0, shadow_steps=10)
-    # darker and cooler towards the foot (in the river's shade), a damp band near the bottom
-    rgb *= (1.0 - 0.35 * t ** 1.5)[..., None]
-    rgb = rgb * (1.0 - 0.25 * t[..., None] ** 2) + np.array([0.18, 0.16, 0.3]) * 0.25 * t[..., None] ** 2
-    return np.dstack([rgb, inside])[top:]
+    # light: the column's turn (lit on the left), gullies, a little of the stone's grain
+    turn = -(2.0 * u - 1.0)  # 1 facing the sun .. -1 away
+    flute = ndimage.gaussian_filter(rng.standard_normal((h, w)), (40.0, 7.0))  # few, broad, soft gullies
+    flute = np.gradient(flute / (flute.std() + 1e-6), axis=1) * 2.2
+    grain = tex_h[(yy.astype(int)) % n, (xx.astype(int) * 2) % n]
+    grain = grain - ndimage.gaussian_filter(grain, 4)
+    shade_lip = np.exp(-((y - cap_h - 4) / 7.0) ** 2) * 0.35  # the cap's shadow on the neck
+    lam = 0.5 + 0.5 * turn - 0.35 * flute + 0.4 * grain - shade_lip[:, None]
+    lam += cap[:, None] * 0.12 * (turn > -0.3)
+    lam = np.clip(lam, 0, 1)
+    stops = [(0.0, hexc("332a58")), (0.33, hexc("5e4470")), (0.55, hexc("aa6250")), (0.76, hexc("e0884e")),
+             (1.0, hexc("ffc884"))]
+    pos = np.array([p for p, _ in stops])
+    cols = np.array([c for _, c in stops])
+    rgb = np.dstack([np.interp(lam, pos, cols[:, k]) for k in range(3)])
+    # beds of rock across the column (rock is layered across, wood along): paler and redder bands,
+    # and the dark line of a bedding plane between some of them, bowed by the column's turn
+    wav = ndimage.gaussian_filter1d(rng.normal(0, 1, h), 25) * 4.0
+    bow = (2.0 * u - 1.0) ** 2 * 5.0
+    yb = yy + bow
+    beds = np.sin(yb * 0.07 + wav[:, None])
+    pale = hexc("f2c08a") * lam[..., None]
+    rgb = rgb + (pale - rgb) * (np.clip(beds, 0, 1) * 0.28)[..., None]
+    rgb *= (1.0 - 0.1 * np.clip(-beds, 0, 1))[..., None]
+    plane = np.abs(np.sin(yb * 0.07 * 0.5 + wav[:, None] * 0.5 + 0.8))
+    rgb *= (1.0 - 0.3 * np.clip(1.0 - plane / 0.05, 0, 1) * (u < 0.97))[..., None]
+    rgb = rgb * (1 - 0.15 * cap[:, None, None]) + hexc("f0c48c") * 0.15 * cap[:, None, None] * lam[..., None]
+    # the hot rim along the sun's edge and on the cap's top
+    rim = np.clip(1.0 - (xx - left[:, None]) / 3.0, 0, 1) + np.clip(1.0 - y / 4.0, 0, 1)[:, None]
+    rgb = rgb + (hexc("ffd8a0") - rgb) * (np.clip(rim, 0, 1) * inside * 0.7)[..., None]
+    # darker and cooler towards the foot (in the river's shade)
+    rgb = rgb * (1.0 - 0.32 * t ** 1.6)[:, None, None] + np.array([0.12, 0.1, 0.24]) * 0.3 * (t ** 2)[:, None, None]
+    return np.dstack([np.clip(rgb, 0, 1), inside])
+
+
+def smooth_np(e0: float, e1: float, x):
+    x = np.clip((np.asarray(x, float) - e0) / (e1 - e0), 0.0, 1.0)
+    return x * x * (3.0 - 2.0 * x)
 
 
 def sandstone_height(n: int, rng) -> np.ndarray:

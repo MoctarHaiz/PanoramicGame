@@ -12,8 +12,11 @@ extends Node2D
 ## play along the bottom edge, faster than the ground (it is nearer).
 
 const DIR := "res://assets/art/world/"
-const SUN_AT := Vector2(0.09, 64.0)  ## sun centre: share of the visible width, y (the upper left,
-const SUN_SIZE := 640.0  ## where the light on every painted thing comes from)
+## sun centre: share of the visible width, y (the upper left, where the light on every painted thing
+## comes from). Round 2: low over the escarpments (was y 64, behind the hearts): a golden-hour sun in
+## the picture, everything rimmed and casting long shadows away from it
+const SUN_AT := Vector2(0.1, 200.0)
+const SUN_SIZE := 640.0
 const RAYS_ORIGIN := Vector2(80, 80)  ## where the sun is in the rays, in units (tools/art/savanna.py)
 const RAYS_SIZE := Vector2(1280, 820)  ## drawn size of rays.png in units (stored at half that)
 
@@ -32,6 +35,8 @@ const TREE_ROWS := [
 	[0.2, 300.0, 132.0, 540.0, 0.34, 0.3, 0.45, Color(0.68, 0.72, 0.8)],
 	[0.31, 520.0, 250.0, 604.0, 0.1, 0.3, 0.4, Color(0.96, 0.78, 0.5)],
 ]
+## animals.png (tools/art/savanna.py): two giraffes, an elephant, a herd of wildebeest (px regions)
+const ANIMALS := [Rect2(0, 0, 140, 220), Rect2(140, 12, 128, 208), Rect2(268, 68, 220, 152), Rect2(488, 132, 300, 88)]
 const CLOUD_SCALE := 2.0  ## cloud_N.png are stored at half size (soft, no detail to lose)
 const FRONT_SCROLL := 1.35  ## the foreground grass moves faster than the ground
 const FRONT_DROP := 12.0  ## units its picture reaches below the bottom of the screen
@@ -65,20 +70,21 @@ func _ready() -> void:
 		_trees.append(load(DIR + name + ".png"))
 		_tree_anchor.append(float(info[name].anchor_x))
 	_tex[&"prop_termite"] = load(DIR + "prop_termite.png")
+	_tex[&"animals"] = load(DIR + "animals.png")
 	var add := CanvasItemMaterial.new()
 	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	_painter(_draw_sky)
 	_painter(_draw_sun).material = add
 	_painter(_draw_clouds)
 	_painter(_draw_strip.bind(&"far_mesas"), true)
-	_painter(_draw_band.bind(470.0, 110.0, 0.12))
+	_painter(_draw_band.bind(470.0, 110.0, 0.08))  # (round 2: thinner bands of haze: values, not milk)
 	_painter(_draw_strip.bind(&"far_hills"), true).material = _haze([0, 0, 0, 0, 0.3, 0.0, 0, Color(0.64, 0.7, 0.84)])
 	_painter(_draw_trees.bind(0)).material = _haze(TREE_ROWS[0])
-	_painter(_draw_band.bind(528.0, 80.0, 0.2))
+	_painter(_draw_band.bind(528.0, 80.0, 0.12))
 	_painter(_draw_rays).material = add
-	_painter(_draw_strip.bind(&"mid_hills"), true).material = _haze([0, 0, 0, 0, 0.14, 0.0, 0, Color(0.8, 0.78, 0.72)])
+	_painter(_draw_strip.bind(&"mid_hills"), true).material = _haze([0, 0, 0, 0, 0.08, 0.0, 0, Color(0.96, 0.76, 0.52)])
 	_painter(_draw_trees.bind(1)).material = _haze(TREE_ROWS[1])
-	_painter(_draw_band.bind(588.0, 70.0, 0.14))
+	_painter(_draw_band.bind(588.0, 70.0, 0.08))
 	_painter(_draw_trees.bind(2)).material = _haze(TREE_ROWS[2])
 	_painter(_draw_strip.bind(&"near_grass"), true)
 	_painter(_draw_motes).material = add
@@ -121,6 +127,11 @@ func _x0() -> float:
 
 func _x1() -> float:
 	return view_width - view_left + 2.0
+
+
+## The sun's centre in this node's units (WorldView's light grade follows it).
+func sun_position() -> Vector2:
+	return _sun()
 
 
 func _sun() -> Vector2:
@@ -168,7 +179,8 @@ func _draw_clouds(ci: CanvasItem) -> void:
 		var rect := Rect2(Vector2(cx - size.x / 2, cy - size.y), size)
 		if flip:  # a negative width mirrors the picture in place
 			rect.size.x = -size.x
-		ci.draw_texture_rect(tex, rect, false, Color(1, 1, 1, 0.95 - fade * 0.35))
+		# (round 2: quieter, and lit by the low sun: warm, not white blobs over the play)
+		ci.draw_texture_rect(tex, rect, false, Color(1.0, 0.88, 0.76, 0.72 - fade * 0.32))
 
 
 func _draw_strip(ci: CanvasItem, name: StringName) -> void:
@@ -208,13 +220,19 @@ func _draw_trees(ci: CanvasItem, row_index: int) -> void:
 	var x1 := _x1()
 	var offset := scroll * factor
 	var first := floori((x0 + offset) / spacing) - 2
-	for i in range(first, first + int((x1 - x0) / spacing) + 4):
-		var seed := i * 31 + row_index * 977
-		if _hash(seed) < row[6]:
+	for slot in range(first * 2, (first + int((x1 - x0) / spacing) + 4) * 2):
+		# round 2: groves and open plain, not an even stamp: slots in groups of three share a
+		# density; a dense group gets a second, smaller tree beside each (odd slots)
+		var i := slot >> 1
+		var grove := _hash(floori(i / 3.0) * 7 + row_index * 131)
+		var seed := i * 31 + row_index * 977 + (slot & 1) * 5003
+		if slot & 1 == 1 and (grove < 0.62 or _hash(seed + 11) < 0.35):
+			continue
+		if _hash(seed) < (row[6] + 0.3 if grove < 0.38 else row[6] * 0.4):
 			continue
 		var t := int(_hash(seed + 1) * _trees.size()) % _trees.size()
 		var tex := _trees[t]
-		var height: float = row[2] * (0.65 + _hash(seed + 2) * 0.7)
+		var height: float = row[2] * (0.65 + _hash(seed + 2) * 0.7) * (0.62 if slot & 1 == 1 else 1.0)
 		if tex.get_height() > tex.get_width():  # baobabs: taller pictures, same tree scale
 			height *= 1.15
 		var anchor := _tree_anchor[t]
@@ -222,8 +240,14 @@ func _draw_trees(ci: CanvasItem, row_index: int) -> void:
 			tex = _tex[&"prop_termite"]
 			height = row[2] * 0.42 * (0.8 + _hash(seed + 2) * 0.4)
 			anchor = tex.get_width() / 2.0
+		elif row_index < 2 and _hash(seed + 8) < 0.16:  # (round 2) or animals: giraffes, an elephant, a herd
+			_draw_animal(ci, int(_hash(seed + 9) * ANIMALS.size()), i * spacing + _hash(seed + 3) * spacing * 0.9 - offset,
+					row[3], row[2] / 132.0 * 0.7, _hash(seed + 4) < 0.5)
+			continue
 		var k := height / tex.get_height()
-		var x := i * spacing + _hash(seed + 3) * spacing * 0.9 - offset
+		var x := i * spacing + _hash(i * 31 + row_index * 977 + 3) * spacing * 0.9 - offset
+		if slot & 1 == 1:  # beside the tree of its slot
+			x += (0.22 + _hash(seed + 12) * 0.2) * spacing * (1.0 if _hash(seed + 13) < 0.5 else -1.0)
 		var flip := _hash(seed + 4) < 0.5
 		var wide := 0.78 + _hash(seed + 6) * 0.55  # wider or narrower crowns: no two trees alike
 		var size := tex.get_size() * k * Vector2(wide, 1.0)
@@ -236,6 +260,19 @@ func _draw_trees(ci: CanvasItem, row_index: int) -> void:
 		if flip:  # a negative width mirrors the picture in place
 			rect.size.x = -size.x
 		ci.draw_texture_rect(tex, rect, false)
+
+
+## One of the animals in animals.png (ANIMALS), standing on `ground` at x, `k` times its size, its
+## feet a little in the grass.
+func _draw_animal(ci: CanvasItem, which: int, x: float, ground: float, k: float, flip: bool) -> void:
+	var a: Rect2 = ANIMALS[which]
+	var size := a.size * 0.5 * k  # (2 px a unit)
+	var rect := Rect2(x - size.x / 2, ground + 3.0 * k - size.y, size.x, size.y)
+	if rect.end.x < _x0() or rect.position.x > _x1():
+		return
+	if flip:
+		rect.size.x = -rect.size.x
+	ci.draw_texture_rect_region(_tex[&"animals"], rect, a)
 
 
 ## Pollen and dust floating in the light, drifting up and to the right, twinkling.

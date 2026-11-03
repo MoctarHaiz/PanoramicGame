@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """The vine along the top of the screen (where Panoramic hooks his staff), painted in numpy:
-assets/art/world/vine.png holds 5 variants of one span (160 x 48 units at 2 px, stacked), each a
-thick twisted liana sagging between two hooks at its ends, with knots at the hooks, clusters of
+assets/art/world/vine.png holds 5 variants of one span (160 x 72 units at 2 px, stacked), each a
+thick twisted liana (round 2: ~10 units, a sunlit top edge) sagging a little between two hooks at
+its ends, a long tendril or two hanging from it, with knots at the hooks, clusters of
 heart-shaped leaves of several sizes hanging down, a few orange blossoms and curled tendrils. Lit
 from the upper left.
-Drawn span after span by src/game/vine_view.gd (the rope's ends meet at y = 2 units).
+Drawn span after span by src/game/vine_view.gd (the rope's ends meet at y = 4 units), bent down
+where Panoramic hangs.
 
     python3 tools/art/vine.py
 """
@@ -18,9 +20,9 @@ sys.path.insert(0, str(Path(__file__).parent))
 from paint import blur, dither_rgba, hexc, mix, poly_mask, save, smooth  # noqa: E402
 
 PX = 2
-SPAN, H = 160, 48
-TOP = 2.0  # the rope's ends, in units from the top
-SAG = 12.0
+SPAN, H = 160, 72  # round 2: taller, for the tendrils hanging from it
+TOP = 4.0  # the rope's centre at its ends, in units from the top (his hands grip about y 6)
+SAG = 5.0  # round 2: a shallower rest sag (the view bends it where he hangs)
 
 
 def rope_y(t):
@@ -33,15 +35,18 @@ def span(seed: int) -> tuple:
     yy, xx = np.mgrid[0:h, 0:w].astype(float)
     t = xx / w
     cy = rope_y(t) * PX
-    thick = 3.4 * PX
+    thick = 4.8 * PX  # round 2: a thick liana (~10 units), it reads at phone size
     d = yy - cy
     rope = np.clip(thick - np.abs(d) + 0.5, 0, 1)
     # twist: diagonal bands along the rope, light on the upper side
-    twist = np.sin((xx * 0.55 + d * 1.6))
+    twist = np.sin((xx * 0.42 + d * 1.3))
     across = np.clip(-d / thick, -1, 1)  # 1 at the top edge
-    shade = 0.45 + 0.35 * across + 0.18 * twist
-    rope_col = mix(hexc("2e2414"), hexc("8e8a44"), np.clip(shade, 0, 1)[..., None][..., 0])
+    shade = 0.42 + 0.38 * across + 0.18 * twist
+    rope_col = mix(hexc("2a1c10"), hexc("8a7a3c"), np.clip(shade, 0, 1)[..., None][..., 0])
     rope_col = mix(rope_col, hexc("c8c070"), np.clip((twist > 0.7) * (across > 0.2), 0, 1) * 0.5)
+    # the sun's rim along its top edge, a dark line under it (it stands off the sky and the HUD)
+    rope_col = mix(rope_col, hexc("ffd88e"), np.clip(1.0 - np.abs(d + thick - 1.2 * PX) / (1.1 * PX), 0, 1) * 0.85)
+    rope_col = mix(rope_col, hexc("1a1008"), np.clip(1.0 - np.abs(d - thick + 0.8 * PX) / (1.0 * PX), 0, 1) * 0.7)
     col = rope_col * 1.0
     alpha = rope.copy()
     # a second thin strand winding round the first
@@ -68,7 +73,7 @@ def span(seed: int) -> tuple:
             blossoms.append((ax + rng.uniform(-3, 3) * PX, ay + rng.uniform(2, 5) * PX))
         for j in range(int(rng.integers(2, 5))):
             ang = np.pi / 2 + rng.uniform(-1.0, 1.0)
-            ln = rng.uniform(7, 12) * PX * big
+            ln = rng.uniform(9, 15) * PX * big
             wd = ln * rng.uniform(0.32, 0.42)
             stem = rng.uniform(1, 3) * PX
             bx, by = ax + np.cos(ang) * stem, ay + np.sin(ang) * stem
@@ -87,6 +92,20 @@ def span(seed: int) -> tuple:
             mid = [(bx + np.cos(ang) * ln * k / 12, by + np.sin(ang) * ln * k / 12) for k in range(13)]
             dli.polygon([(x * 3, y * 3) for x, y in lit_side + mid[::-1]], fill=255)
             dl.line([(ax * 3, ay * 3), (bx * 3, by * 3)], fill=255, width=3)
+    for _ in range(int(rng.integers(1, 3))):  # round 2: a long tendril hanging, leaves along it
+        tx = rng.uniform(0.15, 0.85)
+        x0, y0 = tx * w, rope_y(tx) * PX + 3 * PX
+        length = rng.uniform(26, 44) * PX
+        sway = rng.uniform(-6, 6) * PX
+        pts = [(x0 + sway * q * q + np.sin(q * 5 + tx * 9) * 1.5 * PX, y0 + length * q) for q in np.linspace(0, 1, 16)]
+        dl.line([(x * 3, y * 3) for x, y in pts], fill=255, width=int(1.6 * PX * 3))
+        for q in (0.35, 0.6, 0.85):
+            lx, ly = pts[int(q * 15)]
+            side = 1 if rng.random() < 0.5 else -1
+            leaf = [(lx, ly), (lx + side * 6 * PX, ly + 2 * PX), (lx + side * 9 * PX, ly + 5 * PX),
+                    (lx + side * 4 * PX, ly + 5.5 * PX)]
+            dl.polygon([(x * 3, y * 3) for x, y in leaf], fill=255)
+            dli.polygon([(x * 3, y * 3) for x, y in leaf[:3]], fill=255)
     for _ in range(2):  # tendrils curling down
         tx = rng.uniform(0.15, 0.85)
         x, y = tx * w, rope_y(tx) * PX + 2 * PX

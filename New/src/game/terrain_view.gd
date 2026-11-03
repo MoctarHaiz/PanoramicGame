@@ -4,11 +4,13 @@ extends Node2D
 ## 16 columns so the renderer batches each layer and skips what is off screen:
 ##   soil   every solid cell: terrain_shape.png for its outline and edge light, the paint from
 ##          soil.png / rock.png in level space (terrain.gdshader): no seams, no tiling grid
-##   spires a one-cell-wide wall (the poles in the river) is a sandstone stack instead (spires.png:
-##          lit, wider at the foot, eroded), its grass cap on top
+##   spires a one-cell-wide wall (the poles in the river) is a sandstone spire instead (spires.png:
+##          painted like the buttes on the horizon, a cap rock, beds of stone, a flared foot),
+##          its grass cap on top
 ##   (New: the sandstone chunks that jutted from walls are gone: they read as a zipper;
 ##          terrain.gdshader erodes a wall's sides instead. The banks of the pools slope into the
 ##          water in water.gdshader.)
+##   mass   (round 2) the earth and rock a floating ledge carries under it, deepest under its middle
 ##   under  lumps of earth and roots hanging under cells open below (floating ledges): their
 ##          thickness varies along the ledge
 ##   caps   the grass along every walkable top (grass_cap.png), rounded ends wrapping the corners
@@ -17,7 +19,8 @@ extends Node2D
 ##   drape  grass hanging over each open side of a top: a tufted lip leaning out past the edge,
 ##          drooping down the face (over banks it hangs over the water)
 ##   foot   soft shade where a wall rises from a top: a short occlusion on the sun's side, a longer
-##          cast shadow on the far side (the sun is upper left)
+##          one on the far side (the sun is upper left)
+##   cast   (round 2) each wall's long shadow along the ground away from the sun
 ##   front  short blades in front of the runners' feet (WorldView puts it above the actors)
 ## Only how the ground looks: what is solid comes from the 2017 map, as for the rules.
 
@@ -39,10 +42,14 @@ const TUFT := Vector2(64, 48)  ## tufts.png: one row of 8
 const FRONT_H := 24.0  ## front_grass.png: blades rise from 14 units under the surface
 const FRONT_BASE := 18.0
 const FOOT_SHADE := Color(0.18, 0.06, 0.14, 0.62)  ## at the foot of a wall
+const CAST_SHADE := Color(0.12, 0.08, 0.26, 0.78)  ## a wall's long shadow on the ground (round 2)
+const CAST_K := 0.75  ## its length per unit of the wall's height (a low sun)
 const DRAPE := Vector2(30, 50)  ## grass_drape.png: two pieces (left side, right side), each this size
 const DRAPE_IN := 8.0  ## units of a drape over its own cell (the rest hangs past the open side)
 const DRAPE_TOP := 12.0  ## units of a drape above the grass surface
-const SPIRE := Vector2(64, 420)  ## spires.png: three stacks side by side, each this size
+const SPIRE := Vector2(96, 560)  ## spires.png: three spires side by side, each this size (round 2: taller, no stretch)
+const MASS := Vector2(160, 120)  ## hanging.png: masses of earth hanging under a ledge, each this size
+const MASS_VARIANTS := 4
 const DIR := "res://assets/art/world/"
 
 var level: Level
@@ -55,6 +62,7 @@ var _first_col := 0
 var _end_col := 0
 var _poles := PackedInt32Array()  # per column from first_col - 1: its stack (_pole_column()), -1: none
 var _solid := PackedByteArray()  # cached solid cells, columns first_col - 1 .. end_col, rows -1 .. ROWS
+var _feet := PackedByteArray()  # cells at the ground line under a wall (_wall_foot()), rows 0 .. ROWS - 1
 var _c0 := 0
 var _cols := 0
 
@@ -74,9 +82,13 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 	_c0 = first_col - 1
 	_cols = end_col - first_col + 2
 	_solid.resize(_cols * (Level.ROWS + 2))
+	_solid.fill(0)
+	var kinds := lvl.kinds  # (read straight from the map: ~10 ms faster than _solid_at() per cell)
 	for i in _cols:
-		for r in range(-1, Level.ROWS + 1):
-			_solid[(r + 1) * _cols + i] = 1 if _solid_at(_c0 + i, r) else 0
+		var col := clampi(_c0 + i, 0, Level.COLS - 1)
+		for r in range(0, Level.ROWS + 1):
+			var k := kinds[mini(r, Level.ROWS - 1) * Level.COLS + col]
+			_solid[(r + 1) * _cols + i] = 1 if k == Level.Kind.TOP or k == Level.Kind.SIDE else 0
 	_first_col = first_col
 	_end_col = end_col
 	_poles.resize(end_col - first_col + 2)
@@ -88,13 +100,14 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 		_poles[c - first_col + 1] = span
 		if span >= 20000 and c + 1 <= end_col:
 			_poles[c - first_col + 2] = span + 10000  # the same rows, drawn by its left column
+	_find_feet()
 	var soil := ShaderMaterial.new()
 	soil.shader = preload("res://src/game/terrain.gdshader")
 	soil.set_shader_parameter(&"soil_tex", load(DIR + "soil.png"))
 	soil.set_shader_parameter(&"rock_tex", load(DIR + "rock.png"))
 	var sway := ShaderMaterial.new()
 	sway.shader = preload("res://src/game/sway.gdshader")
-	for name: StringName in [&"soil", &"spires", &"under", &"roots", &"caps", &"ends", &"tufts", &"drape", &"foot"]:
+	for name: StringName in [&"mass", &"soil", &"spires", &"under", &"roots", &"caps", &"ends", &"tufts", &"drape", &"foot", &"cast"]:
 		var layer := Node2D.new()
 		layer.name = name
 		add_child(layer)
@@ -105,6 +118,10 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 	front = Node2D.new()
 	front.name = &"FrontGrass"
 	_layers[&"front"] = front
+	var front_cast := Node2D.new()  # the walls' shadows over the blades too (above every chunk's)
+	front_cast.z_index = 1
+	front.add_child(front_cast)
+	_layers[&"front_cast"] = front_cast
 
 	soil.set_shader_parameter(&"depth_tex", _depth_texture(first_col, end_col))
 	soil.set_shader_parameter(&"first_col", first_col)
@@ -112,10 +129,11 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 		&"soil": load(DIR + "terrain_shape.png"), &"under": load(DIR + "underside.png"),
 		&"roots": load(DIR + "roots.png"), &"caps": load(DIR + "grass_cap.png"),
 		&"ends": load(DIR + "grass_ends.png"), &"tufts": load(DIR + "tufts.png"),
-		&"front": load(DIR + "front_grass.png"), &"foot": soft_disc(),
+		&"front": load(DIR + "front_grass.png"), &"foot": soft_disc(), &"cast": cast_shade(),
 		&"drape": load(DIR + "grass_drape.png"),
-		&"spires": load(DIR + "spires.png"),
+		&"spires": load(DIR + "spires.png"), &"mass": load(DIR + "hanging.png"),
 	}
+	textures[&"front_cast"] = textures[&"cast"]
 	_textures = textures
 
 
@@ -183,14 +201,23 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 		var w := float(span / 10000)
 		var h := (end - r) * T + (40.0 if end >= Level.ROWS else 22.0)
 		var width := SPIRE.x * (1.0 if w == 1.0 else 1.7)
-		b[&"spires"].items.append([Rect2(x + T * w / 2 - width / 2, y - 2.0, width, h),
-				Rect2(v * SPIRE.x * PX, 0, SPIRE.x * PX, minf(h, SPIRE.y) * PX), Color.WHITE])
+		var rect := Rect2(x + T * w / 2 - width / 2, y - 6.0, width, h + 4.0)
+		if _hash(c, 17, 2) == 0:  # mirrored now and then (a negative width flips in place): no twins
+			rect.size.x = -rect.size.x
+		b[&"spires"].items.append([rect, Rect2(v * SPIRE.x * PX, 0, SPIRE.x * PX, minf(h + 4.0, SPIRE.y) * PX), Color.WHITE])
 	if not pole:
 		b[&"soil"].items.append([Rect2(x, y, T, T),
 				Rect2(mask * SHAPE_STRIDE + 4.0, variant * SHAPE_STRIDE + 4.0, 64, 64), Color.WHITE])
 	if open_s and not open_w and not open_e:
 		b[&"under"].items.append([Rect2(x, y + T - UNDER_TOP, T, UNDER_H),
 				Rect2(fposmod(x * PX, 1024.0), 0, T * PX, UNDER_H * PX), Color.WHITE])
+	if open_s and not pole and not (solid(c - 1, r) and not solid(c - 1, r + 1)):
+		_hang_masses(c, r, b[&"mass"])
+	if not open_n and _wall_foot(c, r):  # (round 2) the ground's grass runs on across a wall's foot
+		b[&"caps"].items.append([Rect2(x, y - CAP_ABOVE, T, CAP_H),
+				Rect2(fposmod(x * PX, STRIP), 0, T * PX, CAP_H * PX), Color.WHITE])
+		b[&"front"].items.append([Rect2(x, y - FRONT_BASE + 4.0, T, FRONT_H),
+				Rect2(fposmod(x * PX, 1024.0), 0, T * PX, FRONT_H * PX), Color.WHITE])
 	if not open_n or _kind(c, r) != Level.Kind.TOP:
 		return
 	# the grass cap: a strip that runs on in level x; a cell with an open side gets a rounded end
@@ -220,6 +247,18 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 		b[&"foot"].items.append([Rect2(x + T - 34.0, y - 26.0, 52.0, 52.0), disc, FOOT_SHADE])
 	if solid(c - 1, r - 1):  # its shaded face, on the left: the shadow falls this way
 		b[&"foot"].items.append([Rect2(x - 46.0, y - 30.0, 132.0, 60.0), disc, FOOT_SHADE])
+		# round 2: the wall's long shadow along the ground away from the low sun, as long as the
+		# wall is tall (CAST_K), on this run of grass only (not over a pool)
+		var tall := 0
+		while tall < 16 and solid(c - 1, r - 1 - tall):
+			tall += 1
+		var run := 0
+		while run < 12 and solid(c + run, r) and not solid(c + run, r - 1):
+			run += 1
+		var length := minf(tall * T * CAST_K, run * T + 6.0)
+		if length > 40.0:
+			b[&"cast"].items.append([Rect2(x - 4.0, y - 20.0, length, 46.0), Rect2(0, 0, 64, 32), CAST_SHADE])
+			b[&"front_cast"].items.append([Rect2(x - 4.0, y - 12.0, length, 30.0), Rect2(0, 0, 64, 32), CAST_SHADE])
 	b[&"front"].items.append([Rect2(x, y - FRONT_BASE + 4.0, T, FRONT_H),
 			Rect2(fposmod(x * PX, 1024.0), 0, T * PX, FRONT_H * PX), Color.WHITE])
 	# some tops get a clump of grass or flowers (never on the edge cells)
@@ -228,6 +267,60 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 		var dx := float(_hash(c, r + 1, 17)) - 8.0
 		b[&"tufts"].items.append([Rect2(x + T / 2 - TUFT.x / 2 + dx, y - TUFT.y + 6.0, TUFT.x, TUFT.y),
 				Rect2(v * TUFT.x * PX, 0, TUFT.x * PX, TUFT.y * PX), Color.WHITE])
+
+
+## Round 2: under a floating ledge (from its left end, cell c of row r), the earth and rock it
+## carries (hanging.png): biggest under its middle, smaller to its ends, so it reads as a floating
+## island; never down into what lies under it.
+func _hang_masses(c: int, r: int, batch: Batch) -> void:
+	var n := 0
+	while n < 60 and solid(c + n, r) and not solid(c + n, r + 1):
+		n += 1
+	var free := 0  # open cells under the ledge before anything (the pools' surface row included)
+	while r + 1 + free < Level.ROWS - 2 and not solid(c + n / 2, r + 1 + free):
+		free += 1
+	var length := n * T
+	var count := maxi(1, roundi(length / 130.0))
+	var deepest := minf(MASS.y * clampf(0.45 + n / 10.0, 0.45, 1.0), free * T * 0.55)
+	if deepest < 16.0:
+		return
+	for i in count:
+		var u := (i + 0.5) / count
+		var k := 0.5 + 0.5 * pow(sin(PI * u), 0.7) if count > 1 else 1.0
+		var width := minf(length / count * 1.45 + 24.0, 260.0) * (0.85 + 0.15 * k)
+		var v := _hash(c + i, r, MASS_VARIANTS)
+		var rect := Rect2(c * T + u * length - width / 2, (r + 1) * T - 10.0, width, deepest * k)
+		if _hash(c + i, r + 3, 2) == 0:
+			rect.size.x = -rect.size.x  # mirrored in place
+		batch.items.append([rect, Rect2(v * MASS.x * PX, 0, MASS.x * PX, MASS.y * PX), Color.WHITE])
+
+
+## A cell at the ground line under a wall: a run of cells with a wall over them (at most 16), with
+## open ground (a top) at the same height next to it on a side. The ground runs on under the wall
+## there (its grass and soil). Found once per row in build() (_feet).
+func _wall_foot(c: int, r: int) -> bool:
+	var i := c - _c0
+	return i >= 0 and i < _cols and r >= 0 and r < Level.ROWS and _feet[r * _cols + i] == 1
+
+
+func _find_feet() -> void:
+	_feet.resize(_cols * Level.ROWS)
+	_feet.fill(0)
+	for r in range(1, Level.ROWS):
+		var i := 0
+		while i < _cols:
+			var covered := _solid[(r + 1) * _cols + i] == 1 and _solid[r * _cols + i] == 1
+			if not covered:
+				i += 1
+				continue
+			var start := i
+			while i < _cols and _solid[(r + 1) * _cols + i] == 1 and _solid[r * _cols + i] == 1:
+				i += 1
+			var top_left := start > 0 and _solid[(r + 1) * _cols + start - 1] == 1 and _solid[r * _cols + start - 1] == 0
+			var top_right := i < _cols and _solid[(r + 1) * _cols + i] == 1 and _solid[r * _cols + i] == 0
+			if (top_left or top_right) and i - start <= 16 and not _in_pole(_c0 + start, r - 1):
+				for k in range(start, i):
+					_feet[r * _cols + k] = 1
 
 
 func _in_pole(c: int, r: int) -> bool:
@@ -258,6 +351,18 @@ func _pole_column(c: int) -> int:
 	return w * 10000 + top * 100 + end if end - top >= 2 else -1
 
 
+## A shadow cast to the right (64 px): darkest on its left edge, fading out to the right, and soft
+## above and below (it lies along the grass).
+static func cast_shade() -> ImageTexture:
+	var img := Image.create_empty(64, 32, false, Image.FORMAT_RGBA8)
+	for x in 64:
+		for y in 32:
+			var across := pow(1.0 - x / 63.0, 1.1)
+			var band := 1.0 - pow(absf(y - 15.5) / 16.0, 2.0)
+			img.set_pixel(x, y, Color(1, 1, 1, clampf(across * band * 1.15, 0.0, 1.0)))
+	return ImageTexture.create_from_image(img)
+
+
 ## A soft round shade, opaque in the middle and fading out to its edge (64 px).
 static func soft_disc() -> GradientTexture2D:
 	var g := Gradient.new()
@@ -280,24 +385,50 @@ static func soft_disc() -> GradientTexture2D:
 ## to rock with depth, and lights each wall from the sun's side (G) and shades its far side (B),
 ## continuously from cell to cell.
 func _depth_texture(first_col: int, end_col: int) -> ImageTexture:
-	var img := Image.create_empty(end_col - first_col, Level.ROWS, false, Image.FORMAT_RGBA8)
-	for c in range(first_col, end_col):
-		for r in Level.ROWS:
-			var depth := 0  # (a stack standing on the ground is not soil over it)
-			while depth < 15 and solid(c, r - depth - 1) and not _in_pole(c, r - depth - 1):
-				depth += 1
-			var left := 0
-			while left < 15 and solid(c - left - 1, r):
-				left += 1
-			var right := 0
-			while right < 15 and solid(c + right + 1, r):
-				right += 1
-			var foot := 0  # cells further down before the wall stands on wider ground (A)
-			while foot < 15 and solid(c, r + foot + 1) and (not solid(c - 1, r + foot + 1) or not solid(c + 1, r + foot + 1)):
-				foot += 1
-			var open_below := r < Level.ROWS - 1 and not solid(c, r + 1)
-			img.set_pixel(c - first_col, r, Color8(depth, left, right, foot + (128 if open_below else 0)))
-	return ImageTexture.create_from_image(img)
+	# New: running counts down each column and along each row (one pass each way) instead of
+	# walking up to 15 cells from every cell: the same picture, ~10x faster (the level opens sooner)
+	var n := end_col - first_col
+	var rows := Level.ROWS
+	var span := rows + 17  # rows -1 .. ROWS + 15 (the bottom row goes on under the screen)
+	var s := PackedByteArray()  # solid, columns first_col - 1 .. end_col
+	var soil := PackedByteArray()  # solid and not part of a stack (a stack is not soil over a cell)
+	s.resize((n + 2) * span)
+	soil.resize((n + 2) * span)
+	for i in n + 2:  # (the solid cells cached by build(): the same columns, rows -1 .. ROWS)
+		var pole := _poles[i]  # _in_pole(), inlined
+		var pole_top := (pole % 10000) / 100 if pole >= 0 else 99
+		var pole_end := pole % 100 if pole >= 0 else -1
+		for j in span:
+			var on := _solid[mini(j, rows + 1) * _cols + i]
+			s[i * span + j] = on
+			soil[i * span + j] = 0 if j - 1 >= pole_top and j - 1 < pole_end else on
+	var px := PackedByteArray()
+	px.resize(n * rows * 4)
+	for i in n:
+		var at := (i + 1) * span  # this column; row r is at + r + 1
+		var run := 0  # R: solid cells above (rows r - 1, r - 2, ...), not counting stacks
+		for r in rows:
+			if r > 0 and _wall_foot(first_col + i, r):  # (round 2) the ground's soil runs on under a wall
+				run = 0
+			px[(r * n + i) * 4] = run
+			run = mini(run + 1, 15) if soil[at + r + 1] == 1 else 0
+		run = 0  # A: cells of open wall below (rows r + 1, r + 2, ...) before the foot, from under the screen up
+		for r in range(span - 3, -1, -1):
+			var wall := s[at + r + 2] == 1 and (s[at - span + r + 2] == 0 or s[at + span + r + 2] == 0)
+			run = mini(run + 1, 15) if wall else 0
+			if r < rows:
+				var open_below := r < rows - 1 and s[at + r + 2] == 0
+				px[(r * n + i) * 4 + 3] = run + (128 if open_below else 0)
+	for r in rows:
+		var run := 15 if s[r + 1] == 1 else 0  # (left of the map the edge column repeats)
+		for i in n:  # G: solid cells to the left
+			px[(r * n + i) * 4 + 1] = run
+			run = mini(run + 1, 15) if s[(i + 1) * span + r + 1] == 1 else 0
+		run = 15 if s[(n + 1) * span + r + 1] == 1 else 0
+		for i in range(n - 1, -1, -1):  # B: and to the right
+			px[(r * n + i) * 4 + 2] = run
+			run = mini(run + 1, 15) if s[(i + 1) * span + r + 1] == 1 else 0
+	return ImageTexture.create_from_image(Image.create_from_data(n, rows, false, Image.FORMAT_RGBA8, px))
 
 
 ## Grass tops and walls are solid; past either end of the map the edge column repeats, and the

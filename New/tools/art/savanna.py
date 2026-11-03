@@ -6,7 +6,8 @@
   sun.png         the sun's disc and glow (drawn additively)
   rays.png        soft god rays fanning from the sun to the lower right (additive, very faint)
   cloud_N.png     cumulus lit from the upper left: gold rims, lavender undersides
-  far_mesas.png   flat-topped plateaus and kopjes, far away: pale violet, almost sky (tiles in x)
+  far_mesas.png   escarpments on the horizon (mesas()): a far stepped plateau, nearer buttes,
+                  chimneys and kopjes, sun-facing cliffs lit warm, the far sides violet (tiles in x)
   far_hills.png   rolling hills with tiny acacias, dusty rose (tiles in x)
   mid_hills.png   nearer olive-ochre hills with small trees and bushes (tiles in x)
   near_grass.png  a band of tall golden grass in front of the near trees (tiles in x)
@@ -14,6 +15,7 @@
   haze.png        a soft band of warm air laid between layers
   mote.png        a soft speck of glowing dust (pollen in the light)
   bird.png        a bird far away, 4 wing frames in a row
+  animals.png     (round 2) giraffes, an elephant, wildebeest: far away among the tree rows
 
 Every strip is 1 pixel per design unit for far layers and 2 for nearer ones; the game scrolls them
 at different speeds (src/game/savanna_view.gd). The trees standing in the savanna are made by
@@ -34,8 +36,8 @@ from paint import (blur, dither_rgba, fbm, hexc, mix, noise1, normals_light, pol
 # Horizon colours shared by every layer: far things melt into these.
 HAZE = hexc("f6c27e")  # warm air near the horizon
 HAZE_HIGH = hexc("b9c4d6")  # higher up, the cool blue of distance
-SKY_STOPS = [(0.00, "1f58b0"), (0.22, "3577c8"), (0.42, "5d9ad8"), (0.56, "93bfe0"),
-             (0.66, "d2dccb"), (0.76, "f6d79c"), (0.88, "fcc675"), (1.00, "fdbf6c")]
+SKY_STOPS = [(0.00, "143a86"), (0.24, "2659ad"), (0.42, "4b86cc"), (0.55, "86b3dc"),
+             (0.65, "c9d3c6"), (0.75, "f3cd92"), (0.87, "fbb766"), (1.00, "fcae5c")]  # (round 2: a deeper zenith)
 
 
 def sky() -> Image.Image:
@@ -71,10 +73,12 @@ def sun() -> Image.Image:
     r = np.hypot(xx - s / 2, yy - s / 2) / (s / 2)
     disc_r = 0.11
     disc = 1 - smooth(disc_r - 0.012, disc_r + 0.004, r)
-    glow = np.exp(-(r / 0.16) ** 2) * 0.8 + np.exp(-(r / 0.42) ** 1.6) * 0.45 + np.exp(-(r / 0.9) ** 2) * 0.2
+    # round 2: the sun now sits low in the picture: a tighter, more golden glow (the wide pale one
+    # washed out the left third of the screen)
+    glow = np.exp(-(r / 0.14) ** 2) * 0.85 + np.exp(-(r / 0.32) ** 1.6) * 0.38 + np.exp(-(r / 0.8) ** 2) * 0.1
     glow *= 1 - smooth(0.85, 1.0, r)
-    core = hexc("fffbe8")
-    halo = hexc("ffb24a")
+    core = hexc("fff4d0")
+    halo = hexc("ff9c3c")
     # additive: the colour is the light added; alpha unused (1) but kept for premultiplication
     light = halo * glow[..., None] + (core - halo * glow[..., None]) * disc[..., None]
     a = np.clip(np.maximum(glow, disc), 0, 1)
@@ -228,6 +232,98 @@ def far_mesas(stops=None, haze_high=None, haze=None, top_col="f4d2b6", seed: int
     return dither_rgba(col, cov, rng)
 
 
+def _runs(cov: np.ndarray) -> tuple:
+    """Per pixel of a mask that tiles in x: how far (px) to its left and right edge along the row."""
+    inside = cov > 0.5
+    h, w = inside.shape
+    t = np.tile(inside, (1, 3))
+    idx = np.arange(3 * w)[None, :] * np.ones((h, 1), int)
+    last_out = np.maximum.accumulate(np.where(~t, idx, -1), axis=1)
+    next_out = np.flip(np.minimum.accumulate(np.flip(np.where(~t, idx, 9 * w), axis=1), axis=1), axis=1)
+    return (idx - last_out)[:, w:2 * w].astype(float), (next_out - idx)[:, w:2 * w].astype(float)
+
+
+def _butte(x: np.ndarray, c: float, half: float, height: float, w: int, cliff: float, talus: float) -> np.ndarray:
+    """Height (up) of a flat-topped butte centred at c: steep eroded cliffs over a concave talus."""
+    d = np.abs(((x - c + w / 2) % w) - w / 2) - half
+    f = np.where(d <= 0, 1.0, 0.0)
+    f = np.where((d > 0) & (d <= cliff), 1 - 0.55 * (np.clip(d, 0, None) / cliff) ** 1.2, f)
+    f = np.where(d > cliff, 0.45 * np.clip(1 - (d - cliff) / talus, 0, 1) ** 2.4, f)
+    return height * f
+
+
+def mesas() -> Image.Image:
+    """New (env, round 2): the escarpments on the horizon, 2048 x 360 at 1 px per unit (tiles in x).
+    Two planes: a long stepped escarpment far away (pale, deep in the haze) and, nearer, a few
+    distinct landmarks: a tall flat butte, twin chimneys, a broad stepped mesa, a kopje of
+    boulders. Lit by the low sun on the upper left: the cliffs facing it warm sandstone with a hot
+    rim along their lit edges and tops, the faces turned away cool violet, gullies and beds of rock
+    down the cliffs, the feet melting into the warm air of the horizon."""
+    w, h = 2048, 360
+    rng = np.random.default_rng(77)
+    x = np.arange(w, dtype=float)
+    yy = np.arange(h)[:, None] * np.ones((1, w))
+    base = h - 6 - noise1(w, 12, rng, 3) * 10
+
+    def plane(heights: np.ndarray, rough_amp: float, stops: list, haze_k: float, rim_k: float, seed: int):
+        r = np.random.default_rng(seed)
+        rough = noise1(w, 260, r, 3) * rough_amp * 0.4 + noise1(w, 70, r, 3) * rough_amp
+        profile = np.clip(base - heights - rough * (heights > 8), 2, h)
+        cov = np.clip(yy - profile[None, :] + 0.5, 0, 1)
+        below = yy - profile[None, :]
+        # the face's turn: towards the sun at its left edges, away at its right (the slope of the
+        # silhouette blurred mostly across), gullies ribbing the cliffs a little
+        soft = blur(cov, (3.0, 14.0), wrap_x=True)
+        gx = np.gradient(soft, axis=1)
+        corner = np.clip(gx / (np.abs(gx).max() * 0.55), -1, 1)
+        gul = blur(r.standard_normal((h, w)), (22.0, 5.0), wrap_x=True)
+        gul /= gul.std()
+        talus = smooth(0.0, 1.0, (below - (base[None, :] - profile[None, :]) * 0.62) / 40.0)
+        nx = np.gradient(gul, axis=1) * 3.0 * smooth(4, 20, below) * (1 - talus)
+        light = 0.46 + 0.62 * corner - 0.22 * nx + 0.12 * talus
+        top = 1 - smooth(1, 6, below)  # the flat tops catch the sun
+        light = np.clip(light + top * 0.4, 0, 1)
+        col = ramp(light, stops)
+        beds = np.sin((yy + blur(r.standard_normal(w)[None, :], (0, 40), wrap_x=True)[0] * 60) * 0.21)
+        col *= (1 + beds[..., None] * 0.05 * smooth(6, 24, below)[..., None] * (1 - talus[..., None]))
+        # the hot rim on the edges facing the sun (left sides and tops)
+        rim = np.clip(cov - np.roll(cov, 3, axis=1), 0, 1) * 0.8 + np.clip(cov - np.roll(cov, 2, axis=0), 0, 1)
+        col = mix(col, hexc("ffd9a0"), blur(np.clip(rim, 0, 1), 0.8, wrap_x=True) * rim_k)
+        # aerial perspective: the plane's own haze, thicker towards its foot
+        col = mix(col, HAZE_HIGH, haze_k)
+        col = mix(col, HAZE, smooth(0.55 * h, h, yy) * 0.45)
+        return col, cov
+
+    far_h = np.zeros(w)
+    for c, half, hh in [(140, 260, 112), (620, 150, 96), (900, 90, 128), (1240, 220, 104), (1720, 300, 120)]:
+        far_h = np.maximum(far_h, _butte(x, c, half, hh, w, 10, 70))
+        for _ in range(2):  # steps on the escarpment's top
+            sx = c + rng.uniform(-half, half) * 0.7
+            far_h = np.maximum(far_h, _butte(x, sx, rng.uniform(20, 60), hh + rng.uniform(10, 24), w, 6, 10))
+    near_h = np.zeros(w)
+    near_h = np.maximum(near_h, _butte(x, 420, 70, 210, w, 12, 90))  # the tall flat butte
+    near_h = np.maximum(near_h, _butte(x, 372, 26, 236, w, 6, 30))  # its higher shoulder
+    near_h = np.maximum(near_h, _butte(x, 1040, 16, 232, w, 8, 40))  # twin chimneys
+    near_h = np.maximum(near_h, _butte(x, 1086, 12, 196, w, 7, 40))
+    near_h = np.maximum(near_h, _butte(x, 1520, 170, 136, w, 14, 110))  # the broad stepped mesa
+    near_h = np.maximum(near_h, _butte(x, 1455, 60, 168, w, 10, 30))
+    near_h = np.maximum(near_h, _butte(x, 1960, 40, 182, w, 10, 60))  # a lone butte
+    for _ in range(9):  # kopjes: heaps of rounded boulders
+        c = rng.uniform(0, w)
+        for k in range(int(rng.integers(3, 6))):
+            rr = rng.uniform(9, 24)
+            cc = c + k * rr * rng.uniform(0.9, 1.4)
+            d = ((x - cc + w / 2) % w) - w / 2
+            near_h = np.maximum(near_h, np.sqrt(np.clip(1 - (d / rr) ** 2, 0, 1)) * rr * rng.uniform(1.0, 1.8))
+    far_col, far_cov = plane(far_h, 6.0, [(0.0, "566292"), (0.45, "8188ae"), (0.75, "c9a7a6"), (1.0, "f4cfa4")],
+                             0.38, 0.35, 81)
+    near_col, near_cov = plane(near_h, 5.0, [(0.0, "2e3066"), (0.38, "554f82"), (0.6, "a4697a"), (0.8, "e8925e"),
+                                             (1.0, "ffc98e")], 0.1, 0.85, 83)
+    col = mix(far_col, near_col, near_cov)
+    cov = np.maximum(far_cov, near_cov)
+    return dither_rgba(col, cov, rng)
+
+
 def tiny_acacia(cx: float, base: float, s: float, rng) -> tuple:
     """Silhouette parts of a far acacia: a short forked trunk under a flat, wide, layered crown."""
     lean = rng.uniform(-2, 2) * s
@@ -371,7 +467,7 @@ def fg_grass() -> Image.Image:
         half = rng.uniform(50, 140)
         tall = rng.uniform(34, 56) if rng.random() < 0.8 else rng.uniform(66, 96)
         clumps.append((x + half, half, tall))
-        x += half * 2 + rng.uniform(60, 300)
+        x += half * 2 + rng.uniform(10, 150)  # (round 2: denser, a frame along the whole edge)
     for cx, half, tall in clumps:
         blades = []
         for _ in range(int(half * 2.2)):
@@ -409,12 +505,88 @@ def fg_grass() -> Image.Image:
                 px, py = bx + ox + lean * t, h + 4 - (hgt + 4) * t
                 d.ellipse([(px - 2.2 + lean * 0.02) * ss, (py - 5) * ss, (px + 2.2 + 3) * ss, (py + 1) * ss], fill=255)
     a = np.asarray(m.resize((w, h), Image.LANCZOS), float) / 255
+    edge = h - 12 - noise1(w, 40, rng, 3) * 10  # a low dark band of grass along the whole edge
+    a = np.maximum(a, np.clip(np.arange(h)[:, None] - edge[None, :], 0, 1))
     a = blur(a, 1.4, wrap_x=True)  # out of focus
     yy = np.linspace(0, 1, h)[:, None] * np.ones((1, w))
     col = mix(hexc("3a3214"), hexc("140c06"), smooth(0.35, 1.0, yy))
     rim = np.clip(a - np.roll(np.roll(a, 3, axis=0), 3, axis=1), 0, 1)
     col = mix(col, hexc("c88a3a"), blur(rim, 1.0, wrap_x=True) * 0.55)
     return dither_rgba(np.clip(col, 0, 255), np.clip(a * 1.15, 0, 1), rng)
+
+
+def _animal_parts(kind: str, w: float, h: float, rng) -> tuple:
+    """Polygons and ellipses (px) of a savanna animal standing on y = h, facing left."""
+    polys, ells = [], []
+
+    def leg(x, top, bottom, wt, wb, lean=0.0):
+        polys.append([(x - wt, top), (x + wt, top), (x + wb + lean, bottom), (x - wb + lean, bottom)])
+
+    if kind == "giraffe":
+        by, bx = h * 0.5, w * 0.58
+        ells.append((bx, by, w * 0.2, h * 0.085))
+        ells.append((bx - w * 0.14, by - h * 0.02, w * 0.1, h * 0.09))  # the shoulder, higher
+        for x, lean in ((bx - w * 0.17, -2), (bx - w * 0.08, 3), (bx + w * 0.1, -1), (bx + w * 0.18, 4)):
+            leg(x, by, h, w * 0.038, w * 0.017, lean)
+        nx, ny = bx - w * 0.36, h * 0.07  # the neck up to the head, thick at its root
+        polys.append([(bx - w * 0.26, by - h * 0.02), (bx - w * 0.05, by - h * 0.06), (nx + w * 0.08, ny + h * 0.05), (nx, ny + h * 0.03)])
+        ells.append((nx - w * 0.04, ny + h * 0.02, w * 0.08, h * 0.028))
+        polys.append([(nx + w * 0.01, ny), (nx + w * 0.02, ny - h * 0.04), (nx + w * 0.03, ny)])
+        polys.append([(bx + w * 0.19, by), (bx + w * 0.22, by + h * 0.2), (bx + w * 0.2, by)])
+    elif kind == "elephant":
+        by, bx = h * 0.5, w * 0.56
+        ells.append((bx, by, w * 0.3, h * 0.27))
+        ells.append((bx - w * 0.3, by - h * 0.08, w * 0.13, h * 0.2))  # the head
+        ells.append((bx - w * 0.2, by - h * 0.06, w * 0.1, h * 0.19))  # the ear
+        polys.append([(bx - w * 0.4, by - h * 0.02), (bx - w * 0.33, by), (bx - w * 0.4, h * 0.92), (bx - w * 0.45, h * 0.9)])
+        polys.append([(bx - w * 0.36, by + h * 0.04), (bx - w * 0.48, by + h * 0.1), (bx - w * 0.47, by + h * 0.13), (bx - w * 0.35, by + h * 0.09)])  # a tusk
+        for x in (bx - w * 0.17, bx - w * 0.05, bx + w * 0.11, bx + w * 0.22):
+            leg(x, by + h * 0.05, h, w * 0.055, w * 0.045)
+        polys.append([(bx + w * 0.29, by - h * 0.05), (bx + w * 0.33, by + h * 0.25), (bx + w * 0.31, by - h * 0.05)])
+    else:  # a few wildebeest grazing, heads down
+        for k in range(5):
+            cx = w * (0.12 + 0.19 * k) + rng.uniform(-6, 6)
+            s = rng.uniform(0.85, 1.1)
+            top = h * (0.38 + rng.uniform(-0.05, 0.05))
+            ells.append((cx, top + h * 0.15 * s, w * 0.07 * s, h * 0.16 * s))
+            ells.append((cx - w * 0.04 * s, top + h * 0.08 * s, w * 0.04 * s, h * 0.12 * s))  # the hump
+            down = rng.random() < 0.6
+            hx, hy = cx - w * 0.09 * s, top + (h * 0.42 if down else h * 0.1) * s
+            polys.append([(cx - w * 0.05 * s, top + h * 0.05 * s), (cx - w * 0.03 * s, top + h * 0.2 * s), (hx + 4, hy + 4), (hx - 2, hy)])
+            ells.append((hx, hy + 2, w * 0.02 * s, h * 0.07 * s))
+            for x in (cx - w * 0.05 * s, cx - w * 0.02 * s, cx + w * 0.03 * s, cx + w * 0.06 * s):
+                leg(x, top + h * 0.22 * s, h, w * 0.008, w * 0.005)
+    return polys, ells
+
+
+def animals() -> Image.Image:
+    """New (env, round 2): life on the plain, far away: two giraffes, an elephant and a few
+    wildebeest grazing, side by side in one strip (ANIMALS units each, 2 px a unit), dark against
+    the grass with a warm rim where the low sun catches their backs. Drawn among the tree rows by
+    src/game/savanna_view.gd, hazed like the trees at their depth."""
+    rng = np.random.default_rng(63)
+    out_c, out_a = [], []
+    for kind, (wu, hu) in zip(["giraffe", "giraffe", "elephant", "herd"], ANIMALS):
+        w, h = wu * 2, hu * 2
+        polys, ells = _animal_parts(kind, w, h - 2, rng)
+        cov = poly_mask(w, h, polys, ellipses=ells)
+        lam = relief(cov, 3.0, wrap=False)
+        col = mix(hexc("3a2418"), hexc("8a5a36"), smooth(0.35, 0.9, lam))
+        if kind == "giraffe":  # a hint of the patches
+            patches = smooth(0.55, 0.62, fbm(h, w, 14, 9, 2, rng, wrap_x=False))
+            col = mix(col, hexc("2a160e"), patches * 0.5)
+        rim = np.clip(cov - np.roll(np.roll(cov, 2, axis=0), 2, axis=1), 0, 1)
+        col = mix(col, hexc("f0b878"), rim * 0.75)
+        out_c.append(col)
+        out_a.append(cov)
+    hmax = max(c.shape[0] for c in out_c)
+    pad = lambda a, ch: np.concatenate([np.zeros((hmax - a.shape[0],) + a.shape[1:]), a], axis=0)  # noqa: E731
+    col = np.concatenate([pad(c, 3) for c in out_c], axis=1)
+    alpha = np.concatenate([pad(a, 1) for a in out_a], axis=1)
+    return dither_rgba(col, alpha, rng)
+
+
+ANIMALS = [(70, 110), (64, 104), (110, 76), (150, 44)]  # units of each animal in animals.png
 
 
 def haze() -> Image.Image:
@@ -536,7 +708,7 @@ def main() -> None:
         for i in range(4):
             save(cloud(60 + i), f"cloud_{i + 1}.png")
     if want("far"):
-        save(far_mesas(), "far_mesas.png")
+        save(mesas(), "far_mesas.png")
         save(hills_strip(2048, 170, 31, 60, 24, 9, FAR_HILLS, "4f5a6e", 46, (0.55, 0.9), 0.18, bushes=30), "far_hills.png")
     if want("mid"):
         save(hills_strip(2048, 240, 33, 70, 30, 7, MID_HILLS, "34481c", 22, (1.1, 1.8), 0.04, bushes=70, sigma=18), "mid_hills.png")
@@ -544,6 +716,8 @@ def main() -> None:
         save(near_grass(), "near_grass.png")
     if want("fg"):
         save(fg_grass(), "fg_grass.png")
+    if want("animals"):
+        save(animals(), "animals.png")
     if want("sunset"):
         sunset_set()
     if want("small"):

@@ -33,6 +33,18 @@ float noise(float x) {
 	return mix(hash(i), hash(i + 1.0), f * f * (3.0 - 2.0 * f));
 }
 
+// smooth 2-D value noise, 0..1
+float noise2(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	float a = hash(i.x + i.y * 57.0);
+	float b = hash(i.x + 1.0 + i.y * 57.0);
+	float c = hash(i.x + (i.y + 1.0) * 57.0);
+	float d = hash(i.x + 1.0 + (i.y + 1.0) * 57.0);
+	return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
 void vertex() {
 	level_pos = VERTEX;
 }
@@ -50,14 +62,22 @@ void fragment() {
 	float from_left = cells.g * 32.0 + fx;  // units of solid ground to the open air on the left
 	float from_right = cells.b * 32.0 + 32.0 - fx;
 	vec2 uv = level_pos / repeat_units;
-	vec3 soil = texture(soil_tex, uv, 0.7).rgb;  // (a little softer: the grain stays under the forms)
-	vec3 rock = texture(rock_tex, uv * 0.75 + vec2(0.37, 0.11)).rgb;
+	// Round 2: no visible repeat: each texture is read twice, at two scales and turned, and the two
+	// blended by a slow noise; big soft patches of lighter and darker stone; beds of rock across
+	float patch = noise2(level_pos / 150.0 + vec2(float(first_col) * 0.0, 7.3));
+	float blend = smoothstep(0.3, 0.7, noise2(level_pos / 95.0 + vec2(3.1, 1.7)));
+	vec2 uv2 = mat2(vec2(0.8, -0.6), vec2(0.6, 0.8)) * uv * 0.71 + vec2(0.53, 0.29);
+	vec3 soil = mix(texture(soil_tex, uv, 0.7).rgb, texture(soil_tex, uv2, 0.7).rgb, blend * 0.8);
+	vec3 rock = mix(texture(rock_tex, uv * 0.75 + vec2(0.37, 0.11)).rgb, texture(rock_tex, uv2 * 0.9).rgb, blend);
 	float wobble = texture(soil_tex, level_pos / 1400.0).r;  // slow variation for the soil-rock line
 	float to_rock = smoothstep(84.0, 150.0, depth + (wobble - 0.55) * 110.0);
 	vec3 c = mix(soil, rock, to_rock);
+	float bed = sin(level_pos.y * 0.085 + noise(level_pos.x * 0.012) * 4.0) * 0.5 + 0.5;
+	c *= mix(vec3(0.9, 0.9, 0.95), vec3(1.08, 1.03, 0.96), mix(patch, bed, 0.35 * to_rock));
 	// deeper: darker and a little violet (cool shade), as in the hero sheet
 	float d = smoothstep(18.0, 200.0, depth);
 	c *= mix(vec3(1.0), deep_tint, d);
+	c *= 1.06 - 0.1 * smoothstep(40.0, 260.0, depth);  // lit from above: the top of a wall brightest
 	// form: the wall turns towards the sun on its left and away on its right; a narrow pillar is
 	// a rounded column (lit, then the core shadow, then a little bounce light at its far edge)
 	float width = from_left + from_right;
@@ -84,13 +104,18 @@ void fragment() {
 	// foot, none under the grass lip): no ruler-straight sides; the new edge gets a dark rim
 	float erode = 0.0;
 	float side_d = 99.0;
+	float lit_d = 99.0;  // units from the eroded edge on the sun's side
 	if (depth > 20.0 && width < 200.0) {
 		// deepest just under the grass lip (it overhangs) and up the middle, little at the foot
 		// (the wall stands wider on the ground)
 		float grow = smoothstep(20.0, 46.0, depth) * (0.25 + 0.75 * smoothstep(0.0, 90.0, to_foot));
-		float el = (0.3 + 0.45 * noise(level_pos.y * 0.03 + float(cell.x) * 1.7) + 0.25 * noise(level_pos.y * 0.11 + 9.0)) * 20.0 * grow;
-		float er = (0.3 + 0.45 * noise(level_pos.y * 0.035 + float(cell.x) * 2.3 + 40.0) + 0.25 * noise(level_pos.y * 0.12 + 3.0)) * 20.0 * grow;
+		// round 2: deeper, slower bulges and notches (chunky breaks in the silhouette)
+		float reach = min(28.0, width * 0.17) * grow;
+		float wx = level_pos.x - from_left;  // the wall's left side: one pattern per wall, not per cell
+		float el = (0.2 + 0.5 * noise(level_pos.y * 0.017 + wx * 0.031) + 0.3 * noise(level_pos.y * 0.09 + 9.0)) * reach;
+		float er = (0.2 + 0.5 * noise(level_pos.y * 0.02 + wx * 0.027 + 40.0) + 0.3 * noise(level_pos.y * 0.1 + 3.0)) * reach;
 		side_d = min(from_left - el, from_right - er);
+		lit_d = cells.g < 0.5 ? from_left - el : 99.0;
 		erode = (cells.g < 0.5 ? 1.0 - smoothstep(el - 0.6, el + 0.6, from_left) : 0.0);
 		erode = max(erode, cells.b < 0.5 ? 1.0 - smoothstep(er - 0.6, er + 0.6, from_right) : 0.0);
 	}
@@ -99,6 +124,10 @@ void fragment() {
 	c = l > 0.0 ? mix(c, c * lit_colour * 1.45, l * 1.6) : c * (1.0 + l * 1.7);
 	c = mix(c, min(c * 1.35 + rim_colour * 0.12, vec3(1.0)), shape.b * 0.55);
 	c = mix(c, outline_colour, shape.g * 0.92);
-	c = mix(c, outline_colour, (1.0 - smoothstep(0.0, 2.2, side_d)) * 0.8 * step(side_d, 98.0));
+	// the new edge: a hot rim where it faces the sun, a dark line where it turns away
+	float edge_line = (1.0 - smoothstep(0.0, 2.2, side_d)) * step(side_d, 98.0);
+	float sun_edge = (1.0 - smoothstep(0.0, 4.5, lit_d)) * step(lit_d, 98.0);
+	c = mix(c, outline_colour, edge_line * 0.8 * (1.0 - sun_edge));
+	c = mix(c, min(c * 1.5 + rim_colour * 0.25, vec3(1.0)), sun_edge * 0.75);
 	COLOR = vec4(c, shape.a * (1.0 - erode) * (1.0 - taper));
 }
