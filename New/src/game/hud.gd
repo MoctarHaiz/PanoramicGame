@@ -17,7 +17,7 @@ signal pause_pressed
 const ROW_HEIGHT := 60.0
 const BOB_ICON := 46.0  ## size of the Red Bob on the counter
 const TRACK_W := 330.0
-const HEART := 34.0
+const HEART := 37.0
 const PLATE_TOP := Color(0.44, 0.21, 0.11, 0.94)
 const PLATE_BOTTOM := Color(0.25, 0.08, 0.03, 0.94)
 const PLATE_EDGE := Color(0.13, 0.04, 0.02, 0.96)
@@ -42,11 +42,11 @@ var _hero_rect := Rect2()  # where Panoramic is on screen (game_screen sets it e
 
 ## The HUD's plate: a candy shape in glazed dark wood (see GlossStyle).
 static func plate(radius: float, pressed := false) -> GlossStyle:
-	var s := GlossStyle.new(PLATE_TOP, PLATE_BOTTOM, PLATE_EDGE, radius, 5.0, pressed)
+	var s := GlossStyle.new(PLATE_TOP, PLATE_BOTTOM, PLATE_EDGE, radius, 7.0, pressed)  # a deep bevel: body
 	s.set_outline(PLATE_LINE, 3.0)
-	s.set_frame(2.5, Color("ffe3a0"), Color("c27a22"), Color(0, 0, 0, 0))  # a fine gold rim: the kit's ring
-	s.rim = 0.2
-	s.gloss = 0.08
+	s.set_frame(3.0, Color("ffe3a0"), Color("c27a22"), Color(0, 0, 0, 0))  # a gold rim: the kit's ring
+	s.rim = 0.32
+	s.gloss = 0.16
 	s.shadow.shadow_color = Color(0, 0, 0, 0.45)  # it stands off the vine and the sky behind it
 	s.shadow.shadow_size = 12
 	s.shadow.shadow_offset = Vector2(0, 5)
@@ -125,8 +125,8 @@ func _glass(content: Control, side_margin: float) -> PanelContainer:
 	var s := plate(ROW_HEIGHT / 2.0)
 	s.content_margin_left = side_margin
 	s.content_margin_right = side_margin
-	s.content_margin_top = 5.0
-	s.content_margin_bottom = 5.0 + 5.0
+	s.content_margin_top = 4.0
+	s.content_margin_bottom = 4.0 + 7.0
 	var p := PanelContainer.new()
 	p.add_theme_stylebox_override(&"panel", s)
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -143,7 +143,7 @@ func _counter() -> Control:
 	_bob_icon.custom_minimum_size = Vector2(BOB_ICON, BOB_ICON) * 1.2
 	_bob_icon.size = _bob_icon.custom_minimum_size
 	_bob_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_number = Ui.display_text("000", 32, Ui.WHITE, PLATE_LINE, Color("ffe2a8"))
+	_number = Ui.display_text("000", 34, Ui.WHITE, PLATE_LINE, Color("ffe2a8"))
 	_number.outline_width = 5.0
 	_number.depth = 3.0
 	_number.shadow = Color(0, 0, 0, 0)
@@ -152,7 +152,7 @@ func _counter() -> Control:
 	var s := plate(ROW_HEIGHT / 2.0)
 	s.content_margin_left = _bob_icon.size.x * 0.62
 	s.content_margin_right = 16.0
-	s.content_margin_bottom = 5.0
+	s.content_margin_bottom = 7.0
 	var pill := PanelContainer.new()
 	pill.add_theme_stylebox_override(&"panel", s)
 	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -330,6 +330,7 @@ class _Track extends Control:
 				queue_redraw()
 	var _clock := 0.0
 	var _house: BoldIcon
+	var _face: TextureRect  # his portrait, lifted (lift.gdshader): bright in its ring
 	var _styles := {}  # (colour, radius, border) -> StyleBoxFlat, made once
 
 	func _init() -> void:
@@ -337,6 +338,15 @@ class _Track extends Control:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_house = Ui.bold_icon("house-fill", 24, Ui.WHITE, Hud.PLATE_LINE)
 		add_child(_house)
+		_face = TextureRect.new()
+		_face.texture = HEAD
+		_face.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_face.size = Vector2(42, 42)
+		_face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var lift := ShaderMaterial.new()
+		lift.shader = preload("res://src/ui/lift.gdshader")
+		_face.material = lift
+		add_child(_face)
 
 	func _process(delta: float) -> void:
 		_clock += delta
@@ -387,7 +397,7 @@ class _Track extends Control:
 		draw_circle(c, 27.0, Hud.PLATE_LINE)
 		draw_circle(c, 24.5, Color("e08a10"))
 		draw_circle(c + Vector2(0, -1), 23.0, Color("ffd34a"))
-		draw_texture_rect(HEAD, Rect2(c - Vector2(20, 20), Vector2(40, 40)), false)
+		_face.position = c - _face.size / 2
 
 	func _rounded(r: Rect2, colour: Color, radius: float, border := Color(0, 0, 0, 0), border_w := 0.0) -> void:
 		var key := [colour, int(minf(radius, r.size.y / 2)), border, border_w]

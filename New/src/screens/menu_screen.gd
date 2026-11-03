@@ -81,7 +81,7 @@ func enter(_data: Dictionary) -> void:
 	columns.add_child(_hero_side)
 	_left = VBoxContainer.new()
 	_left.alignment = BoxContainer.ALIGNMENT_CENTER
-	_left.add_theme_constant_override(&"separation", 14)
+	_left.add_theme_constant_override(&"separation", 22)  # air between logo, Play and the plaque
 	_left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_left.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	columns.add_child(_left)
@@ -128,11 +128,16 @@ func enter(_data: Dictionary) -> void:
 
 	_row = HBoxContainer.new()
 	_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	_row.add_theme_constant_override(&"separation", 18)
+	_row.add_theme_constant_override(&"separation", 22)
 	_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if Save.games_played > 0:
 		_row.add_child(_best_plaque())
-	var settings := Ui.icon_button("gear-chunky", Ui.Tone.WHITE, 84.0, 28.0)  # cream, as the plaque; a gear, not a flower
+	# the gear in the Best plaque's own style and height (one family, not a candy tile beside a plaque)
+	var settings := Ui.plaque_button("gear-chunky", 92.0)
+	if _row.get_child_count() > 0:
+		var plaque := _row.get_child(0) as Control
+		plaque.resized.connect(func() -> void:
+			settings.custom_minimum_size = Vector2(plaque.size.y, plaque.size.y))
 	settings.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	settings.pressed.connect(func() -> void: Nav.go(&"settings", {}, settings.get_global_rect().get_center()))
 	_row.add_child(settings)
@@ -200,8 +205,8 @@ func _best_plaque() -> PanelContainer:
 	words.add_theme_constant_override(&"separation", -8)
 	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	words.alignment = BoxContainer.ALIGNMENT_CENTER
-	words.add_child(Ui.label(tr("BEST"), 24, Color("6a3010"), Ui.font_title, HORIZONTAL_ALIGNMENT_LEFT))
-	words.add_child(Ui.label(str(Save.best_bobs), 44, Color("4a1e04"), Ui.font_title, HORIZONTAL_ALIGNMENT_LEFT))
+	words.add_child(Ui.label(tr("BEST"), 30, Color("8a3a0c"), Ui.font_display, HORIZONTAL_ALIGNMENT_LEFT))
+	words.add_child(Ui.label(str(Save.best_bobs), 46, Color("4a1e04"), Ui.font_display, HORIZONTAL_ALIGNMENT_LEFT))
 	row.add_child(words)
 	var stars := StarRow.new(Save.best_stars, 40)
 	stars.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -284,7 +289,7 @@ func _layout() -> void:
 	var column_left := minf(_hero.position.x + w + v.x * 0.06, v.x - insets.z - 18.0 - 470.0)
 	_hero_side.custom_minimum_size.x = maxf(column_left - insets.x - 18.0, 0.0)
 	var free := v.y - insets.y - Device.bottom_with_banner() - Device.ad_gap() - 36.0
-	var logo_h := clampf(free - 124.0 - 92.0 - 50.0 - _ribbon.size.y * 0.55, 170.0, 300.0)  # air above and below
+	var logo_h := clampf(free - 124.0 - 92.0 - 66.0 - _ribbon.size.y * 0.55, 170.0, 300.0)  # air above and below
 	var logo_w := logo_h * LOGO.get_width() / LOGO.get_height()
 	var column_w := v.x - insets.z - 18.0 - column_left
 	if logo_w > column_w * 0.96:

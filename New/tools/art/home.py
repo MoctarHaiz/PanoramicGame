@@ -27,8 +27,8 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 sys.path.insert(0, str(Path(__file__).parent))
-from paint import (ROOT, WORLD, blur, dither_rgba, fbm, hexc, mix, normals_light, poly_mask, ramp, save,  # noqa: E402
-                   smooth)
+from paint import (ROOT, WORLD, blur, cel, dither_rgba, fbm, hexc, ink_edge, mix, normals_light, poly_mask,  # noqa: E402
+                   ramp, save, smooth)
 
 PX = 2
 SS = 3
@@ -103,8 +103,10 @@ def hut(R: float, H: float, door: bool, seed: int) -> tuple:
     cov = np.clip(blur(cov, 0.6) * 1.2, 0, 1)
     cov = np.maximum(cov, fin)
     strokes = thatch_strokes(w, h, inside, u, z, cx, base, Hp, rng)
-    t = np.clip(lam * 0.95 + strokes * 0.16 + 0.05, 0, 1)
+    t = np.clip(lam * 0.95 + 0.05, 0, 1)
     t = np.clip(t + 0.22 * (np.clip(z, 0, 1) - 0.45), 0, 1)  # round 2: lit from above, darker low down
+    # round 5: the hero's style: the light in flat bands, the straw's strokes only a light texture
+    t = np.clip(0.12 + 0.8 * cel(t, (0.36, 0.6)) + strokes * 0.07, 0, 1)
     col = ramp(t, THATCH)
     # tiers of thatch: each ends in a jagged fringe of straw over the tier below, with a soft shadow
     # under it; a thin rope binds some of them
@@ -118,8 +120,8 @@ def hut(R: float, H: float, door: bool, seed: int) -> tuple:
         dist = yy - ring_y
         shade = np.exp(-np.clip(dist, 0, None) / (8.0 * PX)) * (dist > 0) * inside
         fringe = np.exp(-np.clip(-dist, 0, None) / (5.0 * PX)) * (dist <= 0) * inside
-        col = mix(col, col * np.array([0.38, 0.3, 0.4]), shade * 0.92)
-        col = mix(col, np.minimum(col * 1.35 + 6, 255), fringe * 0.5)
+        col = mix(col, col * np.array([0.38, 0.3, 0.4]), np.clip(shade * 1.6 - 0.25, 0, 1) * 0.92)  # crisp
+        col = mix(col, np.minimum(col * 1.35 + 6, 255), np.clip(fringe * 1.6 - 0.3, 0, 1) * 0.5)
         if k % 2 == 0:  # a rope ring binding the tier, its twists catching the light
             rope_d = (dist + 7.0 * PX) / (1.3 * PX)
             rope = np.exp(-rope_d ** 2) * inside
@@ -180,6 +182,7 @@ def hut(R: float, H: float, door: bool, seed: int) -> tuple:
     edge = np.clip(cov - np.roll(np.roll(cov, 3, axis=1), 2, axis=0), 0, 1)
     glow = np.clip(cov - np.roll(np.roll(blur(cov, 3.0), 7, axis=1), 5, axis=0), 0, 1)
     col = mix(col, hexc("ffd08a"), np.clip(glow * 0.55 + edge * 0.6, 0, 1) * (1 - smooth(-0.2, 0.6, uu)))
+    col = mix(col, hexc("2a160e"), ink_edge(cov, 2.6) * 0.85)  # round 5: inked like the hero
     info = {"size": [w / PX, h / PX], "base": (h - base) / PX}
     front = None
     if door:

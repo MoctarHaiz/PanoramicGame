@@ -251,3 +251,52 @@ icon colours, the start prompt off the platform, the menu's Best panel.
 - perf.gd, whole level, iPhone 15 (AAA/ux/round_4/perf_iphone15.*): texture menu 61.4, play 53.6,
   paused 53.6, results 56.1, menu again 64.2 MB (QA round 4: 66.2 / 92.9 / 86.9 / 105.5 / 113.7);
   draw calls play 513, paused 446, results 997 (QA: 515 / 390 / 959); worst own work in play 7.3 ms.
+
+## Round 5
+
+Judge j04 (pause 6.5, game over 6) and ROUND5.md (ux): a clean dim, a readable motif, one way to
+show state.
+
+- Blur: the snapshot is still taken once at 1/16 (no copy kept, nothing per frame on the CPU), but
+  drawn through soft_blur.gdshader: a cubic B-spline sample (four bilinear taps, one draw call), so
+  the stretched picture is smooth (no blocks, no stair-stepped edges). Dim: scrim 0.42 (loss 0.48,
+  win a warm 0.38), vignette 0.7.
+- The card's soft shadow was seven stacked rects (they showed as steps on the dim): one StyleBoxFlat
+  shadow now, a smooth falloff in one draw.
+- Motif: the beads are gone (they read as dots, the ribbon's strings as fairy lights): a bold Zulu
+  band in the frame, red and black diamonds on cream with a dark edge, 22 x 14 px, mirrored from
+  the middle, drawn from one tile (one textured rect per half band).
+- Pause: one sign of state: off, the tile's icon is dimmed and struck through (no lamp, no "On" text,
+  no change of colour); music, sounds and controls in gold, Home in red; tiles 128, Resume 122.
+- Game over: the caught line a plain deep-red label (no stroke closing the letters); the count on a
+  dark leather well (cream numbers stand out); "Way home" 28 in cream on it; the bar without the
+  quarter dots; "New best!" a gold chip, upright, a bigger crown; a side margin of at least 6 % of
+  the width around the group; the defeat render placed by its shape (a wide, seated render leans
+  on the card's edge; an upright one stands beside it).
+- Win: the same dark well (no beige on beige); rhythm: stars, count and stamp tight together, 18 px
+  of air before the buttons; the sunburst warm orange in normal blend (additive vanished on cream);
+  the stars' heavy ink outline a fine warm rim.
+- Settings: one tile colour for every row (orange); group titles in the heaviest weight, 34, a gold
+  icon and a rule to the column's edge; "Feel" is "Effects" / "Effets" with a sparkle; the back
+  button in the panels' wood (Ui.wood_button); the off switch slate grey with a white cross; a
+  lighter scrim (0.3, vignette 0.65) so the sunset and Panoramic fill the left; French "Secousses"
+  and "Effets réduits" (one line each).
+- Start: a compact prompt in the sky (centred at 38 % of the height, above the platforms and the
+  ground): gold words on dark glass with a gold rim (reads on yellow grass and blue sky), the hand
+  beside the words, a gentle breath.
+- HUD: the portrait through lift.gdshader (gamma 0.7: his face reads); the plates deeper (bevel 7,
+  more gloss, a thicker gold rim), hearts 37, the count 34.
+- Menu: the gear is a plaque button (Ui.plaque_button), the Best plaque's style and height; "Best"
+  30 in the heaviest weight; more air in the stack; the empty star socket darker (contrast on cream).
+
+### Round 5, QA's audit (qa/round_5/bugs.md, ux)
+- The blocky blur and the banded card shadow: as above (B-spline stretch; one StyleBoxFlat shadow).
+- PERF-1: `GamePanel.hide_when_covered(nodes)`: once the picture behind has faded in, the world's clip
+  and the soil band under it are hidden (a still picture stands for them) and come back when the
+  panel goes (`uncover()`, called by resume before the fade-out, and on exit). Nothing is hidden
+  where no picture was taken (headless tests). game_screen.gd: one call after each panel opens and
+  one before the pause fades out. perf.gd, whole level, iPhone 15: draw calls paused 446 -> 273,
+  results 997 -> 355; texture memory 64.4 MB at its peak (menu again).
+- The way-home bar's quarter studs are gone (the "21%" no longer sits between lone dots).
+- The start prompt is at most 55 % of the screen's width (iPad), in the sky, never over him or the
+  Red Bobs.

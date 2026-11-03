@@ -7,15 +7,19 @@ extends Node2D
 ## pieces smear along their path. Everything is drawn in a few batched calls, then the node frees
 ## itself. Made by Fx (rescue, game over, the bushes, the stone).
 
-enum Shape { PAPER, RIBBON, SEQUIN, STAR, LEAF, CHIP, COIN, PETAL, BEAD, STREAMER }
+enum Shape { PAPER, RIBBON, SEQUIN, STAR, LEAF, CHIP, COIN, PETAL, BEAD, STREAMER, STRIP }
 
 ## Size of each shape in design px at size 1.
 const SIZES := {
 	Shape.PAPER: Vector2(19, 12), Shape.RIBBON: Vector2(30, 10), Shape.SEQUIN: Vector2(13, 13),
 	Shape.STAR: Vector2(19, 19), Shape.LEAF: Vector2(27, 14), Shape.CHIP: Vector2(15, 13), Shape.COIN: Vector2(22, 22),
 	Shape.PETAL: Vector2(18, 11), Shape.BEAD: Vector2(10, 10), Shape.STREAMER: Vector2(54, 15),
+	Shape.STRIP: Vector2(22, 8),
 }
 const STREAK_SPEED := 420.0  ## faster than this (px/s), a piece leaves a smear
+## Two-tone paper (STRIP): the colour of a strip's back for each front colour (others: darker).
+const TWO_TONE := {"ffcf3a": Color("fff4d0"), "e8452e": Color("ffb37a"), "4a43a8": Color("8fd0ff"),
+		"fff1d0": Color("ffcf3a"), "ff7a52": Color("ffe0b0"), "f5b81c": Color("b86a10")}
 
 static var _textures := {}
 static var _flare: Texture2D
@@ -46,6 +50,7 @@ class Piece:
 	var glint_phase: float
 	var size: Vector2
 	var colour: Color
+	var back: Color  # the colour of its other side (two-tone paper)
 	var shape: Shape
 	var age: float
 	var life: float
@@ -121,6 +126,7 @@ func sparkle(count: int, colours: Array, speed: Vector2, size := 1.0, life := Ve
 func _setup(p: Piece, shapes: Array, colours: Array, size: float, life: Vector2) -> void:
 	p.shape = shapes[randi() % shapes.size()]
 	p.colour = colours[randi() % colours.size()]
+	p.back = TWO_TONE.get(p.colour.to_html(false), p.colour.darkened(0.4))
 	p.size = SIZES[p.shape] * size * randf_range(0.8, 1.2)
 	p.turn = randf() * TAU
 	p.turn_speed = randf_range(-9.0, 9.0)
@@ -201,8 +207,13 @@ func _draw_pieces() -> void:
 			var face := cos(p.flip)
 			var w := 1.0 if p.shape == Shape.BEAD else maxf(absf(face), 0.14)  # a bead is round from every side
 			var grow := minf(p.age / 0.06, 1.0)  # pieces open out of the burst
-			# a long ribbon twists across its width (keeping its length); a flat piece turns edge-on
-			var twist := Vector2(1.0, maxf(w, 0.55)) if p.shape == Shape.STREAMER or p.shape == Shape.RIBBON else Vector2(w, 1.0)
+			# a long ribbon twists across its width (keeping its length), a paper strip about its length;
+			# a flat piece turns edge-on
+			var twist := Vector2(w, 1.0)
+			if p.shape == Shape.STREAMER or p.shape == Shape.RIBBON:
+				twist = Vector2(1.0, maxf(w, 0.55))
+			elif p.shape == Shape.STRIP:
+				twist = Vector2(1.0, maxf(w, 0.3))
 			draw_set_transform(p.pos, p.turn, twist * grow)
 			draw_texture_rect(tex, Rect2(-p.size / 2, p.size), false, _shade(p))
 	draw_set_transform(Vector2.ZERO)
@@ -245,9 +256,13 @@ func _draw_lights() -> void:
 func _shade(p: Piece) -> Color:
 	var face := cos(p.flip)
 	var lit := 0.6 + 0.4 * absf(face)
+	var base := p.colour
 	if face < 0.0:
-		lit *= 0.8
-	var c := Color(p.colour.r * lit, p.colour.g * lit, p.colour.b * lit, _fade(p.age, p.life))
+		if p.shape == Shape.STRIP:  # two-tone paper: its other side shows as it turns over
+			base = p.back
+		else:
+			lit *= 0.8
+	var c := Color(base.r * lit, base.g * lit, base.b * lit, _fade(p.age, p.life))
 	if glints:
 		c = c.lerp(Color(1, 1, 1, c.a), 0.55 * _glint(p))
 	return c
@@ -323,6 +338,10 @@ static func _bake_textures() -> void:
 		var spec := pow(maxf(1.0 - (u - Vector2(-0.35, -0.4)).length() / 0.3, 0.0), 2.0)
 		var rim := smoothstep(0.7, 0.95, r) * (1.0 - light) * 0.3
 		return Vector2(0.45 + 0.45 * light + 0.6 * spec + rim, (0.96 - r) * 12.0))
+	# A paper strip: a small rectangle, a slight curl lit along its length (brighter at one end).
+	_textures[Shape.STRIP] = _bake(Vector2i(44, 16), func(u: Vector2) -> Vector2:
+		var d := _box(u, Vector2(0.95, 0.85), 0.2)
+		return Vector2(0.78 + 0.18 * (1.0 - absf(u.x + 0.3)) - 0.08 * u.y, d))
 	# A streamer: a wide satin ribbon in a gentle double curl, shaded across its width (lit edge on
 	# top, a glossy band, its underside darker) and darker where the curl turns away from the light.
 	_textures[Shape.STREAMER] = _bake(Vector2i(96, 30), func(u: Vector2) -> Vector2:

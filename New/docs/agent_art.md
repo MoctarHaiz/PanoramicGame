@@ -214,3 +214,25 @@ win and defeat renders; (6) the studio logo; (7) the null texture on the first b
 - Atlas: SCALE 0.41 -> 0.40 so the ink line costs no memory: 9.49 Mpx in 3 pages (round 3: 9.56).
 - Tests with the bot: 1012 checks, 0 failed, exit 0; the bot gets home (3 lives, 82 Red Bobs).
 - Captures `_agents/AAA/art/round_4/` (iPhone 15, --ads=off) and `before_after.png`.
+
+## Round 5: key art with a face, a lighter in-game line
+
+- New interface poses (front camera looking 7° up, so his face shows under his hair):
+  `pose_key_art()` (menu: three-quarters to us, the steel ring held up in his right hand by his
+  face, left fist on his hip, chin up), `pose_celebrate()` (win: armoured fist punched up, the
+  other pumped at his chest), `pose_seated()` (game over: sat on the ground, one knee up, the other
+  leg across the picture, a hand propping him, the other to his head, face turned to us). The model
+  has no face rig (no shape keys): no smile possible without editing the user's texture.
+- Toon materials: the cloth (light, unsaturated albedo) takes its folds from the normal map and a
+  warm cream band ramp (`TOON_CLOTH`); the blue boots and armguard warmed and less saturated in the
+  light; ink warm dark brown (0.16, 0.07, 0.04), thinner (hull 0.003; silhouette +1.0 px); sun rim
+  stronger (day 0.85; sunset 1.6, darker front bands).
+- Bandit signature: magenta wraps, dark plum skin, a gold mask band, the bone-white club.
+- In play: darker contact shadows under the hero and the bandit; shader rim 0.7 (hero), 0.75
+  (bandit).
+- Red Bobs: a sun-side light rim and a crisp white shine on the sheet, a thin warm ink; drawn 28
+  units (no overlap), a deeper float staggered along a row as a ripple.
+- Seated defeat fixed: the knee drawn up, the other leg along the ground, his seat on it (the
+  look-up camera lifts what reaches away: the outstretched leg aimed a little down).
+- Results: see `_agents/AAA/art/round_5/` (iPhone 15, --ads=off) and `before_after.png`; tests
+  with the bot in `_agents/AAA/art/round_5_tests.log`.

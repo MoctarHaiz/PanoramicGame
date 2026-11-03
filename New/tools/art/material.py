@@ -209,6 +209,8 @@ def spire(seed: int, w: int = 192, h: int = 1120) -> np.ndarray:
     lam = 0.5 + 0.5 * turn - 0.35 * flute + 0.4 * grain - shade_lip[:, None]
     lam += cap[:, None] * 0.12 * (turn > -0.3)
     lam = np.clip(lam, 0, 1)
+    from paint import cel  # (round 5: flat light bands, the hero's style)
+    lam = 0.12 + 0.76 * cel(lam, (0.36, 0.62))
     stops = [(0.0, hexc("332a58")), (0.33, hexc("5e4470")), (0.55, hexc("aa6250")), (0.76, hexc("e0884e")),
              (1.0, hexc("ffc884"))]
     pos = np.array([p for p, _ in stops])
@@ -231,6 +233,10 @@ def spire(seed: int, w: int = 192, h: int = 1120) -> np.ndarray:
     rgb = rgb + (hexc("ffd8a0") - rgb) * (np.clip(rim, 0, 1) * inside * 0.7)[..., None]
     # darker and cooler towards the foot (in the river's shade)
     rgb = rgb * (1.0 - 0.32 * t ** 1.6)[:, None, None] + np.array([0.12, 0.1, 0.24]) * 0.3 * (t ** 2)[:, None, None]
+    # round 5: ink round the silhouette and in the bedding planes
+    from paint import ink_edge
+    ink = np.maximum(ink_edge(inside, 2.6), np.clip(1.0 - plane / 0.06, 0, 1) * (u < 0.97) * (u > 0.03) * inside)
+    rgb = rgb * (1 - ink[..., None] * 0.9) + np.array([0.16, 0.08, 0.07]) * ink[..., None] * 0.9
     return np.dstack([np.clip(rgb, 0, 1), inside])
 
 

@@ -20,8 +20,8 @@ ACCESSIBILITY,Comfort,Confort
 MUSIC,Music,Musique
 SOUNDS,Sounds,Sons
 VIBRATION,Vibration,Vibrations
-SCREEN_SHAKE,Screen shake,Tremblements de l’écran
-REDUCE_MOTION,Reduce motion,Réduire les animations
+SCREEN_SHAKE,Screen shake,Secousses
+REDUCE_MOTION,Reduce motion,Effets réduits
 REPLAY_TUTORIAL,Replay the tutorial,Revoir le tutoriel
 TUTORIAL_AGAIN,The tutorial will play on your next run.,Le tutoriel reviendra à ta prochaine partie.
 LANGUAGE,Language,Langue
@@ -68,7 +68,7 @@ CONTROLS,Controls,Commandes
 SWITCH_ON,On,Oui
 SWITCH_OFF,Off,Non
 GENERAL,Game,Jeu
-FEEL,Feel,Sensations
+FEEL,Effects,Effets
 HELP,Help,Aide
 SOUND_GROUP,Sound,Son
 WAY_HOME,Way home,Vers la maison

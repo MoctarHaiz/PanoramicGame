@@ -34,6 +34,7 @@ const PARTY_SHAPES := [Confetti.Shape.PETAL, Confetti.Shape.PETAL, Confetti.Shap
 		Confetti.Shape.BEAD, Confetti.Shape.SEQUIN]
 const PLUS_SIZE := 118  ## font size of the "+1" and the "×N" (design px): one size, scaled per use
 const PLUS_SCALE := 1.3  ## the "+1" drawn bigger than its glyphs' size (it reads at phone size)
+const PLUS_FILL := Color("fff6e4")  ## the "+1"'s cream-white
 ## The badges' outlines (px): the dark stroke and the warm rim. The "+1" and the "×N" share them and
 ## the font size, so their glyphs are rasterised once (each size and outline is megabytes of pages).
 const BADGE_OUTLINES: Array[int] = [34, 16]
@@ -71,7 +72,6 @@ static var _puff_tex: Texture2D
 static var _vignette_tex: Texture2D
 static var _edge_tex: Texture2D
 static var _additive: CanvasItemMaterial
-static var _shine: ShaderMaterial
 static var _plus_font: Font
 
 
@@ -119,21 +119,21 @@ static func impact_burst(parent: Node, at: Vector2, away: Vector2, size: StringN
 			Vector2(0.2, 0.4))
 
 
-## The "+1" of a knock-out: a bold gold number on a thick dark stroke with a warm gold rim and a drop
-## shadow, that pops in (0 to 1.5 to 1 in six frames), rises 40 units easing out, holds and fades.
+## The "+1" of a knock-out: a bold cream-white number on a thick solid dark stroke and a drop shadow:
+## it reads on any ground, the bright sky and the brown earth alike (no custom shader: the title
+## font is MSDF, and Godot's own text drawing decodes it); that pops in (0 to 1.5 to 1 in six frames), rises 40 units easing out, holds and fades.
 ## (Drawn at PLUS_SIZE with BADGE_OUTLINES like the streak's "×N": one set of glyphs for both.)
 static func plus_one(parent: Node, at: Vector2) -> void:
 	var node := Node2D.new()
 	node.position = at
-	node.material = shine_material()
 	var font := plus_font()
 	var w := font.get_string_size("+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE).x
 	var base := Vector2(-w / 2, PLUS_SIZE * 0.36)  # the baseline that centres the figures on the node
 	node.draw.connect(func() -> void:
-		node.draw_string_outline(font, base + Vector2(4, 12), "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, BADGE_OUTLINES[0], Color(0.08, 0.03, 0.0, 0.55))
-		node.draw_string_outline(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, BADGE_OUTLINES[0], Color("2a1204"))
-		node.draw_string_outline(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, BADGE_OUTLINES[1], Color("b8650c"))
-		node.draw_string(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, Color.WHITE))
+		node.draw_string_outline(font, base + Vector2(4, 12), "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, BADGE_OUTLINES[0], Color(0.05, 0.02, 0.0, 0.6))
+		node.draw_string_outline(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, BADGE_OUTLINES[0], Color("1c0b02"))
+		node.draw_string_outline(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, BADGE_OUTLINES[1], Color("2e1405"))
+		node.draw_string(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, PLUS_FILL))
 	parent.add_child(node)
 	var big := PLUS_SCALE
 	node.scale = Vector2.ZERO
@@ -182,15 +182,15 @@ static func confetti_burst(parent: Node, at: Vector2) -> void:
 	glow(parent, at, Color(1, 0.9, 0.65, 0.8), 0.3, 1.6, 0.35)
 	var c := Confetti.make(parent, at)
 	c.gravity = 900.0
-	c.drag = 1.4
-	c.flutter = 480.0
-	# big glossy streamers and ribbons in three sizes (the near ones bigger and fewer), tumbling
-	c.spray(26, STREAMERS, STREAMER_COLOURS, Vector2(700, 1700), Vector2.UP, 70.0, 1.5, Vector2(2.4, 3.2), 30.0)
-	c.spray(14, STREAMERS, STREAMER_COLOURS, Vector2(800, 1800), Vector2.UP, 60.0, 2.1, Vector2(2.4, 3.2), 30.0)
-	c.spray(5, STREAMERS, STREAMER_COLOURS, Vector2(900, 1900), Vector2.UP, 50.0, 2.8, Vector2(2.4, 3.2), 30.0)
-	c.spray(20, [Confetti.Shape.PETAL, Confetti.Shape.BEAD], PARTY, Vector2(600, 1500), Vector2.UP, 75.0, 1.6,
-			Vector2(2.0, 2.8), 30.0)
-	c.sparkle(20, GOLD, Vector2(200, 600), 1.0)
+	c.drag = 1.6
+	c.flutter = 520.0
+	# small two-tone paper strips (their backs another colour: they flash light and dark as they
+	# turn) in three sizes, the near ones bigger and fewer; a few gold sequins; sparkles
+	c.spray(28, [Confetti.Shape.STRIP], STREAMER_COLOURS, Vector2(700, 1600), Vector2.UP, 70.0, 1.25, Vector2(2.4, 3.2), 30.0)
+	c.spray(12, [Confetti.Shape.STRIP], STREAMER_COLOURS, Vector2(800, 1700), Vector2.UP, 60.0, 1.65, Vector2(2.4, 3.2), 30.0)
+	c.spray(5, [Confetti.Shape.STRIP], STREAMER_COLOURS, Vector2(900, 1800), Vector2.UP, 50.0, 2.1, Vector2(2.4, 3.2), 30.0)
+	c.spray(6, [Confetti.Shape.SEQUIN], GOLD, Vector2(600, 1500), Vector2.UP, 75.0, 1.0, Vector2(2.0, 2.8), 30.0)
+	c.sparkle(24, GOLD, Vector2(200, 650), 1.0, Vector2(0.6, 1.2))
 
 
 ## Fireworks from `from` (a lower corner of the screen, effects units): three shells rise steeply,
@@ -209,6 +209,7 @@ static func fireworks(parent: Node, from: Vector2, inward: float) -> void:
 
 class FireworkShow extends Node2D:
 	const GRAVITY := 900.0
+	const BLOOM_TIME := 1.3  ## seconds the burst's light hangs in the sky
 	var _shells: Array[Vector4] = []  # x, y, delay, hue index
 	var _shell_vel: Array[Vector2] = []
 	var _sparks: Array[Vector4] = []  # x, y, age, life
@@ -237,9 +238,9 @@ class FireworkShow extends Node2D:
 				var hue: Color = Fx.FIREWORK_HUES[int(_shells[i].w)]
 				Audio.play_sfx(&"firework")
 				_blooms.append(Vector4(at.x, at.y, 0.0, _shells[i].w))
-				for k in 40:
-					var dir := Vector2.from_angle(k * TAU / 40.0 + randf_range(-0.08, 0.08))
-					_add_spark(at, dir * randf_range(620.0, 980.0), randf_range(1.0, 1.45), hue)
+				for k in 40:  # a full peony, not a tidy ring: speeds spread through the sphere
+					var dir := Vector2.from_angle(randf() * TAU)
+					_add_spark(at, dir * 1000.0 * sqrt(randf_range(0.12, 1.0)), randf_range(1.1, 1.6), hue)
 				_shells.remove_at(i)
 				_shell_vel.remove_at(i)
 		for i in range(_sparks.size() - 1, -1, -1):
@@ -254,7 +255,7 @@ class FireworkShow extends Node2D:
 				_spark_col.remove_at(i)
 		for i in range(_blooms.size() - 1, -1, -1):
 			_blooms[i].z += delta
-			if _blooms[i].z > 0.5:
+			if _blooms[i].z > BLOOM_TIME:
 				_blooms.remove_at(i)
 		if _shells.is_empty() and _sparks.is_empty() and _blooms.is_empty():
 			queue_free()
@@ -265,30 +266,32 @@ class FireworkShow extends Node2D:
 		_spark_vel.append(vel)
 		_spark_col.append(colour)
 
-	## Everything is soft light (one texture, added): no lines.
+	## Everything is soft light (one texture, added, so it draws in one batch): no lines.
 	func _draw() -> void:
 		var tex := Fx.glow_texture()
-		for b in _blooms:  # the burst: a white-hot flash in a wide bloom of its colour, swelling and fading
-			var k := b.z / 0.5
+		for b in _blooms:  # the burst: a flash, then a haze of its colour that lights the sky and fades
+			var k := b.z / BLOOM_TIME
 			var hue: Color = Fx.FIREWORK_HUES[int(b.w)]
-			var r := 120.0 + 260.0 * (1.0 - pow(1.0 - k, 3.0))
-			_glow(tex, Vector2(b.x, b.y), r, Color(hue, 0.75 * (1.0 - k) * (1.0 - k)))
-			if k < 0.25:
-				_glow(tex, Vector2(b.x, b.y), 90.0 * (1.0 + k), Color(1, 0.97, 0.9, 1.0 - k / 0.25))
+			var r := 140.0 + 240.0 * (1.0 - pow(1.0 - minf(k * 2.0, 1.0), 3.0))
+			_glow(tex, Vector2(b.x, b.y), r, Color(hue, 0.55 * (1.0 - k) * (1.0 - k)))
+			if k < 0.15:
+				_glow(tex, Vector2(b.x, b.y), 110.0 * (1.0 + k * 3.0), Color(1, 0.97, 0.9, 1.0 - k / 0.15))
 		for s in _shells:
 			if s.z <= 0.0:
-				_glow(tex, Vector2(s.x, s.y), 22.0, Fx.FIREWORK[0])
-		for i in _sparks.size():
+				_glow(tex, Vector2(s.x, s.y), 40.0, Color(Fx.FIREWORK[1], 0.5))
+				_glow(tex, Vector2(s.x, s.y), 14.0, Fx.FIREWORK[0])
+		for i in _sparks.size():  # each spark: a wide halo of its colour, a trail, a white-hot core
 			var s := _sparks[i]
 			var k := s.z / s.w
 			var fadeout := 1.0 - k * k
-			var glitter := (0.5 + 0.5 * sin(s.z * 60.0 + i * 1.7)) if k > 0.55 else 1.0  # twinkles as it dies
-			var hot := Color(1, 0.97, 0.88).lerp(_spark_col[i], minf(k * 2.5, 1.0))  # white-hot, then its colour
+			var glitter := (0.55 + 0.45 * sin(s.z * 60.0 + i * 1.7)) if k > 0.6 else 1.0  # twinkles as it dies
+			var hue := _spark_col[i]
 			var head := Vector2(s.x, s.y)
-			for t in 5:  # a comet: its head and a tail of fading glow behind it
-				var back := head - _spark_vel[i] * (0.012 * t)
-				var r := (18.0 - 2.6 * t) * (1.0 - 0.35 * k)
-				_glow(tex, back, r, Color(hot, fadeout * glitter * (1.0 - t * 0.18)))
+			_glow(tex, head, 38.0 * (1.0 - 0.4 * k), Color(hue, 0.32 * fadeout))
+			for t in range(1, 5):
+				var back := head - _spark_vel[i] * (0.022 * t)
+				_glow(tex, back, (15.0 - 2.2 * t) * (1.0 - 0.3 * k), Color(hue, fadeout * glitter * (0.9 - t * 0.18)))
+			_glow(tex, head, 11.0 * (1.0 - 0.3 * k), Color(Color(1, 0.98, 0.92).lerp(hue, k * 0.7), fadeout * glitter))
 
 	func _glow(tex: Texture2D, at: Vector2, r: float, colour: Color) -> void:
 		draw_texture_rect(tex, Rect2(at - Vector2(r, r), Vector2(r, r) * 2), false, colour)
@@ -629,29 +632,27 @@ static func bob_pop(parent: Node, at: Vector2, combo: int) -> void:
 		Confetti.make(parent, at).sparkle(8, SPARKS, Vector2(160, 520), 0.9, Vector2(0.3, 0.55))
 
 
-## Home: the doorway's warm light (`at`: the middle of the doorway, effects units) as soft light,
-## not a fill: a broad, faint warm halo in the air round the doorway, a long flat pool of it on the
-## ground at the threshold, both breathing; long rays from the doorway; embers rising from the hearth.
-## (Nothing fills the doorway itself: the hut's own firelight is there, and he stands in it.)
+## Home: the doorway's warm light (`at`: the middle of the doorway, effects units) as soft light
+## that keeps him readable: a long flat pool of it on the ground at the threshold, breathing, and
+## long rays fanning from the top of the doorway (over his head, not through him); embers rising from
+## the hearth. (The doorway's own firelight is the hut's; nothing is added over his body.)
 static func home_glow(parent: Node, at: Vector2) -> void:
-	var ground := at + Vector2(0.0, 130.0)  # the threshold: the doorway's foot
-	for spec: Array in [[at + Vector2(0.0, -40.0), Vector2(9.0, 7.0), 0.13], [ground, Vector2(10.0, 1.5), 0.2]]:
-		var g := Sprite2D.new()
-		g.texture = glow_texture()
-		g.material = additive()
-		g.position = spec[0]
-		g.modulate = Color(1, 0.78, 0.48, 0.0)
-		g.scale = spec[1] * 0.6
-		parent.add_child(g)
-		var t := g.create_tween()
-		t.tween_property(g, "modulate:a", spec[2], 0.6).set_trans(Tween.TRANS_SINE)
-		t.parallel().tween_property(g, "scale", spec[1], 1.0).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
-		for i in 3:
-			t.tween_property(g, "modulate:a", spec[2] * 0.75, 0.5).set_trans(Tween.TRANS_SINE)
-			t.tween_property(g, "modulate:a", spec[2], 0.5).set_trans(Tween.TRANS_SINE)
-		t.tween_property(g, "modulate:a", 0.0, 0.8)
-		t.tween_callback(g.queue_free)
-	rays(parent, at, Color(1, 0.82, 0.55, 0.22), 14, 620.0, 1.8)
+	var g := Sprite2D.new()
+	g.texture = glow_texture()
+	g.material = additive()
+	g.position = at + Vector2(0.0, 130.0)  # the threshold: the doorway's foot
+	g.modulate = Color(1, 0.78, 0.48, 0.0)
+	g.scale = Vector2(10.0, 1.5) * 0.6
+	parent.add_child(g)
+	var t := g.create_tween()
+	t.tween_property(g, "modulate:a", 0.2, 0.6).set_trans(Tween.TRANS_SINE)
+	t.parallel().tween_property(g, "scale", Vector2(10.0, 1.5), 1.0).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	for i in 3:
+		t.tween_property(g, "modulate:a", 0.15, 0.5).set_trans(Tween.TRANS_SINE)
+		t.tween_property(g, "modulate:a", 0.2, 0.5).set_trans(Tween.TRANS_SINE)
+	t.tween_property(g, "modulate:a", 0.0, 0.8)
+	t.tween_callback(g.queue_free)
+	rays(parent, at + Vector2(0.0, -90.0), Color(1, 0.82, 0.55, 0.14), 14, 620.0, 1.8)
 	var p := CPUParticles2D.new()
 	p.position = at + Vector2(0, 40)
 	p.material = additive()
@@ -1021,16 +1022,6 @@ static func additive() -> CanvasItemMaterial:
 	return _additive
 
 
-## The material of the "+1": a gold fill (shine_text.gdshader).
-static func shine_material() -> ShaderMaterial:
-	if not _shine:
-		_shine = ShaderMaterial.new()
-		_shine.shader = preload("res://src/game/shine_text.gdshader")
-		_shine.set_shader_parameter(&"top_y", -PLUS_SIZE * 0.4)
-		_shine.set_shader_parameter(&"bottom_y", PLUS_SIZE * 0.38)
-	return _shine
-
-
 static func plus_font() -> Font:
 	if not _plus_font:
 		_plus_font = Ui.title_font(700)
@@ -1176,7 +1167,6 @@ static func warm_up(parent: Control) -> void:
 	glow_dot.scale = Vector2(0.05, 0.05)
 	holder.add_child(glow_dot)
 	var text := Node2D.new()
-	text.material = shine_material()
 	text.draw.connect(_draw_badge_glyphs.bind(text))
 	holder.add_child(text)
 	var bits := Confetti.make(holder, Vector2.ZERO)
@@ -1194,7 +1184,6 @@ static func warm_up(parent: Control) -> void:
 static func warm_glyphs(parent: Node) -> void:
 	var text := Node2D.new()
 	text.modulate.a = 0.01
-	text.material = shine_material()
 	text.draw.connect(_draw_badge_glyphs.bind(text))
 	parent.add_child(text)
 	var t := text.create_tween()

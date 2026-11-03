@@ -61,6 +61,9 @@ class Chunk extends Node2D:
 
 
 func build(level: Level, solid: Callable, first_col: int, end_col: int) -> void:
+	var ink := ShaderMaterial.new()  # round 5: inked like the hero (ink.gdshader)
+	ink.shader = preload("res://src/game/ink.gdshader")
+	material = ink
 	_level = level
 	_solid = solid
 	_first_col = first_col
@@ -175,6 +178,7 @@ func _build_chunk(c0: int) -> void:
 		return
 	var chunk := Chunk.new()
 	chunk.items = _items
+	chunk.use_parent_material = true  # (the ink round each prop)
 	add_child(chunk)
 
 

@@ -270,3 +270,23 @@ A lighter pattern never cuts into a heavier one still playing; nothing plays whe
   change per piece). Both now go texture by texture and batch. Play max 515 -> 390.
 - Tests: 1012/1012 twice; one --bot run had 1 intermittent failure of a camera check ("stepped right",
   env's camera, phone_1280x720 frame 39) that did not repeat.
+
+## Round 5 (2026-11-03): AAA/judge/j04 (merged round 4: 0/12, 5.62)
+- "+1": cream-white (PLUS_FILL) on a thick solid dark stroke (both outline passes dark) and a drop shadow,
+  one font size. The gold gloss shader (shine_text) is no longer used on it: UX made the title font MSDF
+  (Fredoka), and a custom shader that samples TEXTURE reads the raw distance field (the "+1" came out
+  grey with a grey stroke). Godot's own text drawing decodes MSDF; shine_material() removed from fx.gd
+  (shine_text.gdshader stays: env's warm-up list loads it). With MSDF every size and outline shares one
+  atlas: the badges' single font size no longer matters for memory, kept anyway.
+- Win fireworks: peony bursts (speeds spread through the sphere, random angles: no tidy rings or hearts),
+  each spark a wide halo of its colour + a 4-glow trail + a white-hot core; each burst leaves a haze of its
+  colour in the sky for 1.3 s (BLOOM_TIME), so a still shows glow at any moment of the reveal.
+- Home confetti: small two-tone paper strips (new STRIP shape 22 x 8; TWO_TONE back colours: gold/cream,
+  red/peach, indigo/sky, cream/gold, coral/cream, deep gold/bronze) flipping about their length (light and
+  dark faces alternate), 28/12/5 in three sizes, 6 gold sequins, 24 sparkles; no streamers or petals.
+- Home light: the halo in the air over him is gone (it washed out his silhouette); a flat pool on the
+  ground and rays fanning from above the doorway (alpha 0.14) remain.
+- Perf (perf.tscn, iPhone 15, full level; a9e1ff0's fx/confetti vs mine): texture memory equal (run 53.3,
+  results 56.0, menu after 64.1 MB); results draw calls max 516 -> 515; objects 2 758 -> 2 930; play draw
+  calls max 429 -> 431 (noise); worst own frame of play 9.0 ms (PASS).
+- Tests: 1017 checks, 0 failed, exit 0; --bot: home, 3 lives, 82 Red Bobs, 3 stars.

@@ -29,6 +29,7 @@ const ZOOM_MAX := 1.26
 const HEAD_ROOM := 132.0  ## screen units (of 640) over his head
 const HEAD := 74.0  ## play units from his centre up to the top of his head (drawn 150 tall from his feet)
 const HUD_BAND := 78.0  ## screen units kept for the HUD over the vine
+const VINE_GAP := 30.0  ## round 5: and this much more, so his hands on the vine never touch the HUD
 const VINE_TOP := -8.0  ## play y of the top of the vine (VineView)
 const ZOOM_OUT_RATE := 9.0  ## how fast the camera draws back (1/s; round 4: faster, GP-1), and closes in again
 const ZOOM_IN_RATE := 1.4
@@ -239,7 +240,7 @@ func _place_camera(delta: float) -> void:
 	var need := world.camera_must_see()
 	# (looking further ahead than the rules: the camera is down again before a drop ahead must show)
 	var low := maxf(need.end.y, _lowest_ahead(world, World.SEE_AHEAD_DOWN + HIGH_LOOKAHEAD) + 24.0)
-	var fits := low - need.position.y + HUD_BAND / (_k * base) <= _clip.size.y / (_k * base) - 4.0
+	var fits := low - need.position.y + hud_band() / (_k * base) <= _clip.size.y / (_k * base) - 4.0
 	if not fits:
 		high = 0.0
 	var goal := lerpf(minf(base, follow_zoom(world, p)), base, _high)
@@ -257,12 +258,12 @@ func _place_camera(delta: float) -> void:
 	var at := Vector2(inset, _clip.size.y - World.VIEW_H * zoom_k)
 	if _high > 0.001:  # risen: his feet HIGH_FEET down the screen, never above the vine under the HUD
 		var bottom_top := World.VIEW_H - _clip.size.y / zoom_k  # (the play y at the top, ground on the bottom)
-		var vine_top := VINE_TOP - HUD_BAND / zoom_k
+		var vine_top := VINE_TOP - (hud_band() + VINE_GAP) / zoom_k
 		var top := clampf(_support - HIGH_FEET * _clip.size.y / zoom_k, vine_top, bottom_top)
 		if world.state == World.State.RUNNING and _vine_in_reach(world):
 			top = vine_top  # where a jump reaches the vine: it shows under the HUD
 		# and what must be seen stays in view, the whole time (under the HUD band, above the bottom)
-		top = clampf(top, need.end.y - _clip.size.y / zoom_k, need.position.y - HUD_BAND / zoom_k)
+		top = clampf(top, need.end.y - _clip.size.y / zoom_k, need.position.y - hud_band() / zoom_k)
 		at.y = -lerpf(bottom_top, top, _high) * zoom_k
 	if _push > 1.0001 and home:  # New: the push draws the hut and him to the middle of the screen as it goes
 		# in (about the doorway, a 4:3 iPad lost the hut's right half past its edge)
@@ -327,7 +328,7 @@ func _keep_fair(zoom: float, at: Vector2) -> Array:
 		need = Rect2(lo, hi - lo)
 	_need = need
 	var insets := Device.insets()
-	var area := Rect2(insets.x, HUD_BAND, _clip.size.x - insets.x - insets.z, _clip.size.y - HUD_BAND)
+	var area := Rect2(insets.x, hud_band(), _clip.size.x - insets.x - insets.z, _clip.size.y - hud_band())
 	var fit := minf(area.size.x / need.size.x, area.size.y / need.size.y)
 	if zoom > fit:  # zoomed out about the middle of what must be seen
 		var c := at + need.get_center() * zoom
@@ -357,6 +358,12 @@ func visible_play_rect() -> Rect2:
 	return Rect2(-at / zoom, _clip.size / zoom)
 
 
+## The screen units the HUD takes at the top: HUD_BAND under the screen's top safe inset (round 5,
+## QA: on an iPad the inset put the vine and his hands under the progress plate).
+static func hud_band() -> float:
+	return HUD_BAND + Device.insets().y
+
+
 ## The camera's zoom on a screen showing `width` play units right of the play window's left edge
 ## (at zoom 1: the 640 units fill its height): closed in as far as still shows VIEW_AHEAD (at most
 ## ZOOM_MAX), or drawn back on a narrow screen (a 4:3 iPad) to show the whole 960 of the 2017 game.
@@ -368,7 +375,7 @@ static func base_zoom(width: float) -> float:
 ## head HEAD_ROOM under the top of the screen (in a jump, the top of the jump, from take-off), and
 ## the vine under the HUD while he hangs from it, rises to it, or stands where a jump reaches it.
 static func follow_zoom(w: World, p: Vector2) -> float:
-	var vine := (World.VIEW_H - HUD_BAND) / (World.VIEW_H - VINE_TOP)
+	var vine := (World.VIEW_H - hud_band() - VINE_GAP) / (World.VIEW_H - VINE_TOP)
 	if w.state == World.State.RUNNING and (w.hanging or w.rising_to_vine()):
 		return vine  # (the rules hold him at y 0 up there: he is drawn hanging under the vine)
 	var top := p.y - HEAD
@@ -766,6 +773,7 @@ func pause_game() -> void:
 	Services.ads.show_banner(true)
 	_overlay = PausePanel.open(self, resume_game, _go_home, [hud, _fliers, view.fx, _tutorial, _start_card])  # New: a clean picture behind
 	_overlay.z_index = OVERLAY_Z
+	(_overlay as GamePanel).hide_when_covered([_clip, _below])  # New (UX): the world is not drawn under its picture
 
 
 func resume_game() -> void:
@@ -778,6 +786,8 @@ func resume_game() -> void:
 	if _overlay:
 		var o := _overlay
 		_overlay = null
+		if o is GamePanel:  # New (UX): the world back under it before it fades
+			(o as GamePanel).uncover()
 		var t := o.create_tween()
 		t.tween_property(o, "modulate:a", 0.0, 0.15)
 		t.tween_callback(o.queue_free)
@@ -832,6 +842,7 @@ func _show_results(news: Dictionary) -> void:
 	_overlay = ResultsPanel.open(self, world, news, _go_home, _play_again,
 			func() -> void: Services.share.share_run(world.bobs, world.stars()), [hud, _fliers, view.fx, _tutorial, _start_card])
 	_overlay.z_index = OVERLAY_Z
+	(_overlay as GamePanel).hide_when_covered([_clip, _below])  # New (UX): the world is not drawn under its picture
 	Services.push.request_permission_once()
 
 

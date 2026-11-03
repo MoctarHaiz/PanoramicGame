@@ -23,14 +23,15 @@ func _ready() -> void:
 			_test_hang, _test_fall, _test_landing_weight, _test_bandits, _test_club_reach, _test_mercy, _test_calm_start, _test_swipes, _test_rings, _test_home_door, _test_run_home, _test_step_cap, _test_frame_rates, _test_idle,
 			_test_stars, _test_save, _test_translations, _test_config, _test_preload, _test_debug_silent,
 			_test_translation_formats, _test_sounds, _test_save_round_trip, _test_determinism, _test_screens, _test_no_leaks,
-			_test_pause_anywhere, _test_replay_home, _test_contracts, _test_audio, _test_gameplay]
+			_test_pause_anywhere, _test_replay_home, _test_contracts, _test_hud_band, _test_audio, _test_gameplay]
 	tests.append(_test_ux)
 	tests.append(_test_art)
 	tests.append(_test_env)
 	if "--bot" in OS.get_cmdline_user_args():
 		tests.append(_test_bot)
 	if "--quick" in OS.get_cmdline_user_args():  # without the screens (seconds instead of ~40 s)
-		tests = tests.filter(func(t: Callable) -> bool: return t not in [_test_screens, _test_no_leaks, _test_pause_anywhere, _test_replay_home, _test_contracts])
+		tests = tests.filter(func(t: Callable) -> bool: return t not in [_test_screens, _test_no_leaks, _test_pause_anywhere,
+				_test_replay_home, _test_contracts, _test_hud_band])
 	for test: Callable in tests:
 		await test.call()  # the release checks wait for frames
 	print("%d checks, %d failed" % [_checks, _failures])
@@ -907,6 +908,27 @@ func _test_contracts() -> void:
 	Engine.time_scale = 1.0
 
 
+## The HUD fits in the band the camera keeps free for it over the vine (GameScreen.HUD_BAND), on
+## every device: with a status bar or a notch at the top (the iPad's 48 px) the plates move down by
+## that inset, and hanging from the vine he would touch them. (2 units of slack: the plates' shadows.)
+func _test_hud_band() -> void:
+	Engine.time_scale = FAST
+	for device: String in Capture.DEVICES:
+		var vp := _device_viewport(device)
+		await _open("level")
+		var game: Node = Nav.current
+		await _frames(3)
+		var bottom := 0.0
+		for name: StringName in [&"_lives_glass", &"_track_glass", &"_count_box", &"_pause"]:
+			var plate: Control = game.hud.get(name)
+			if plate and plate.is_visible_in_tree():
+				bottom = maxf(bottom, plate.get_global_rect().end.y)
+		var band: float = GameScreenScript().hud_band()  # (env: the band with the screen's top inset)
+		_check(bottom <= band + 2.0, "%s: the HUD (down to y %.1f) fits in the band kept for it over the vine (%.0f)" % [device, bottom, band])
+		await _close(vp)
+	Engine.time_scale = 1.0
+
+
 ## A viewport at a device's size and notches (tests/capture.gd), holding the screens.
 func _device_viewport(device: String) -> SubViewport:
 	var px: Vector2i = Capture.DEVICES[device].size
@@ -1312,8 +1334,8 @@ func _gp_camera() -> void:
 				raw_before = raw
 				var zoom: float = game._stage.scale.x
 				var insets := Device.insets()
-				var area := Rect2(insets.x, GameScreenScript().HUD_BAND, game._clip.size.x - insets.x - insets.z,
-						game._clip.size.y - GameScreenScript().HUD_BAND).grow(1.5)
+				var area := Rect2(insets.x, GameScreenScript().hud_band(), game._clip.size.x - insets.x - insets.z,
+						game._clip.size.y - GameScreenScript().hud_band()).grow(1.5)
 				var eased: Rect2 = game._need
 				var target := Rect2(game._stage.position + eased.position * zoom, eased.size * zoom)
 				if f > 3 and not area.encloses(target):
@@ -2123,7 +2145,7 @@ func _test_env() -> void:
 	await get_tree().process_frame
 	_check(not built_at_once and view._ground.is_built(), "the ground is built the frame after the rest")
 	# home: a fire and people at it; the doorway's jamb goes over him only from his walk in
-	_check(view._home._fire != null and view._home._villagers.size() == HomeView.VILLAGERS.size(), "a cooking fire and people at home")
+	_check(view._home._fire != null, "a cooking fire at home")
 	_check(not view._home.front.visible, "the jamb is not drawn over him before he walks in")
 	wv.state = World.State.WON
 	wv.end_time = World.HOME_CHEER + 0.1

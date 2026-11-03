@@ -175,3 +175,32 @@ Worktree: `_agents/wt/env/New`. Captures: `_agents/AAA/env/round_<n>/`. Owns `wo
 - Perf (iPhone 15, whole level): texture memory in play 77.2 MB (under 80), 92.8 after a pause,
   113.6 back on the menu; worst own work in play 7.55 ms; level open worst frame 119 ms (81 in my
   round 3 run; the merge now adds the warm-up deferred, and the machine was shared).
+
+## Round 5: the playfield in the hero's style
+
+- Earth forms: done as a shader that reproduces cel modules (the brief's alternative to Blender
+  renders): terrain.gdshader no longer reads the soil/rock noise textures. Flat cel colours, soil
+  near the top and sandstone deeper; rock in chunky blocks set in beds of uneven thickness with
+  slanted joints, each block its own tone, its top face lit, its underside shaded, ink in the cracks;
+  soil in wavy strata with lit stones; three light bands (lit, mid, shade) from the low sun; a crisp
+  shadow under the grass lip, the foot of a wall darker, a ledge's underside in shade; thick ink round
+  the silhouette and the eroded edges. Before/after: AAA/env/round_5/before_after_r4_r5.jpg.
+- Spires, hanging masses, thatch: the same style in their generators (paint.py `cel()`, `ink_edge()`):
+  flat light bands, ink outlines, ink bedding lines.
+- Props inked like the hero (ink.gdshader on PropView).
+- Mesas: the vertical streaks were my own gullies (a horizontal gradient of vertically blurred noise:
+  fine vertical stripes, stretched on screen); gone; the light in flat bands.
+- Water: flat bands (the warm sky's light band, mid teal, deep blue), ripple dashes, a foam line, foam
+  curling at the banks, the banks' earth sloping in under an ink edge.
+- Hang: the vine framed 30 units further under the HUD (VINE_GAP): his hands never touch it.
+- Home: the family figures gone (read as placeholders twice); the doorway glow dimmer and lower behind
+  him; the dark grass along the bottom edge clears at home (his feet on the ground line); thatch in
+  flat bands with crisp shade under each tier and an ink outline.
+- QA round 5: the HUD band now adds the screen's top inset (GameScreen.hud_band(): the camera's
+  framing, its fit test and gameplay's _keep_fair area; QA's _test_hud_band and gameplay's camera test
+  read it too): on an iPad his hands on the vine stay clear of the progress plate. Far mesas imported
+  lossless (no 4x4 blocks; +2.8 MB, play was at 53 MB). An island's upper row tapers at its ends with
+  the row under it, and a ledge's underside is a wavy inked line (no square box). At home the patch
+  of trodden earth is gone: his boots on the grass line, not in the dirt under it.
+- Perf (iPhone 15, before the lossless mesas): texture memory 64.1 MB overall (play 53.2), frames
+  pass (worst own work 13.7 ms), level open worst frame 112 ms.

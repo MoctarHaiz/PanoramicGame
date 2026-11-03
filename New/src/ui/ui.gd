@@ -376,6 +376,15 @@ func round_button(icon_name: String, diameter := 112, face := WHITE, edge := EDG
 	return _icon_button(icon_name, face_colours(face, edge), Vector2(diameter, diameter), diameter / 2.0, icon_color)
 
 
+## A button in the panels' own wood: a cream parchment face in a wooden frame ring, a brown icon (the
+## settings' back button, the menu's gear: they match the panels around them, not the candy tiles).
+func wood_button(icon_name: String, button_size := Vector2(84, 84), radius := 42.0) -> JuicyButton:
+	var c := {"top": Color("fff6e0"), "bottom": Color("efd29a"), "edge": Color("c08a48"), "outline": Color("4a1e04"),
+			"frame": [Color("d8763a"), Color("7a2a0c"), Color("4a1604"), Color("2e0d04")]}
+	var b := _icon_button(icon_name, c, button_size, radius, Color("6a2a08"))
+	return b
+
+
 ## A square-ish candy icon button in a tone (the menu's records and settings).
 func icon_button(icon_name: String, tone := Tone.SUNSET, side := 124.0, radius := 38.0) -> JuicyButton:
 	return _icon_button(icon_name, tone_colours(tone), Vector2(side, side), radius, LABEL_DEEP if tone == Tone.WHITE else WHITE)
@@ -452,8 +461,22 @@ func plaque_style(radius := 30.0, pressed := false) -> GlossStyle:
 	return s
 
 
+## A square button in the cream plaque's style (the menu's gear beside the Best plaque: the same
+## frame, face and height), its icon in the panels' brown.
+func plaque_button(icon_name: String, side: float) -> JuicyButton:
+	var b := JuicyButton.new()
+	b.custom_minimum_size = Vector2(side, side)
+	for state in [&"normal", &"hover"]:
+		b.add_theme_stylebox_override(state, plaque_style(26.0))
+	b.add_theme_stylebox_override(&"pressed", plaque_style(26.0, true))
+	var i := bold_icon(icon_name, side * 0.5, Color("d0641c"), Color("4a1e04"))
+	b.add_child(_face_holder(i, plaque_style(26.0)))
+	b.content = i
+	return b
+
+
 ## A small candy pill with outlined text (and an icon): "NEW BEST!", "2×", tags.
-func chip(text: String, tone := Tone.CRIMSON, font_size := 38, icon_name := "") -> PanelContainer:
+func chip(text: String, tone := Tone.CRIMSON, font_size := 38, icon_name := "", icon_scale := 0.85) -> PanelContainer:
 	var c := tone_colours(tone)
 	var s := candy_style(tone, font_size * 0.8, false, roundf(font_size * 0.16))
 	s.content_margin_left = font_size * 0.6
@@ -468,7 +491,7 @@ func chip(text: String, tone := Tone.CRIMSON, font_size := 38, icon_name := "") 
 	row.add_theme_constant_override(&"separation", roundi(font_size * 0.2))
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if not icon_name.is_empty():
-		row.add_child(bold_icon(icon_name, font_size * 0.85, WHITE, c.outline))
+		row.add_child(bold_icon(icon_name, font_size * icon_scale, WHITE, c.outline))
 	var l := display_text(text, font_size, WHITE, c.outline, Color("fff1e6"))
 	l.outline_width = roundf(font_size * 0.12)
 	l.depth = roundf(font_size * 0.06)

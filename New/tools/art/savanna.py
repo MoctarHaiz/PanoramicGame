@@ -31,7 +31,7 @@ import numpy as np
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).parent))
-from paint import (blur, dither_rgba, fbm, hexc, mix, noise1, normals_light, poly_mask, ramp,  # noqa: E402
+from paint import (blur, cel, dither_rgba, fbm, hexc, mix, noise1, normals_light, poly_mask, ramp,  # noqa: E402
                    save, smooth, strokes)
 
 # Horizon colours shared by every layer: far things melt into these.
@@ -285,9 +285,12 @@ def mesas() -> Image.Image:
         gul /= gul.std()
         talus = smooth(0.0, 1.0, (below - (base[None, :] - profile[None, :]) * 0.62) / 40.0)
         nx = np.gradient(gul, axis=1) * 3.0 * smooth(4, 20, below) * (1 - talus)
-        light = 0.46 + 0.62 * corner - 0.22 * nx + 0.12 * talus
+        # round 5: no gullies (their fine vertical stripes, stretched on screen, read as smears),
+        # the light in flat bands: lit cliff, mid, shade
+        light = 0.46 + 0.62 * corner + 0.12 * talus
         top = 1 - smooth(1, 6, below)  # the flat tops catch the sun
         light = np.clip(light + top * 0.4, 0, 1)
+        light = 0.1 + 0.85 * cel(light, (0.38, 0.6, 0.82), 0.04)
         col = ramp(light, stops)
         beds = np.sin((yy + blur(r.standard_normal(w)[None, :], (0, 40), wrap_x=True)[0] * 60) * 0.21)
         col *= (1 + beds[..., None] * 0.05 * smooth(6, 24, below)[..., None] * (1 - talus[..., None]))

@@ -1,13 +1,14 @@
 class_name ToggleSwitch
 extends Control
 ## An on/off switch in the interface's candy style: an outlined track sunk into the panel, green
-## with a tick when on, dark sand with a cross when off (the state reads without colour too), and
+## with a white tick when on, slate grey with a white cross when off (the state reads without colour
+## too), and
 ## a white candy knob in a gold ring that slides over with a spring.
 
 signal toggled(on: bool)
 
-const TRACK_OFF := Color("b58a5c")
-const TRACK_OFF_DEEP := Color("8a6038")
+const TRACK_OFF := Color("9c9088")  ## off: a cool slate grey (sand read as "on" next to the parchment)
+const TRACK_OFF_DEEP := Color("6a5e56")
 const INK := Color("4a1e04")
 
 var on := false
@@ -71,7 +72,7 @@ func _draw() -> void:
 	var ms := size.y * 0.42
 	var mx := r * 0.95 if k > 0.5 else size.x - r * 0.95
 	draw_texture_rect(mark, Rect2(Vector2(mx - ms / 2, r - ms / 2), Vector2(ms, ms)), false,
-			Color(1, 1, 1, 0.95) if k > 0.5 else Color(INK, 0.55))
+			Color(1, 1, 1, 0.95))  # white on green or on grey: both read
 	# the knob: a white candy ball in a gold ring, its shadow under it
 	var knob_r := r - 2.0
 	var centre := Vector2(lerpf(r, size.x - r, k), r)

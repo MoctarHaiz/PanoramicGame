@@ -13,15 +13,12 @@ const DIR := "res://assets/art/world/"
 const LEFT := Level.WIDTH - World.VIEW_W  ## level x of the last screen (the camera stops here)
 const GROUND := (Level.ROWS - 2) * Level.TILE  ## the top of the ground at the end
 const DOOR_RIGHT := 840.0  ## play x of the doorway's right edge: he stops in it at 790 (World.HOME_X)
-## Round 3: people at the cooking fire (x from LEFT, units): kind, x, size, facing left
-const VILLAGERS := [[&"woman", 380.0, 0.95, false], [&"child", 466.0, 0.9, true], [&"elder", 610.0, 0.92, true]]
 
 var back: Node2D
 var yard: Node2D  ## over the ground's grass, under the actors (WorldView adds it after the ground)
 var front: Node2D
 var _glow: Sprite2D
 var _fire: Node2D
-var _villagers: Array[Node2D] = []
 var _spill: Sprite2D  # firelight on the ground before the doorway
 var _clock := 0.0
 var _welcome := 0.0  # the fire flares when he walks in (1 -> 0)
@@ -55,17 +52,13 @@ func build() -> void:
 	fire_smoke.position = _fire.position + Vector2(0, -26)
 	fire_smoke.amount = 10
 	back.add_child(fire_smoke)
-	for v: Array in VILLAGERS:
-		var person := Villager.new()
-		person.kind = v[0]
-		person.position = Vector2(LEFT + float(v[1]), GROUND + 6.0)
-		person.scale = Vector2(float(v[2]) * (-1.0 if v[3] else 1.0), float(v[2]))
-		back.add_child(person)
-		_villagers.append(person)
+	# (round 5: the family drawn at the fire read as placeholders two rounds running: gone)
 	var path := _sprite("home_yard", 1.0)  # trodden earth up to the doorway
 	path.position = Vector2(hut_left + float(hut_info["door_x"]) - 70.0, GROUND - 10.0 + 30.0)
 	path.offset = Vector2(-path.texture.get_width() / 2.0, -path.texture.get_height())
-	yard.add_child(path)
+	# (round 5: no patch of trodden earth: it read as his boots standing in the dirt under the grass
+	# line; the grass runs on to the doorway)
+	path.queue_free()
 	_spill = _sprite("home_glow", 1.0)  # the fire's light on the ground before the doorway
 	_spill.centered = true
 	_spill.offset = Vector2.ZERO
@@ -110,15 +103,14 @@ func _process(delta: float) -> void:
 	_welcome = maxf(_welcome - delta * 0.6, 0.0)
 	if _glow:  # the fire inside breathes and flickers
 		var f := 0.55 + 0.12 * sin(_clock * 2.3) + 0.08 * sin(_clock * 7.1) + 0.05 * sin(_clock * 13.7)
-		_glow.modulate = Color(1, 1, 1, minf(f + 0.45 * _welcome, 1.0))
-		_glow.scale = Vector2(1.1, 0.8) * (1.0 + 0.35 * _welcome)
+		# (round 5: dimmer and lower behind him: it washed out his silhouette in the doorway)
+		_glow.modulate = Color(1, 1, 1, minf(f * 0.55 + 0.25 * _welcome, 0.7))
+		_glow.scale = Vector2(0.9, 0.55) * (1.0 + 0.2 * _welcome)
 		_spill.modulate = Color(1, 0.8, 0.55, minf(f * 0.75 + 0.3 * _welcome, 1.0))
 
 
-## He is home: the people at the fire raise their arms, the fire flares up to welcome him.
+## He is home: the fire flares up to welcome him.
 func welcome() -> void:
-	for v in _villagers:
-		v.set(&"cheer", true)
 	var t := create_tween()
 	t.tween_interval(0.55)
 	t.tween_property(self, "_welcome", 1.0, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
@@ -253,72 +245,3 @@ class Fire extends Node2D:
 		draw_colored_polygon(PackedVector2Array([Vector2(-12, -30), Vector2(12, -30), Vector2(10, -16), Vector2(-10, -16)]),
 				Color(0.16, 0.1, 0.09))  # the pot over it, in silhouette
 		draw_line(Vector2(-13, -31), Vector2(13, -31), Color(0.85, 0.5, 0.25), 2.0)
-
-
-## Round 3: one of the family at the fire, a silhouette against the evening (drawn, no picture): a
-## warm rim on the side of the low sun, a coloured wrap; it sways a little and raises its arms when
-## he is home (`cheer`). Units, standing on y 0, facing right.
-class Villager extends Node2D:
-	var kind := &"woman"
-	var cheer := false
-	var _clock := 0.0
-	var _arms := 0.0  # 0 down .. 1 raised
-
-	func _process(delta: float) -> void:
-		_clock += delta
-		_arms = move_toward(_arms, 1.0 if cheer else 0.0, delta * 4.0)
-		queue_redraw()
-
-	func _draw() -> void:
-		var tall := 128.0 if kind == &"woman" else (82.0 if kind == &"child" else 134.0)
-		var bob := sin(_clock * (2.0 if kind == &"child" else 1.2)) * 1.2 + (sin(_clock * 9.0) * 3.0 * _arms if cheer else 0.0)
-		# round 4: shaded and lit, not cut-outs: a shadow tone, a lit mid-tone on the sun's side, a rim
-		var dark := Color(0.3, 0.18, 0.16)
-		var lit := Color(0.52, 0.33, 0.24)
-		var rim := Color(0.98, 0.68, 0.38)
-		var wrap := Color(0.62, 0.12, 0.1) if kind != &"child" else Color(0.85, 0.55, 0.15)
-		var head := Vector2(0, -tall + 10.0 + bob)
-		var waist := -tall * 0.5 + bob
-		var hem := 17.0 if kind == &"woman" else (9.0 if kind == &"child" else 12.0)
-		var body := PackedVector2Array([Vector2(-6, -tall + 19 + bob), Vector2(6, -tall + 19 + bob), Vector2(10, -tall + 24 + bob),
-				Vector2(11, waist - 6), Vector2(9, waist + 4), Vector2(hem, -3), Vector2(hem * 0.4, 0), Vector2(-hem * 0.4, 0),
-				Vector2(-hem, -3), Vector2(-9, waist + 4), Vector2(-11, waist - 6), Vector2(-10, -tall + 24 + bob)])
-		var arm_up := _arms * 2.2
-		var shoulder_l := Vector2(-9, -tall + 26 + bob)
-		var shoulder_r := Vector2(9, -tall + 26 + bob)
-		var hand_l := shoulder_l + Vector2(-6, 34).rotated(arm_up)
-		var hand_r := shoulder_r + Vector2(6, 34).rotated(-arm_up)
-		for pass_i in 2:  # the rim first, offset towards the sun (upper left), then the body over it
-			var o := Vector2(-1.6, -1.6) if pass_i == 0 else Vector2.ZERO
-			var c := rim if pass_i == 0 else dark
-			draw_colored_polygon(_shift(body, o), c)
-			draw_circle(head + o, 9.0 if kind != &"child" else 7.5, c)
-			draw_line(shoulder_l + o, hand_l + o, c, 4.5)
-			draw_line(shoulder_r + o, hand_r + o, c, 4.5)
-			draw_circle(hand_l + o, 3.2, c)
-			draw_circle(hand_r + o, 3.2, c)
-			if kind == &"woman":  # a round clay pot carried on her head
-				draw_circle(head + o + Vector2(0, -15), 9.5, c)
-				draw_line(head + o + Vector2(-4, -24), head + o + Vector2(4, -24), c, 4.0)
-			elif kind == &"elder":  # a staff
-				draw_line(hand_r + o + Vector2(0, -50), hand_r + o + Vector2(2, 70), c, 4.0)
-		# the lit side: the body again, narrower and to the left (a rounded form turned to the sun)
-		var lit_body := PackedVector2Array()
-		for q in body:
-			lit_body.append(Vector2(q.x * 0.55 - 3.5, q.y))
-		draw_colored_polygon(lit_body, lit)
-		draw_circle(head + Vector2(-2.5, -1.5), (9.0 if kind != &"child" else 7.5) * 0.62, lit)
-		if kind == &"woman":  # the clay pot: shaded round, lit on the left, a glint
-			draw_circle(head + Vector2(-2.5, -17), 6.0, Color(0.72, 0.38, 0.22))
-			draw_circle(head + Vector2(-4.5, -19), 1.8, Color(1.0, 0.82, 0.6))
-		var band := PackedVector2Array([Vector2(-12.5, waist - 8), Vector2(12.5, waist - 8), Vector2(14, waist + 10), Vector2(-14, waist + 10)])
-		draw_colored_polygon(band, wrap)
-		draw_colored_polygon(PackedVector2Array([band[1], band[2], band[2] + Vector2(-9, 0), band[1] + Vector2(-8, 0)]), wrap.darkened(0.35))
-		draw_line(Vector2(-12.5, waist - 8), Vector2(12.5, waist - 8), wrap.lightened(0.4), 1.5)
-
-	func _shift(points: PackedVector2Array, o: Vector2) -> PackedVector2Array:
-		var out := PackedVector2Array()
-		for q in points:
-			out.append(q + o)
-		return out
-

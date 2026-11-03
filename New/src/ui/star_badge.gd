@@ -1,6 +1,6 @@
 class_name StarBadge
 extends Control
-## A big shiny star (results, best run): a fat five-point star with a thick dark outline, a gold
+## A big shiny star (results, best run): a fat five-point star with a fine warm rim, a gold
 ## face lit from the top, a darker bevel along its lower edge and a glossy highlight on its upper
 ## left, a warm glow behind it and now and then a twinkle on a tip. Unlit, it is a socket carved
 ## into the panel: a dark inset with its shadow along the upper edges and a lit lip below, so an
@@ -54,6 +54,9 @@ static func points(c: Vector2, r: float, inner := 0.52) -> PackedVector2Array:
 	return pts
 
 
+const RIM := Color("8a4004")  ## the lit star's edge: a fine warm brown, not a heavy ink line
+
+
 func _draw() -> void:
 	var side := minf(size.x, size.y)
 	var o := maxf(side * 0.06, 2.5)  # outline thickness
@@ -64,13 +67,13 @@ func _draw() -> void:
 		# catching the light lower down, a faint star moulded in its middle
 		draw_colored_polygon(points(c + Vector2(0, o * 0.8), r + o * 0.7), Color(1, 1, 0.97, 0.75))
 		draw_colored_polygon(points(c, r + o * 0.7), Color(0.12, 0.08, 0.1))
-		draw_colored_polygon(points(c, r - o * 0.2), Color(0.24, 0.2, 0.24))
-		draw_colored_polygon(points(c + Vector2(0, o * 1.0), r - o * 1.1), Color(0.4, 0.36, 0.4))
-		draw_colored_polygon(points(c + Vector2(0, o * 1.3), r - o * 2.0), Color(0.47, 0.43, 0.47))
-		draw_colored_polygon(points(c + Vector2(0, o * 1.1), r * 0.36), Color(0.56, 0.52, 0.56, 0.8))
+		draw_colored_polygon(points(c, r - o * 0.2), Color(0.18, 0.14, 0.17))
+		draw_colored_polygon(points(c + Vector2(0, o * 1.0), r - o * 1.1), Color(0.3, 0.26, 0.29))
+		draw_colored_polygon(points(c + Vector2(0, o * 1.3), r - o * 2.0), Color(0.36, 0.32, 0.35))
+		draw_colored_polygon(points(c + Vector2(0, o * 1.1), r * 0.36), Color(0.46, 0.42, 0.45, 0.8))
 		return
 	# the ink outline (a fatter star), the bevel under the face, then the face
-	draw_colored_polygon(points(c + Vector2(0, o * 0.5), r + o * 1.15, 0.55), INK)
+	draw_colored_polygon(points(c + Vector2(0, o * 0.4), r + o * 0.6, 0.55), RIM)  # a fine warm rim
 	draw_colored_polygon(points(c + Vector2(0, o * 0.55), r, 0.52), BEVEL)
 	var face := points(c, r - o * 0.15, 0.52)
 	var cols := PackedColorArray()

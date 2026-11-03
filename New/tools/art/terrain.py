@@ -691,7 +691,8 @@ def hanging_mass(rng) -> tuple:
     chunks = blur(rng.standard_normal((h, w)), 6.0)
     chunks = np.gradient(chunks / chunks.std(), axis=0) + np.gradient(chunks / chunks.std(), axis=1)
     grain = grain + chunks * 0.6
-    col = col * (0.72 + 0.5 * lam[..., None]) * (0.86 + 0.28 * grain[..., None])
+    from paint import cel, ink_edge  # (round 5: flat light bands and ink, the hero's style)
+    col = col * (0.68 + 0.5 * cel(lam, (0.4, 0.62))[..., None]) * (0.95 + 0.1 * grain[..., None])
     rim = np.clip(cov - np.roll(np.roll(cov, 3, axis=0), 3, axis=1), 0, 1) * (1 - rel) ** 1.5
     col = mix(col, hexc("d08a52"), blur(rim, 1.0) * 0.7)
     ink = np.clip(cov - np.roll(cov, -2, axis=0), 0, 1)  # its lower edge, an ink line
@@ -709,6 +710,8 @@ def hanging_mass(rng) -> tuple:
     rm = np.asarray(roots.resize((w, h), Image.LANCZOS), float) / 255 * (1 - cov)
     col = mix(col, mix(ROOT, ROOT_HI, 0.25), rm)
     alpha = np.clip(np.maximum(cov, rm), 0, 1)
+    ink = ink_edge(cov, 2.4) * (yy > 6 * PX)  # (not along its top: the ledge's soil sits on it)
+    col = mix(col, hexc("2a120e"), ink * 0.9)
     return col, alpha
 
 

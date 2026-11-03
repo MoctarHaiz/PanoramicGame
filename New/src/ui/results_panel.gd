@@ -25,19 +25,17 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 		share: Callable, hide: Array = []) -> GamePanel:
 	var won := world.state == World.State.WON
 	var body := VBoxContainer.new()
-	body.add_theme_constant_override(&"separation", 14)
+	body.add_theme_constant_override(&"separation", 8)
 	var stars: Array[Control] = []
 	if won:
 		body.add_child(_stars_stage(stars))
 	else:
-		var why := Ui.display_text(TranslationServer.translate("FELL" if world.death_reason == &"fall" else "CAUGHT"),
-				36, Color("e8361c"), Color("4a0804"), Color("b8180a"))  # heavy: what happened, in red
-		why.depth = 3.0
-		why.shadow = Color(0, 0, 0, 0)
-		why.refresh()
+		# what happened: deep red letters on the parchment, no stroke (a stroke on red closes the letters)
+		var why := Ui.label(TranslationServer.translate("FELL" if world.death_reason == &"fall" else "CAUGHT"),
+				34, Color("a8160a"), Ui.font_display)
 		body.add_child(why)
 	var well := PanelContainer.new()
-	well.add_theme_stylebox_override(&"panel", Card.well())
+	well.add_theme_stylebox_override(&"panel", _dark_well())
 	var lines := VBoxContainer.new()
 	lines.add_theme_constant_override(&"separation", 10)
 	well.add_child(lines)
@@ -65,12 +63,12 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 		var way := HBoxContainer.new()  # what the bar measures, said beside it (not a second score)
 		way.alignment = BoxContainer.ALIGNMENT_CENTER
 		way.add_theme_constant_override(&"separation", 12)
-		way.add_child(Ui.label(TranslationServer.translate("WAY_HOME"), 24, Color("6a3010"), Ui.font_title))
+		way.add_child(Ui.label(TranslationServer.translate("WAY_HOME"), 28, Color("ffe2a8"), Ui.font_title))
 		way.add_child(bar)
 		lines.add_child(way)
 	body.add_child(well)
 	var slot := Control.new()  # a new best's stamp lands here, in its own room: it covers nothing
-	slot.custom_minimum_size = Vector2(0, 64)
+	slot.custom_minimum_size = Vector2(0, 62)
 	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	slot.visible = news.get("best_bobs", false)
 	body.add_child(slot)
@@ -90,29 +88,45 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 	share_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	share_button.pressed.connect(share)
 	buttons.add_child(share_button)
-	var foot := MarginContainer.new()  # the same air under the buttons as above the stats
-	foot.add_theme_constant_override(&"margin_top", 6)
+	var foot := MarginContainer.new()  # air before the buttons: the result above reads as one group
+	foot.add_theme_constant_override(&"margin_top", 18)
 	foot.add_child(buttons)
 	body.add_child(foot)
 	var title := TranslationServer.translate("HOME_REACHED" if won else "GAME_OVER")
 	var panel: GamePanel
 	if won:  # warm and radiant
-		panel = GamePanel.open(game, title, Ui.Tone.GOLD, body, _hero(true), Color(0.22, 0.08, 0.02, 0.28),
+		panel = GamePanel.open(game, title, Ui.Tone.GOLD, body, _hero(true), Color(0.2, 0.07, 0.02, 0.38),
 				Color(1, 0.78, 0.4, 0.75), false, hide)
 	else:  # cold and dim
-		panel = GamePanel.open(game, title, Ui.Tone.CRIMSON, body, _hero(false), Color(0.03, 0.04, 0.12, 0.42),
+		panel = GamePanel.open(game, title, Ui.Tone.CRIMSON, body, _hero(false), Color(0.03, 0.03, 0.1, 0.48),
 				Color(0.5, 0.6, 1.0, 0.25), false, hide)
 	_reveal(game, panel, world, stars, bobs, total, bar, slot, news.get("best_bobs", false), buttons, go)
 	return panel
+
+
+## The well under the run's count: dark leather sunk into the parchment, so the cream numbers stand
+## out on it (a beige well on a cream card left them flat).
+static func _dark_well() -> GlossStyle:
+	var s := GlossStyle.new(Color("4a2210"), Color("6e3818"), Color(0, 0, 0, 0), 20, 0.0)
+	s.set_outline(Color("2e0d04"), 3.0)
+	s.gloss = 0.0
+	s.spark = 0.0
+	s.rim = 0.0
+	s.shadow.shadow_color = Color(1, 0.96, 0.85, 0.8)  # the lit lip of the parchment under it
+	s.shadow.shadow_size = 0
+	s.shadow.shadow_offset = Vector2(0, 3)
+	s.set_content_margin_all(14)
+	s.content_margin_left = 24
+	s.content_margin_right = 24
+	return s
 
 
 ## The three stars, placed by hand: the middle one bigger and higher, over a turning sunburst.
 static func _stars_stage(stars: Array[Control]) -> Control:
 	var stage := Control.new()
 	stage.custom_minimum_size = Vector2(0, 168)
-	var burst := Rays.new(860, Color(1, 0.86, 0.48, 0.62), 18)  # the one sunburst of the win
-	burst.material = Fx.additive()
-	stage.add_child(burst)
+	var burst := Rays.new(860, Color(1, 0.62, 0.14, 0.32), 18)  # the one sunburst of the win: warm orange
+	stage.add_child(burst)  # rays on the cream (light added to cream barely shows)
 	var glow := TextureRect.new()
 	glow.texture = Fx.glow_texture()
 	glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -161,8 +175,13 @@ static func _hero(won: bool) -> TextureRect:
 		art.set_meta(&"tall", 1.06)  # arms up: he stands a head above the card
 		art.set_meta(&"overlap", 0.0)  # beside it: his raised hand clear of the ribbon
 	else:
-		art.set_meta(&"tall", 0.62)  # sitting dazed on the ground, upright, against the card's edge
-		art.set_meta(&"overlap", -0.05)  # beside the card with a little air: his boot clear of the frame
+		var tex_size := art.texture.get_size()
+		if tex_size.x > tex_size.y * 0.8:  # a seated render (wide): on the ground, leaning on the card's edge
+			art.set_meta(&"tall", 0.56)
+			art.set_meta(&"overlap", 0.14)
+		else:  # an upright one: beside the card with a little air, a boot clear of the frame
+			art.set_meta(&"tall", 0.62)
+			art.set_meta(&"overlap", -0.05)
 	if not rendered:  # the crops from the user's studio renders: lit by the screen here
 		var lit := ShaderMaterial.new()
 		lit.shader = preload("res://src/ui/hero.gdshader")
@@ -291,13 +310,13 @@ static func _count_up(tree: SceneTree, value: DisplayText, target: int, suffix: 
 	bump.tween_property(value, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
-## NEW BEST!: a red stamp with a crown slams into its row under the count, a little tilted, the card
-## shakes, light and sparkles burst under it.
+## NEW BEST!: a gold stamp with a big crown slams into its row under the count, upright (gold: a
+## reward, never the failure red), the card shakes, light and sparkles burst under it.
 static func _stamp(tree: SceneTree, panel: GamePanel, slot: Control, delay: float) -> void:
 	await tree.create_timer(delay).timeout
 	if not is_instance_valid(panel):
 		return
-	var chip := Ui.chip(TranslationServer.translate("NEW_BEST"), Ui.Tone.CRIMSON, 36, "crown-fill")
+	var chip := Ui.chip(TranslationServer.translate("NEW_BEST"), Ui.Tone.GOLD, 36, "crown-fill", 1.2)
 	var stamp := Control.new()
 	stamp.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stamp.size = chip.get_combined_minimum_size()
@@ -305,7 +324,6 @@ static func _stamp(tree: SceneTree, panel: GamePanel, slot: Control, delay: floa
 	slot.add_child(stamp)  # in its own row of the card, between the count and the buttons
 	stamp.position = (slot.size - stamp.size) / 2
 	stamp.pivot_offset = stamp.size / 2
-	stamp.rotation = -0.06
 	stamp.scale = Vector2.ONE * 1.6
 	stamp.modulate.a = 0.0
 	var t := stamp.create_tween().set_parallel(true)
@@ -375,13 +393,6 @@ class WayBar extends Control:
 		GlossStyle.fill_rounded(ci, f, rad, Color("ffd34a"), Color("e8860e"))
 		GlossStyle.fill_rounded(ci, Rect2(f.position + Vector2(6, 3), Vector2(maxf(w - 12, 0), 5)), 2.5,
 				Color(1, 1, 0.9, 0.7), Color(1, 1, 0.9, 0.4))
-		# milestones every quarter: gold studs once passed, pale ones still ahead
-		for q in range(1, 4):
-			var m := Vector2(r.position.x + r.size.x * q / 4.0, r.get_center().y)
-			var passed := q / 4.0 <= _shown
-			draw_circle(m, 7.5, Card.INK, true, -1, true)
-			draw_circle(m, 5.5, Color("fff0b0") if passed else Color("c8a27a"), true, -1, true)
-			draw_circle(m - Vector2(1.5, 1.5), 2.0, Color(1, 1, 1, 0.9 if passed else 0.4), true, -1, true)
 		# the goal: the house on a gold disc, part of the bar
 		var hc := Vector2(size.x - 24.0, size.y / 2)
 		draw_circle(hc, 25.0, Card.INK, true, -1, true)

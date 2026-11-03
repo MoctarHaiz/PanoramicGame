@@ -3,7 +3,7 @@ extends Node2D
 ## The level's ground, painted (tools/art/terrain.py), drawn once in level units into chunks of
 ## 16 columns so the renderer batches each layer and skips what is off screen:
 ##   soil   every solid cell: terrain_shape.png for its outline and edge light, the paint from
-##          soil.png / rock.png in level space (terrain.gdshader): no seams, no tiling grid
+##          flat cel colours in level space (terrain.gdshader; round 5: blocks of rock, ink, no texture)
 ##   spires a one-cell-wide wall (the poles in the river) is a sandstone spire instead (spires.png:
 ##          painted like the buttes on the horizon, a cap rock, beds of stone, a flared foot),
 ##          its grass cap on top
@@ -116,8 +116,6 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 	_find_feet()
 	var soil := ShaderMaterial.new()
 	soil.shader = preload("res://src/game/terrain.gdshader")
-	soil.set_shader_parameter(&"soil_tex", load(DIR + "soil.png"))
-	soil.set_shader_parameter(&"rock_tex", load(DIR + "rock.png"))
 	var sway := ShaderMaterial.new()
 	sway.shader = preload("res://src/game/sway.gdshader")
 	for name: StringName in [&"mass", &"soil", &"spires", &"roots", &"caps", &"ends", &"tufts", &"drape", &"foot", &"cast"]:

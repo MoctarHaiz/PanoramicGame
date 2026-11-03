@@ -42,7 +42,7 @@
    "path": "assets/art/bandit/club.png",
    "status": "approved",
    "technical": {
-    "dimensions": "38x87",
+    "dimensions": "37x87",
     "alpha": true,
     "anchor": "bottom-centre at the boots",
     "frames": null,
@@ -174,7 +174,7 @@
    "path": "assets/art/hero/hero_atlas_0.png",
    "status": "approved",
    "technical": {
-    "dimensions": "2024x2044",
+    "dimensions": "2044x2048",
     "alpha": true,
     "anchor": "per hero_frames.json (ground origin / hips / hands)",
     "frames": null,
@@ -210,7 +210,7 @@
    "path": "assets/art/hero/hero_atlas_1.png",
    "status": "approved",
    "technical": {
-    "dimensions": "2048x1984",
+    "dimensions": "2044x1980",
     "alpha": true,
     "anchor": "per hero_frames.json (ground origin / hips / hands)",
     "frames": null,
@@ -246,7 +246,7 @@
    "path": "assets/art/hero/hero_atlas_2.png",
    "status": "approved",
    "technical": {
-    "dimensions": "1956x612",
+    "dimensions": "1976x612",
     "alpha": true,
     "anchor": "per hero_frames.json (ground origin / hips / hands)",
     "frames": null,
@@ -282,7 +282,7 @@
    "path": "assets/art/hero/hero_defeat.png",
    "status": "approved",
    "technical": {
-    "dimensions": "808x696",
+    "dimensions": "1041x696",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -315,7 +315,7 @@
    "path": "assets/art/hero/hero_menu.png",
    "status": "approved",
    "technical": {
-    "dimensions": "811x1179",
+    "dimensions": "516x1179",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -348,7 +348,7 @@
    "path": "assets/art/hero/hero_win.png",
    "status": "approved",
    "technical": {
-    "dimensions": "401x969",
+    "dimensions": "366x969",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -414,7 +414,7 @@
    "path": "assets/art/hero/stand_front.png",
    "status": "approved",
    "technical": {
-    "dimensions": "286x664",
+    "dimensions": "285x664",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -447,7 +447,7 @@
    "path": "assets/art/hero/stand_side.png",
    "status": "approved",
    "technical": {
-    "dimensions": "320x584",
+    "dimensions": "321x584",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,

@@ -33,66 +33,41 @@ void fragment() {
 		discard;
 	}
 	float edge_aa = clamp(d + 1.0, 0.0, 1.0);
-	// the body: turquoise just under the surface to deep blue within a few units (the gap is
-	// only ~60 units deep on screen)
-	float depth = clamp((d - 6.0) / 64.0, 0.0, 1.0);
-	vec3 c = mix(shallow.rgb, deep.rgb, pow(depth, 0.7));
-	// light shafts slanting down from the sun (upper left), drifting, fading with depth
-	float shaft = noise(vec2((x - d * 0.55) * 0.05 + t * 0.15, 0.5));
-	c += vec3(0.1, 0.2, 0.2) * smoothstep(0.55, 0.85, shaft) * (1.0 - smoothstep(10.0, 56.0, d));
-	// caustics: a web of light, fading with depth
-	float w1 = sin(x * 0.19 + sin(d * 0.16 + t * 1.1) * 1.6 + t * 0.9);
-	float w2 = sin(d * 0.26 - x * 0.11 + sin(x * 0.07 - t * 0.8) * 1.3 - t * 0.7);
-	float w3 = sin(x * 0.13 + d * 0.2 + sin(d * 0.1 - t) * 1.2 + t * 0.5);
-	float web = 1.0 - smoothstep(0.0, 0.24, abs(w1 + w2 + w3 * 0.6));
-	c += vec3(0.12, 0.2, 0.2) * web * (1.0 - smoothstep(8.0, 40.0, d));
-	// the surface seen a little from above: a bright sheet reflecting the sky, broken by ripples,
-	// over a thin dark line where it meets the body
-	float rip = noise(vec2(x * 0.09 + t * 0.6, 3.3));
-	float sheet = 1.0 - smoothstep(4.0, 6.5, d);
-	vec3 sheet_col = mix(vec3(0.66, 0.95, 1.0), vec3(1.0, 0.96, 0.86), 0.15 + 0.35 * rip);
-	c = mix(c, sheet_col, sheet * 0.9);
-	c *= 1.0 - (smoothstep(5.0, 6.5, d) - smoothstep(6.5, 10.0, d)) * 0.35;
-	// round 2: the warm evening sky reflected in the water seen at a grazing angle: a band of gold
-	// under the surface turning to the sky's blue, broken into ripples, fading into the depth
-	float refl_k = (1.0 - smoothstep(6.0, 22.0, d)) * smoothstep(3.0, 6.0, d);
-	float ripple = smoothstep(0.35, 0.75, noise(vec2(x * 0.018 + t * 0.25, d * 0.55 - t * 0.4)));
-	vec3 refl = mix(sky_tint.rgb, vec3(0.55, 0.72, 0.86), smoothstep(6.0, 18.0, d));
-	c = mix(c, refl, refl_k * (0.25 + 0.45 * ripple));
-	// sun glitter on the sheet: short streaks sliding slowly
-	float g = noise(vec2(x * 0.06 - t * 0.35, d * 0.7));
-	c = mix(c, vec3(1.0, 0.98, 0.88), smoothstep(0.7, 0.9, g) * sheet * 0.8);
-	// the lip of foam along the top, its thickness wandering
-	float thick = 1.4 + 1.6 * noise(vec2(x * 0.07 - t * 0.8, 1.7));
-	c = mix(c, foam.rgb, (1.0 - smoothstep(thick * 0.5, thick, d)) * 0.95);
-	// sparkles: rare cells near the surface flash
+	// Round 5: water in the hero's style: flat bands (the warm sky reflected in a light band under
+	// the surface, a mid teal, the deep blue), ripple dashes drifting in them, a white foam line on
+	// top, foam curling at the banks, the banks' earth sloping in under an ink edge
+	float ripple = noise(vec2(x * 0.03 + t * 0.35, floor(d / 5.0) * 3.7));
+	float band_y = d + (ripple - 0.5) * 5.0;
+	vec3 c = deep.rgb;
+	c = mix(c, mix(shallow.rgb, deep.rgb, 0.45), step(band_y, 34.0));
+	c = mix(c, shallow.rgb, step(band_y, 18.0));
+	vec3 sky_band = mix(sky_tint.rgb, vec3(0.62, 0.82, 0.9), 0.35);
+	c = mix(c, sky_band, step(band_y, 8.0));
+	// ripple dashes: short light strokes along the bands, sliding with the current
+	float dash_row = fract(d / 7.0);
+	float dash = step(0.62, noise(vec2(x * 0.06 - t * 0.5, floor(d / 7.0) * 5.3))) * (1.0 - smoothstep(0.0, 0.18, abs(dash_row - 0.5)));
+	c = mix(c, mix(c, vec3(1.0, 0.97, 0.9), 0.5), dash * (1.0 - smoothstep(10.0, 44.0, d)));
+	// a few glints on the light band
 	vec2 q = vec2(x / 10.0, d / 6.0);
 	vec2 cell = floor(q);
 	float h = hash(cell + 3.1);
 	float flash = pow(max(0.0, sin(t * 2.6 + h * 37.0)), 12.0);
 	vec2 fq = fract(q) - 0.5;
-	float star = smoothstep(0.32, 0.0, length(fq * vec2(1.0, 1.6))) + smoothstep(0.06, 0.0, abs(fq.y)) * smoothstep(0.45, 0.0, abs(fq.x)) * 0.6;
-	c += vec3(1.0, 0.97, 0.85) * step(0.88, h) * flash * star * (1.0 - smoothstep(4.0, 22.0, d));
-	// banks: the soil's shade on the water, and froth piled against it (bubbles of foam)
+	float star = smoothstep(0.32, 0.0, length(fq * vec2(1.0, 1.6)));
+	c += vec3(1.0, 0.97, 0.85) * step(0.9, h) * flash * star * (1.0 - smoothstep(2.0, 12.0, d));
+	// the foam line on top, its thickness wandering
+	float thick = 1.6 + 1.6 * noise(vec2(x * 0.07 - t * 0.8, 1.7));
+	c = mix(c, foam.rgb, 1.0 - smoothstep(thick - 0.5, thick + 0.5, d));
+	// banks: the earth slopes in under the water (flat, lit at its rim, an ink edge), foam curls at it
 	float bank = min(p.x, rect_size.x - p.x) - 8.0;  // units from the soil's face
-	// New: the banks slope down into the pool (they were vertical cuts): under the surface the earth
-	// reaches further out the deeper it goes, seen through the water (as water_front.gdshader tints
-	// the bank's own face), with a lighter rim where the slope turns to the light
-	float reach = 3.0 + 40.0 * (1.0 - exp(-max(d, 0.0) / 24.0)) + (noise(vec2(d * 0.12, x * 0.01)) - 0.5) * 7.0;
+	float reach = 4.0 + 40.0 * (1.0 - exp(-max(d, 0.0) / 24.0)) + (noise(vec2(d * 0.12, x * 0.01)) - 0.5) * 6.0;
 	float slope = 1.0 - smoothstep(reach - 0.8, reach + 0.8, bank);
-	if (slope > 0.0) {
-		vec3 earth = texture(soil_tex, vec2(x, p.y) / 256.0, 0.5).rgb;
-		float rim = 1.0 - smoothstep(0.0, 4.0, reach - bank);
-		earth *= 0.8 + 0.5 * rim;
-		vec3 through = mix(shallow.rgb, deep.rgb, clamp((d - 3.0) / 46.0, 0.0, 1.0));
-		vec3 e = mix(earth, through, clamp(0.45 + d / 70.0, 0.45, 0.85));
-		c = mix(c, e, slope);
-	}
-	c *= mix(0.6, 1.0, smoothstep(0.0, 22.0, bank));
-	float bubbles = noise(vec2(x * 0.35, d * 0.35 - t * 0.4)) * 0.6 + noise(vec2(x * 0.9 + t * 0.3, d * 0.9)) * 0.4;
-	float froth = (1.0 - smoothstep(2.0, 22.0, bank + d * 0.35)) * (1.0 - smoothstep(6.0, 24.0, d));
-	float puffs = smoothstep(0.36, 0.5, bubbles * (0.55 + froth * 0.7)) * smoothstep(0.05, 0.35, froth);
-	c = mix(c, foam.rgb, puffs * 0.95);
-	c *= 1.0 - (smoothstep(0.3, 0.36, bubbles * (0.55 + froth * 0.7)) - puffs) * 0.25 * smoothstep(0.05, 0.35, froth);
+	vec3 earth = mix(vec3(0.42, 0.24, 0.16), vec3(0.62, 0.36, 0.22), step(reach - 5.0, bank));
+	vec3 through = mix(earth, deep.rgb, clamp(0.35 + d / 80.0, 0.35, 0.8));
+	c = mix(c, through, slope);
+	float edge = (1.0 - smoothstep(0.0, 2.2, abs(bank - reach))) * step(3.0, d);
+	c = mix(c, vec3(0.12, 0.08, 0.1), edge * 0.75);
+	float curl = (1.0 - smoothstep(0.0, 2.0, abs(d - 3.0 - sin(bank * 0.5 - t * 2.0) * 1.5))) * (1.0 - smoothstep(4.0, 16.0, bank));
+	c = mix(c, foam.rgb, curl * 0.9);
 	COLOR = vec4(c, edge_aa);
 }

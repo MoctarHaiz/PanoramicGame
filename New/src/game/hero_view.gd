@@ -114,7 +114,7 @@ func _init() -> void:
 	# and a thin dark edge (both stay inside the atlas' 3 px of padding)
 	# (round 4: the ink line and the warm rim are now in the cel-shaded render itself; the shader
 	# only adds a touch of the sun's warmth on the lit edge)
-	_material.set_shader_parameter(&"rim", 0.45)
+	_material.set_shader_parameter(&"rim", 0.7)
 	_material.set_shader_parameter(&"rim_px", 2.0)
 	_material.set_shader_parameter(&"rim_colour", Color(1.0, 0.86, 0.6))
 	_material.set_shader_parameter(&"rim_dir", Vector2(-0.6, -0.8))
@@ -446,9 +446,10 @@ func _update_shadow(w: World, p: Vector2) -> void:
 func _draw_under() -> void:
 	if _shadow.x < 0.0:
 		return
-	var w := 46.0 * (0.45 + 0.55 * _shadow_k)
-	for i in 6:  # a soft ellipse: rings of falling darkness, darkest under his feet
+	var w := 50.0 * (0.45 + 0.55 * _shadow_k)
+	for i in 6:  # a soft ellipse: rings of falling darkness, darkest under his feet (round 5: darker,
+		# so it reads at phone size and he stands on the ground)
 		var r := 1.0 - i * 0.15
-		_under.draw_set_transform(_shadow, 0.0, Vector2(_shadow_w, 0.2))
-		_under.draw_circle(Vector2.ZERO, w * r, Color(0.14, 0.05, 0.08, (0.15 * _shadow_k + 0.04) * _visible))
+		_under.draw_set_transform(_shadow, 0.0, Vector2(_shadow_w, 0.22))
+		_under.draw_circle(Vector2.ZERO, w * r, Color(0.12, 0.04, 0.06, (0.2 * _shadow_k + 0.05) * _visible))
 	_under.draw_set_transform(Vector2.ZERO)

@@ -21,6 +21,7 @@ var top_colour := Ui.CREAM
 var bottom_colour := Color("ebcb92")  ## the parchment darkens towards its foot
 var radius := 34.0
 var _framed := true
+var _shadow_box: StyleBoxFlat
 
 
 func _init(margin := Vector4(34, 40, 34, 34), light := false) -> void:
@@ -58,11 +59,16 @@ static func well(corner := 20) -> GlossStyle:
 
 func _draw() -> void:
 	var r := Rect2(Vector2.ZERO, size)
-	if _framed:  # a deep soft shadow under it
-		for i in 7:
-			var g := 2.0 + i * 6.0
-			_fill(_rounded(r.grow(g - 4.0), radius + g), Color(0.06, 0.0, 0.02, 0.085), Color(0.06, 0.0, 0.02, 0.085),
-					Vector2(0, 22))
+	if _framed:  # a deep soft shadow under it: one smooth falloff (stacked layers showed as steps)
+		if not _shadow_box or _shadow_box.corner_radius_top_left != int(radius):
+			_shadow_box = StyleBoxFlat.new()
+			_shadow_box.bg_color = Color(0.06, 0.0, 0.02, 0.0)
+			_shadow_box.set_corner_radius_all(int(radius))
+			_shadow_box.shadow_color = Color(0.06, 0.0, 0.02, 0.55)
+			_shadow_box.shadow_size = 34
+			_shadow_box.shadow_offset = Vector2(0, 18)
+			_shadow_box.anti_aliasing = true
+		draw_style_box(_shadow_box, r)
 	_fill(_rounded(r.grow(4.0), radius + 4.0), INK, INK)
 	var body := r
 	var inner := radius
@@ -93,7 +99,7 @@ func _draw() -> void:
 		var foot := Rect2(body.position + Vector2(inner * 0.6, body.size.y - 18.0), Vector2(body.size.x - inner * 1.2, 18.0))
 		_fill(_rounded(foot, 0.0), Color(0.35, 0.12, 0.0, 0.0), Color(0.35, 0.12, 0.0, 0.14))  # and its foot
 		_glow(Rect2(body.position + body.size * Vector2(0.1, 0.12), body.size * Vector2(0.8, 0.6)))
-		_beadwork(r)
+		_zulu_band(r)
 		_studs(r)
 	else:  # glass: a light top edge and a fine gold line inside
 		_fill(_rounded(Rect2(r.position + Vector2(6, 4), Vector2(r.size.x - 12, minf(40.0, r.size.y * 0.25))), radius - 4),
@@ -103,67 +109,64 @@ func _draw() -> void:
 		draw_polyline(line, Color(Ui.GOLD, 0.55), 2.0, true)
 
 
-## Zulu beadwork set into the frame along its top and bottom: a dark leather strip threaded with
-## glossy beads in blocks of white, red, blue, black and gold (the colours of the beadwork the shield
-## and the hero's people wear), between the corner studs.
-func _beadwork(r: Rect2) -> void:
-	var tiles := _bead_tiles()
-	var x0 := r.position.x + radius + 14.0
-	var x1 := r.end.x - radius - 14.0
-	var n := int((x1 - x0) / BEAD_STEP)
-	var centre := (x0 + x1) / 2 - n * BEAD_STEP / 2 + BEAD_STEP / 2 + (n / 2) * BEAD_STEP  # the middle bead
-	var right := (n - n / 2) * BEAD_STEP  # from the middle bead's left edge to the last bead
-	var left := (n / 2 + 1) * BEAD_STEP  # from the first bead to the middle bead's right edge
+## A Zulu band set into the frame along its top and bottom, between the corner studs: bold diamonds,
+## red and black on cream with a dark edge, big enough to read on a phone (not a string of small beads,
+## which read as dots), mirrored from the middle and clear of a wide card's middle stud.
+func _zulu_band(r: Rect2) -> void:
+	var tiles := _band_tiles()
+	var x0 := r.position.x + radius + 12.0
+	var x1 := r.end.x - radius - 12.0
+	var mid := r.get_center().x
+	var cut := BAND_STEP if r.size.x > 520.0 else 0.0  # the first diamond each side of the middle stud
 	var tile_w := float(tiles[0].get_width())
-	var skip := 2.0 if r.size.x > 520.0 else 0.0  # a wide card's middle stud: no bead under it
 	for y: float in [r.position.y + FRAME * 0.5, r.end.y - FRAME * 0.5]:
-		_fill(_rounded(Rect2(Vector2(x0 - 5.0, y - 5.5), Vector2(x1 - x0 + 10.0, 11.0)), 5.5), INK, Color("2a0c04"))
-		var top := y - BEAD_H / 2
-		# the pattern mirrors from the middle bead: the right half tiled from it, the left half from the
-		# mirrored tile lined up on the middle bead's right edge (one textured rect each)
-		var cut := skip * BEAD_STEP
-		draw_texture_rect_region(tiles[0], Rect2(centre - BEAD_STEP / 2 + cut, top, right - cut, BEAD_H),
-				Rect2(cut * BEAD_SCALE, 0, (right - cut) * BEAD_SCALE, tiles[0].get_height()))
-		var span := (left - cut) * BEAD_SCALE
-		draw_texture_rect_region(tiles[1], Rect2(centre + BEAD_STEP / 2 - left, top, left - cut, BEAD_H),
-				Rect2(tile_w - fposmod(span + cut * BEAD_SCALE, tile_w), 0, span, tiles[1].get_height()))
+		_fill(_rounded(Rect2(Vector2(x0 - 1.5, y - BAND_H / 2 - 1.5), Vector2(x1 - x0 + 3.0, BAND_H + 3.0)), 3.0), INK, INK)
+		var top := y - BAND_H / 2
+		# the right half from a diamond centred on the middle (or past the stud), the left half the
+		# mirror of it: one textured rect each
+		var a := mid + cut - BAND_STEP / 2
+		draw_texture_rect_region(tiles[0], Rect2(a, top, x1 - a, BAND_H),
+				Rect2(0, 0, (x1 - a) * BAND_SCALE, tiles[0].get_height()))
+		var b := mid - cut + BAND_STEP / 2
+		var span := (b - x0) * BAND_SCALE
+		draw_texture_rect_region(tiles[1], Rect2(x0, top, b - x0, BAND_H),
+				Rect2(tile_w - fposmod(span, tile_w), 0, span, tiles[1].get_height()))
 
 
-const BEAD_STEP := 8.4  ## one bead and its gap along the frame
-const BEAD_H := 9.0  ## the bead's dark rim, top to bottom
-const BEAD_SCALE := 3  ## the tile's pixels per unit (sharp on a phone's screen)
-const BEAD_COLOURS := ["f4efe4", "f4efe4", "d8261a", "d8261a", "d8261a", "2f6fd0", "2f6fd0", "1c1410", "f2b52a", "f2b52a"]
-static var _beads: Array[ImageTexture] = []
+const BAND_STEP := 22.0  ## one diamond and its share of the band
+const BAND_H := 14.0  ## the band, top to bottom (nearly the frame's width)
+const BAND_SCALE := 3  ## the tile's pixels per unit (sharp on a phone's screen)
+static var _band: Array[ImageTexture] = []
 
 
-## The beads, drawn once into a tile of the ten-bead run (and its mirror): Zulu beadwork colours, a dark
-## rim, a highlight. Tiled along the frame it costs one draw call per half strip, not three per bead.
-static func _bead_tiles() -> Array[ImageTexture]:
-	if not _beads.is_empty():
-		return _beads
-	var s := float(BEAD_SCALE)
-	var w := int(BEAD_STEP * BEAD_COLOURS.size() * s)
-	var h := int(BEAD_H * s)
+## The band drawn once into a tile of two diamonds (red, black) and its mirror; tiled along the frame
+## it costs one draw call per half band.
+static func _band_tiles() -> Array[ImageTexture]:
+	if not _band.is_empty():
+		return _band
+	var s := float(BAND_SCALE)
+	var w := int(BAND_STEP * 2 * s)
+	var h := int(BAND_H * s)
 	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
-	var rim := Color("1a0804")
-	for i in BEAD_COLOURS.size():
-		var c := Vector2((i + 0.5) * BEAD_STEP * s, h / 2.0)
-		var bead := Color(BEAD_COLOURS[i])
-		for py in h:
-			for px in range(int(c.x - 4.5 * s), int(c.x + 4.5 * s) + 1):
-				if px < 0 or px >= w:
-					continue
-				var p := Vector2(px + 0.5, py + 0.5)
-				var d := p.distance_to(c) / s
-				var col := Color(rim, clampf((3.8 - d) * s + 0.5, 0.0, 1.0))
-				col = col.blend(Color(bead, clampf((3.1 - d) * s + 0.5, 0.0, 1.0)))
-				var hd := p.distance_to(c - Vector2(1.0, 1.1) * s) / s
-				col = col.blend(Color(1, 1, 1, 0.85 * clampf((1.1 - hd) * s + 0.5, 0.0, 1.0)))
-				img.set_pixel(px, py, col)
+	var cream := Color("f6e7c4")
+	var edge := Color("2a0c04")
+	var fills := [Color("cf2a18"), Color("1e1410")]
+	for py in h:
+		for px in w:
+			var p := Vector2(px + 0.5, py + 0.5) / s
+			var i := int(p.x / BAND_STEP)
+			var c := Vector2((i + 0.5) * BAND_STEP, BAND_H / 2)
+			# a diamond's "distance": 0 on its edge, positive inside (in units, roughly)
+			var d := (1.0 - (absf(p.x - c.x) / 9.6 + absf(p.y - c.y) / 5.8)) * 4.6
+			var col := cream.lerp(Color("e8cf9c"), p.y / BAND_H)  # the cream darkens a little downwards
+			col = col.blend(Color(edge, clampf((d + 1.0) * s + 0.5, 0.0, 1.0)))
+			var fill: Color = fills[i % 2].lightened(0.12 if p.y < c.y else 0.0)  # a lit upper half
+			col = col.blend(Color(fill, clampf(d * s + 0.5, 0.0, 1.0)))
+			img.set_pixel(px, py, col)
 	var mirrored := img.duplicate() as Image
 	mirrored.flip_x()
-	_beads = [ImageTexture.create_from_image(img), ImageTexture.create_from_image(mirrored)]
-	return _beads
+	_band = [ImageTexture.create_from_image(img), ImageTexture.create_from_image(mirrored)]
+	return _band
 
 
 ## Gold studs nailed into the frame: one at each corner, and along the long edges of a wide card.

@@ -41,7 +41,7 @@ def frame(anim: str, i: int):
     points = json.loads((folder / "points.json").read_text())
     img = Image.open(folder / f"{i:03d}.png")
     k = SCALE * 1024.0 / points["size"]
-    arr = inked(premultiplied_resize(img, k), 2.0)  # a strong outline: he reads on the grass
+    arr = inked(premultiplied_resize(img, k), 1.6)  # a strong outline: he reads on the grass
     origin = np.array(points["origin"]) * k
     pts = {key: np.array(v) * k for key, v in points["frames"][i].items()}
     return arr, origin, pts

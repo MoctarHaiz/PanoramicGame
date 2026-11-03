@@ -31,7 +31,8 @@ def set_params(path: Path, values: dict) -> bool:
 # world and the bandits. Not the pictures whose channels are data (terrain_shape.png), the smooth
 # sky gradients (blocks would show), the big menu pictures, nor the interface.
 VRAM = ["hero/hero_atlas_", "world/", "bandit/"]
-LOSSLESS = ["world/terrain_shape.png", "world/sky.png", "world/sunset_sky.png"]
+LOSSLESS = ["world/terrain_shape.png", "world/sky.png", "world/sunset_sky.png",
+            "world/far_mesas.png"]  # (round 5: its painted bands drawn 2-3x: no 4x4 blocks)
 
 
 def compressed(imp: Path) -> bool:

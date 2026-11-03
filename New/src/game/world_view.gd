@@ -92,7 +92,7 @@ func setup(w: World) -> void:
 const SHADERS := ["res://src/game/terrain.gdshader", "res://src/game/water.gdshader",
 		"res://src/game/water_front.gdshader", "res://src/game/haze.gdshader", "res://src/game/light_grade.gdshader",
 		"res://src/game/form.gdshader", "res://src/game/sway.gdshader", "res://src/game/actor.gdshader",
-		"res://src/game/flash.gdshader", "res://src/game/shine_text.gdshader"]
+		"res://src/game/flash.gdshader", "res://src/game/shine_text.gdshader", "res://src/game/ink.gdshader"]
 
 
 ## Draws each of the world's shaders once, unseen (a pixel in a corner, nearly transparent, for half
@@ -275,6 +275,9 @@ func refresh(delta := 0.0) -> void:
 	_home.front.position.x = -scroll
 	# (round 3) the jamb and the wall right of the doorway go over him from his walk in
 	_home.front.visible = world.state == World.State.WON and world.end_time >= World.HOME_CHEER
+	# (round 5) home: the dark grass along the bottom edge clears, his feet on a clear ground line
+	var home_k := 1.0 if world.state == World.State.WON else 0.0
+	_background.front.modulate.a = move_toward(_background.front.modulate.a, 1.0 - 0.85 * home_k, delta * 2.0)
 	_place_grade()
 	_watch_splashes(scroll)
 	_place_hero(delta)

@@ -8,7 +8,7 @@ extends Node2D
 ## When Panoramic takes it, the game screen flies a copy to the counter (BobView.flier()).
 
 const DIR := "res://assets/art/bob/"
-const SIZE := 31.0  ## drawn width in units (a 32-unit tile: neighbours just apart; bigger reads at phone size)
+const SIZE := 28.0  ## drawn width in units (a 32-unit tile: neighbours apart, never overlapping as they bob)
 enum Face { SMILE, BLINK, JOY, WINK }
 
 static var _sheet: Texture2D
@@ -111,7 +111,9 @@ func _init(column := 0, row := 0) -> void:
 	_shine.material = _additive
 	_shine.draw.connect(_draw_glint)
 	add_child(_shine)
-	_phase = fposmod(column * 2.399 + row * 1.618, TAU)  # golden-angle steps: no two neighbours alike
+	# a wave along a row (neighbours a quarter beat apart) with a golden-angle jitter: a row reads as a
+	# ripple, not a copy-pasted line
+	_phase = fposmod(column * 1.2 + row * 1.618 + fposmod(column * 2.399, 1.2), TAU)
 	_pace = 3.0 + fposmod(column * 0.37 + row * 0.53, 0.8)
 	_clock = 0.0
 	_blink_at = 1.0 + fposmod(column * 1.37 + row * 0.71, 4.0)
@@ -122,7 +124,7 @@ func _process(delta: float) -> void:
 	_clock += delta
 	# float: up and down, squashed a little at the bottom, stretched going up
 	var s := sin(_clock * _pace - _phase)
-	_sprite.position.y = -3.4 * s
+	_sprite.position.y = -4.2 * s  # (round 5: a deeper float, staggered along a row by _phase)
 	var squash := 0.05 * -s
 	var pulse := 1.0 + 0.045 * maxf(sin(_clock * 3.1 - _phase * 1.3), 0.0)  # a slight beat of size
 	_sprite.scale = Vector2(_scale * (1.0 + squash), _scale * (1.0 - squash)) * pulse

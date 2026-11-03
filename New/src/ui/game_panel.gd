@@ -2,13 +2,15 @@ class_name GamePanel
 extends Control
 ## A panel over the game (pause, results). Behind it the game is taken once as a picture, with the
 ## HUD and the flying effects hidden for that frame (no ghost of a heart or a "+1" in it), shrunk and
-## drawn back stretched (a soft blur, Ui.blurred_snapshot: no shader, no screen-sized copy kept),
-## under a light scrim that keeps the scene's colour (it dims, it doesn't black out) and a soft
-## vignette, so the scene steps back and the panel owns the screen. A Card in
+## drawn back stretched through a cubic B-spline (soft_blur.gdshader: a smooth blur, no blocks, one
+## draw call; no screen-sized copy kept), under a scrim of about 40 % and a darker vignette (it dims
+## the scene, it doesn't black it out), so the scene steps back and the panel owns the screen. A Card in
 ## the middle of the safe area, its title on a ribbon over its top edge; a character (`art`) at its
 ## left, overlapping its edge, standing in a pool of light with his shadow under his feet; the group
 ## is centred. The card pops in opaque (0.7 -> 1.06 -> 1, a back-ease), the ribbon drops in after
 ## it, the character slides in; never a see-through crossfade.
+
+const SOFT_BLUR := preload("res://src/ui/soft_blur.gdshader")
 
 var card: Card
 var banner: Banner
@@ -20,6 +22,8 @@ var _rays: Rays
 var _back: Control  # the picture behind, its scrim and vignette
 var _picture: TextureRect
 var _hidden: Array[CanvasItem] = []  # what it hid behind it, shown again when it goes
+var _to_cover: Array = []  # what its picture stands for (the world): hidden once the picture covers it
+var _covered: Array[CanvasItem] = []
 var _top := 0.0
 var _min_w := 560.0
 var _k := 1.0  # shrink to fit a small screen
@@ -31,7 +35,7 @@ var _u := 0.7  # the entrance's pop
 ## turning behind the card; `hide`: what to leave out of the picture behind (the HUD, the effects).
 ## The panel shows a frame later, once that picture is taken.
 static func open(host: Control, title: String, tone: Ui.Tone, body: Control, character: Control = null,
-		veil := Color(0.06, 0.03, 0.08, 0.32), glow := Color(1, 0.8, 0.45, 0.55), rays := false,
+		veil := Color(0.05, 0.02, 0.06, 0.42), glow := Color(1, 0.8, 0.45, 0.55), rays := false,
 		hide: Array = []) -> GamePanel:
 	var p := GamePanel.new()
 	p.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -53,6 +57,9 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 	_picture.stretch_mode = TextureRect.STRETCH_SCALE
 	_picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var soft := ShaderMaterial.new()  # a cubic B-spline stretch of the small picture: no blocks
+	soft.shader = SOFT_BLUR
+	_picture.material = soft
 	back.add_child(_picture)
 	var veil := ColorRect.new()
 	veil.color = tint
@@ -64,7 +71,7 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 	vignette.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	vignette.stretch_mode = TextureRect.STRETCH_SCALE
 	vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	vignette.modulate = Color(0.04, 0.0, 0.03, 0.55)
+	vignette.modulate = Color(0.03, 0.0, 0.02, 0.7)
 	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	back.add_child(vignette)
 	if rays:
@@ -130,12 +137,38 @@ func _snapshot_then_enter(hide: Array) -> void:
 	_enter()
 
 
+## Hides `nodes` (the world under the panel) once the picture of it covers the screen, and shows
+## them again when the panel goes: a still picture stands for them, so they are not drawn every
+## frame under it (about 250 draw calls). Nothing is hidden where no picture was taken (headless).
+func hide_when_covered(nodes: Array) -> void:
+	_to_cover = nodes
+
+
+func _cover() -> void:
+	if not _picture.texture or not is_inside_tree():
+		return
+	for n: Variant in _to_cover:
+		if is_instance_valid(n) and n is CanvasItem and (n as CanvasItem).visible:
+			(n as CanvasItem).visible = false
+			_covered.append(n)
+
+
+## Shows the world under it again (call before fading the panel out: it must be there behind it).
+func uncover() -> void:
+	_to_cover = []
+	for n: Variant in _covered:
+		if is_instance_valid(n):
+			(n as CanvasItem).visible = true
+	_covered.clear()
+
+
 ## The entrance: the backdrop dims in, the card pops in opaque, the ribbon drops, he slides in.
 func _enter() -> void:
 	var back := _back
 	back.modulate.a = 0.0
 	var t := create_tween().set_parallel(true)
 	t.tween_property(back, "modulate:a", 1.0, 0.2)
+	t.tween_callback(_cover).set_delay(0.22)  # the picture is whole: the world under it can go
 	_pop.visible = false
 	t.tween_callback(func() -> void: _pop.visible = true).set_delay(0.08)
 	t.tween_method(_set_pop, 0.7, 1.06, 0.14).set_delay(0.08).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
@@ -158,6 +191,7 @@ func _exit_tree() -> void:
 	for n: Variant in _hidden:
 		if is_instance_valid(n):
 			(n as CanvasItem).visible = true
+	uncover()
 
 
 func _set_pop(u: float) -> void:
@@ -182,7 +216,9 @@ func _place() -> void:
 	var lift := maxf((art.size.y - 4.0) - (card_size.y + _top), 0.0) if art else 0.0
 	var whole := Vector2(card_size.x + art_w, card_size.y + _top + lift)
 	var insets := Device.insets()
-	var free := Rect2(insets.x + 12.0, insets.y + 10.0, size.x - insets.x - insets.z - 24.0,
+	var side_l := maxf(insets.x + 12.0, size.x * 0.06)  # never near an edge (the group would lean)
+	var side_r := maxf(insets.z + 12.0, size.x * 0.06)
+	var free := Rect2(side_l, insets.y + 10.0, size.x - side_l - side_r,
 			size.y - insets.y - Device.bottom_with_banner() - Device.ad_gap() - 20.0)
 	if free.size.x > 0.0:
 		_k = minf(1.0, minf(free.size.x / whole.x, free.size.y / whole.y))

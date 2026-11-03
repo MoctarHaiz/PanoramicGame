@@ -79,7 +79,7 @@ static func load_art() -> void:
 	g.fill_to = Vector2(1.0, 0.5)
 	g.gradient = Gradient.new()
 	g.gradient.offsets = PackedFloat32Array([0.0, 0.55, 1.0])
-	g.gradient.colors = PackedColorArray([Color(0.12, 0.05, 0.1, 0.42), Color(0.12, 0.05, 0.1, 0.22), Color(0.12, 0.05, 0.1, 0)])
+	g.gradient.colors = PackedColorArray([Color(0.1, 0.04, 0.08, 0.62), Color(0.1, 0.04, 0.08, 0.32), Color(0.1, 0.04, 0.08, 0)])
 	_shade = g
 
 
@@ -101,7 +101,7 @@ func _init(w: World, b: World.Bandit) -> void:
 	_material = ShaderMaterial.new()
 	_material.shader = preload("res://src/game/actor.gdshader")
 	# as on Panoramic: a warm rim on its sun side and a thin dark edge, so it reads at phone size
-	_material.set_shader_parameter(&"rim", 0.4)  # (the ink and rim are in its cel-shaded render)
+	_material.set_shader_parameter(&"rim", 0.75)  # (the ink and a rim are in its cel-shaded render; the sun's edge here)
 	_material.set_shader_parameter(&"rim_px", 2.0)
 	_material.set_shader_parameter(&"rim_colour", Color(1.0, 0.8, 0.55))
 	_material.set_shader_parameter(&"rim_dir", Vector2(-0.6, -0.8))
@@ -213,7 +213,7 @@ func _draw() -> void:
 		return
 	# a soft shadow on the ground under him (only while he stands on it)
 	if _grounded:
-		draw_set_transform(Vector2(_jolt * 0.5, -1.0), 0.0, Vector2(0.66, 0.15))
+		draw_set_transform(Vector2(_jolt * 0.5, -1.0), 0.0, Vector2(0.8, 0.17))
 		draw_texture(_shade, -Vector2(32, 32))
 		draw_set_transform(Vector2.ZERO)
 	_draw_stars(false)

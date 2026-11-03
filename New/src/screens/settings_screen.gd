@@ -1,11 +1,11 @@
 extends Screen
-## Settings, in the game's own kit, over the sunset dimmed behind a scrim: a framed panel with its
-## ribbon, its back button nailed to its corner, floating with margins all round; Panoramic stands
+## Settings, in the game's own kit, over the sunset behind a light scrim: a framed panel with its
+## ribbon, its back button in the panels' wood in the corner, floating with margins all round; Panoramic stands
 ## whole at its left where there is room for him (never behind it). Inside, four titled groups, each
 ## a sunken card of rows split by fine lines (not ten identical bars): Sound (music and sounds
-## volumes), Feel (vibration, screen shake, reduced motion), Game (language, replay the tutorial)
+## volumes), Effects (vibration, screen shake, reduced motion), Game (language, replay the tutorial)
 ## and Help (rate, privacy, credits, and the ad choices and purchases when they apply). Each row has
-## a chunky icon on a candy tile tinted by its group. Every row is a thumb-sized target. Credits
+## a chunky icon on an orange candy tile, the same on every row. Every row is a thumb-sized target. Credits
 ## (About, the fonts and icons, the studio, the version) open over it.
 
 const ROW_H := 70.0  ## height of a row (the whole row takes the touch: 86 with the lines around it)
@@ -33,7 +33,7 @@ func _build() -> void:
 	backdrop.sun_at = Vector2(0.16, 0.6)
 	add_child(backdrop)
 	var shade := ColorRect.new()  # a scrim: the sunset steps back behind the panel
-	shade.color = Color(0.06, 0.01, 0.06, 0.55)
+	shade.color = Color(0.06, 0.01, 0.06, 0.3)
 	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(shade)
@@ -42,7 +42,7 @@ func _build() -> void:
 	vignette.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	vignette.stretch_mode = TextureRect.STRETCH_SCALE
 	vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	vignette.modulate = Color(0.02, 0.0, 0.02, 0.9)
+	vignette.modulate = Color(0.02, 0.0, 0.02, 0.65)
 	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(vignette)
 	var hero := _hero()
@@ -58,40 +58,40 @@ func _build() -> void:
 	columns.add_theme_constant_override(&"separation", 28)
 	card.add_child(columns)
 	var left := _column()
-	# the icon tiles are coloured by what they mean (sound gold, feel green, language and lessons
-	# orange, rating gold, privacy blue, credits cream): nothing in alarm red
-	left.add_child(_group("speaker-high-fill", tr("SOUND_GROUP"), Ui.Tone.GOLD, [
-		_tinted(_slider_row("music-notes-fill", tr("MUSIC"), &"music_volume", &"music_on"), Ui.Tone.GOLD),
-		_tinted(_slider_row("speaker-high-fill", tr("SOUNDS"), &"sounds_volume", &"sounds_on"), Ui.Tone.GOLD),
+	# every row's icon on the same orange tile (one colour throughout, not a rainbow); the groups
+	# are told apart by their titles
+	left.add_child(_group("speaker-high-fill", tr("SOUND_GROUP"), [
+		_slider_row("music-notes-fill", tr("MUSIC"), &"music_volume", &"music_on"),
+		_slider_row("speaker-high-fill", tr("SOUNDS"), &"sounds_volume", &"sounds_on"),
 	]))
-	left.add_child(_group("vibrate-fill", tr("FEEL"), Ui.Tone.GREEN, [
-		_tinted(_toggle_row("vibrate-fill", tr("VIBRATION"), &"vibration_on"), Ui.Tone.GREEN),
-		_tinted(_toggle_row("screen-shake", tr("SCREEN_SHAKE"), &"screen_shake"), Ui.Tone.GREEN),
-		_tinted(_toggle_row("snail", tr("REDUCE_MOTION"), &"reduce_motion"), Ui.Tone.GREEN),
+	left.add_child(_group("sparkle-fill", tr("FEEL"), [
+		_toggle_row("vibrate-fill", tr("VIBRATION"), &"vibration_on"),
+		_toggle_row("screen-shake", tr("SCREEN_SHAKE"), &"screen_shake"),
+		_toggle_row("snail", tr("REDUCE_MOTION"), &"reduce_motion"),
 	]))
 	columns.add_child(left)
 	var right := _column()
-	right.add_child(_group("play-fill", tr("GENERAL"), Ui.Tone.SUNSET, [
-		_tinted(_button_row("translate-fill", tr("LANGUAGE"), tr("LANGUAGE_NAME"), _switch_language), Ui.Tone.SUNSET),
-		_tinted(_button_row("hand-pointing-fill", tr("REPLAY_TUTORIAL"), "", _replay_tutorial), Ui.Tone.SUNSET),
+	right.add_child(_group("play-fill", tr("GENERAL"), [
+		_button_row("translate-fill", tr("LANGUAGE"), tr("LANGUAGE_NAME"), _switch_language),
+		_button_row("hand-pointing-fill", tr("REPLAY_TUTORIAL"), "", _replay_tutorial),
 	]))
 	var help: Array = [
-		_tinted(_button_row("star-fill", tr("RATE"), "", Config.open_store_review), Ui.Tone.GOLD),
-		_tinted(_button_row("shield-check-fill", tr("PRIVACY_POLICY"), "", Config.open_privacy_policy), Ui.Tone.BLUE),
+		_button_row("star-fill", tr("RATE"), "", Config.open_store_review),
+		_button_row("shield-check-fill", tr("PRIVACY_POLICY"), "", Config.open_privacy_policy),
 	]
 	if Services.ads.privacy_options_required():
-		help.append(_tinted(_button_row("megaphone-fill", tr("AD_PRIVACY"), "", Services.ads.show_privacy_options), Ui.Tone.BLUE))
+		help.append(_button_row("megaphone-fill", tr("AD_PRIVACY"), "", Services.ads.show_privacy_options))
 	if Services.store.enabled():
 		if not Save.ads_removed:
-			help.append(_tinted(_button_row("prohibit-fill", tr("REMOVE_ADS"), Services.store.price(), Services.store.buy_remove_ads), Ui.Tone.SUNSET))
-		help.append(_tinted(_button_row("arrows-clockwise-bold", tr("RESTORE_PURCHASES"), "", Services.store.restore), Ui.Tone.SUNSET))
-	help.append(_tinted(_button_row("info-fill", tr("CREDITS_BUTTON"), "", _show_credits), Ui.Tone.WHITE))
-	right.add_child(_group("info-fill", tr("HELP"), Ui.Tone.BLUE, help))
+			help.append(_button_row("prohibit-fill", tr("REMOVE_ADS"), Services.store.price(), Services.store.buy_remove_ads))
+		help.append(_button_row("arrows-clockwise-bold", tr("RESTORE_PURCHASES"), "", Services.store.restore))
+	help.append(_button_row("info-fill", tr("CREDITS_BUTTON"), "", _show_credits))
+	right.add_child(_group("info-fill", tr("HELP"), help))
 	columns.add_child(right)
 	var banner := Banner.new(tr("SETTINGS"), Ui.Tone.SUNSET, 48)
 	page.add_child(card)
 	page.add_child(banner)
-	var back_button := Ui.round_button("arrow-left-bold", 76)
+	var back_button := Ui.wood_button("arrow-left-bold", Vector2(84, 84), 42.0)  # in the panel's wood
 	back_button.pressed.connect(back)
 	page.add_child(back_button)
 	var place := func() -> void:
@@ -123,12 +123,6 @@ func _build() -> void:
 	place.call_deferred()
 
 
-## Marks `row` with the tone its icon tile takes (what it means).
-func _tinted(row: Control, tone: Ui.Tone) -> Control:
-	row.set_meta(&"tone", tone)
-	return row
-
-
 ## Panoramic in his stance (the art track's render), lit by the sunset; null when the render isn't
 ## there.
 func _hero() -> TextureRect:
@@ -149,15 +143,21 @@ func _column() -> VBoxContainer:
 	return col
 
 
-## A group: its title in the panel's own brown with its icon in the group's colour, then its rows
-## in one sunken card, a fine line between two rows.
-func _group(icon_name: String, title: String, tone: Ui.Tone, rows: Array) -> VBoxContainer:
+## A group: a strong title (the heaviest weight, bigger than the rows, a gold icon, a rule running
+## to the column's edge), then its rows in one sunken card, a fine line between two rows.
+func _group(icon_name: String, title: String, rows: Array) -> VBoxContainer:
 	var g := VBoxContainer.new()
 	g.add_theme_constant_override(&"separation", 6)
 	var head := HBoxContainer.new()
-	head.add_theme_constant_override(&"separation", 8)
-	head.add_child(Ui.bold_icon(icon_name, 32, Ui.tone_colours(tone).bottom, Color("5a2408")))
-	head.add_child(Ui.label(title, 30, INK, Ui.font_title, HORIZONTAL_ALIGNMENT_LEFT))
+	head.add_theme_constant_override(&"separation", 10)
+	head.add_child(Ui.bold_icon(icon_name, 36, Ui.tone_colours(Ui.Tone.GOLD).bottom, Color("4a1e04")))
+	head.add_child(Ui.label(title, 34, INK, Ui.font_display, HORIZONTAL_ALIGNMENT_LEFT))
+	var rule := ColorRect.new()  # the title's rule, to the column's edge
+	rule.color = Color(0.55, 0.3, 0.1, 0.45)
+	rule.custom_minimum_size = Vector2(0, 3)
+	rule.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rule.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	head.add_child(rule)
 	g.add_child(head)
 	var well := PanelContainer.new()
 	var s := Card.well(18)
@@ -177,26 +177,10 @@ func _group(icon_name: String, title: String, tone: Ui.Tone, rows: Array) -> VBo
 		list.add_child(row)
 	well.add_child(list)
 	g.add_child(well)
-	# the rows take the group's colour
-	for row: Control in rows:
-		var tile := row.find_child("Tile", true, false) as PanelContainer
-		var row_tone: Ui.Tone = row.get_meta(&"tone", tone)
-		if tile:
-			var ts := Ui.candy_style(row_tone, 13.0, false, 4.0)
-			ts.set_content_margin_all(5)
-			ts.content_margin_bottom = 9
-			tile.add_theme_stylebox_override(&"panel", ts)
-			var icon := tile.get_child(0) as BoldIcon
-			if icon:
-				icon.outline = Ui.tone_colours(row_tone).outline
-				if row_tone == Ui.Tone.WHITE:
-					icon.fill = Ui.LABEL_DEEP
-					icon.outline = Color(0, 0, 0, 0)
-				icon.queue_redraw()
 	return g
 
 
-## A row: its icon on a small candy tile (tinted by its group), its name, and `right`.
+## A row: its icon on a small orange candy tile (the same on every row), its name, and `right`.
 func _row(icon_name: String, text: String, right: Control) -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override(&"separation", 12)
@@ -210,7 +194,7 @@ func _row(icon_name: String, text: String, right: Control) -> Control:
 	tile.add_theme_stylebox_override(&"panel", ts)
 	tile.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	tile.add_child(Ui.bold_icon(icon_name, 32, Ui.WHITE, Color("5a1a06")))
+	tile.add_child(Ui.bold_icon(icon_name, 32, Ui.WHITE, Ui.tone_colours(Ui.Tone.SUNSET).outline))
 	row.add_child(tile)
 	var l := Ui.label(text, 26, INK, Ui.font_title, HORIZONTAL_ALIGNMENT_LEFT)
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL

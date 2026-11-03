@@ -501,6 +501,90 @@ def pose_defeat():
     bpy.context.view_layer.update()
 
 
+def _ring_in_hand(hand_bone="RightHand"):
+    """The menu's steel ring, held in his hand, facing us."""
+    ring = bpy.data.objects.get("MenuRing")
+    if ring is None:  # made (with its material) by pose_menu_throw(): this pose kept
+        keep, turned = current(), ARM.rotation_euler.z
+        pose_menu_throw()
+        apply(keep)
+        ARM.rotation_euler.z = turned
+        bpy.context.view_layer.update()
+        ring = bpy.data.objects["MenuRing"]
+    ring.hide_render = False
+    pb = ARM.pose.bones[P + hand_bone]
+    hand = ARM.matrix_world @ ((pb.head + pb.tail) / 2)
+    ring.location = hand + Vector((0.0, -0.03, 0.035))
+    ring.rotation_euler = (math.radians(78), math.radians(-14), 0.0)
+
+
+def pose_key_art():
+    """The title screen: three-quarters towards us, weight on one leg, the ring raised in his right
+    hand by his face, his left fist on his hip, head up: his face clear of his hair."""
+    reset_turn()
+    apply(sample("idle", 1))
+    aim("RightArm", 0.35, -0.15, 0.6)
+    aim("RightForeArm", 0.35, 0.95, 0.05)
+    aim("RightHand", 0.2, 1.0)
+    aim("LeftArm", -0.1, -0.85, -0.5)
+    aim("LeftForeArm", 0.75, -0.15, -0.3)
+    turn("Spine", -3)
+    turn("Neck", -4)
+    turn("Head", -6)
+    ARM.rotation_euler.z = math.radians(-28.0)
+    bpy.context.view_layer.update()
+    _ring_in_hand()
+
+
+def pose_celebrate():
+    """The win card: his armoured fist punched up, the other pumped at his chest, chin up, feet on
+    the ground, three-quarters towards us."""
+    reset_turn()
+    apply(sample("idle", 1))
+    aim("LeftArm", 0.1, 1.0, -0.3)
+    aim("LeftForeArm", 0.05, 1.0, -0.05)
+    aim("LeftHand", 0.0, 1.0)
+    aim("RightArm", 0.25, -0.55, 0.65)
+    aim("RightForeArm", 0.7, 0.65, -0.15)
+    turn("Spine", -5)
+    turn("Head", -8)
+    ARM.rotation_euler.z = math.radians(-22.0)
+    bpy.context.view_layer.update()
+
+
+SEAT_TURN = 72.0  ## degrees: his legs across the picture
+SEAT_TWIST = -45.0  ## degrees: his chest and face turned back to us
+
+
+def pose_seated():
+    """Game over: sat on the ground, dazed, one knee up, the other leg out, a hand propping him up
+    behind, the other to his head; his face up and visible, three-quarters towards us."""
+    reset_turn()
+    apply(sample("idle", 1))
+    aim("RightUpLeg", 0.55, 0.85, 0.15)  # the knee drawn up high, the foot flat near his seat
+    aim("RightLeg", 0.3, -1.0, 0.05)
+    aim("RightFoot", 1.0, -0.1)
+    aim("LeftUpLeg", 1.0, -0.17, -0.2)  # (down a little: the look-up camera lifts what reaches away)
+    aim("LeftLeg", 1.0, -0.12, -0.1)
+    aim("LeftFoot", 0.3, 1.0)
+    turn("Spine", -14)
+    turn("Spine1", -4)
+    aim("LeftArm", -0.55, -0.8, -0.35)
+    aim("LeftForeArm", -0.45, -0.9, -0.1)
+    aim("LeftHand", -0.6, -0.6)
+    aim("RightArm", 0.25, 0.45, 0.85)
+    aim("RightForeArm", -0.25, 0.7, -0.65)
+    turn("Spine1", SEAT_TWIST * 0.4, axis=(0.0, 0.0, 1.0))  # his chest and face turned to us
+    turn("Head", SEAT_TWIST, axis=(0.0, 0.0, 1.0))
+    turn("Head", 10, axis=(0.0, 1.0, 0.0))  # tilted, dazed
+    turn("Head", -8)
+    seat = bone_z("Hips") - 0.09  # his seat, under the pelvis
+    low = min(seat, bone_z("RightToe_End"), bone_z("LeftToe_End"), bone_z("LeftFoot") - 0.04)
+    shift_hips(0.0, 0.0 - low)  # sat on the ground
+    ARM.rotation_euler.z = math.radians(SEAT_TURN)  # his legs across the picture, not at us
+    bpy.context.view_layer.update()
+
+
 def reset_turn():
     ARM.rotation_euler.z = 0.0
     ring = bpy.data.objects.get("MenuRing")  # only the title screen's picture holds a ring
@@ -525,9 +609,10 @@ def anims():
     out["climb"] = ("side", [lambda i=i: pose_climb(i / 7.0) for i in range(8)])
     out["win"] = ("side", [lambda i=i: pose_win(i / 23.0) for i in range(24)], 0.2)
     out["menu"] = ("front", [lambda k=k: pose_menu(k) for k in range(4)], 0.1)
-    out["menu_hero"] = ("front", [lambda: pose_menu_throw()], 0.1)
-    out["defeat"] = ("side", [lambda: pose_defeat()], 0.0)
-    out["win_front"] = ("side", [lambda: pose_win(0.62, face_turn=-100.0)], 0.2)
+    # the interface pictures: front camera, looking a little up at him (his face under his hair)
+    out["menu_hero"] = ("front", [lambda: pose_key_art()], 0.1, 7.0)
+    out["defeat"] = ("front", [lambda: pose_seated()], -0.15, 3.0)
+    out["win_front"] = ("front", [lambda: pose_celebrate()], 0.15, 7.0)
     return out
 
 
@@ -577,10 +662,10 @@ def make_bandit():
         bw = nodes.new("ShaderNodeRGBToBW")
         ramp = nodes.new("ShaderNodeValToRGB")
         el = ramp.color_ramp.elements
-        el[0].position, el[0].color = 0.05, (0.025, 0.012, 0.02, 1)
-        el[1].position, el[1].color = 0.72, (0.62, 0.04, 0.06, 1)
+        el[0].position, el[0].color = 0.05, (0.03, 0.015, 0.03, 1)
+        el[1].position, el[1].color = 0.72, (0.95, 0.12, 0.62, 1)  # the wraps: bright magenta
         mid = el.new(0.3)
-        mid.color = (0.12, 0.05, 0.06, 1)
+        mid.color = (0.22, 0.08, 0.2, 1)  # the skin: dark plum
         links.new(tex.outputs["Color"], bw.inputs["Color"])
         links.new(bw.outputs["Val"], ramp.inputs["Fac"])
         links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
@@ -596,7 +681,7 @@ def make_bandit():
     band = bpy.context.object
     band.scale = (0.95, 1.12, 1.0)
     bpy.ops.object.shade_smooth()
-    band.data.materials.append(_material("Mask", (0.55, 0.02, 0.03), 0.6))
+    band.data.materials.append(_material("Mask", (1.0, 0.72, 0.04), 0.5))  # his signature: a gold mask
     eye_mat = _material("Eyes", (1.0, 0.6, 0.1), 0.3, (1.0, 0.62, 0.12), 16.0)
     parts = [band]
     for side in (-1.0, 1.0):
@@ -724,11 +809,15 @@ def bandit_anims():
 
 TOON = {
     # shade, mid, lit (multipliers of the albedo), rim colour, rim strength, rim width
-    "day": ((0.5, 0.43, 0.62), (0.8, 0.72, 0.7), (1.06, 0.98, 0.88), (1.0, 0.8, 0.5), 0.55, 0.58),
-    "sunset": ((0.6, 0.43, 0.45), (0.82, 0.64, 0.58), (1.05, 0.86, 0.68), (1.0, 0.55, 0.2), 1.1, 0.5),
+    "day": ((0.5, 0.43, 0.62), (0.8, 0.72, 0.7), (1.06, 0.98, 0.88), (1.0, 0.8, 0.5), 0.85, 0.55),
+    "sunset": ((0.5, 0.36, 0.4), (0.7, 0.52, 0.5), (1.0, 0.82, 0.64), (1.0, 0.5, 0.15), 1.6, 0.45),
 }
-INK = (0.055, 0.025, 0.035)
-INK_WIDTH = 0.0042  ## scene units (about 1.3 px in the game's atlas)
+TOON_CLOTH = {  # the cloth's bands: shade, mid, lit (warm cream, never grey)
+    "day": ((0.78, 0.66, 0.55), (0.93, 0.85, 0.74), (1.04, 1.0, 0.93)),
+    "sunset": ((0.6, 0.44, 0.38), (0.8, 0.62, 0.5), (1.0, 0.86, 0.7)),
+}
+INK = (0.16, 0.07, 0.04)  ## a warm dark brown (round 5: black read as a sticker's outline)
+INK_WIDTH = 0.003  ## scene units (about 0.9 px in the game's atlas)
 
 
 def _node(nt, kind, **inputs):
@@ -783,12 +872,53 @@ def toon_material(m, mode):
         e = el.new(pos)
         e.color = (*col, 1)
     nt.links.new(bw.outputs[0], ramp.inputs["Fac"])
+    # the cloth (a light, unsaturated albedo: the loincloth, the wraps): its folds from the normal
+    # map and a warm cream shade (round 5: it read as grey jagged paper); the blue boots and arm
+    # (the user's design) kept, a little warmer and less saturated in the light
+    hsv = nt.nodes.new("ShaderNodeSeparateColor")
+    hsv.mode = "HSV"
+    nt.links.new(albedo, hsv.inputs[0])
+    clamp01 = lambda v: _math(nt, "MAXIMUM", _math(nt, "MINIMUM", v, 1.0), 0.0)  # noqa: E731
+    cloth = _math(nt, "MULTIPLY", clamp01(_math(nt, "MULTIPLY", _math(nt, "SUBTRACT", hsv.outputs[2], 0.55), 6.0)),
+                  clamp01(_math(nt, "MULTIPLY", _math(nt, "SUBTRACT", 0.3, hsv.outputs[1]), 6.0)))
+    blue = _math(nt, "MULTIPLY", clamp01(_math(nt, "MULTIPLY", _math(nt, "SUBTRACT", hsv.outputs[1], 0.35), 5.0)),
+                 clamp01(_math(nt, "SUBTRACT", 1.0, _math(nt, "MULTIPLY", _math(nt, "ABSOLUTE", _math(nt, "SUBTRACT", hsv.outputs[0], 0.6)), 8.0))))
+    nm = next((n for n in nt.nodes if n.type == "NORMAL_MAP"), None)
+    if nm is not None:
+        nm.inputs["Strength"].default_value = 1.0
+        geo_n = nt.nodes.new("ShaderNodeNewGeometry")
+        mix_n = nt.nodes.new("ShaderNodeMix")
+        mix_n.data_type = "VECTOR"
+        nt.links.new(cloth, mix_n.inputs["Factor"])
+        nt.links.new(geo_n.outputs["Normal"], mix_n.inputs[4])
+        nt.links.new(nm.outputs["Normal"], mix_n.inputs[5])
+        nt.links.new(mix_n.outputs[1], diffuse.inputs["Normal"])
+    warm = TOON_CLOTH[mode]
+    ramp_c = nt.nodes.new("ShaderNodeValToRGB")
+    elc = ramp_c.color_ramp.elements
+    elc[0].position, elc[0].color = 0.0, (*warm[0], 1)
+    elc[1].position, elc[1].color = 1.0, (*warm[2], 1)
+    for pos, col in ((0.16, warm[0]), (0.22, warm[1]), (0.5, warm[1]), (0.56, warm[2])):
+        e = elc.new(pos)
+        e.color = (*col, 1)
+    nt.links.new(bw.outputs[0], ramp_c.inputs["Fac"])
+    bands = nt.nodes.new("ShaderNodeMix")
+    bands.data_type = "RGBA"
+    nt.links.new(cloth, bands.inputs["Factor"])
+    nt.links.new(ramp.outputs["Color"], bands.inputs["A"])
+    nt.links.new(ramp_c.outputs["Color"], bands.inputs["B"])
+    lit_colour = nt.nodes.new("ShaderNodeMix")
+    lit_colour.data_type = "RGBA"
+    lit_colour.blend_type = "MULTIPLY"
+    lit_colour.inputs["Factor"].default_value = 1.0
+    nt.links.new(albedo, lit_colour.inputs["A"])
+    nt.links.new(bands.outputs["Result"], lit_colour.inputs["B"])
     colour = nt.nodes.new("ShaderNodeMix")
     colour.data_type = "RGBA"
     colour.blend_type = "MULTIPLY"
-    colour.inputs["Factor"].default_value = 1.0
-    nt.links.new(albedo, colour.inputs["A"])
-    nt.links.new(ramp.outputs["Color"], colour.inputs["B"])
+    nt.links.new(_math(nt, "MULTIPLY", blue, 0.45), colour.inputs["Factor"])
+    nt.links.new(lit_colour.outputs["Result"], colour.inputs["A"])
+    colour.inputs["B"].default_value = (1.12, 0.9, 0.7, 1)
     # view-space normal: how much it faces away from us (the edge), and towards the sun's side
     geo = nt.nodes.new("ShaderNodeNewGeometry")
     vt = nt.nodes.new("ShaderNodeVectorTransform")
@@ -944,8 +1074,10 @@ def mirror_user_lights():
     bpy.context.view_layer.update()
 
 
-def render(name, view, frames, lift=0.0):
+def render(name, view, frames, lift=0.0, tilt=0.0):
     SC.camera = camera(view)
+    level = SC.camera.rotation_euler.x
+    SC.camera.rotation_euler.x = level + math.radians(tilt)  # + looks up at him
     if view == "other_side":
         mirror_user_lights()
     # the light keeps its place on screen whichever side the camera looks from
@@ -972,6 +1104,7 @@ def render(name, view, frames, lift=0.0):
         json.dump(data, fh, indent=1)
     if view == "other_side":
         mirror_user_lights()
+    SC.camera.rotation_euler.x = level
     print("RENDERED", name, len(data["frames"]))
 
 

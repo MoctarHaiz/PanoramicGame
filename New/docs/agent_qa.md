@@ -112,3 +112,14 @@ kept alive by test lambdas that capture them).
 - `_gp_camera` (gameplay) is flaky under load: 1-2 failures per full run, frames 36-39 (camera eases behind a jump in
   camera_must_see). Reported; not my function.
 - capture: `throw`/`hurt` bandit placed short of a wall.
+
+## Round 5 (audit of the round 4 merge, 99a1636)
+
+- Perf passes everywhere: texture 53-64 MB, RAM 49-59 MB, frames, nodes. Panels keep the world drawing under them
+  (pause 428 draw calls).
+- Blocky blur: `blurred_snapshot(vp, 5)` = 1/32 picture stretched 32x (bilinear facets) + the card's 7-band stepped
+  shadow. Grey dots = WayBar's quarter studs around the "21%". Hang into the HUD = HUD_BAND (78) ignores the top
+  inset (iPad plates reach 93): new `_test_hud_band` fails on iPad. Mesa streaks = savanna.py's gullies
+  (noise blurred 22 x 5, its x-gradient lights the cliffs) at 1 px per unit, magnified 1.8-3.2x; not compression
+  (decoded import = PNG). Island: the soil band is still a square box (A/B with --hide).
+- 1022 checks, 1 failed (the iPad HUD band, a real bug); quick 775, 0 failed.

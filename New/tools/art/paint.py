@@ -175,3 +175,21 @@ def strokes(h: int, w: int, rng: np.random.Generator, length: float = 40.0, widt
         s = ndimage.gaussian_filter1d(s, length / 2.5, axis=1, mode="reflect")
         s = ndimage.rotate(s, -np.degrees(angle), reshape=False, mode="reflect")
     return s / (np.abs(s).max() + 1e-6)
+
+
+def cel(t: np.ndarray, levels=(0.34, 0.66), soft: float = 0.03) -> np.ndarray:
+    """Round 5 (the hero's style): a light value 0..1 stepped into flat bands (shade, mid, lit) with
+    a hair of softening at each step (no aliasing)."""
+    out = np.zeros_like(t, dtype=float)
+    for edge in levels:
+        out += np.clip((t - edge) / soft + 0.5, 0, 1)
+    return out / len(levels)
+
+
+def ink_edge(alpha: np.ndarray, width: float) -> np.ndarray:
+    """Round 5: an ink line just inside a silhouette, `width` px thick (0..1)."""
+    from scipy import ndimage as _nd
+    inside = alpha > 0.5
+    d = _nd.distance_transform_edt(inside)
+    return np.clip(width + 0.5 - d, 0, 1) * inside
+
