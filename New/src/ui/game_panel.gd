@@ -3,7 +3,8 @@ extends Control
 ## A panel over the game (pause, results). Behind it the game is taken once as a picture, with the
 ## HUD and the flying effects hidden for that frame (no ghost of a heart or a "+1" in it), shrunk and
 ## drawn back stretched (a soft blur, Ui.blurred_snapshot: no shader, no screen-sized copy kept),
-## under a dark scrim and a vignette, so the scene steps back and the panel owns the screen. A Card in
+## under a light scrim that keeps the scene's colour (it dims, it doesn't black out) and a soft
+## vignette, so the scene steps back and the panel owns the screen. A Card in
 ## the middle of the safe area, its title on a ribbon over its top edge; a character (`art`) at its
 ## left, overlapping its edge, standing in a pool of light with his shadow under his feet; the group
 ## is centred. The card pops in opaque (0.7 -> 1.06 -> 1, a back-ease), the ribbon drops in after
@@ -30,7 +31,7 @@ var _u := 0.7  # the entrance's pop
 ## turning behind the card; `hide`: what to leave out of the picture behind (the HUD, the effects).
 ## The panel shows a frame later, once that picture is taken.
 static func open(host: Control, title: String, tone: Ui.Tone, body: Control, character: Control = null,
-		veil := Color(0.05, 0.02, 0.08, 0.62), glow := Color(1, 0.8, 0.45, 0.55), rays := false,
+		veil := Color(0.06, 0.03, 0.08, 0.32), glow := Color(1, 0.8, 0.45, 0.55), rays := false,
 		hide: Array = []) -> GamePanel:
 	var p := GamePanel.new()
 	p.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -63,7 +64,7 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 	vignette.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	vignette.stretch_mode = TextureRect.STRETCH_SCALE
 	vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	vignette.modulate = Color(0.02, 0.0, 0.02, 0.95)
+	vignette.modulate = Color(0.04, 0.0, 0.03, 0.55)
 	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	back.add_child(vignette)
 	if rays:
@@ -113,9 +114,9 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 ## enters. What it hid stays hidden while the panel is up (some effects draw over everything) and
 ## comes back when the panel goes.
 func _snapshot_then_enter(hide: Array) -> void:
-	for n: CanvasItem in hide:
-		if is_instance_valid(n) and n.visible:
-			n.visible = false
+	for n: Variant in hide:  # some may be gone already (a finished lesson, the start card once tapped)
+		if is_instance_valid(n) and n is CanvasItem and (n as CanvasItem).visible:
+			(n as CanvasItem).visible = false
 			_hidden.append(n)
 	if DisplayServer.get_name() == "headless":
 		_enter()
@@ -124,7 +125,7 @@ func _snapshot_then_enter(hide: Array) -> void:
 	await RenderingServer.frame_post_draw
 	if not is_inside_tree():
 		return
-	_picture.texture = Ui.blurred_snapshot(get_viewport(), 5)
+	_picture.texture = Ui.blurred_snapshot(get_viewport(), 4)
 	visible = true
 	_enter()
 
@@ -154,9 +155,9 @@ func _enter() -> void:
 func _exit_tree() -> void:
 	if Device.changed.is_connected(_place):
 		Device.changed.disconnect(_place)
-	for n: CanvasItem in _hidden:
+	for n: Variant in _hidden:
 		if is_instance_valid(n):
-			n.visible = true
+			(n as CanvasItem).visible = true
 
 
 func _set_pop(u: float) -> void:
@@ -182,7 +183,7 @@ func _place() -> void:
 	var whole := Vector2(card_size.x + art_w, card_size.y + _top + lift)
 	var insets := Device.insets()
 	var free := Rect2(insets.x + 12.0, insets.y + 10.0, size.x - insets.x - insets.z - 24.0,
-			size.y - insets.y - Device.bottom_with_banner() - 20.0)
+			size.y - insets.y - Device.bottom_with_banner() - Device.ad_gap() - 20.0)
 	if free.size.x > 0.0:
 		_k = minf(1.0, minf(free.size.x / whole.x, free.size.y / whole.y))
 	var centre := free.get_center()

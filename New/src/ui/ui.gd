@@ -65,11 +65,16 @@ var font_body_bold: FontVariation  ## Quicksand Bold
 var theme: Theme
 
 var _icons := {}
-var _fredoka: FontFile
+## Fredoka as static weights with their overlaps removed (made from the variable font with fontTools'
+## instancer), imported as multichannel signed distance fields: one glyph cache per weight for every
+## size and outline (a raster font makes a new glyph page, 1 to 2 MB, for each size and each outline
+## size it is drawn at: 8 MB more for each new DisplayText size). The variable font's overlapping
+## contours would show seams in a distance field, hence the static weights.
+const FREDOKA := {580: "res://assets/fonts/Fredoka-580.ttf", 680: "res://assets/fonts/Fredoka-680.ttf",
+		700: "res://assets/fonts/Fredoka-700.ttf"}
 
 
 func _ready() -> void:
-	_fredoka = load("res://assets/fonts/Fredoka.ttf")
 	var quicksand: FontFile = load("res://assets/fonts/Quicksand.ttf")
 	font_title = title_font(680)
 	font_display = title_font(700)
@@ -80,10 +85,15 @@ func _ready() -> void:
 	get_tree().root.theme = theme
 
 
-## Fredoka at a given weight, with optional extra space between letters.
-## (A variation of a variation would lose the weight: always start from the font file.)
+## Fredoka at the nearest of its static weights (580, 680, 700), with optional extra space between
+## letters.
 func title_font(weight := 650, letter_spacing := 0) -> FontVariation:
-	var v := _weight(_fredoka, weight)
+	var nearest := 580
+	for w: int in FREDOKA:
+		if absi(w - weight) < absi(nearest - weight):
+			nearest = w
+	var v := FontVariation.new()
+	v.base_font = load(FREDOKA[nearest])
 	v.spacing_glyph = letter_spacing
 	return v
 

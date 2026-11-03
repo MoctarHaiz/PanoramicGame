@@ -17,6 +17,8 @@ var sun_at := Vector2(SUN_X, HORIZON - 0.13)
 var horizon := HORIZON
 ## The large acacia framing the left edge and the baobab near it (off where a character stands there).
 var framing_tree := true
+## Where the small far acacia stands, as a share of the width (the menu keeps it clear of its buttons).
+var tree_x := 0.6
 ## Pollen specks drifting up (off on the menu: they read as stars in a lit sky).
 var motes := true
 ## How strong the shafts of light fanning from the sun are (1: a breath of light).
@@ -153,7 +155,7 @@ func _draw_trees(ci: CanvasItem) -> void:
 	var k := _k()
 	if framing_tree:
 		_tree(ci, &"tree_acacia_1", Vector2(size.x * 0.0 + 40.0 * k, size.y * (horizon + 0.2)), 360.0 * k, dark, true)
-	_tree(ci, &"tree_acacia_2", Vector2(size.x * 0.6, size.y * (horizon + 0.06)), 120.0 * k, Color(0.3, 0.14, 0.24), false)
+	_tree(ci, &"tree_acacia_2", Vector2(size.x * tree_x, size.y * (horizon + 0.06)), 120.0 * k, Color(0.3, 0.14, 0.24), false)
 	if framing_tree:
 		_tree(ci, &"tree_baobab_1", Vector2(size.x * 0.17, size.y * (horizon + 0.07)), 140.0 * k, Color(0.3, 0.15, 0.26), false)
 

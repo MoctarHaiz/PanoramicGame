@@ -764,7 +764,7 @@ func pause_game() -> void:
 	Audio.duck_music(true)
 	Audio.play_sfx(&"panel_open")
 	Services.ads.show_banner(true)
-	_overlay = PausePanel.open(self, resume_game, _go_home, [hud, _fliers, view.fx])  # New: a clean picture behind
+	_overlay = PausePanel.open(self, resume_game, _go_home, [hud, _fliers, view.fx, _tutorial, _start_card])  # New: a clean picture behind
 	_overlay.z_index = OVERLAY_Z
 
 
@@ -830,7 +830,7 @@ func _show_results(news: Dictionary) -> void:
 	hud.leave()
 	Services.ads.show_banner(true)
 	_overlay = ResultsPanel.open(self, world, news, _go_home, _play_again,
-			func() -> void: Services.share.share_run(world.bobs, world.stars()), [hud, _fliers, view.fx])
+			func() -> void: Services.share.share_run(world.bobs, world.stars()), [hud, _fliers, view.fx, _tutorial, _start_card])
 	_overlay.z_index = OVERLAY_Z
 	Services.push.request_permission_once()
 

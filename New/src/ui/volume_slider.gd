@@ -15,7 +15,7 @@ var _dragging := false
 
 func _init(start := 1.0) -> void:
 	value = clampf(start, 0.0, 1.0)
-	custom_minimum_size = Vector2(250, 46)
+	custom_minimum_size = Vector2(250, 54)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	size_flags_vertical = Control.SIZE_SHRINK_CENTER
 
@@ -50,7 +50,7 @@ func _set_from(x: float) -> void:
 func _draw() -> void:
 	var r := size.y / 2
 	var ci := get_canvas_item()
-	var groove := Rect2(Vector2(0, r * 0.62), Vector2(size.x, r * 0.76))
+	var groove := Rect2(Vector2(0, r * 0.52), Vector2(size.x, r * 0.96))  # a sturdy groove
 	var gr := groove.size.y / 2
 	GlossStyle.fill_rounded(ci, groove.grow(1.0), gr + 1.0, Color(1, 1, 0.95, 0.7), Color(1, 1, 0.95, 0.7))
 	GlossStyle.fill_rounded(ci, groove, gr, INK, INK)

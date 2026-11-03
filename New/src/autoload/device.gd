@@ -40,3 +40,9 @@ func insets() -> Vector4:
 ## Bottom margin including the ad banner (the banner is shown above the home bar).
 func bottom_with_banner() -> float:
 	return insets().w + banner_height
+
+
+## Extra room between buttons and the ad banner when one is shown (AdMob: no button so close to an ad
+## that a tap meant for it lands on the ad).
+func ad_gap() -> float:
+	return 40.0 if banner_height > 0.0 else 0.0

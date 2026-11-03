@@ -45,6 +45,7 @@ func enter(_data: Dictionary) -> void:
 	_backdrop.clouds = true
 	_backdrop.shafts = 2.4
 	_backdrop.horizon = 0.8  # more sky: the horizon doesn't cut the frame in half
+	_backdrop.tree_x = 0.37  # the small acacia between him and the title, not behind the buttons
 	add_child(_backdrop)
 	_hero_tex = load(HERO_ART) if ResourceLoader.exists(HERO_ART) else HERO_STAND
 	# the bloom around the low sun
@@ -176,8 +177,8 @@ func _picture(texture: Texture2D) -> TextureRect:
 ## The best run on a cream plaque framed in gold: the Red Bob, "BEST" over the count, the stars.
 func _best_plaque() -> PanelContainer:
 	var s := Ui.plaque_style(30.0)
-	s.content_margin_left = 16
-	s.content_margin_right = 24
+	s.content_margin_left = 18
+	s.content_margin_right = 26
 	s.content_margin_top = 8
 	s.content_margin_bottom = 16
 	var plaque := PanelContainer.new()
@@ -185,7 +186,7 @@ func _best_plaque() -> PanelContainer:
 	plaque.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	plaque.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override(&"separation", 10)
+	row.add_theme_constant_override(&"separation", 14)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var bob := TextureRect.new()
 	bob.texture = BobView.texture()
@@ -194,21 +195,17 @@ func _best_plaque() -> PanelContainer:
 	bob.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	bob.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(bob)
+	# one type style: "Best" and the count in the same dark brown Fredoka, the count bigger
 	var words := VBoxContainer.new()
-	words.add_theme_constant_override(&"separation", -6)
+	words.add_theme_constant_override(&"separation", -8)
 	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	words.alignment = BoxContainer.ALIGNMENT_CENTER
-	words.add_child(Ui.label(tr("BEST").to_upper(), 28, Color("a4561e"), Ui.font_title, HORIZONTAL_ALIGNMENT_LEFT))
-	var count := Ui.display_text(str(Save.best_bobs), 46, Color("5a2408"), Color(0, 0, 0, 0), Color("3a1206"))
-	count.align = HORIZONTAL_ALIGNMENT_LEFT
-	count.outline_width = 0.0
-	count.depth = 0.0
-	count.shadow = Color(0, 0, 0, 0)
-	count.refresh()
-	words.add_child(count)
+	words.add_child(Ui.label(tr("BEST"), 24, Color("6a3010"), Ui.font_title, HORIZONTAL_ALIGNMENT_LEFT))
+	words.add_child(Ui.label(str(Save.best_bobs), 44, Color("4a1e04"), Ui.font_title, HORIZONTAL_ALIGNMENT_LEFT))
 	row.add_child(words)
-	var stars := StarRow.new(Save.best_stars, 38)
+	var stars := StarRow.new(Save.best_stars, 40)
 	stars.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	stars.add_theme_constant_override(&"separation", 4)
 	row.add_child(stars)
 	plaque.add_child(row)
 	return plaque
@@ -265,7 +262,9 @@ func _layout() -> void:
 	var w := h * aspect
 	var feet := Vector2(insets.x + w * 0.5 + 12.0, v.y * FEET_AT)
 	_hero.size = Vector2(w, h)
-	_hero.position = feet - Vector2(w * 0.5, h * 0.985)
+	# the art track's render stands on its own contact shadow at 0.94 of its height (boots planted
+	# there, the front one mid-stride a little above); the fallback crop's soles are at its foot
+	_hero.position = feet - Vector2(w * 0.5, h * (0.94 if _hero_tex != HERO_STAND else 0.985))
 	_hero.pivot_offset = Vector2(w / 2, h)
 	var k := h * 0.62 / ROCK.get_height()  # the rock's pixels to screen units
 	_rock.size = Vector2(ROCK.get_width(), ROCK.get_height()) * k
@@ -284,7 +283,7 @@ func _layout() -> void:
 	# the column on the right of the sun
 	var column_left := minf(_hero.position.x + w + v.x * 0.06, v.x - insets.z - 18.0 - 470.0)
 	_hero_side.custom_minimum_size.x = maxf(column_left - insets.x - 18.0, 0.0)
-	var free := v.y - insets.y - Device.bottom_with_banner() - 36.0
+	var free := v.y - insets.y - Device.bottom_with_banner() - Device.ad_gap() - 36.0
 	var logo_h := clampf(free - 124.0 - 92.0 - 50.0 - _ribbon.size.y * 0.55, 170.0, 300.0)  # air above and below
 	var logo_w := logo_h * LOGO.get_width() / LOGO.get_height()
 	var column_w := v.x - insets.z - 18.0 - column_left

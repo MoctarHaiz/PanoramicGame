@@ -28,5 +28,5 @@ func _apply() -> void:
 	add_theme_constant_override(&"margin_left", int(i.x + extra))
 	add_theme_constant_override(&"margin_top", int(i.y + extra))
 	add_theme_constant_override(&"margin_right", int(i.z + extra))
-	var bottom := Device.bottom_with_banner() if include_banner else i.w
+	var bottom := Device.bottom_with_banner() + Device.ad_gap() if include_banner else i.w
 	add_theme_constant_override(&"margin_bottom", int(bottom + extra))

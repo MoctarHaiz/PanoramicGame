@@ -30,8 +30,11 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 	if won:
 		body.add_child(_stars_stage(stars))
 	else:
-		var why := Ui.label(TranslationServer.translate("FELL" if world.death_reason == &"fall" else "CAUGHT"), 32,
-				Color("8a1a0a"), Ui.font_title)
+		var why := Ui.display_text(TranslationServer.translate("FELL" if world.death_reason == &"fall" else "CAUGHT"),
+				36, Color("e8361c"), Color("4a0804"), Color("b8180a"))  # heavy: what happened, in red
+		why.depth = 3.0
+		why.shadow = Color(0, 0, 0, 0)
+		why.refresh()
 		body.add_child(why)
 	var well := PanelContainer.new()
 	well.add_theme_stylebox_override(&"panel", Card.well())
@@ -59,7 +62,12 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 	if not won:
 		bar = WayBar.new(world.progress())
 		bar.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		lines.add_child(bar)
+		var way := HBoxContainer.new()  # what the bar measures, said beside it (not a second score)
+		way.alignment = BoxContainer.ALIGNMENT_CENTER
+		way.add_theme_constant_override(&"separation", 12)
+		way.add_child(Ui.label(TranslationServer.translate("WAY_HOME"), 24, Color("6a3010"), Ui.font_title))
+		way.add_child(bar)
+		lines.add_child(way)
 	body.add_child(well)
 	var slot := Control.new()  # a new best's stamp lands here, in its own room: it covers nothing
 	slot.custom_minimum_size = Vector2(0, 64)
@@ -89,10 +97,10 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 	var title := TranslationServer.translate("HOME_REACHED" if won else "GAME_OVER")
 	var panel: GamePanel
 	if won:  # warm and radiant
-		panel = GamePanel.open(game, title, Ui.Tone.GOLD, body, _hero(true), Color(0.16, 0.05, 0.02, 0.55),
+		panel = GamePanel.open(game, title, Ui.Tone.GOLD, body, _hero(true), Color(0.22, 0.08, 0.02, 0.28),
 				Color(1, 0.78, 0.4, 0.75), false, hide)
 	else:  # cold and dim
-		panel = GamePanel.open(game, title, Ui.Tone.CRIMSON, body, _hero(false), Color(0.02, 0.03, 0.1, 0.66),
+		panel = GamePanel.open(game, title, Ui.Tone.CRIMSON, body, _hero(false), Color(0.03, 0.04, 0.12, 0.42),
 				Color(0.5, 0.6, 1.0, 0.25), false, hide)
 	_reveal(game, panel, world, stars, bobs, total, bar, slot, news.get("best_bobs", false), buttons, go)
 	return panel
@@ -121,7 +129,7 @@ static func _stars_stage(stars: Array[Control]) -> Control:
 	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(row)
 	for i in 3:
-		var side := 166.0 if i == 1 else 130.0
+		var side := 170.0 if i == 1 else 148.0
 		var slot := Control.new()
 		slot.custom_minimum_size = Vector2(side, side)
 		slot.size_flags_vertical = Control.SIZE_SHRINK_END if i != 1 else Control.SIZE_SHRINK_BEGIN
@@ -150,10 +158,11 @@ static func _hero(won: bool) -> TextureRect:
 	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
 	if won:
-		art.set_meta(&"tall", 1.12)  # arms up: he stands a head above the card
+		art.set_meta(&"tall", 1.06)  # arms up: he stands a head above the card
+		art.set_meta(&"overlap", 0.0)  # beside it: his raised hand clear of the ribbon
 	else:
 		art.set_meta(&"tall", 0.62)  # sitting dazed on the ground, upright, against the card's edge
-		art.set_meta(&"overlap", 0.12)  # one group with the card
+		art.set_meta(&"overlap", -0.05)  # beside the card with a little air: his boot clear of the frame
 	if not rendered:  # the crops from the user's studio renders: lit by the screen here
 		var lit := ShaderMaterial.new()
 		lit.shader = preload("res://src/ui/hero.gdshader")
@@ -190,8 +199,9 @@ static func _reveal(game: Control, panel: GamePanel, world: World, stars: Array[
 			panel.add_child(back)
 			panel.move_child(back, panel.card.get_parent().get_index())
 			Fx.confetti_burst(back, stars[1].get_global_rect().get_center() * 2.0)
-			var rain := Node2D.new()  # coins and confetti in front of everything, full bright
+			var rain := Node2D.new()  # coins and confetti around the card (over the words they read as stains)
 			panel.add_child(rain)
+			panel.move_child(rain, panel.card.get_parent().get_index())
 			Fx.coin_shower(rain, panel.size.x, panel.size.y)
 			var view := panel.size * 2.0  # New (audio): fireworks in the sky behind him and the card
 			Fx.fireworks(back, Vector2(view.x * 0.04, view.y * 1.02), 1.0)
@@ -335,7 +345,7 @@ class WayBar extends Control:
 
 	func _init(p: float) -> void:
 		progress = clampf(p, 0.0, 1.0)
-		custom_minimum_size = Vector2(330, 54)
+		custom_minimum_size = Vector2(290, 54)
 		var french := TranslationServer.get_locale().begins_with("fr")  # "21 %" in French, "21%" in English
 		_label = Ui.display_text(("%d %%" if french else "%d%%") % roundi(progress * 100.0), 30, Ui.WHITE, Card.INK)
 		_label.depth = 2.0

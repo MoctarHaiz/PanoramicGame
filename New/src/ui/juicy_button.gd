@@ -106,10 +106,12 @@ func _on_pressed() -> void:
 	Haptics.tap()
 
 
-## The sweep of light: a slanted band clipped to the face of the button's GlossStyle.
+## The sweep of light: a soft slanted sheen clipped to the face of the button's GlossStyle, its light
+## a smooth gradient (vertex colours: clear at both edges, brightest in the middle, no hard edge).
 class _Shine extends Control:
+	const PEAK := 0.3  ## the light in the middle of the band
 	var every := 3.2
-	var _t := -0.4  # the first sweep comes soon after the screen opens
+	var _t := -1.8  # the first sweep once the screen has settled (not while it pops in)
 
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -124,19 +126,24 @@ class _Shine extends Control:
 		if not style:
 			return
 		var k := fposmod(_t, every) / 0.7  # the sweep takes 0.7 s
-		if k >= 1.0:
+		if _t < 0.0 or k >= 1.0:
 			return
 		var rect := Rect2(Vector2.ZERO, size)
 		var face := style.face_rect(rect)
-		var w := face.size.y * 0.55
+		var w := face.size.y * 1.1
 		var x := lerpf(face.position.x - w * 2, face.end.x + w, k)
 		var slant := face.size.y * 0.5
-		var band := PackedVector2Array([Vector2(x + slant, face.position.y), Vector2(x + slant + w, face.position.y),
-				Vector2(x + w, face.end.y), Vector2(x, face.end.y)])
 		var clip := GlossStyle.rounded_points(face, style.face_radius(rect))
-		for poly in Geometry2D.intersect_polygons(clip, band):
-			draw_colored_polygon(poly, Color(1, 1, 1, 0.38))
-		var thin := PackedVector2Array([Vector2(x + slant + w * 1.25, face.position.y),
-				Vector2(x + slant + w * 1.45, face.position.y), Vector2(x + w * 1.45, face.end.y), Vector2(x + w * 1.25, face.end.y)])
-		for poly in Geometry2D.intersect_polygons(clip, thin):
-			draw_colored_polygon(poly, Color(1, 1, 1, 0.3))
+		# slices only so the vertex colours can follow the sine; each slice is shaded smoothly
+		var slices := 6
+		for i in slices:
+			var a := x + w * i / slices
+			var b := x + w * (i + 1) / slices
+			var band := PackedVector2Array([Vector2(a + slant, face.position.y), Vector2(b + slant, face.position.y),
+					Vector2(b, face.end.y), Vector2(a, face.end.y)])
+			for poly in Geometry2D.intersect_polygons(clip, band):
+				var colours := PackedColorArray()
+				for p in poly:  # across the band: where this point lies once the slant is taken out
+					var u := (p.x - x - slant * (face.end.y - p.y) / face.size.y) / w
+					colours.append(Color(1, 1, 1, sin(clampf(u, 0.0, 1.0) * PI) * PEAK))
+				draw_polygon(poly, colours)

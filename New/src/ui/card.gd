@@ -93,6 +93,7 @@ func _draw() -> void:
 		var foot := Rect2(body.position + Vector2(inner * 0.6, body.size.y - 18.0), Vector2(body.size.x - inner * 1.2, 18.0))
 		_fill(_rounded(foot, 0.0), Color(0.35, 0.12, 0.0, 0.0), Color(0.35, 0.12, 0.0, 0.14))  # and its foot
 		_glow(Rect2(body.position + body.size * Vector2(0.1, 0.12), body.size * Vector2(0.8, 0.6)))
+		_beadwork(r)
 		_studs(r)
 	else:  # glass: a light top edge and a fine gold line inside
 		_fill(_rounded(Rect2(r.position + Vector2(6, 4), Vector2(r.size.x - 12, minf(40.0, r.size.y * 0.25))), radius - 4),
@@ -100,6 +101,69 @@ func _draw() -> void:
 		var line := _rounded(body.grow(-3.0), inner - 3.0)
 		line.append(line[0])
 		draw_polyline(line, Color(Ui.GOLD, 0.55), 2.0, true)
+
+
+## Zulu beadwork set into the frame along its top and bottom: a dark leather strip threaded with
+## glossy beads in blocks of white, red, blue, black and gold (the colours of the beadwork the shield
+## and the hero's people wear), between the corner studs.
+func _beadwork(r: Rect2) -> void:
+	var tiles := _bead_tiles()
+	var x0 := r.position.x + radius + 14.0
+	var x1 := r.end.x - radius - 14.0
+	var n := int((x1 - x0) / BEAD_STEP)
+	var centre := (x0 + x1) / 2 - n * BEAD_STEP / 2 + BEAD_STEP / 2 + (n / 2) * BEAD_STEP  # the middle bead
+	var right := (n - n / 2) * BEAD_STEP  # from the middle bead's left edge to the last bead
+	var left := (n / 2 + 1) * BEAD_STEP  # from the first bead to the middle bead's right edge
+	var tile_w := float(tiles[0].get_width())
+	var skip := 2.0 if r.size.x > 520.0 else 0.0  # a wide card's middle stud: no bead under it
+	for y: float in [r.position.y + FRAME * 0.5, r.end.y - FRAME * 0.5]:
+		_fill(_rounded(Rect2(Vector2(x0 - 5.0, y - 5.5), Vector2(x1 - x0 + 10.0, 11.0)), 5.5), INK, Color("2a0c04"))
+		var top := y - BEAD_H / 2
+		# the pattern mirrors from the middle bead: the right half tiled from it, the left half from the
+		# mirrored tile lined up on the middle bead's right edge (one textured rect each)
+		var cut := skip * BEAD_STEP
+		draw_texture_rect_region(tiles[0], Rect2(centre - BEAD_STEP / 2 + cut, top, right - cut, BEAD_H),
+				Rect2(cut * BEAD_SCALE, 0, (right - cut) * BEAD_SCALE, tiles[0].get_height()))
+		var span := (left - cut) * BEAD_SCALE
+		draw_texture_rect_region(tiles[1], Rect2(centre + BEAD_STEP / 2 - left, top, left - cut, BEAD_H),
+				Rect2(tile_w - fposmod(span + cut * BEAD_SCALE, tile_w), 0, span, tiles[1].get_height()))
+
+
+const BEAD_STEP := 8.4  ## one bead and its gap along the frame
+const BEAD_H := 9.0  ## the bead's dark rim, top to bottom
+const BEAD_SCALE := 3  ## the tile's pixels per unit (sharp on a phone's screen)
+const BEAD_COLOURS := ["f4efe4", "f4efe4", "d8261a", "d8261a", "d8261a", "2f6fd0", "2f6fd0", "1c1410", "f2b52a", "f2b52a"]
+static var _beads: Array[ImageTexture] = []
+
+
+## The beads, drawn once into a tile of the ten-bead run (and its mirror): Zulu beadwork colours, a dark
+## rim, a highlight. Tiled along the frame it costs one draw call per half strip, not three per bead.
+static func _bead_tiles() -> Array[ImageTexture]:
+	if not _beads.is_empty():
+		return _beads
+	var s := float(BEAD_SCALE)
+	var w := int(BEAD_STEP * BEAD_COLOURS.size() * s)
+	var h := int(BEAD_H * s)
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	var rim := Color("1a0804")
+	for i in BEAD_COLOURS.size():
+		var c := Vector2((i + 0.5) * BEAD_STEP * s, h / 2.0)
+		var bead := Color(BEAD_COLOURS[i])
+		for py in h:
+			for px in range(int(c.x - 4.5 * s), int(c.x + 4.5 * s) + 1):
+				if px < 0 or px >= w:
+					continue
+				var p := Vector2(px + 0.5, py + 0.5)
+				var d := p.distance_to(c) / s
+				var col := Color(rim, clampf((3.8 - d) * s + 0.5, 0.0, 1.0))
+				col = col.blend(Color(bead, clampf((3.1 - d) * s + 0.5, 0.0, 1.0)))
+				var hd := p.distance_to(c - Vector2(1.0, 1.1) * s) / s
+				col = col.blend(Color(1, 1, 1, 0.85 * clampf((1.1 - hd) * s + 0.5, 0.0, 1.0)))
+				img.set_pixel(px, py, col)
+	var mirrored := img.duplicate() as Image
+	mirrored.flip_x()
+	_beads = [ImageTexture.create_from_image(img), ImageTexture.create_from_image(mirrored)]
+	return _beads
 
 
 ## Gold studs nailed into the frame: one at each corner, and along the long edges of a wide card.

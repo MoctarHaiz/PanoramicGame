@@ -1,7 +1,8 @@
 class_name Banner
 extends Control
 ## A title ribbon, as over the panels of top mobile games ("GAME OVER", "NEW BEST!", page titles):
-## a glossy band with a dark outline, gently arched, its two notched tails folded behind it, and
+## a glossy band with a dark outline, gently arched, its two notched tails folded behind it (a string
+## of beads hanging from each), and
 ## the title in outlined display text along the same arch. Colours come from a Ui.Tone.
 
 const SEGMENTS := 24
@@ -82,6 +83,18 @@ func _draw() -> void:
 		var fold := PackedVector2Array([Vector2(x_end, y), Vector2(x_end - side * _tail * 0.38, y + tail_h * 0.42),
 				Vector2(x_end - side * _tail * 0.38, y)])
 		draw_colored_polygon(fold, c.outline.lerp(c.edge, 0.35))
+	# A string of beads hanging from each tail's notch (the beadwork of the panels' frames).
+	for side: float in [-1.0, 1.0]:
+		var outer := size.x / 2 + side * (size.x / 2)
+		var y := tail_y + arch * 0.75 + tail_h
+		var x := outer - side * notch * 1.6
+		var beads := [Color("f4efe4"), Color("d8261a"), Color("f2b52a")]  # short: clear of the content below
+		var bead_r := maxf(_band_h * 0.065, 3.0)
+		for i in beads.size():
+			var at := Vector2(x, y + bead_r * (1.1 + i * 2.05))
+			draw_circle(at, bead_r + 1.2, Color("1a0804"), true, -1, true)
+			draw_circle(at, bead_r, beads[i], true, -1, true)
+			draw_circle(at - Vector2(bead_r * 0.3, bead_r * 0.35), bead_r * 0.35, Color(1, 1, 1, 0.85), true, -1, true)
 	# The band.
 	var x0 := reach
 	var x1 := size.x - reach

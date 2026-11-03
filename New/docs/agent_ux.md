@@ -188,3 +188,66 @@ Done:
   (audio)" fireworks lines sit where I removed the corner confetti): resolved by keeping audio's lines.
   On that tree: `run_tests.tscn -- --bot`: 1001 checks, 0 failed, exit 0, the bot home with 3 lives.
   Captures `AAA/ux/round_3/{en,fr}` come from that tree.
+
+## Round 4
+
+Judge j03 and ROUND4.md (ux): a motif tying the panels to this world, a lighter dim, the Resume
+gloss, on/off on the tiles, the hero placement on game over and win, the settings back button and
+icon colours, the start prompt off the platform, the menu's Best panel.
+
+- Motif: every Card frame carries a band of beadwork top and bottom (Zulu bead colours: white, red,
+  blue, black, gold in a mirrored run, on a dark leather strip between the studs); the ribbon's tails
+  each hang a short string of three beads (kept short: clear of the content under the ribbon).
+- Dim: GamePanel's default scrim is light (0.32 alpha of a warm near-black, vignette 0.55 at the
+  corners) over the cheap blurred snapshot, so the level's colour shows through; pause 0.3; the win a
+  warm 0.28, the loss a cool 0.42.
+- Gloss: JuicyButton's shine is a soft slanted sheen (ten slices fading in and out), no thin stripe;
+  GlossStyle's outlined gloss is a faint top light (0.08) and its spark a short soft streak.
+- Pause: tiles 116; captions 29 and the state 24 (state line only on Music and Sounds); a lamp on the
+  corner of the two switch tiles (green glow when on, a dark socket when off) besides the grey face and
+  red slash when off; the panel is full (no empty bottom third).
+- Game over: the caught line heavier (36, red with a dark outline and depth); "21%" lives inside the
+  way-home bar with a "Way home" label (WAY_HOME, "Vers la maison") so it no longer competes with
+  "43 / 84"; the hero beside the card with a little air (overlap -0.05), not across its frame.
+- Win: the hero beside the card (overlap 0) so his raised hand is clear of the ribbon; the side stars
+  148 (centre 170), with the same slam, glow and tilt; the coin rain behind the card.
+- Settings: the back button docked in its own corner slot at the safe-area corner, the panel moved
+  clear of it; 78 px under the ribbon before the first group; row icons coloured by meaning (sound
+  gold; feel green; language and tutorial sunset; privacy blue; shop sunset; credits ink, no red);
+  sliders 250 x 54 with a thicker groove.
+- Start: the prompt a gold candy pill with a dark outline under a soft additive glow that pulses, the
+  pill breathing; placed at the foot of the screen (above a banner when there is one), off the
+  platform.
+- Menu: the Best plaque in one type style (BEST 24 over the number 44, both in the panel's browns), a
+  bigger bob, roomier margins; the acacia moved behind the plaque (SunsetBackdrop.tree_x, menu 0.37).
+- Fixed on the way: a loop variable named like an outer one in Banner._draw was a parse error that
+  broke every screen (caught by the capture, fixed before anything else).
+
+### Round 4, QA's audit (qa/round_4/bugs.md, ux)
+- UX-1 Resume sheen: the band's light is a smooth gradient (vertex colours following a sine across
+  it: clear at both edges, 0.3 in the middle), no flat polygon, no thin second stripe; the first
+  sweep comes 1.8 s after the panel opens (the pause picture at 0.6 s has none).
+- UX-2 the lesson and the start card ghosting in the pause blur: `_tutorial` and `_start_card` added
+  to the hide list in game_screen.gd (pause and results); GamePanel skips entries already freed (a
+  finished lesson, the card once tapped). Checked with QA's `lesson_pause` shot.
+- UX-3 glyph caches (8 MB per new DisplayText size: a raster font makes a 1024 px glyph page per size
+  and per outline size, four per DisplayText): Fredoka is now three static weights (580, 680, 700)
+  made from the variable font with the overlaps merged (tools/art/ui_fonts.py: fontTools instancer,
+  skia-pathops; then the merge's slivers, the loops at the waist of the "8" and hairline spikes are
+  cleaned, or the distance field shows holes), imported as MSDF (range 24, size 48): one glyph cache
+  per weight for every size and outline. Ui.title_font() picks the nearest weight. perf.gd, iPhone 15,
+  30 s with a pause at 10 s: play 94.5 -> 53.5 MB, paused 86.5 -> 53.5, back on the menu
+  102.5 -> 63.5 (budget 80: PASS); no jump at the pause or the countdown any more.
+- UX-6 menu: the two thin sticks were the acacia's trunk behind Play and the Best plate (tree_x 0.6):
+  the tree is now at 0.37, whole, between him and the column; his feet on the rock (the render's
+  ground line, its contact shadow, is at 0.94 of its height, not 0.985).
+- UX-7 the banner: `Device.ad_gap()` (40 px when a banner shows) between buttons and the ad on the
+  results and pause panels (GamePanel), the menu and settings (SafeArea with the banner).
+- UX-4 / UX-5 (round 3 placements) were already reworked this round: the back button in its own
+  corner slot, the heroes beside the cards (the defeat with a little air).
+- The beadwork first drew three antialiased circles per bead (Compatibility does not batch them:
+  paused 1190 draw calls, results 1878). It is now a ten-bead tile (and its mirror) drawn once into an
+  ImageTexture at 3x and tiled along each half strip: four textured rects per card, same picture.
+- perf.gd, whole level, iPhone 15 (AAA/ux/round_4/perf_iphone15.*): texture menu 61.4, play 53.6,
+  paused 53.6, results 56.1, menu again 64.2 MB (QA round 4: 66.2 / 92.9 / 86.9 / 105.5 / 113.7);
+  draw calls play 513, paused 446, results 997 (QA: 515 / 390 / 959); worst own work in play 7.3 ms.

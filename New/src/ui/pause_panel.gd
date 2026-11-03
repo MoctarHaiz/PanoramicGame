@@ -7,7 +7,7 @@ extends RefCounted
 ## opens the five moves in the panel, each with its gesture played by a hand (the tutorial's
 ## pictures), so every control can be found again without crowding the pause.
 
-const TILE := 108.0  ## side of a tile
+const TILE := 116.0  ## side of a tile
 const GAP := 30.0  ## between two tiles
 
 
@@ -42,7 +42,7 @@ static func open(host: Control, resume: Callable, home: Callable, hide: Array = 
 	(home_tile.get_child(0).get_child(0) as JuicyButton).pressed.connect(home)
 	row.add_child(home_tile)
 	body.add_child(row)
-	return GamePanel.open(host, tr_key("PAUSED"), Ui.Tone.SUNSET, body, null, Color(0.04, 0.02, 0.07, 0.6),
+	return GamePanel.open(host, tr_key("PAUSED"), Ui.Tone.SUNSET, body, null, Color(0.06, 0.03, 0.08, 0.3),
 			Color(0, 0, 0, 0), false, hide)
 
 
@@ -65,13 +65,13 @@ static func _tile(icon_name: String, tone: Ui.Tone, caption: String, state: Stri
 	return item
 
 
-## The name of a tile over its state (on: green; off: grey; none: an empty line, so captions align).
+## The name of a tile over its state (on: green; off: grey), the tiles' tops aligned in the row.
 static func _caption(caption: String, state: String, on: bool) -> VBoxContainer:
 	var lines := VBoxContainer.new()
 	lines.add_theme_constant_override(&"separation", -4)
-	lines.add_child(Ui.label(caption, 25, Color("5a2408"), Ui.font_title))
-	var s := Ui.label(state if not state.is_empty() else " ", 21, Color("2e8a12") if on else Color("8a7a6a"), Ui.font_title)
-	lines.add_child(s)
+	lines.add_child(Ui.label(caption, 29, Color("5a2408"), Ui.font_title))
+	if not state.is_empty():
+		lines.add_child(Ui.label(state, 24, Color("2e8a12") if on else Color("8a7a6a"), Ui.font_title))
 	return lines
 
 
@@ -141,6 +141,17 @@ class SoundSwitch extends VBoxContainer:
 			Audio.apply_settings()
 			_fill())
 		_holder.add_child(b)
+		# a lamp in the tile's corner: lit green when on, a dark socket when off
+		var lamp := Control.new()
+		lamp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		lamp.position = Vector2(TILE * 0.78, TILE * 0.2)
+		lamp.draw.connect(func() -> void:
+			if on:
+				lamp.draw_circle(Vector2.ZERO, 13.0, Color(0.5, 1.0, 0.4, 0.35), true, -1, true)
+			lamp.draw_circle(Vector2.ZERO, 8.5, Color("1a3a0c") if on else Color("3a2a20"), true, -1, true)
+			lamp.draw_circle(Vector2.ZERO, 6.5, Color("8cff5a") if on else Color("6a5a50"), true, -1, true)
+			lamp.draw_circle(Vector2(-2, -2), 2.2, Color(1, 1, 1, 0.9 if on else 0.3), true, -1, true))
+		b.add_child(lamp)
 		if not on:  # the icon struck through, in red
 			var slash := Line2D.new()
 			slash.points = PackedVector2Array([Vector2(TILE * 0.26, TILE * 0.22), Vector2(TILE * 0.74, TILE * 0.62)])
