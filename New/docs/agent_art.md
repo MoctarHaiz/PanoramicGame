@@ -236,3 +236,25 @@ win and defeat renders; (6) the studio logo; (7) the null texture on the first b
   look-up camera lifts what reaches away: the outstretched leg aimed a little down).
 - Results: see `_agents/AAA/art/round_5/` (iPhone 15, --ads=off) and `before_after.png`; tests
   with the bot in `_agents/AAA/art/round_5_tests.log`.
+
+## Round 6
+
+- The grey/silver outline: the Blender ink hull is an emission, so its colour is linear; it was
+  given sRGB values (round 4: (0.055, 0.025, 0.035) -> sRGB about (0.26, 0.17, 0.2), a grey-plum;
+  round 5: (0.16, 0.07, 0.04) -> a light tan). Now linear (0.022, 0.006, 0.003) = sRGB (0.16, 0.07,
+  0.04), the same warm dark brown as hero_atlas.py's 2D ink. (UX's hero.gdshader is not applied
+  to the rendered pictures: not the cause.)
+- A lit face: a warm fill sun from the front (in play: screen right and towards us, 0.42; the
+  interface: 0.3) puts his face and chest in the mid band; the interface pictures also get a
+  small point light (`FaceLight`, 0.32 cutoff) placed in front of his face for each pose
+  (`face_light()`).
+- Armour matte and warm: the blue and silver plates take a stronger warm multiply in the light.
+- Game over: `pose_seated()` re-authored compact: both knees drawn up, a forearm on a knee, a hand to
+  his head, face up to us; nothing reaching out.
+- Bandit: hot orange-red wraps, near-black skin, an ochre-gold mask, the club raised over his
+  shoulder in the run (a bigger threat silhouette).
+- Red Bobs: each 90-108 % in size and leaning its own way, a deeper staggered float (a ripple in a
+  still), a stronger warm additive glow, a twinkling hotspot, a moving glint every 1.2-3 s.
+- Ground shadows in play: the hero's and the bandit's shadow nodes are drawn at z 1, over the
+  grass blades in front of the runners that hid them.
+- Results: captures and before_after.png in _agents/AAA/art/round_6/; tests log _agents/AAA/art/round_6_tests.log.

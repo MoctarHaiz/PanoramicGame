@@ -24,6 +24,8 @@ var _picture: TextureRect
 var _hidden: Array[CanvasItem] = []  # what it hid behind it, shown again when it goes
 var _to_cover: Array = []  # what its picture stands for (the world): hidden once the picture covers it
 var _covered: Array[CanvasItem] = []
+var _mood := &""  # &"win", &"loss" or none (Card.set_mood)
+var _gild: _Gilding  # a win's shine and sparkles over the card
 var _top := 0.0
 var _min_w := 560.0
 var _k := 1.0  # shrink to fit a small screen
@@ -36,10 +38,11 @@ var _u := 0.7  # the entrance's pop
 ## The panel shows a frame later, once that picture is taken.
 static func open(host: Control, title: String, tone: Ui.Tone, body: Control, character: Control = null,
 		veil := Color(0.05, 0.02, 0.06, 0.42), glow := Color(1, 0.8, 0.45, 0.55), rays := false,
-		hide: Array = []) -> GamePanel:
+		hide: Array = [], mood := &"") -> GamePanel:
 	var p := GamePanel.new()
 	p.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	host.add_child(p)
+	p._mood = mood
 	p._build(title, tone, body, character, veil, glow, rays)
 	p._snapshot_then_enter(hide)
 	return p
@@ -75,7 +78,7 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	back.add_child(vignette)
 	if rays:
-		_rays = Rays.new(1800, Color(1, 0.82, 0.42, 0.22), 20)
+		_rays = Rays.new(1800, Color(1, 0.82, 0.42, 0.34), 20)  # a strong sunburst behind the card
 		_rays.material = Fx.additive()
 		add_child(_rays)
 		if Prefs.motion():
@@ -84,6 +87,7 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 	_pop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_pop)
 	card = Card.new(Vector4(46, 64, 46, 40))
+	card.set_mood(_mood)
 	card.add_child(body)
 	banner = Banner.new(title, tone, 54)
 	banner.size = banner.custom_minimum_size
@@ -109,6 +113,10 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 		_pop.add_child(art)  # in front of the card's edge
 	else:
 		_pop.add_child(card)
+	if _mood == &"win":  # the premium step up: a shine sweeping the panel, sparkles along its gold
+		_gild = _Gilding.new()
+		_gild.radius = card.radius
+		_pop.add_child(_gild)
 	_pop.add_child(banner)
 	card.resized.connect(_place)
 	resized.connect(_place)
@@ -230,6 +238,9 @@ func _place() -> void:
 	if _rays:
 		_rays.position = centre + Vector2(art_w / 2 * _k, 0) - _rays.size / 2
 	card.position = Vector2(art_w, _top + lift)
+	if _gild:
+		_gild.position = card.position
+		_gild.size = card_size
 	banner.position = Vector2(art_w + (card_size.x - banner.size.x) / 2, lift)
 	if art:
 		var feet := Vector2(art.size.x * 0.5, lift + _top + card_size.y + 4.0)
@@ -238,3 +249,63 @@ func _place() -> void:
 		_ground.position = feet - _ground.size / 2
 		_shadow.size = Vector2(art.size.x * 0.9, art.size.x * 0.16)
 		_shadow.position = feet - _shadow.size / 2
+
+
+## A win's gilding over its card (added light): a soft band of light sweeping across the panel now and
+## then, and sparkles twinkling along the gold frame. Still, without motion: the sparkles only.
+class _Gilding extends Control:
+	const SPARKLES := 22
+	var radius := 34.0
+	var _t := 0.0
+	var _star: Texture2D
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		material = Fx.additive()
+		_star = Fx.glow_texture()  # soft glints from the glow the panel already holds (no new texture)
+
+	func _process(delta: float) -> void:
+		if Prefs.motion():
+			_t += delta
+			queue_redraw()
+
+	func _draw() -> void:
+		var r := Rect2(Vector2.ZERO, size)
+		if r.size.x < 10.0:
+			return
+		# the sweep: every 2.8 s, 0.9 s across, a slanted band, brightest in its middle
+		var k := fposmod(_t - 1.2, 2.8) / 0.9
+		if Prefs.motion() and _t > 1.2 and k < 1.0:
+			var clip := GlossStyle.rounded_points(r, radius)
+			var w := r.size.y * 0.35
+			var slant := r.size.y * 0.45
+			var x := lerpf(-w - slant, r.size.x + w, k)
+			for i in 6:
+				var a := x + w * i / 6.0
+				var b := x + w * (i + 1) / 6.0
+				var band := PackedVector2Array([Vector2(a + slant, 0), Vector2(b + slant, 0), Vector2(b, r.size.y), Vector2(a, r.size.y)])
+				for poly in Geometry2D.intersect_polygons(clip, band):
+					var cols := PackedColorArray()
+					for p in poly:
+						var u := (p.x - x - slant * (r.size.y - p.y) / r.size.y) / w
+						cols.append(Color(1, 0.92, 0.7, sin(clampf(u, 0.0, 1.0) * PI) * 0.22))
+					draw_polygon(poly, cols)
+		# the sparkles: along the middle of the frame, each twinkling on its own beat
+		var inset := Card.FRAME * 0.5
+		var path := r.grow(-inset)
+		var perimeter := 2.0 * (path.size.x + path.size.y)
+		for i in SPARKLES:
+			var d := fposmod(i * perimeter / SPARKLES + 37.0, perimeter)
+			var p: Vector2
+			if d < path.size.x:
+				p = path.position + Vector2(d, 0)
+			elif d < path.size.x + path.size.y:
+				p = path.position + Vector2(path.size.x, d - path.size.x)
+			elif d < 2.0 * path.size.x + path.size.y:
+				p = path.end - Vector2(d - path.size.x - path.size.y, 0)
+			else:
+				p = path.position + Vector2(0, path.size.y - (d - 2.0 * path.size.x - path.size.y))
+			var beat := 0.5 + 0.5 * sin(_t * 2.6 + i * 2.3)
+			var side := 18.0 + 22.0 * beat * float((i * 7) % 3 + 1) / 3.0
+			draw_texture_rect(_star, Rect2(p - Vector2(side, side) / 2, Vector2(side, side)), false,
+					Color(1, 0.95, 0.75, 0.35 + 0.6 * beat))

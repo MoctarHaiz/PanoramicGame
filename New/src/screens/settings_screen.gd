@@ -1,6 +1,6 @@
 extends Screen
 ## Settings, in the game's own kit, over the sunset behind a light scrim: a framed panel with its
-## ribbon, its back button in the panels' wood in the corner, floating with margins all round; Panoramic stands
+## ribbon, its back button a wooden boss set into the frame's top-left corner, floating with margins all round; Panoramic stands
 ## whole at its left where there is room for him (never behind it). Inside, four titled groups, each
 ## a sunken card of rows split by fine lines (not ten identical bars): Sound (music and sounds
 ## volumes), Effects (vibration, screen shake, reduced motion), Game (language, replay the tutorial)
@@ -58,20 +58,20 @@ func _build() -> void:
 	columns.add_theme_constant_override(&"separation", 28)
 	card.add_child(columns)
 	var left := _column()
-	# every row's icon on the same orange tile (one colour throughout, not a rainbow); the groups
-	# are told apart by their titles
-	left.add_child(_group("speaker-high-fill", tr("SOUND_GROUP"), [
+	# one tile colour per group (amber sound, red effects, terracotta game, indigo help): the eye finds
+	# a group by its colour, and inside a group every tile is the same
+	left.add_child(_group("speaker-high-fill", tr("SOUND_GROUP"), Ui.Tone.GOLD, [
 		_slider_row("music-notes-fill", tr("MUSIC"), &"music_volume", &"music_on"),
 		_slider_row("speaker-high-fill", tr("SOUNDS"), &"sounds_volume", &"sounds_on"),
 	]))
-	left.add_child(_group("sparkle-fill", tr("FEEL"), [
+	left.add_child(_group("sparkle-fill", tr("FEEL"), Ui.Tone.CRIMSON, [
 		_toggle_row("vibrate-fill", tr("VIBRATION"), &"vibration_on"),
 		_toggle_row("screen-shake", tr("SCREEN_SHAKE"), &"screen_shake"),
 		_toggle_row("snail", tr("REDUCE_MOTION"), &"reduce_motion"),
 	]))
 	columns.add_child(left)
 	var right := _column()
-	right.add_child(_group("play-fill", tr("GENERAL"), [
+	right.add_child(_group("play-fill", tr("GENERAL"), Ui.Tone.SUNSET, [
 		_button_row("translate-fill", tr("LANGUAGE"), tr("LANGUAGE_NAME"), _switch_language),
 		_button_row("hand-pointing-fill", tr("REPLAY_TUTORIAL"), "", _replay_tutorial),
 	]))
@@ -86,7 +86,7 @@ func _build() -> void:
 			help.append(_button_row("prohibit-fill", tr("REMOVE_ADS"), Services.store.price(), Services.store.buy_remove_ads))
 		help.append(_button_row("arrows-clockwise-bold", tr("RESTORE_PURCHASES"), "", Services.store.restore))
 	help.append(_button_row("info-fill", tr("CREDITS_BUTTON"), "", _show_credits))
-	right.add_child(_group("info-fill", tr("HELP"), help))
+	right.add_child(_group("info-fill", tr("HELP"), Ui.Tone.BLUE, help))
 	columns.add_child(right)
 	var banner := Banner.new(tr("SETTINGS"), Ui.Tone.SUNSET, 48)
 	page.add_child(card)
@@ -98,7 +98,7 @@ func _build() -> void:
 		var room := page.size
 		var top := banner.custom_minimum_size.y * 0.5
 		card.size = card.get_combined_minimum_size()
-		var slot := back_button.custom_minimum_size.x + 20.0  # the back button's own corner, left clear
+		var slot := back_button.custom_minimum_size.x * 0.5 + 6.0  # the back button rides the card's corner
 		var k := minf(1.0, minf((room.x - slot - 30.0) / card.size.x, (room.y - top - 12.0) / card.size.y))
 		card.scale = Vector2.ONE * k
 		var w := card.size.x * k
@@ -110,7 +110,8 @@ func _build() -> void:
 		banner.size = banner.custom_minimum_size
 		banner.position = Vector2(left_x + w / 2 - banner.size.x / 2, card.position.y - top)
 		back_button.size = back_button.custom_minimum_size
-		back_button.position = Vector2.ZERO  # docked in the top-left corner of the safe area
+		# set into the frame's top-left corner, a wooden boss nailed over it (part of the panel)
+		back_button.position = card.position + Vector2(24.0, 24.0) * k - back_button.size / 2
 		if hero:
 			hero.visible = show_hero
 			var origin := area.get_global_rect().position + page.position
@@ -145,12 +146,12 @@ func _column() -> VBoxContainer:
 
 ## A group: a strong title (the heaviest weight, bigger than the rows, a gold icon, a rule running
 ## to the column's edge), then its rows in one sunken card, a fine line between two rows.
-func _group(icon_name: String, title: String, rows: Array) -> VBoxContainer:
+func _group(icon_name: String, title: String, tone: Ui.Tone, rows: Array) -> VBoxContainer:
 	var g := VBoxContainer.new()
 	g.add_theme_constant_override(&"separation", 6)
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override(&"separation", 10)
-	head.add_child(Ui.bold_icon(icon_name, 36, Ui.tone_colours(Ui.Tone.GOLD).bottom, Color("4a1e04")))
+	head.add_child(Ui.bold_icon(icon_name, 36, Ui.tone_colours(tone).bottom, Color("2e0d04")))
 	head.add_child(Ui.label(title, 34, INK, Ui.font_display, HORIZONTAL_ALIGNMENT_LEFT))
 	var rule := ColorRect.new()  # the title's rule, to the column's edge
 	rule.color = Color(0.55, 0.3, 0.1, 0.45)
@@ -161,6 +162,9 @@ func _group(icon_name: String, title: String, rows: Array) -> VBoxContainer:
 	g.add_child(head)
 	var well := PanelContainer.new()
 	var s := Card.well(18)
+	s.top = Color("efd9aa")  # the rows lighter than the tanned panel around them (contrast)
+	s.bottom = Color("fff3d8")
+	s.set_outline(Color("8a5a2c"), 2.5)
 	s.set_content_margin_all(4)
 	s.content_margin_left = 8
 	s.content_margin_right = 8
@@ -177,10 +181,21 @@ func _group(icon_name: String, title: String, rows: Array) -> VBoxContainer:
 		list.add_child(row)
 	well.add_child(list)
 	g.add_child(well)
+	for row: Control in rows:  # the group's colour on its rows' tiles
+		var tile := row.find_child("Tile", true, false) as PanelContainer
+		if tile:
+			var ts := Ui.candy_style(tone, 13.0, false, 4.0)
+			ts.set_content_margin_all(5)
+			ts.content_margin_bottom = 9
+			tile.add_theme_stylebox_override(&"panel", ts)
+			var icon := tile.get_child(0) as BoldIcon
+			if icon:
+				icon.outline = Ui.tone_colours(tone).outline
+				icon.queue_redraw()
 	return g
 
 
-## A row: its icon on a small orange candy tile (the same on every row), its name, and `right`.
+## A row: its icon on a small tile (in its group's colour, see _group), its name, and `right`.
 func _row(icon_name: String, text: String, right: Control) -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override(&"separation", 12)

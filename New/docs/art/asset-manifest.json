@@ -42,7 +42,7 @@
    "path": "assets/art/bandit/club.png",
    "status": "approved",
    "technical": {
-    "dimensions": "37x87",
+    "dimensions": "63x61",
     "alpha": true,
     "anchor": "bottom-centre at the boots",
     "frames": null,
@@ -282,7 +282,7 @@
    "path": "assets/art/hero/hero_defeat.png",
    "status": "approved",
    "technical": {
-    "dimensions": "1041x696",
+    "dimensions": "660x696",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,

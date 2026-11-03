@@ -15,11 +15,17 @@ func _init(diameter: float, ray_colour := Color(1, 0.95, 0.8, 0.32), rays := 14)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
+## All the rays in one triangle array: one draw call however many rays (a polygon each cost one).
 func _draw() -> void:
 	var c := size / 2
 	var r := size.x / 2
 	var w := TAU / count * 0.28
+	var points := PackedVector2Array()
+	var colours := PackedColorArray()
+	var indices := PackedInt32Array()
 	for i in count:
 		var a := i * TAU / count
-		draw_polygon(PackedVector2Array([c, c + Vector2.from_angle(a - w) * r, c + Vector2.from_angle(a + w) * r]),
-				PackedColorArray([colour, Color(colour, 0), Color(colour, 0)]))
+		indices.append_array([points.size(), points.size() + 1, points.size() + 2])
+		points.append_array([c, c + Vector2.from_angle(a - w) * r, c + Vector2.from_angle(a + w) * r])
+		colours.append_array([colour, Color(colour, 0), Color(colour, 0)])
+	RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), indices, points, colours)

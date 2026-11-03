@@ -17,7 +17,7 @@ signal pause_pressed
 const ROW_HEIGHT := 60.0
 const BOB_ICON := 46.0  ## size of the Red Bob on the counter
 const TRACK_W := 330.0
-const HEART := 37.0
+const HEART := 39.0
 const PLATE_TOP := Color(0.44, 0.21, 0.11, 0.94)
 const PLATE_BOTTOM := Color(0.25, 0.08, 0.03, 0.94)
 const PLATE_EDGE := Color(0.13, 0.04, 0.02, 0.96)
@@ -125,8 +125,8 @@ func _glass(content: Control, side_margin: float) -> PanelContainer:
 	var s := plate(ROW_HEIGHT / 2.0)
 	s.content_margin_left = side_margin
 	s.content_margin_right = side_margin
-	s.content_margin_top = 4.0
-	s.content_margin_bottom = 4.0 + 7.0
+	s.content_margin_top = 3.0
+	s.content_margin_bottom = 3.0 + 7.0
 	var p := PanelContainer.new()
 	p.add_theme_stylebox_override(&"panel", s)
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -143,7 +143,7 @@ func _counter() -> Control:
 	_bob_icon.custom_minimum_size = Vector2(BOB_ICON, BOB_ICON) * 1.2
 	_bob_icon.size = _bob_icon.custom_minimum_size
 	_bob_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_number = Ui.display_text("000", 34, Ui.WHITE, PLATE_LINE, Color("ffe2a8"))
+	_number = Ui.display_text("000", 38, Ui.WHITE, PLATE_LINE, Color("ffe2a8"))
 	_number.outline_width = 5.0
 	_number.depth = 3.0
 	_number.shadow = Color(0, 0, 0, 0)
@@ -364,7 +364,7 @@ class _Track extends Control:
 		var dash := 14.0
 		var dx := x0 + 10.0
 		while dx < x0 + w - 12.0:
-			_rounded(Rect2(dx, y + 1.0, dash * 0.55, 3.0), Color(0.45, 0.25, 0.1, 0.45), 1.5)
+			_rounded(Rect2(dx, y - 1.0, dash * 0.6, 5.0), Color(0.36, 0.16, 0.04, 0.85), 2.5)  # a clear path
 			dx += dash
 		var fill_w := maxf(w * progress, 0.0)
 		if fill_w > 6.0:

@@ -1,10 +1,11 @@
 class_name Card
 extends PanelContainer
 ## The panel of the interface kit (pause, results, settings, About), as the pop-ups of top mobile
-## games: a deep soft shadow, a dark ink outline, a thick frame of warm lacquered wood bevelled (lit
-## along its top and outer edge, shaded at its foot) with gold studs at its corners, a gold trim ring
-## inside it, and a body of cream hide (paper.png grain) that sits under the frame (an inner shadow
-## along its top and sides, a soft light in its middle). Text on the body is dark brown.
+## games, in his world's materials: a deep shadow cast on the game behind, a dark ink outline, a thick
+## frame of carved wood bevelled (lit along its top and outer edge, shaded at its foot) with gold studs
+## and a Zulu band, a gold trim ring inside it, and a body of tanned hide (paper.png grain) that sinks
+## under the frame (shade along its top, sides and foot, a soft light in its middle: it curves). Text
+## on the body is dark brown. A mood (set_mood) gilds it for a win or darkens and cools it for a loss.
 ## The light variant (the start card, tutorial hints) is a see-through dark glass with a gold line.
 ## `well()` is the style of a sunken area inside the body (the results' counts, settings' rows).
 
@@ -17,8 +18,12 @@ const TRIM_TOP := Color("ffe9a0")
 const TRIM_BOTTOM := Color("e0901c")
 const PAPER := preload("res://assets/art/ui/paper.png")
 
-var top_colour := Ui.CREAM
-var bottom_colour := Color("ebcb92")  ## the parchment darkens towards its foot
+var top_colour := Color("f6e4bc")  ## tanned hide, warm at the top
+var bottom_colour := Color("dcb47c")  ## and darker towards its foot
+var frame_top := FRAME_TOP  ## the frame's wood (a mood changes it: gold for a win, dark for a loss)
+var frame_bottom := FRAME_BOTTOM
+var trim_top := TRIM_TOP
+var trim_bottom := TRIM_BOTTOM
 var radius := 34.0
 var _framed := true
 var _shadow_box: StyleBoxFlat
@@ -38,6 +43,27 @@ func _init(margin := Vector4(34, 40, 34, 34), light := false) -> void:
 	add_theme_stylebox_override(&"panel", s)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED  # the hide grain tiles
+
+
+## A mood for the panel: &"win" a gold frame and a bright trim on a warm hide; &"loss" dark, cool
+## wood, a dull bronze trim, a greyer hide (the defeat drained of warmth); anything else the wood.
+func set_mood(mood: StringName) -> void:
+	match mood:
+		&"win":
+			frame_top = Color("ffd25e")
+			frame_bottom = Color("a8620c")
+			trim_top = Color("fffbe6")
+			trim_bottom = Color("f2c24a")
+			top_colour = Color("fff0c8")
+			bottom_colour = Color("ecc884")
+		&"loss":
+			frame_top = Color("8a5a40")
+			frame_bottom = Color("3a1c10")
+			trim_top = Color("cdbb98")
+			trim_bottom = Color("7e6a4c")
+			top_colour = Color("ece2cc")
+			bottom_colour = Color("c6b496")
+	queue_redraw()
 
 
 ## A sunken area inside a card's cream body: deeper sand in the shade of its upper edge, warmer
@@ -64,9 +90,9 @@ func _draw() -> void:
 			_shadow_box = StyleBoxFlat.new()
 			_shadow_box.bg_color = Color(0.06, 0.0, 0.02, 0.0)
 			_shadow_box.set_corner_radius_all(int(radius))
-			_shadow_box.shadow_color = Color(0.06, 0.0, 0.02, 0.55)
-			_shadow_box.shadow_size = 34
-			_shadow_box.shadow_offset = Vector2(0, 18)
+			_shadow_box.shadow_color = Color(0.04, 0.0, 0.02, 0.78)  # it stands off the blurred game
+			_shadow_box.shadow_size = 46
+			_shadow_box.shadow_offset = Vector2(0, 24)
 			_shadow_box.anti_aliasing = true
 		draw_style_box(_shadow_box, r)
 	_fill(_rounded(r.grow(4.0), radius + 4.0), INK, INK)
@@ -74,14 +100,14 @@ func _draw() -> void:
 	var inner := radius
 	if _framed:
 		# the frame: lacquered wood, a lit edge along its top, darker at its foot
-		_fill(_rounded(r, radius), FRAME_TOP.lightened(0.25), FRAME_BOTTOM)  # the outer bevel, lit
-		_fill(_rounded(r.grow(-3.0), radius - 3.0), FRAME_TOP, FRAME_BOTTOM.darkened(0.15))
+		_fill(_rounded(r, radius), frame_top.lightened(0.25), frame_bottom)  # the outer bevel, lit
+		_fill(_rounded(r.grow(-3.0), radius - 3.0), frame_top, frame_bottom.darkened(0.15))
 		_fill(_rounded(Rect2(r.position + Vector2(radius * 0.5, 3.0), Vector2(r.size.x - radius, 5.0)), 2.5),
 				Color(1, 0.92, 0.75, 0.85), Color(1, 0.92, 0.75, 0.3))
 		# the gold trim and the ink line inside it
 		var trim := r.grow(-FRAME + TRIM)
 		_fill(_rounded(trim.grow(1.5), radius - FRAME + TRIM + 1.5), INK, INK)
-		_fill(_rounded(trim, radius - FRAME + TRIM), TRIM_TOP, TRIM_BOTTOM)
+		_fill(_rounded(trim, radius - FRAME + TRIM), trim_top, trim_bottom)
 		body = r.grow(-FRAME)
 		inner = radius - FRAME
 		_fill(_rounded(body.grow(1.5), inner + 1.5), INK, INK)
@@ -91,13 +117,13 @@ func _draw() -> void:
 		_fill(_rounded(body, inner), top_colour, bottom_colour)
 	if _framed:
 		# the body sits under the frame: a shadow along its top; a soft light in its middle
-		_fill(_rounded(Rect2(body.position, Vector2(body.size.x, maxf(40.0, inner * 2.0 + 10.0))), inner), Color(0.35, 0.12, 0.0, 0.38),
-				Color(0.35, 0.12, 0.0, 0.0))
+		_fill(_rounded(Rect2(body.position, Vector2(body.size.x, maxf(48.0, inner * 2.0 + 18.0))), inner), Color(0.3, 0.1, 0.0, 0.5),
+				Color(0.3, 0.1, 0.0, 0.0))
 		for side: float in [0.0, 1.0]:  # and along its sides
-			var band := Rect2(body.position + Vector2(side * (body.size.x - 22.0), inner * 0.6), Vector2(22.0, body.size.y - inner * 1.2))
-			_fill_h(band, Color(0.35, 0.12, 0.0, 0.22 * (1.0 - side)), Color(0.35, 0.12, 0.0, 0.22 * side))
-		var foot := Rect2(body.position + Vector2(inner * 0.6, body.size.y - 18.0), Vector2(body.size.x - inner * 1.2, 18.0))
-		_fill(_rounded(foot, 0.0), Color(0.35, 0.12, 0.0, 0.0), Color(0.35, 0.12, 0.0, 0.14))  # and its foot
+			var band := Rect2(body.position + Vector2(side * (body.size.x - 30.0), inner * 0.6), Vector2(30.0, body.size.y - inner * 1.2))
+			_fill_h(band, Color(0.3, 0.1, 0.0, 0.32 * (1.0 - side)), Color(0.3, 0.1, 0.0, 0.32 * side))
+		var foot := Rect2(body.position + Vector2(inner * 0.6, body.size.y - 26.0), Vector2(body.size.x - inner * 1.2, 26.0))
+		_fill(_rounded(foot, 0.0), Color(0.3, 0.1, 0.0, 0.0), Color(0.3, 0.1, 0.0, 0.24))  # and its foot
 		_glow(Rect2(body.position + body.size * Vector2(0.1, 0.12), body.size * Vector2(0.8, 0.6)))
 		_zulu_band(r)
 		_studs(r)

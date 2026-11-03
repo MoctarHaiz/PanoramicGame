@@ -300,3 +300,54 @@ show state.
 - The way-home bar's quarter studs are gone (the "21%" no longer sits between lone dots).
 - The start prompt is at most 55 % of the screen's width (iPad), in the sky, never over him or the
   Red Bobs.
+
+## Round 6
+
+Judge j05 (6.08): "the art style and UI style clash ... candy-glossy match-3 template ... theme the
+buttons (hide or wood, beadwork trim, ochre or red)"; every panel identical. ROUND6.md (ux): a kit
+that belongs to this world.
+
+- The kit (ui.gd): the tones re-skinned in his world's materials, matte (gloss 0.14, no spark):
+  OCHRE (new, the main action: Play, Resume, Play again; candy green gone), amber GOLD, terracotta
+  SUNSET, indigo BLUE (the beadwork's), Zulu red CRIMSON, bone WHITE; GREEN only for "on" (switches).
+  Every button's ring is carved wood (lit along its top, dark at its foot), not a yellow candy rim.
+- Panels (card.gd): a tanned hide body that sinks under the frame (stronger shade along its top,
+  sides and foot: it curves), a deep shadow cast on the blurred game (0.78, 46 px, 24 down). Moods
+  (Card.set_mood): a win gilded (gold frame, bright trim, warm hide), a loss drained (dark cool wood,
+  dull bronze trim, a greyer hide; a cooler, darker veil).
+- Win (game_panel.gd): the premium step up: a strong sunburst turning behind the card, a shine
+  sweeping the panel every 2.8 s and sparkles twinkling along its gold frame (_Gilding, added light;
+  sparkles only without motion). Rays.gd draws all its rays in one triangle array (one draw call,
+  a polygon each before).
+- Ribbon tails (banner.gd): shaded as folded cloth (dark at the fold, lit at the free end), a light
+  line along the top, a crease past the fold.
+- Pause: the state on the icon in both states (sounds: a speaker with waves, or with a cross; music:
+  the notes, or the notes dimmed and struck); Controls a four-arrow icon (assets/icons/
+  arrows-cardinal.svg: the swipes); Resume no longer the panel's full width.
+- Empty stars (star_badge.gd): the star in dim desaturated gold (an outline over a pale inlay), not
+  a dark hole (menu and results).
+- Settings: one tile colour per group again (amber sound, red effects, terracotta game, indigo help)
+  for scanning; rows on lighter wells than the tanned panel (contrast); the slider's track marked
+  with notches every quarter (it reads as a slider at full volume too); the back button a wooden
+  boss set into the panel's top-left corner.
+- Game over: the caught line 38; the way-home bar 330 wide; a lying defeat render (very wide) lies
+  beside the card, his boot at its edge.
+- Start: letter spacing 4.5 ("Tap" no longer fused), a warm glow pulsing behind the pill.
+- HUD: the dashed path on the way-home track dark and clear; hearts 39, the count 38.
+- Logo: left as it is (no clean way to interlock the words with the shield this round).
+
+### Round 6, QA's audit and the budget
+- hero.gdshader: no rim on pixels as dark as the ink (luminance under ~0.1-0.24): the ink line around
+  him stays dark, the rim starts inside it (the shader lights the fallback crops and the share card;
+  art's renders on the menu are drawn without it).
+- The defeat figure, whatever its shape (lying, seated, upright), stays clear of the card's frame and
+  band (overlap -0.03 / -0.05).
+- Pause shows Music and Sounds' state on the icon while on, too (above).
+- Texture memory: the fallback hero crops (hero_stand.png, hero_down.png) were preloaded by the
+  results panel (and the menu and share card), held in memory all the time though the art track's
+  renders are used: they are loaded only when used now (-3 MB in every phase). The paper grain and
+  the Controls icon (128 px) have no mipmaps (never drawn smaller); the win's sparkles use the glow
+  texture the panel already holds.
+- perf.gd, whole level, iPhone 15, the merged round 5 (a scratch copy) against this tree: texture
+  58.2 / 53.7 / 53.7 / 56.2 / 62.7 MB -> 55.1 / 50.7 / 50.7 / 53.2 / 59.7 (menu, play, paused,
+  results, menu again); draw calls 108 / 369 / 273 / 350 / 108 -> 102 / 361-371 / 265 / 332-338 / 102.

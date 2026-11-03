@@ -16,6 +16,8 @@ uniform vec3 grade = vec3(1.07, 0.96, 0.9);
 
 void fragment() {
 	vec4 c = texture(TEXTURE, UV);
+	// the ink line around him stays dark: no rim on pixels as dark as the ink (the rim starts inside it)
+	float lit_body = smoothstep(0.1, 0.24, dot(c.rgb, vec3(0.299, 0.587, 0.114)));
 	c.rgb *= grade;
 	// his front is in his own shadow: darker towards the dusk's plum, more so low down and on the
 	// side away from the sun
@@ -27,7 +29,7 @@ void fragment() {
 	vec2 e = vec2(-d.x, d.y) * 0.8;
 	float sun_edge = clamp(c.a - min(texture(TEXTURE, UV + d).a, texture(TEXTURE, UV + d * 0.5).a), 0.0, 1.0);
 	float sky_edge = clamp(c.a - min(texture(TEXTURE, UV + e).a, texture(TEXTURE, UV + e * 0.5).a), 0.0, 1.0);
-	c.rgb = mix(c.rgb, c.rgb * 0.5 + rim_colour.rgb * 0.85, sun_edge * sun_edge * rim);
-	c.rgb = mix(c.rgb, c.rgb * 0.7 + sky_colour.rgb * 0.4, sky_edge * sky_rim * (1.0 - sun_edge));
+	c.rgb = mix(c.rgb, c.rgb * 0.5 + rim_colour.rgb * 0.85, sun_edge * sun_edge * rim * lit_body);
+	c.rgb = mix(c.rgb, c.rgb * 0.7 + sky_colour.rgb * 0.4, sky_edge * sky_rim * (1.0 - sun_edge) * lit_body);
 	COLOR = vec4(c.rgb, c.a * COLOR.a);
 }

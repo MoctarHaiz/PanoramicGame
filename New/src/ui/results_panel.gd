@@ -14,8 +14,8 @@ extends RefCounted
 
 const HERO_WIN := "res://assets/art/hero/hero_win.png"  ## the art track's render (arms up), when there
 const HERO_LOSE := "res://assets/art/hero/hero_defeat.png"  # the art track's defeat pose
-const HERO_STAND := preload("res://assets/art/ui/hero_stand.png")
-const HERO_DOWN := preload("res://assets/art/ui/hero_down.png")
+const HERO_STAND := "res://assets/art/ui/hero_stand.png"  ## fallbacks, loaded only when used (a preload
+const HERO_DOWN := "res://assets/art/ui/hero_down.png"  ## kept them in texture memory all the time)
 const STAR_STEP := 0.32  ## seconds between two stars
 const COUNT_TIME := 0.7  ## seconds the Red Bobs take to roll up
 
@@ -32,7 +32,7 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 	else:
 		# what happened: deep red letters on the parchment, no stroke (a stroke on red closes the letters)
 		var why := Ui.label(TranslationServer.translate("FELL" if world.death_reason == &"fall" else "CAUGHT"),
-				34, Color("a8160a"), Ui.font_display)
+				38, Color("a01408"), Ui.font_display)
 		body.add_child(why)
 	var well := PanelContainer.new()
 	well.add_theme_stylebox_override(&"panel", _dark_well())
@@ -79,7 +79,7 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 	home_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	home_button.pressed.connect(home)
 	buttons.add_child(home_button)
-	var go := Ui.candy_button(TranslationServer.translate("PLAY_AGAIN"), "arrow-counter-clockwise-bold", Ui.Tone.GREEN, 100, 42)
+	var go := Ui.candy_button(TranslationServer.translate("PLAY_AGAIN"), "arrow-counter-clockwise-bold", Ui.Tone.OCHRE, 100, 42)
 	go.custom_minimum_size.x = 340
 	go.pressed.connect(again)
 	go.shine()
@@ -96,10 +96,10 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 	var panel: GamePanel
 	if won:  # warm and radiant
 		panel = GamePanel.open(game, title, Ui.Tone.GOLD, body, _hero(true), Color(0.2, 0.07, 0.02, 0.38),
-				Color(1, 0.78, 0.4, 0.75), false, hide)
+				Color(1, 0.78, 0.4, 0.75), true, hide, &"win")
 	else:  # cold and dim
-		panel = GamePanel.open(game, title, Ui.Tone.CRIMSON, body, _hero(false), Color(0.03, 0.03, 0.1, 0.48),
-				Color(0.5, 0.6, 1.0, 0.25), false, hide)
+		panel = GamePanel.open(game, title, Ui.Tone.CRIMSON, body, _hero(false), Color(0.04, 0.05, 0.12, 0.55),
+				Color(0.5, 0.6, 1.0, 0.25), false, hide, &"loss")
 	_reveal(game, panel, world, stars, bobs, total, bar, slot, news.get("best_bobs", false), buttons, go)
 	return panel
 
@@ -168,7 +168,7 @@ static func _hero(won: bool) -> TextureRect:
 	var art := TextureRect.new()
 	var path := HERO_WIN if won else HERO_LOSE
 	var rendered := ResourceLoader.exists(path)  # the art track's renders carry their own light
-	art.texture = load(path) if rendered else (HERO_STAND if won else HERO_DOWN)
+	art.texture = load(path) if rendered else load(HERO_STAND if won else HERO_DOWN)
 	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
 	if won:
@@ -176,9 +176,13 @@ static func _hero(won: bool) -> TextureRect:
 		art.set_meta(&"overlap", 0.0)  # beside it: his raised hand clear of the ribbon
 	else:
 		var tex_size := art.texture.get_size()
-		if tex_size.x > tex_size.y * 0.8:  # a seated render (wide): on the ground, leaning on the card's edge
+		# whatever his shape he stays clear of the card's frame and band (a little air between)
+		if tex_size.x > tex_size.y * 1.2:  # lying on the ground (very wide)
+			art.set_meta(&"tall", 0.5)
+			art.set_meta(&"overlap", -0.03)
+		elif tex_size.x > tex_size.y * 0.8:  # seated (wide): on the ground beside the card
 			art.set_meta(&"tall", 0.56)
-			art.set_meta(&"overlap", 0.14)
+			art.set_meta(&"overlap", -0.03)
 		else:  # an upright one: beside the card with a little air, a boot clear of the frame
 			art.set_meta(&"tall", 0.62)
 			art.set_meta(&"overlap", -0.05)
@@ -364,7 +368,7 @@ class WayBar extends Control:
 
 	func _init(p: float) -> void:
 		progress = clampf(p, 0.0, 1.0)
-		custom_minimum_size = Vector2(290, 54)
+		custom_minimum_size = Vector2(330, 54)
 		var french := TranslationServer.get_locale().begins_with("fr")  # "21 %" in French, "21%" in English
 		_label = Ui.display_text(("%d %%" if french else "%d%%") % roundi(progress * 100.0), 30, Ui.WHITE, Card.INK)
 		_label.depth = 2.0

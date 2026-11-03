@@ -3,7 +3,7 @@ extends Control
 ## Before the first touch the world waits (the 2017 "Ready"): a compact prompt in the sky, above the
 ## platforms and the ground he runs on: "Tap to start" in gold on a pill of dark glass with a gold rim
 ## (it reads over yellow grass and blue sky alike), a hand tapping beside the words (never over them),
-## the pill breathing gently.
+## the pill breathing in a warm glow that pulses behind it.
 ## The first time, nothing else: the moves are taught when they are needed (Tutorial). Later runs
 ## show the five moves above it on a strip of dark glass, each with its own gesture, so every
 ## control stays easy to find.
@@ -45,7 +45,7 @@ func _init(first_run: bool) -> void:
 	hand.badge = false
 	go_row.add_child(hand)
 	var go := Ui.display_text(tr("TAP_TO_START"), 36, Color("fff2b8"), Color("2a0c04"), Color("ffc93c"))
-	go.tracking = 2.0
+	go.tracking = 4.5  # air between the letters ("Tap" fused at 2)
 	go.depth = 3.0
 	go.shadow = Color(0, 0, 0, 0)
 	go.refresh()
@@ -69,12 +69,34 @@ func _init(first_run: bool) -> void:
 	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	plate.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	plate.add_child(go_row)
-	box.add_child(plate)
+	var halo := Control.new()  # the pill and a warm glow pulsing behind it
+	halo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	halo.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var glow := TextureRect.new()
+	glow.texture = Fx.glow_texture()
+	glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	glow.material = Fx.additive()
+	glow.modulate = Color(1, 0.72, 0.3, 0.5)
+	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	halo.add_child(glow)
+	halo.add_child(plate)
+	box.add_child(halo)
+	var hold := func() -> void:
+		var need := plate.get_combined_minimum_size()
+		halo.custom_minimum_size = need
+		plate.size = need
+		glow.size = need * Vector2(1.4, 2.4)
+		glow.position = need / 2 - glow.size / 2
+		halo.pivot_offset = need / 2
+	plate.minimum_size_changed.connect(hold)
+	hold.call_deferred()
 	if Prefs.motion():
-		plate.resized.connect(func() -> void: plate.pivot_offset = plate.size / 2)
-		var t := plate.create_tween().set_loops()
-		t.tween_property(plate, "scale", Vector2.ONE * 1.04, 0.7).set_trans(Tween.TRANS_SINE)
-		t.tween_property(plate, "scale", Vector2.ONE, 0.7).set_trans(Tween.TRANS_SINE)
+		var t := halo.create_tween().set_loops()
+		t.tween_property(halo, "scale", Vector2.ONE * 1.05, 0.65).set_trans(Tween.TRANS_SINE)
+		t.tween_property(halo, "scale", Vector2.ONE, 0.65).set_trans(Tween.TRANS_SINE)
+		var g := glow.create_tween().set_loops()
+		g.tween_property(glow, "modulate:a", 0.85, 0.65).set_trans(Tween.TRANS_SINE)
+		g.tween_property(glow, "modulate:a", 0.35, 0.65).set_trans(Tween.TRANS_SINE)
 	box.modulate.a = 0.0
 	box.create_tween().tween_property(box, "modulate:a", 1.0, 0.3).set_delay(0.2)
 	resized.connect(_fit.bind(box))

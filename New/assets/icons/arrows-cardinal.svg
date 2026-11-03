@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- The moves (Controls): four bold arrows out from a centre, as swipes in every direction. -->
+  <path fill="#ffffff" d="M128 12 L176 64 L144 64 L144 112 L192 112 L192 80 L244 128 L192 176 L192 144 L144 144 L144 192 L176 192 L128 244 L80 192 L112 192 L112 144 L64 144 L64 176 L12 128 L64 80 L64 112 L112 112 L112 64 L80 64 Z"/>
+</svg>

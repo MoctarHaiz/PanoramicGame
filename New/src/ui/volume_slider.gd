@@ -62,6 +62,13 @@ func _draw() -> void:
 		GlossStyle.fill_rounded(ci, fill, gr - 3.5, Color("ffe066"), Color("e8860e"))
 		GlossStyle.fill_rounded(ci, Rect2(fill.position + Vector2(5, 2), Vector2(maxf(fill.size.x - 10, 0), 4)), 2.0,
 				Color(1, 1, 0.9, 0.75), Color(1, 1, 0.9, 0.5))
+	# the scale along the track, notches every quarter (dark on the fill, light on the empty groove): it
+	# reads as a slider even when full
+	for q in range(1, 4):
+		var x := inside.position.x + inside.size.x * q / 4.0
+		var on_fill := x < cx
+		draw_line(Vector2(x, inside.position.y + 3.0), Vector2(x, inside.end.y - 3.0),
+				Color(0.45, 0.2, 0.02, 0.55) if on_fill else Color(1, 0.95, 0.85, 0.45), 3.0, true)
 	var knob_r := r - 2.0
 	var centre := Vector2(cx, r)
 	draw_circle(centre + Vector2(0, 4), knob_r, Color(Ui.NIGHT, 0.3), true, -1, true)

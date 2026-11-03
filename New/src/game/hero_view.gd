@@ -126,6 +126,9 @@ func _init() -> void:
 
 func _ready() -> void:
 	_under = Node2D.new()
+	# round 6 ("he floats on the grass"): his shadow is drawn over the grass blades in front of the
+	# runners (WorldView's front grass hid it), darkening them and the soles of his boots
+	_under.z_index = 1
 	_under.draw.connect(_draw_under)
 	get_parent().add_child.call_deferred(_under)
 	get_parent().move_child.call_deferred(_under, get_index())

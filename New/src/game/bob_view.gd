@@ -30,6 +30,7 @@ var _blink_at := 0.0
 var _glint_at := 0.0
 var _glint_k := 0.0
 var _scale := 1.0
+var _tilt := 0.0  # its own lean (radians): no two alike
 
 
 static func load_art() -> void:
@@ -114,24 +115,29 @@ func _init(column := 0, row := 0) -> void:
 	# a wave along a row (neighbours a quarter beat apart) with a golden-angle jitter: a row reads as a
 	# ripple, not a copy-pasted line
 	_phase = fposmod(column * 1.2 + row * 1.618 + fposmod(column * 2.399, 1.2), TAU)
+	# round 6 ("stamped tomatoes"): each a little bigger or smaller and leaning its own way
+	var h := fposmod(sin(column * 12.9898 + row * 78.233) * 43758.5453, 1.0)
+	_scale *= 0.9 + 0.18 * h
+	_tilt = (fposmod(h * 7.31, 1.0) - 0.5) * 0.4
 	_pace = 3.0 + fposmod(column * 0.37 + row * 0.53, 0.8)
 	_clock = 0.0
 	_blink_at = 1.0 + fposmod(column * 1.37 + row * 0.71, 4.0)
-	_glint_at = 0.5 + fposmod(column * 0.93 + row * 1.9, 5.0)
+	_glint_at = 0.2 + fposmod(column * 0.41 + row * 1.9, 3.0)
 
 
 func _process(delta: float) -> void:
 	_clock += delta
 	# float: up and down, squashed a little at the bottom, stretched going up
 	var s := sin(_clock * _pace - _phase)
-	_sprite.position.y = -4.2 * s  # (round 5: a deeper float, staggered along a row by _phase)
+	_sprite.position.y = -6.0 * s  # (a deep float, staggered along a row by _phase: a ripple even in a still)
 	var squash := 0.05 * -s
 	var pulse := 1.0 + 0.045 * maxf(sin(_clock * 3.1 - _phase * 1.3), 0.0)  # a slight beat of size
 	_sprite.scale = Vector2(_scale * (1.0 + squash), _scale * (1.0 - squash)) * pulse
-	_sprite.rotation = 0.07 * sin(_clock * 2.1 - _phase * 0.7)
+	_sprite.rotation = _tilt + 0.09 * sin(_clock * 2.1 - _phase * 0.7)
 	_halo.position = _sprite.position
-	_halo.modulate = Color(1.0, 0.5, 0.25, 0.55 + 0.15 * sin(_clock * 2.6 - _phase))
-	_halo.scale = Vector2.ONE * SIZE * 1.9 / 64.0 * pulse
+	_halo.modulate = Color(1.0, 0.48, 0.22, 0.7 + 0.2 * sin(_clock * 2.6 - _phase))  # a soft warm glow
+	_halo.scale = Vector2.ONE * SIZE * 2.2 / 64.0 * pulse
+	_spec.modulate.a = 0.7 + 0.3 * sin(_clock * 5.3 + _phase)  # the hotspot twinkles
 	_spec.position = _sprite.position + Vector2(-6.0, -7.0).rotated(_sprite.rotation)
 	# blink every few seconds; once in a while a wink
 	var face := Face.SMILE
@@ -143,9 +149,9 @@ func _process(delta: float) -> void:
 	# the glint: a star of light that flares on the gloss and fades
 	if _clock >= _glint_at:
 		_glint_k = 1.0
-		_glint_at = _clock + randf_range(2.5, 6.0)
+		_glint_at = _clock + randf_range(1.2, 3.0)  # (often: a moving sparkle along a row)
 	if _glint_k > 0.0:
-		_glint_k = maxf(_glint_k - delta * 2.6, 0.0)
+		_glint_k = maxf(_glint_k - delta * 1.8, 0.0)
 		_shine.queue_redraw()
 
 

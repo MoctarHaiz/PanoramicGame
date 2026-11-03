@@ -76,7 +76,13 @@ func _draw() -> void:
 				Vector2(outer, y + tail_h), Vector2(inner, y + tail_h)])
 		for p in Geometry2D.offset_polygon(pts, ow, Geometry2D.JOIN_ROUND):
 			draw_colored_polygon(p, c.outline)
-		draw_polygon(pts, PackedColorArray([c.edge, c.edge, c.edge.darkened(0.1), c.edge.darkened(0.2), c.edge.darkened(0.2)]))
+		# shaded as cloth folded under: dark at the fold (inner end), lit towards its free end
+		draw_polygon(pts, PackedColorArray([c.edge.darkened(0.42), c.edge.lightened(0.12), c.edge.darkened(0.05),
+				c.edge.darkened(0.18), c.edge.darkened(0.55)]))
+		draw_line(Vector2(inner, y + tail_h * 0.18), Vector2(outer - side * notch * 0.6, y + tail_h * 0.18),
+				Color(1, 0.9, 0.75, 0.28), maxf(2.0, tail_h * 0.08), true)  # light along its top
+		var crease := outer - side * reach * 0.8  # a crease just past the fold
+		draw_line(Vector2(crease, y + 3.0), Vector2(crease, y + tail_h - 3.0), Color(c.outline, 0.4), 2.0, true)
 		# The fold: a dark triangle where the band turns into the tail.
 		var x_end := outer - side * reach
 		var fold := PackedVector2Array([Vector2(x_end, y), Vector2(x_end - side * _tail * 0.38, y + tail_h * 0.42),

@@ -33,28 +33,33 @@ const CREAM := Color("fff6e4")
 const SAND := Color("f3d9ac")
 const SAND_DEEP := Color("dcb47c")
 
-## The candy colours of the interface kit (buttons, chips, banners, panels): docs/art/STYLE.md.
-## GREEN is the go colour (one main action per screen), GOLD rewards, SUNSET the brand,
-## BLUE and CRIMSON the others, WHITE the quiet choice.
-enum Tone { GREEN, GOLD, SUNSET, BLUE, CRIMSON, WHITE }
+## The colours of the interface kit (buttons, chips, banners, panels), in the materials of his world
+## rather than candy: dyed and oiled hide, matte, in a carved-wood ring. OCHRE is the go colour (one
+## main action per screen: Play, Resume, Play again), GOLD (amber) rewards, SUNSET (terracotta) the
+## brand, BLUE (indigo, as the beadwork) and CRIMSON (Zulu red) the others, WHITE (bone) the quiet
+## choice, GREEN only for "on" (switches).
+enum Tone { GREEN, GOLD, SUNSET, BLUE, CRIMSON, WHITE, OCHRE }
 ## Per tone: face top, face bottom, edge (the bevel under the face), outline (and text outline).
 const TONES := {
-	Tone.GREEN: [Color("c4f060"), Color("5cb82a"), Color("3a8a1d"), Color("1a4a10")],
-	Tone.GOLD: [Color("ffe873"), Color("ffab1c"), Color("d5740b"), Color("6a3205")],
-	Tone.SUNSET: [Color("ffb77a"), Color("f2662e"), Color("c0431a"), Color("5a1a06")],
-	Tone.BLUE: [Color("7cd0ff"), Color("2f86e0"), Color("1c5cb2"), Color("0e2a5e")],
-	Tone.CRIMSON: [Color("ff7a5c"), Color("e82808"), Color("a8180a"), Color("4e0804")],
-	Tone.WHITE: [Color("ffffff"), Color("fff0e2"), Color("f2c9a8"), Color("5a1a06")],
+	Tone.GREEN: [Color("a8d860"), Color("4f9a2a"), Color("2f6a18"), Color("163a0c")],
+	Tone.GOLD: [Color("f6b450"), Color("c8741e"), Color("86460e"), Color("3a1c04")],
+	Tone.SUNSET: [Color("ee9e6a"), Color("c2582c"), Color("86341a"), Color("3a1206")],
+	Tone.BLUE: [Color("7e9ede"), Color("34529c"), Color("1e3268"), Color("0e1838")],
+	Tone.CRIMSON: [Color("e6604e"), Color("a8261c"), Color("6e140c"), Color("2e0604")],
+	Tone.WHITE: [Color("fffaf0"), Color("f1e2c4"), Color("d2b48a"), Color("4a1e04")],
+	Tone.OCHRE: [Color("fbd25a"), Color("de921c"), Color("9a5a0c"), Color("3e2004")],
 }
-## The lit ring around a button's face (the gold rim of the buttons of top games), per tone: ring top,
-## ring bottom, the thickness under it (edge), the outline around it all.
+## The ring around a button's face: carved wood (lit along its top, dark at its foot), per tone: ring
+## top, ring bottom, the thickness under it (edge), the outline around it all.
+const WOOD := [Color("cf8e4e"), Color("6e3412"), Color("40180a"), Color("2a0c04")]
 const FRAMES := {
-	Tone.GREEN: [Color("fff3a6"), Color("f4a62a"), Color("b8620c"), Color("4a1e04")],
-	Tone.GOLD: [Color("ffd9a0"), Color("ea6a1c"), Color("a83c0a"), Color("4a1404")],
-	Tone.SUNSET: [Color("fff3a6"), Color("f4a62a"), Color("b8620c"), Color("4a1e04")],
-	Tone.BLUE: [Color("fff3a6"), Color("f4a62a"), Color("b8620c"), Color("3a1a08")],
-	Tone.CRIMSON: [Color("fff3a6"), Color("f4a62a"), Color("b8620c"), Color("4a1004")],
-	Tone.WHITE: [Color("fffdf6"), Color("e6c08a"), Color("b07a3c"), Color("4a1e04")],
+	Tone.GREEN: WOOD,
+	Tone.GOLD: WOOD,
+	Tone.SUNSET: WOOD,
+	Tone.BLUE: WOOD,
+	Tone.CRIMSON: WOOD,
+	Tone.WHITE: [Color("e0b47a"), Color("8a4a1e"), Color("52240c"), Color("2e0d04")],
+	Tone.OCHRE: [Color("d89a52"), Color("6a300e"), Color("3e1606"), Color("2a0c04")],
 }
 
 var font_title: FontVariation  ## Fredoka Bold: titles, buttons, numbers
@@ -174,9 +179,9 @@ func _candy(c: Dictionary, radius: float, pressed: bool, depth: float) -> GlossS
 	var white := (c.top as Color).get_luminance() > 0.95
 	var s := GlossStyle.new(c.top, c.bottom, c.edge, radius, depth, pressed)
 	s.set_outline(c.outline, clampf(roundf(depth * 0.45), 3.0, 6.0))
-	s.gloss = 0.36 if not white else 0.0
-	s.spark = 0.9 if not white else 0.0
-	s.rim = 0.35
+	s.gloss = 0.14 if not white else 0.0  # matte hide, a soft sheen: not candy glaze
+	s.spark = 0.0
+	s.rim = 0.3
 	s.shadow.shadow_color = Color(NIGHT, 0.32)
 	s.shadow.shadow_size = 6 if pressed else 14
 	s.shadow.shadow_offset = Vector2(0, 4 if pressed else 10)
@@ -303,7 +308,7 @@ func bold_icon(name: String, size: float, fill := WHITE, outline := NIGHT) -> Bo
 
 ## The main candy button of a screen, in a tone (PLAY, Play again...): outlined, bevelled, glossy,
 ## with outlined white text and icon. Call idle() and shine() on the screen's one main action.
-func candy_button(text: String, icon_name := "", tone := Tone.GREEN, height := 124,
+func candy_button(text: String, icon_name := "", tone := Tone.OCHRE, height := 124,
 		font_size := 50) -> JuicyButton:
 	return _candy_button(text, icon_name, tone_colours(tone), height, font_size)
 

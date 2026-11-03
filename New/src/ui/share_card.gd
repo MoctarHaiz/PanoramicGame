@@ -6,7 +6,7 @@ extends Control
 ## challenge on a red chip.
 
 const SIZE := Vector2i(1200, 630)
-const HERO := preload("res://assets/art/ui/hero_stand.png")
+const HERO := "res://assets/art/ui/hero_stand.png"  ## loaded when a card is made (not held in memory)
 
 var bobs := 0
 var stars := 0
@@ -39,10 +39,11 @@ func _ready() -> void:
 	add_child(backdrop)
 	var h := SIZE.y * 0.92
 	var hero := TextureRect.new()
-	hero.texture = HERO
+	var hero_tex: Texture2D = load(HERO)
+	hero.texture = hero_tex
 	hero.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	hero.stretch_mode = TextureRect.STRETCH_SCALE
-	hero.size = Vector2(h * HERO.get_width() / HERO.get_height(), h)
+	hero.size = Vector2(h * hero_tex.get_width() / hero_tex.get_height(), h)
 	hero.position = Vector2(150, SIZE.y - h + 10)
 	var lit := ShaderMaterial.new()
 	lit.shader = preload("res://src/ui/hero.gdshader")

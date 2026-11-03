@@ -39,6 +39,7 @@ var bandit: World.Bandit
 var _sprite: Sprite2D
 var _material: ShaderMaterial
 var _front: Node2D  # what is drawn over the sprite (the stars in front of the hood)
+var _ground_shadow: Node2D
 var _cols := 8
 var _run_frames := 8
 ## The raider is drawn a quarter larger than its sheet (from the feet up): about three quarters of
@@ -112,6 +113,11 @@ func _init(w: World, b: World.Bandit) -> void:
 	_front = Node2D.new()
 	_front.draw.connect(_draw_stars.bind(true))
 	add_child(_front)
+	# its shadow on the ground, over the grass blades in front of the runners (they hid it)
+	_ground_shadow = Node2D.new()
+	_ground_shadow.z_index = 1
+	_ground_shadow.draw.connect(_draw_shadow)
+	add_child(_ground_shadow)
 	_run = float(b.id * 3 % _run_frames)
 	_breath = b.id * 0.7
 	_star_turn = b.id * 1.3
@@ -193,6 +199,7 @@ func _process(delta: float) -> void:
 	_material.set_shader_parameter(&"amount", _flash * 0.85)
 	queue_redraw()
 	_front.queue_redraw()
+	_ground_shadow.queue_redraw()
 
 
 ## The frame of the club's swing (0..7): drawn back then the blow over gameplay's strike() (its
@@ -211,12 +218,16 @@ func _swing_frame() -> int:
 func _draw() -> void:
 	if _ko:
 		return
-	# a soft shadow on the ground under him (only while he stands on it)
-	if _grounded:
-		draw_set_transform(Vector2(_jolt * 0.5, -1.0), 0.0, Vector2(0.8, 0.17))
-		draw_texture(_shade, -Vector2(32, 32))
-		draw_set_transform(Vector2.ZERO)
 	_draw_stars(false)
+
+
+## A soft shadow on the ground under him (only while he stands on it).
+func _draw_shadow() -> void:
+	if _ko or not _grounded:
+		return
+	_ground_shadow.draw_set_transform(Vector2(_jolt * 0.5, -1.0), 0.0, Vector2(0.8, 0.17))
+	_ground_shadow.draw_texture(_shade, -Vector2(32, 32))
+	_ground_shadow.draw_set_transform(Vector2.ZERO)
 
 
 ## Dazed stars on a ring above the hood: those behind it drawn under the sprite, the rest over it.

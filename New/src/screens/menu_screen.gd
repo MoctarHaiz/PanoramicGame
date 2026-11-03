@@ -12,7 +12,7 @@ extends Screen
 const LOGO := preload("res://assets/art/ui/logo.png")
 const RIBBON := preload("res://assets/art/ui/ribbon.png")
 const HERO_ART := "res://assets/art/hero/hero_menu.png"  ## the art track's render, when there
-const HERO_STAND := preload("res://assets/art/ui/hero_stand.png")
+const HERO_STAND := "res://assets/art/ui/hero_stand.png"  ## the fallback crop, loaded only when used
 const ROCK := preload("res://assets/art/ui/menu_rock.png")
 const ROCK_STAND := Vector2(1340, 150)  ## where his feet go on the rock, in its pixels (tools/art/ui_hero.py)
 const HERO_TALL := 0.8  ## his height, as a share of the screen's
@@ -21,6 +21,7 @@ const FEET_AT := 0.9  ## where his feet stand, as a share of the screen's height
 var _backdrop: SunsetBackdrop
 var _hero: TextureRect
 var _hero_tex: Texture2D
+var _lit_crop := false  # the fallback crop (no art render): lit here by hero.gdshader
 var _rock: TextureRect
 var _shadow: TextureRect  # his shadow on the rock
 var _front: TextureRect  # dark backlit grass across the bottom, in front of the rock's foot
@@ -47,7 +48,8 @@ func enter(_data: Dictionary) -> void:
 	_backdrop.horizon = 0.8  # more sky: the horizon doesn't cut the frame in half
 	_backdrop.tree_x = 0.37  # the small acacia between him and the title, not behind the buttons
 	add_child(_backdrop)
-	_hero_tex = load(HERO_ART) if ResourceLoader.exists(HERO_ART) else HERO_STAND
+	_lit_crop = not ResourceLoader.exists(HERO_ART)
+	_hero_tex = load(HERO_STAND if _lit_crop else HERO_ART)
 	# the bloom around the low sun
 	_halo_glow = TextureRect.new()
 	_halo_glow.texture = Fx.glow_texture()
@@ -65,7 +67,7 @@ func enter(_data: Dictionary) -> void:
 	_front.stretch_mode = TextureRect.STRETCH_TILE
 	_front.modulate = Color(0.55, 0.45, 0.52)
 	_hero = _picture(_hero_tex)
-	if _hero_tex == HERO_STAND:  # the art track's render carries its own backlight; the crop gets it here
+	if _lit_crop:  # the art track's render carries its own backlight; the crop gets it here
 		_hero.material = _backlit()
 	add_child(_hero)
 	add_child(_front)
@@ -119,7 +121,7 @@ func enter(_data: Dictionary) -> void:
 	_play_pop.size = _play_box.custom_minimum_size
 	_play_pop.pivot_offset = _play_pop.size / 2
 	_play_box.add_child(_play_pop)
-	_play = Ui.candy_button(tr("PLAY"), "play-fill", Ui.Tone.GREEN, 124, 62)
+	_play = Ui.candy_button(tr("PLAY"), "play-fill", Ui.Tone.OCHRE, 124, 62)
 	_play.size = _play_box.custom_minimum_size
 	_play.pressed.connect(func() -> void: Nav.go(&"game", {}, _play.get_global_rect().get_center()))
 	_play.idle(0.06)
@@ -269,7 +271,7 @@ func _layout() -> void:
 	_hero.size = Vector2(w, h)
 	# the art track's render stands on its own contact shadow at 0.94 of its height (boots planted
 	# there, the front one mid-stride a little above); the fallback crop's soles are at its foot
-	_hero.position = feet - Vector2(w * 0.5, h * (0.94 if _hero_tex != HERO_STAND else 0.985))
+	_hero.position = feet - Vector2(w * 0.5, h * (0.985 if _lit_crop else 0.94))
 	_hero.pivot_offset = Vector2(w / 2, h)
 	var k := h * 0.62 / ROCK.get_height()  # the rock's pixels to screen units
 	_rock.size = Vector2(ROCK.get_width(), ROCK.get_height()) * k

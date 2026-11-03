@@ -552,36 +552,32 @@ def pose_celebrate():
     bpy.context.view_layer.update()
 
 
-SEAT_TURN = 72.0  ## degrees: his legs across the picture
-SEAT_TWIST = -45.0  ## degrees: his chest and face turned back to us
+SEAT_TURN = 40.0  ## degrees: his knees a little across the picture
+SEAT_TWIST = -25.0  ## degrees: his chest and face turned back to us
 
 
 def pose_seated():
-    """Game over: sat on the ground, dazed, one knee up, the other leg out, a hand propping him up
-    behind, the other to his head; his face up and visible, three-quarters towards us."""
+    """Game over: sat on the ground, dazed, both knees drawn up (compact: nothing reaching out), one
+    forearm resting on a knee, the other hand to his head, his face turned up to us."""
     reset_turn()
     apply(sample("idle", 1))
-    aim("RightUpLeg", 0.55, 0.85, 0.15)  # the knee drawn up high, the foot flat near his seat
-    aim("RightLeg", 0.3, -1.0, 0.05)
-    aim("RightFoot", 1.0, -0.1)
-    aim("LeftUpLeg", 1.0, -0.17, -0.2)  # (down a little: the look-up camera lifts what reaches away)
-    aim("LeftLeg", 1.0, -0.12, -0.1)
-    aim("LeftFoot", 0.3, 1.0)
-    turn("Spine", -14)
-    turn("Spine1", -4)
-    aim("LeftArm", -0.55, -0.8, -0.35)
-    aim("LeftForeArm", -0.45, -0.9, -0.1)
-    aim("LeftHand", -0.6, -0.6)
-    aim("RightArm", 0.25, 0.45, 0.85)
+    for side, lean in (("Right", 0.12), ("Left", -0.12)):
+        aim(side + "UpLeg", 0.6, 0.8, lean)
+        aim(side + "Leg", 0.25, -1.0, lean * 0.5)
+        aim(side + "Foot", 1.0, -0.15)
+    turn("Spine", -10)
+    aim("LeftArm", 0.45, -0.55, -0.45)
+    aim("LeftForeArm", 0.9, 0.15, 0.15)
+    aim("RightArm", 0.3, 0.5, 0.8)
     aim("RightForeArm", -0.25, 0.7, -0.65)
-    turn("Spine1", SEAT_TWIST * 0.4, axis=(0.0, 0.0, 1.0))  # his chest and face turned to us
+    turn("Spine1", SEAT_TWIST * 0.4, axis=(0.0, 0.0, 1.0))
     turn("Head", SEAT_TWIST, axis=(0.0, 0.0, 1.0))
     turn("Head", 10, axis=(0.0, 1.0, 0.0))  # tilted, dazed
     turn("Head", -8)
-    seat = bone_z("Hips") - 0.09  # his seat, under the pelvis
-    low = min(seat, bone_z("RightToe_End"), bone_z("LeftToe_End"), bone_z("LeftFoot") - 0.04)
-    shift_hips(0.0, 0.0 - low)  # sat on the ground
-    ARM.rotation_euler.z = math.radians(SEAT_TURN)  # his legs across the picture, not at us
+    seat = bone_z("Hips") - 0.09
+    low = min(seat, bone_z("RightToe_End"), bone_z("LeftToe_End"))
+    shift_hips(0.0, 0.0 - low)
+    ARM.rotation_euler.z = math.radians(SEAT_TURN)
     bpy.context.view_layer.update()
 
 
@@ -663,9 +659,10 @@ def make_bandit():
         ramp = nodes.new("ShaderNodeValToRGB")
         el = ramp.color_ramp.elements
         el[0].position, el[0].color = 0.05, (0.03, 0.015, 0.03, 1)
-        el[1].position, el[1].color = 0.72, (0.95, 0.12, 0.62, 1)  # the wraps: bright magenta
+        el[1].position, el[1].color = 0.72, (1.0, 0.22, 0.02, 1)  # the wraps: hot orange-red (round 6:
+        # magenta read purple on the green grass)
         mid = el.new(0.3)
-        mid.color = (0.22, 0.08, 0.2, 1)  # the skin: dark plum
+        mid.color = (0.07, 0.035, 0.03, 1)  # the skin: near black
         links.new(tex.outputs["Color"], bw.inputs["Color"])
         links.new(bw.outputs["Val"], ramp.inputs["Fac"])
         links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
@@ -681,7 +678,7 @@ def make_bandit():
     band = bpy.context.object
     band.scale = (0.95, 1.12, 1.0)
     bpy.ops.object.shade_smooth()
-    band.data.materials.append(_material("Mask", (1.0, 0.72, 0.04), 0.5))  # his signature: a gold mask
+    band.data.materials.append(_material("Mask", (1.0, 0.62, 0.02), 0.5))  # his signature: an ochre-gold mask
     eye_mat = _material("Eyes", (1.0, 0.6, 0.1), 0.3, (1.0, 0.62, 0.12), 16.0)
     parts = [band]
     for side in (-1.0, 1.0):
@@ -727,8 +724,11 @@ def club_visible(on):
 
 
 def run_full(i):
-    """The user's run at full stride (the bandits run 291 units/s against the ground)."""
+    """The user's run at full stride (the bandits run 291 units/s against the ground), the club raised
+    over his shoulder (round 6: a bigger, readable threat silhouette)."""
     apply(sample("run", 1 + i))
+    aim("LeftArm", 0.35, 0.5, -0.3)
+    aim("LeftForeArm", -0.55, 0.85, -0.1)  # the club over his shoulder, angled back
     club_visible(True)
 
 
@@ -816,7 +816,9 @@ TOON_CLOTH = {  # the cloth's bands: shade, mid, lit (warm cream, never grey)
     "day": ((0.78, 0.66, 0.55), (0.93, 0.85, 0.74), (1.04, 1.0, 0.93)),
     "sunset": ((0.6, 0.44, 0.38), (0.8, 0.62, 0.5), (1.0, 0.86, 0.7)),
 }
-INK = (0.16, 0.07, 0.04)  ## a warm dark brown (round 5: black read as a sticker's outline)
+INK = (0.022, 0.006, 0.003)  ## linear (an emission): the warm dark brown sRGB (0.16, 0.07, 0.04).
+## (Round 6: it was given as sRGB values, so it rendered as a light grey-brown line round him, the
+## "grey / silver outline" the judge saw; hero_atlas.py's INK is sRGB and was right.)
 INK_WIDTH = 0.003  ## scene units (about 0.9 px in the game's atlas)
 
 
@@ -916,9 +918,9 @@ def toon_material(m, mode):
     colour = nt.nodes.new("ShaderNodeMix")
     colour.data_type = "RGBA"
     colour.blend_type = "MULTIPLY"
-    nt.links.new(_math(nt, "MULTIPLY", blue, 0.45), colour.inputs["Factor"])
+    nt.links.new(_math(nt, "MULTIPLY", blue, 0.6), colour.inputs["Factor"])
     nt.links.new(lit_colour.outputs["Result"], colour.inputs["A"])
-    colour.inputs["B"].default_value = (1.12, 0.9, 0.7, 1)
+    colour.inputs["B"].default_value = (1.05, 0.86, 0.68, 1)
     # view-space normal: how much it faces away from us (the edge), and towards the sun's side
     geo = nt.nodes.new("ShaderNodeNewGeometry")
     vt = nt.nodes.new("ShaderNodeVectorTransform")
@@ -932,7 +934,7 @@ def toon_material(m, mode):
     edge_k = _math(nt, "MAXIMUM", _math(nt, "MINIMUM", _math(nt, "MULTIPLY", _math(nt, "SUBTRACT", edge, rim_w), 5.0), 1.0), 0.0)
     toward = _math(nt, "ADD", _math(nt, "MULTIPLY", sep.outputs["X"], -0.7), _math(nt, "MULTIPLY", sep.outputs["Y"], 0.7))
     toward = _math(nt, "MAXIMUM", _math(nt, "MINIMUM", _math(nt, "MULTIPLY", toward, 2.2), 1.0), 0.0)
-    rim = _math(nt, "MULTIPLY", _math(nt, "MULTIPLY", edge_k, toward), rim_k)
+    rim = _math(nt, "MULTIPLY", _math(nt, "MULTIPLY", edge_k, toward), rim_k * float(os.environ.get("RIM_K", "1")))
     rim_rgb = nt.nodes.new("ShaderNodeMix")
     rim_rgb.data_type = "RGBA"
     rim_rgb.blend_type = "ADD"
@@ -1021,6 +1023,17 @@ def flatten_textures(size=2048, r=4, k=0.6):
         tex.image = done[tex.image.name]
 
 
+def face_light():
+    """Puts the interface pictures' face light in front of his face (towards the camera)."""
+    light = bpy.data.objects.get("FaceLight")
+    if light is None:
+        return
+    head = ARM.pose.bones[P + "Head"]
+    mid = ARM.matrix_world @ ((head.head + head.tail) / 2)
+    forward = (SC.camera.matrix_world.to_3x3() @ Vector((0.0, 0.0, 1.0))).normalized()  # towards the camera
+    light.location = mid + forward * 0.16 + Vector((0.0, 0.0, 0.04))
+
+
 def toon_setup():
     mode = "sunset" if arg("--light", "day") == "sunset" else "day"
     for ob in list(bpy.data.objects):
@@ -1035,6 +1048,19 @@ def toon_setup():
     # the world's sun: upper left on screen, a little towards us (day) or behind him (sunset)
     key = add_sun("ToonKey", (1.0, 1.0, 1.0), 3.2, aim_from=(-0.45, 0.65, 0.6) if mode == "day" else (0.55, 0.62, 0.45), angle=1.0)
     key.parent = rig
+    # a warm bounce from the front (screen right and towards us): his face and chest in the mid band,
+    # not the shade (round 6: "his face is entirely in shadow")
+    fill = add_sun("ToonFill", (1.0, 0.85, 0.7), 0.42 if mode == "day" else 0.3,
+                   aim_from=(-0.75, -0.55, 0.15) if mode == "day" else (-0.9, -0.2, 0.3), angle=8.0)
+    fill.parent = rig
+    if mode == "sunset":  # and a small light on his face, placed for each pose (face_light())
+        data = bpy.data.lights.new("FaceLight", "POINT")
+        data.energy = float(os.environ.get("FACE_W", "0.6"))
+        data.shadow_soft_size = 0.05
+        data.use_custom_distance = True
+        data.cutoff_distance = 0.32
+        ob = bpy.data.objects.new("FaceLight", data)
+        SC.collection.objects.link(ob)
     seen = set()
     for ob in bpy.data.objects:
         if ob.type != "MESH" or ob.hide_render:
@@ -1097,6 +1123,7 @@ def render(name, view, frames, lift=0.0, tilt=0.0):
             f()
         else:
             apply(sample(*f))
+        face_light()
         SC.render.filepath = os.path.join(folder, f"{i:03d}.png")
         bpy.ops.render.render(write_still=True)
         data["frames"].append(points(SC.camera))

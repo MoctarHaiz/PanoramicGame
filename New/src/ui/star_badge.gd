@@ -2,9 +2,8 @@ class_name StarBadge
 extends Control
 ## A big shiny star (results, best run): a fat five-point star with a fine warm rim, a gold
 ## face lit from the top, a darker bevel along its lower edge and a glossy highlight on its upper
-## left, a warm glow behind it and now and then a twinkle on a tip. Unlit, it is a socket carved
-## into the panel: a dark inset with its shadow along the upper edges and a lit lip below, so an
-## empty place reads on a dark panel.
+## left, a warm glow behind it and now and then a twinkle on a tip. Unlit, it is the same star in dim,
+## desaturated gold (an outline over a pale inlay, a lit lip below): an empty place, not a dark hole.
 
 const INK := Color("2e0d04")
 const FACE_TOP := Color("fff47e")
@@ -62,15 +61,12 @@ func _draw() -> void:
 	var o := maxf(side * 0.06, 2.5)  # outline thickness
 	var c := size / 2 + Vector2(0, side * 0.04)
 	var r := side * 0.5 - o
-	if not lit:  # an empty socket pressed into the panel, in cool stone grey (never brown "dirt"):
-		# a lit lip along its lower edges, a dark rim, the floor in the shade of its upper edges and
-		# catching the light lower down, a faint star moulded in its middle
-		draw_colored_polygon(points(c + Vector2(0, o * 0.8), r + o * 0.7), Color(1, 1, 0.97, 0.75))
-		draw_colored_polygon(points(c, r + o * 0.7), Color(0.12, 0.08, 0.1))
-		draw_colored_polygon(points(c, r - o * 0.2), Color(0.18, 0.14, 0.17))
-		draw_colored_polygon(points(c + Vector2(0, o * 1.0), r - o * 1.1), Color(0.3, 0.26, 0.29))
-		draw_colored_polygon(points(c + Vector2(0, o * 1.3), r - o * 2.0), Color(0.36, 0.32, 0.35))
-		draw_colored_polygon(points(c + Vector2(0, o * 1.1), r * 0.36), Color(0.46, 0.42, 0.45, 0.8))
+	if not lit:  # an empty star: its place in dim, desaturated gold (an outline and a pale inlay),
+		# pressed into the panel (a lit lip below it): still a star, never a dark hole
+		draw_colored_polygon(points(c + Vector2(0, o * 0.8), r + o * 0.5), Color(1, 1, 0.96, 0.6))
+		draw_colored_polygon(points(c, r + o * 0.5), Color("9a7e4c"))
+		draw_colored_polygon(points(c, r - o * 0.6), Color("d8c08a"))
+		draw_colored_polygon(points(c + Vector2(0, o * 0.6), r - o * 1.6), Color("e6d3a2"))
 		return
 	# the ink outline (a fatter star), the bevel under the face, then the face
 	draw_colored_polygon(points(c + Vector2(0, o * 0.4), r + o * 0.6, 0.55), RIM)  # a fine warm rim

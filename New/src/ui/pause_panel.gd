@@ -20,8 +20,8 @@ static func open(host: Control, resume: Callable, home: Callable, hide: Array = 
 	var help := CenterContainer.new()  # where the moves open (Controls)
 	help.visible = false
 	body.add_child(help)
-	var go := Ui.candy_button(tr_key("RESUME"), "play-fill", Ui.Tone.GREEN, 122, 54)
-	go.custom_minimum_size.x = 4 * TILE + 3 * GAP
+	var go := Ui.candy_button(tr_key("RESUME"), "play-fill", Ui.Tone.OCHRE, 122, 54)
+	go.custom_minimum_size.x = 2 * TILE + GAP + 120.0  # the main action, not a full-width bar
 	go.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	go.pressed.connect(resume)
 	go.idle(0.04)
@@ -30,9 +30,9 @@ static func open(host: Control, resume: Callable, home: Callable, hide: Array = 
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override(&"separation", GAP)
-	row.add_child(SoundSwitch.new("music-notes-fill", &"music_on", tr_key("MUSIC")))
-	row.add_child(SoundSwitch.new("speaker-high-fill", &"sounds_on", tr_key("SOUNDS")))
-	var controls := _tile("hand-pointing-fill", Ui.Tone.GOLD, tr_key("CONTROLS"))
+	row.add_child(SoundSwitch.new("music-notes-fill", "", &"music_on", tr_key("MUSIC")))
+	row.add_child(SoundSwitch.new("speaker-high-fill", "speaker-x-fill", &"sounds_on", tr_key("SOUNDS")))
+	var controls := _tile("arrows-cardinal", Ui.Tone.GOLD, tr_key("CONTROLS"))  # the moves: swipes every way
 	(controls.get_child(0).get_child(0) as JuicyButton).pressed.connect(func() -> void:
 		if help.get_child_count() == 0:
 			help.add_child(controls_well())
@@ -105,16 +105,19 @@ static func moves_list() -> Array:
 			[Gesture.Kind.RIGHT, "MOVE_STEP"], [Gesture.Kind.TAP, "MOVE_THROW"]]
 
 
-## Music or sounds on and off: a gold tile with its icon; off, the icon dimmed and struck through
-## (the one sign of its state); its name under it.
+## Music or sounds on and off, shown on the icon in both states: on, the icon itself (notes; a speaker
+## with its waves); off, its off icon (a speaker with a cross) or, where there is none, the icon dimmed
+## and struck through. A gold tile, its name under it.
 class SoundSwitch extends VBoxContainer:
 	var _option: StringName
 	var _icon_name := ""
+	var _off_icon := ""
 	var _holder: Control
 
-	func _init(icon_name: String, option: StringName, caption: String) -> void:
+	func _init(icon_name: String, off_icon: String, option: StringName, caption: String) -> void:
 		_option = option
 		_icon_name = icon_name
+		_off_icon = off_icon
 		add_theme_constant_override(&"separation", 10)
 		_holder = Control.new()
 		_holder.custom_minimum_size = Vector2(TILE, TILE)
@@ -127,15 +130,15 @@ class SoundSwitch extends VBoxContainer:
 		for c in _holder.get_children():
 			c.queue_free()
 		var on: bool = Save.get(_option)
-		var b := Ui.icon_button(_icon_name, Ui.Tone.GOLD, TILE, 30.0)
+		var icon_name := _icon_name if on or _off_icon.is_empty() else _off_icon
+		var b := Ui.icon_button(icon_name, Ui.Tone.GOLD, TILE, 30.0)
 		b.size = _holder.custom_minimum_size
 		b.pressed.connect(func() -> void:
 			Save.set_option(_option, not Save.get(_option))
 			Audio.apply_settings()
 			_fill())
 		_holder.add_child(b)
-		if not on:  # the icon dimmed and struck through: a dark-edged red bar across it (it moves with
-			# the icon when pressed; self_modulate dims the icon, not the bar)
+		if not on and _off_icon.is_empty():  # no off icon: dimmed and struck through, a dark-edged red bar
 			b.content.self_modulate.a = 0.38
 			var side: float = b.content.custom_minimum_size.x
 			for line: Array in [[13.0, Color("3a0a04")], [7.0, Color("e8361c")]]:
