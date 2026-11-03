@@ -33,7 +33,7 @@ const FIREWORK_HUES: Array[Color] = [Color("ffc93a"), Color("ff4f86"), Color("3f
 const PARTY_SHAPES := [Confetti.Shape.PETAL, Confetti.Shape.PETAL, Confetti.Shape.PETAL, Confetti.Shape.BEAD,
 		Confetti.Shape.BEAD, Confetti.Shape.SEQUIN]
 const PLUS_SIZE := 118  ## font size of the "+1" and the "×N" (design px): one size, scaled per use
-const PLUS_SCALE := 0.8  ## the "+1" shows at this share of its glyphs' size (a badge, not a headline)
+const PLUS_SCALE := 1.0  ## the "+1" shows at its glyphs' size (a badge that reads at phone size)
 ## The badges' outlines (px): the dark stroke and the warm rim. The "+1" and the "×N" share them and
 ## the font size, so their glyphs are rasterised once (each size and outline is megabytes of pages).
 const BADGE_OUTLINES: Array[int] = [34, 16]
@@ -221,19 +221,21 @@ static func fireworks(parent: Node, from: Vector2, inward: float) -> void:
 
 
 ## Sharp fireworks behind the results card (`card`, a Control; `parent` is behind it, effects units):
-## five crisp chrysanthemum bursts, one every 0.9 s, alternating just outside its left and right
-## edges (the sky beside it; half of each passes behind the card), glowing streaks with white-gold
+## six crisp chrysanthemum bursts, one every 0.9 s: just outside its left and right edges (half of
+## each behind the card) and in the sky left of the hero, where no soft bokeh smears his silhouette;
+## glowing streaks with white-gold
 ## cores that fly out, droop and fade, a flash at the heart. In focus, unlike the soft bokeh of the
 ## side fireworks.
 static func card_bursts(parent: Node2D, card: Control) -> void:
 	var box: Rect2 = parent.get_global_transform().affine_inverse() * card.get_global_rect()
-	var spots := [Vector2(box.position.x - box.size.x * 0.06, box.position.y + box.size.y * 0.3),
-			Vector2(box.end.x + box.size.x * 0.1, box.position.y + box.size.y * 0.28)]
+	var spots := [Vector2(box.position.x - box.size.x * 0.45, box.position.y + box.size.y * 0.22),  # the sky left of him
+			Vector2(box.end.x + box.size.x * 0.1, box.position.y + box.size.y * 0.28),
+			Vector2(box.position.x - box.size.x * 0.06, box.position.y + box.size.y * 0.3)]
 	var show := SharpBurst.new()
 	show.material = additive()
 	show.radius = box.size.x * 0.3
 	parent.add_child(show)
-	for i in 5:
+	for i in 6:
 		show.burst(spots[i % spots.size()], i * 0.9, FIREWORK_HUES[(i * 2) % FIREWORK_HUES.size()])
 
 

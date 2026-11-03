@@ -161,15 +161,14 @@ func _draw_sky(ci: CanvasItem) -> void:
 
 func _draw_sun(ci: CanvasItem) -> void:
 	var s := SUN_SIZE * (1.0 + sin(_clock * 0.7) * 0.012)
-	# (round 7: softer: a blown-out bloom flattened the left third)
-	ci.draw_texture_rect(_tex[&"sun"], Rect2(_sun() - Vector2(s, s) / 2, Vector2(s, s)), false, Color(1, 0.9, 0.75, 0.55))
+	ci.draw_texture_rect(_tex[&"sun"], Rect2(_sun() - Vector2(s, s) / 2, Vector2(s, s)), false, Color(1, 1, 1, 0.85))
 
 
 ## God rays fanning from the sun to the lower right, breathing slowly.
 func _draw_rays(ci: CanvasItem) -> void:
 	var tex: Texture2D = _tex[&"rays"]
 	var k := 1.2
-	var a := 0.05 + 0.02 * sin(_clock * 0.45) + 0.01 * sin(_clock * 1.13)  # (round 7: fainter)
+	var a := 0.12 + 0.04 * sin(_clock * 0.45) + 0.02 * sin(_clock * 1.13)
 	ci.draw_texture_rect(tex, Rect2(_sun() - RAYS_ORIGIN * k, RAYS_SIZE * k), false, Color(1, 1, 1, a))
 
 

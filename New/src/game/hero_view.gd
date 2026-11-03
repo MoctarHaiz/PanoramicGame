@@ -114,8 +114,8 @@ func _init() -> void:
 	# and a thin dark edge (both stay inside the atlas' 3 px of padding)
 	# (round 4: the ink line and the warm rim are now in the cel-shaded render itself; the shader
 	# only adds a touch of the sun's warmth on the lit edge)
-	_material.set_shader_parameter(&"rim", 0.7)
-	_material.set_shader_parameter(&"rim_px", 2.0)
+	_material.set_shader_parameter(&"rim", 1.0)  # (round 8: "backlit by the sun but front-lit")
+	_material.set_shader_parameter(&"rim_px", 2.6)
 	_material.set_shader_parameter(&"rim_colour", Color(1.0, 0.86, 0.6))
 	_material.set_shader_parameter(&"rim_dir", Vector2(-0.6, -0.8))
 	_material.set_shader_parameter(&"outline_px", 0.0)

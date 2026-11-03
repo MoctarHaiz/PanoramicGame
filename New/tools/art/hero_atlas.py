@@ -59,7 +59,7 @@ def premultiplied_resize(img: Image.Image, k: float) -> np.ndarray:
 
 
 INK = np.array([0.16, 0.07, 0.04])  ## the ink of the outline: a warm dark brown (as hero_render.py's hull)
-INK_PX = 1.0  ## atlas px the outline round the silhouette is thickened by (the hull draws ~0.9 more)
+INK_PX = 1.6  ## atlas px of ink round his outer silhouette (round 8: his only ink; no hull inside)
 
 
 def inked(arr: np.ndarray, px: float = INK_PX) -> np.ndarray:

@@ -68,7 +68,7 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 		lines.add_child(way)
 	body.add_child(well)
 	var slot := Control.new()  # a new best's stamp lands here, in its own room: it covers nothing
-	slot.custom_minimum_size = Vector2(0, 62)
+	slot.custom_minimum_size = Vector2(0, 74)
 	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	slot.visible = news.get("best_bobs", false)
 	body.add_child(slot)
@@ -227,8 +227,7 @@ static func _reveal(game: Control, panel: GamePanel, world: World, stars: Array[
 			panel.move_child(rain, panel.card.get_parent().get_index())
 			Fx.coin_shower(rain, panel.size.x, panel.size.y)
 			var view := panel.size * 2.0  # New (audio): fireworks in the sky behind him and the card
-			Fx.fireworks(back, Vector2(view.x * 0.04, view.y * 1.02), 1.0)
-			Fx.fireworks(back, Vector2(view.x * 0.96, view.y * 1.02), -1.0)
+			Fx.fireworks(back, Vector2(view.x * 0.96, view.y * 1.02), -1.0)  # soft bokeh on the right only (left: him)
 			Fx.card_bursts(back, panel.card))  # New (audio): sharp bursts round the card's top
 	_count_up(tree, bobs, world.bobs, total, t, panel)
 	t += COUNT_TIME + 0.1
@@ -354,34 +353,44 @@ static func _stamp(tree: SceneTree, panel: GamePanel, slot: Control, delay: floa
 static func _rubber_stamp(text: String) -> PanelContainer:
 	var ink := Color("c41e12")
 	var outer := StyleBoxFlat.new()
-	outer.bg_color = Color(1, 0.96, 0.9, 0.35)
+	outer.bg_color = Color(1, 0.96, 0.9, 0.3)
 	outer.border_color = ink
-	outer.set_border_width_all(5)
-	outer.set_corner_radius_all(10)
-	outer.set_content_margin_all(5)
+	outer.set_border_width_all(7)
+	outer.set_corner_radius_all(12)
+	outer.set_content_margin_all(6)
 	outer.anti_aliasing = true
 	var inner := StyleBoxFlat.new()
 	inner.draw_center = false
-	inner.border_color = Color(ink, 0.85)
-	inner.set_border_width_all(2)
-	inner.set_corner_radius_all(6)
-	inner.content_margin_left = 16
-	inner.content_margin_right = 18
+	inner.border_color = ink
+	inner.set_border_width_all(3)
+	inner.set_corner_radius_all(7)
+	inner.content_margin_left = 18
+	inner.content_margin_right = 20
 	inner.content_margin_top = 0
 	inner.content_margin_bottom = 2
 	inner.anti_aliasing = true
 	var box := PanelContainer.new()
 	box.add_theme_stylebox_override(&"panel", outer)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var texture := ShaderMaterial.new()  # the ink's grain, shared by the border, the crown and the words
+	texture.shader = preload("res://src/ui/stamp.gdshader")
+	box.material = texture
 	var line := PanelContainer.new()
 	line.add_theme_stylebox_override(&"panel", inner)
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.use_parent_material = true
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override(&"separation", 10)
+	row.add_theme_constant_override(&"separation", 12)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(Ui.bold_icon("crown-fill", 36, ink, Color(0, 0, 0, 0)))
-	var words := Ui.label(text.to_upper(), 32, ink, Ui.font_display)
+	row.use_parent_material = true
+	var crown := Ui.bold_icon("crown-fill", 46, ink, Color(0, 0, 0, 0))
+	crown.use_parent_material = true
+	row.add_child(crown)
+	var words := Ui.label(text.to_upper(), 40, ink, Ui.font_display)
+	words.add_theme_color_override(&"font_outline_color", ink)  # heavier letters: an outline in the ink
+	words.add_theme_constant_override(&"outline_size", 5)
+	words.use_parent_material = true
 	row.add_child(words)
 	line.add_child(row)
 	box.add_child(line)
@@ -400,8 +409,8 @@ static func _shake(c: Control, px: float) -> void:
 
 
 ## The way home on a lost run's card: a sunken groove, a thick gold fill to where he got (it fills
-## up when the count is done), the percentage on it, and at its end the goal: the house on a gold
-## disc, drawn as part of the bar (not a button).
+## up when the count is done), the percentage riding the fill's tip, and at its end the goal: the
+## house on a gold disc, drawn as part of the bar (not a button).
 class WayBar extends Control:
 	var progress := 0.0
 	var _shown := 0.0
@@ -416,9 +425,17 @@ class WayBar extends Control:
 		_label.shadow = Color(0, 0, 0, 0)
 		_label.refresh()
 		add_child(_label)
-		resized.connect(func() -> void:
-			_label.size = Vector2(size.x - 50.0, size.y)
-			_label.position = Vector2.ZERO)
+		resized.connect(_place_label)
+
+	## The percentage rides the fill: inside its tip when the gold is long enough, else just past it
+	## (never floating over the empty groove's middle).
+	func _place_label() -> void:
+		var need := _label.get_combined_minimum_size()
+		_label.size = need
+		var r := Rect2(Vector2(0, 10), Vector2(size.x - 40.0, size.y - 20))
+		var tip := r.position.x + maxf(r.size.x * _shown, r.size.y)
+		var x := tip - need.x - 8.0 if tip - r.position.x >= need.x + 16.0 else tip + 6.0
+		_label.position = Vector2(x, (size.y - need.y) / 2)
 
 	## The gold fills up to where he got, after `delay` seconds.
 	func fill_from(delay: float) -> void:
@@ -426,6 +443,7 @@ class WayBar extends Control:
 		t.tween_interval(maxf(delay, 0.0))
 		t.tween_method(func(v: float) -> void:
 			_shown = v
+			_place_label()
 			queue_redraw(), 0.0, progress, 0.5).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 	func _draw() -> void:

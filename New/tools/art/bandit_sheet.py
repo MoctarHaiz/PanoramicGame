@@ -29,11 +29,11 @@ OUT = NEW / "assets/art/bandit"
 COLS = 16
 CELL = (200, 260)
 ANCHOR = (100, 246)  ## the ground under his hips, in each cell
-STAND_PX = 176.0  ## his standing height in the sheet (2 px a unit: 88 units, x1.25 when drawn)
+STAND_PX = 160.0  ## his standing height in the sheet (round 8: smaller in the sheet, so his raised club fits the cell; drawn bigger)
 SCALE = STAND_PX / 690.0  ## render px -> sheet px (he stands ~690 px in a 1024 render)
 TEXTURE_SCALE = 2.0
 BANDIT_SPEED = 10.0 * 960.0 / 1320.0 * 40.0  ## units a second against the ground (World.BANDIT_RUN)
-DRAW_SCALE = 1.25  ## BanditView.DRAW_SCALE
+DRAW_SCALE = 1.52  ## BanditView.DRAW_SCALE
 
 
 def frame(anim: str, i: int):

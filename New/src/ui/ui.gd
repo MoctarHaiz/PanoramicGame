@@ -41,7 +41,7 @@ const SAND_DEEP := Color("dcb47c")
 enum Tone { GREEN, GOLD, SUNSET, BLUE, CRIMSON, WHITE }
 ## Per tone: face top, face bottom, edge (the bevel under the face), outline (and text outline).
 const TONES := {
-	Tone.GREEN: [Color("c4f060"), Color("5cb82a"), Color("3a8a1d"), Color("1a4a10")],
+	Tone.GREEN: [Color("d2e874"), Color("68aa30"), Color("467c1e"), Color("1f3c0e")],  # warm leaf, not neon
 	Tone.GOLD: [Color("ffe873"), Color("ffab1c"), Color("d5740b"), Color("6a3205")],
 	Tone.SUNSET: [Color("ffb77a"), Color("f2662e"), Color("c0431a"), Color("5a1a06")],
 	Tone.BLUE: [Color("7cd0ff"), Color("2f86e0"), Color("1c5cb2"), Color("0e2a5e")],

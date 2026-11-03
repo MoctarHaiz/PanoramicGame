@@ -1,6 +1,6 @@
 extends Screen
 ## Settings, in the game's own kit, over the sunset behind a light scrim: a framed panel with its
-## ribbon, its back button in the panels' wood docked just outside its top-left corner, floating with margins all round; Panoramic stands
+## ribbon, its back button in the panels' wood docked inside its top-left corner, under the frame, floating with margins all round; Panoramic stands
 ## whole at its left where there is room for him (never behind it). Inside, four titled groups, each
 ## a sunken card of rows split by fine lines (not ten identical bars): Sound (music and sounds
 ## volumes), Effects (vibration, screen shake, reduced motion), Game (language, replay the tutorial)
@@ -8,8 +8,8 @@ extends Screen
 ## a chunky icon on an orange candy tile, the same on every row. Every row is a thumb-sized target. Credits
 ## (About, the fonts and icons, the studio, the version) open over it.
 
-const ROW_H := 70.0  ## height of a row (the whole row takes the touch: 86 with the lines around it)
-const COLUMN_W := 390.0
+const ROW_H := 76.0  ## height of a row (the whole row takes the touch)
+const COLUMN_W := 380.0
 const HERO_ART := "res://assets/art/hero/hero_menu.png"
 const INK := Color("4a1e04")
 
@@ -53,28 +53,25 @@ func _build() -> void:
 	var page := Control.new()
 	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	area.add_child(page)
-	var card := Card.new(Vector4(40, 84, 40, 38))  # room under the ribbon, clear of the frame
+	var card := Card.new(Vector4(36, 118, 36, 38))  # room under the ribbon for the back button
 	var columns := HBoxContainer.new()
-	columns.add_theme_constant_override(&"separation", 28)
+	columns.add_theme_constant_override(&"separation", 22)
 	card.add_child(columns)
-	var left := _column()
 	# one tile colour per group (gold sound, red effects, orange game, bone help: all in the game's
 	# warm palette): the eye finds a group by its colour, and inside a group every tile is the same
-	left.add_child(_group("speaker-high-fill", tr("SOUND_GROUP"), Ui.Tone.GOLD, [
+	var sound := _group("speaker-high-fill", tr("SOUND_GROUP"), Ui.Tone.GOLD, [
 		_slider_row("music-notes-fill", tr("MUSIC"), &"music_volume", &"music_on"),
 		_slider_row("speaker-high-fill", tr("SOUNDS"), &"sounds_volume", &"sounds_on"),
-	]))
-	left.add_child(_group("sparkle-fill", tr("FEEL"), Ui.Tone.CRIMSON, [
+	])
+	var effects := _group("sparkle-fill", tr("FEEL"), Ui.Tone.CRIMSON, [
 		_toggle_row("vibrate-fill", tr("VIBRATION"), &"vibration_on"),
 		_toggle_row("screen-shake", tr("SCREEN_SHAKE"), &"screen_shake"),
 		_toggle_row("snail", tr("REDUCE_MOTION"), &"reduce_motion"),
-	]))
-	columns.add_child(left)
-	var right := _column()
-	right.add_child(_group("play-fill", tr("GENERAL"), Ui.Tone.SUNSET, [
+	])
+	var game := _group("play-fill", tr("GENERAL"), Ui.Tone.SUNSET, [
 		_button_row("translate-fill", tr("LANGUAGE"), tr("LANGUAGE_NAME"), _switch_language),
 		_button_row("hand-pointing-fill", tr("REPLAY_TUTORIAL"), "", _replay_tutorial),
-	]))
+	])
 	var help: Array = [
 		_button_row("star-fill", tr("RATE"), "", Config.open_store_review),
 		_button_row("shield-check-fill", tr("PRIVACY_POLICY"), "", Config.open_privacy_policy),
@@ -86,20 +83,29 @@ func _build() -> void:
 			help.append(_button_row("prohibit-fill", tr("REMOVE_ADS"), Services.store.price(), Services.store.buy_remove_ads))
 		help.append(_button_row("arrows-clockwise-bold", tr("RESTORE_PURCHASES"), "", Services.store.restore))
 	help.append(_button_row("info-fill", tr("CREDITS_BUTTON"), "", _show_credits))
-	right.add_child(_group("info-fill", tr("HELP"), Ui.Tone.WHITE, help))
-	columns.add_child(right)
+	var help_group := _group("info-fill", tr("HELP"), Ui.Tone.WHITE, help)
+	# a wide screen takes three columns of four rows at most (big text, room to breathe); a narrower
+	# one two columns, Panoramic beside them where there is room
+	var view := get_viewport().get_visible_rect().size
+	var groups_by_column: Array = [[sound, game], [effects], [help_group]] if view.x >= view.y * 1.7 \
+			else [[sound, effects], [game, help_group]]
+	for groups: Array in groups_by_column:
+		var col := _column(COLUMN_W + 50.0 if effects in groups else COLUMN_W)  # the switches' long labels
+		for g: Control in groups:
+			col.add_child(g)
+		columns.add_child(col)
 	var banner := Banner.new(tr("SETTINGS"), Ui.Tone.SUNSET, 48)
 	page.add_child(card)
 	page.add_child(banner)
-	var back_button := Ui.wood_button("arrow-left-bold", Vector2(84, 84), 42.0)  # in the panel's wood
+	var back_button := Ui.wood_button("arrow-left-bold", Vector2(72, 72), 36.0)  # in the panel's wood
 	back_button.pressed.connect(back)
 	page.add_child(back_button)
 	var place := func() -> void:
 		var room := page.size
 		var top := banner.custom_minimum_size.y * 0.5
 		card.size = card.get_combined_minimum_size()
-		var slot := back_button.custom_minimum_size.x + 18.0  # the back button's place, left of the card
-		var k := minf(1.0, minf((room.x - slot - 30.0) / card.size.x, (room.y - top - 12.0) / card.size.y))
+		var slot := 0.0  # the back button is inside the panel now
+		var k := minf(1.0, minf((room.x - 30.0) / card.size.x, (room.y - top - 12.0) / card.size.y))
 		card.scale = Vector2.ONE * k
 		var w := card.size.x * k
 		# Panoramic whole at the left when the panel leaves him room, else the panel in the middle
@@ -109,10 +115,11 @@ func _build() -> void:
 		card.position = Vector2(left_x, top + (room.y - top - card.size.y * k) / 2)
 		banner.size = banner.custom_minimum_size
 		banner.position = Vector2(left_x + w / 2 - banner.size.x / 2, card.position.y - top)
+		back_button.custom_minimum_size = Vector2(72.0, 72.0) * k  # the panel's scale (its touch stays 86+)
 		back_button.size = back_button.custom_minimum_size
-		# docked just outside the card's top left, level with its top edge and the ribbon: with the panel,
-		# touching nothing (not the corner, not the band)
-		back_button.position = card.position + Vector2(-back_button.size.x - 14.0, -back_button.size.y * 0.45)
+		# docked inside the panel, on the hide at its top left under the frame (the panel's own header):
+		# neither floating beside it nor over its corner or band
+		back_button.position = card.position + Vector2(Card.FRAME + 16.0, Card.FRAME + 14.0) * k
 		if hero:
 			hero.visible = show_hero
 			var origin := area.get_global_rect().position + page.position
@@ -138,10 +145,10 @@ func _hero() -> TextureRect:
 	return art  # (the render carries its own light)
 
 
-func _column() -> VBoxContainer:
+func _column(width := COLUMN_W) -> VBoxContainer:
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override(&"separation", 16)
-	col.custom_minimum_size.x = COLUMN_W
+	col.add_theme_constant_override(&"separation", 22)  # air between the groups
+	col.custom_minimum_size.x = width
 	return col
 
 
@@ -215,7 +222,7 @@ func _row(icon_name: String, text: String, right: Control) -> Control:
 	tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	tile.add_child(Ui.bold_icon(icon_name, 32, Ui.WHITE, Ui.tone_colours(Ui.Tone.SUNSET).outline))
 	row.add_child(tile)
-	var l := Ui.label(text, 26, INK, Ui.font_title, HORIZONTAL_ALIGNMENT_LEFT)
+	var l := Ui.label(text, 30, INK, Ui.font_title, HORIZONTAL_ALIGNMENT_LEFT)
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.custom_minimum_size.x = 140
@@ -244,7 +251,7 @@ func _toggle_row(icon_name: String, text: String, option: StringName) -> Control
 func _slider_row(icon_name: String, text: String, option: StringName, switch_option: StringName) -> Control:
 	var on: bool = Save.get(switch_option)
 	var slider := VolumeSlider.new(Save.get(option) if on else 0.0)
-	slider.custom_minimum_size.x = 190
+	slider.custom_minimum_size.x = 160
 	slider.changed.connect(func(v: float) -> void:
 		if v > 0.0:  # at 0 the volume before stays, for when it is turned up again
 			Save.set(option, v)

@@ -247,3 +247,17 @@ Worktree: `_agents/wt/env/New`. Captures: `_agents/AAA/env/round_<n>/`. Owns `wo
 - Pools: each bank slopes in, a wedge of wet earth over the soil's face, inked (water_front.gdshader).
 - Home: the thatch clearly lit from the left; the campfire moved by the hut (it was cropped).
 - Before/after: AAA/env/round_7/before_after_r6_r7.jpg.
+
+## Round 8
+
+- Reverted, per the A/B (round 6 preferred on every level screen): round 7's mesa shapes (the
+  boulder heap, the slanted ramp, the needle) and its paler sun, back to round 6's. The mesas varied
+  within the butte family only: two more flat-topped buttes, each its own width, height and step.
+  Kept from round 7: the sign fix, the trees, the vine, the pool banks, the thatch, the campfire.
+- The pillar (read as "a crate"): wavier beds of very uneven thickness, their cracks broken (not ruled
+  lines), joints in some beds only and jagged, the light bands' edges following the rock, a chunkier
+  eroded outline.
+- The foreground darker and taller over the soil band, now and then over the grass line (the ground
+  read as "a flat green strip over a flat brown band"); still under the Red Bobs' rows.
+- Pools: the grassy banks mirrored just under the surface near them.
+- Before/after: AAA/env/round_8/before_after_r7_r8.jpg.

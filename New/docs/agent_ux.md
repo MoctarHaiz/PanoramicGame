@@ -379,3 +379,31 @@ ROUND7.md (ux): put the colour back, keep the round-6 build.
 - perf.gd, iPhone 15, the merged round 6 (a scratch copy) against this tree: texture 58.9 / 54.5 /
   54.5 / 56.9 / 63.5 MB -> 58.9 / 53.2 / 53.2 / 55.7 / 62.3 (menu, play, paused, results, menu
   again); draw calls 102 / 363 / 265 / 336 / 102 -> 102 / 333-341 / 211 / 279 / 102.
+
+## Round 8
+
+The blind A/B preferred round 7 on menu, pause, game over and win (the green CTA, the stamp, the
+hierarchy); settings slightly lost (small text, crowded rows, the back button floating). ROUND8.md
+(ux): small fixes.
+
+- Pause: the ON/OFF badges on the tile's top right corner (clear of the icon and the label).
+- The green warmer (leaf: d2e874 -> 68aa30, not neon), the soft top light kept.
+- NEW BEST!: a heavier stamp: 40 px letters thickened by an outline in the same ink, a 46 px crown,
+  borders 7 and 3, and an ink grain (stamp.gdshader: value noise on the screen position knocks specks
+  out of the print; the border, the crown and the words share it through use_parent_material).
+- Game over: the percentage rides the fill (inside its tip when the gold is long enough, else just
+  past it), never over the empty groove's middle.
+- HUD: the empty part of the track marked with faint chevrons towards the house (one draw_multiline);
+  the groove one solid shape (one draw call fewer, paying for the chevrons).
+- Settings: a wide screen (16:9 and wider) takes three columns (Sound and Game, Effects, Help: four
+  rows at most), no hero beside them; a narrower one (iPad) two columns, the hero where there is room.
+  Rows 76 tall, their text 30 (was 26), more air between the groups; columns 380 (the Effects column
+  430, for the long labels beside the switches). The back button docked inside the panel, on the hide
+  at its top left under the frame (the card's top margin, 118, makes room), scaled with the panel:
+  neither floating beside it nor over its corner or band.
+- The lit stars lose their faint "lighter centre" polygon (three draw calls at the results; the face's
+  gradient lights its middle already).
+- perf.gd, iPhone 15, the merged round 7 (a scratch copy) against this tree: texture the same in every
+  phase (56.0 / 50.4 / 50.4 / 52.9 / 59.4 MB); draw calls max 102 / 336 / 211 / 278 / 102 -> 101 /
+  337-340 / 211 / 273 / 101, mean 93.0 / 153.7 / 206.3 / 258.5 / 97.2 -> 92.1 / 153.5 / 206.3 /
+  254.6 / 96.2 (the run's maximum moves by a few calls from one run to the next).

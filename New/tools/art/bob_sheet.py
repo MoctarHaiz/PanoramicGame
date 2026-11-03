@@ -69,7 +69,9 @@ def shine(a: np.ndarray) -> np.ndarray:
     toward = np.clip((-nx * 0.7 - ny * 0.7) * 1.6, 0.0, 1.0)
     rim = np.clip(1.0 - d / (S * 0.03), 0.0, 1.0) ** 0.7 * toward * inside
     a[..., :3] += rim[..., None] * np.array([1.0, 0.85, 0.65]) * 1.1
-    spot = np.clip((1.0 - (((nx + 0.36) / 0.2) ** 2 + ((ny + 0.44) / 0.12) ** 2)) * 3.0, 0.0, 1.0) * 0.92
+    # round 8 ("the faces can't be read at phone size, the shine is what reads"): a big, bright shine
+    spot = np.clip((1.0 - (((nx + 0.3) / 0.3) ** 2 + ((ny + 0.42) / 0.17) ** 2)) * 3.0, 0.0, 1.0)
+    spot = np.maximum(spot, np.clip((1.0 - (((nx - 0.32) / 0.07) ** 2 + ((ny - 0.38) / 0.05) ** 2)) * 3.0, 0.0, 1.0) * 0.6)
     a[..., :3] = a[..., :3] * (1 - spot[..., None]) + spot[..., None]
     return np.clip(a, 0.0, 1.0)
 

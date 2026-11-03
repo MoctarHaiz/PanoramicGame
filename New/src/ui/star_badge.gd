@@ -77,8 +77,7 @@ func _draw() -> void:
 		var t := clampf((p.y - (c.y - r)) / (r * 1.9), 0.0, 1.0)
 		cols.append(FACE_TOP.lerp(FACE_MID, t * 1.6) if t < 0.6 else FACE_MID.lerp(FACE_LOW, (t - 0.6) / 0.4))
 	draw_polygon(face, cols)
-	# a lighter centre (the face bulges), and the gloss on the upper left
-	draw_colored_polygon(points(c + Vector2(0, -r * 0.04), r * 0.5, 0.55), Color(1, 1, 0.85, 0.35))
+	# the gloss on the upper left (the face's gradient already lights its middle)
 	var gloss := PackedVector2Array()
 	for i in 16:
 		var a := i * TAU / 16

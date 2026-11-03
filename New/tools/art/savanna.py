@@ -300,9 +300,6 @@ def mesas() -> Image.Image:
         # aerial perspective: the plane's own haze, thicker towards its foot
         col = mix(col, HAZE_HIGH, haze_k)
         col = mix(col, HAZE, smooth(0.55 * h, h, yy) * 0.45)
-        # round 7: each landmark its own stone: redder, more ochre, greyer along the strip
-        hue = noise1(w, 7, r, 2)[None, :]
-        col = col * (1.0 + np.dstack([(hue - 0.5) * 0.22, (hue - 0.5) * 0.06, -(hue - 0.5) * 0.16]))
         return col, cov
 
     far_h = np.zeros(w)
@@ -319,14 +316,12 @@ def mesas() -> Image.Image:
     near_h = np.maximum(near_h, _butte(x, 1520, 170, 136, w, 14, 110))  # the broad stepped mesa
     near_h = np.maximum(near_h, _butte(x, 1455, 60, 168, w, 10, 30))
     near_h = np.maximum(near_h, _butte(x, 1960, 40, 182, w, 10, 60))  # a lone butte
-    # round 7: not all flat-topped: a rounded inselberg, a slanted cuesta, a pointed pinnacle
-    for bx, br, bh in ((700, 52, 96), (760, 66, 138), (826, 48, 110), (872, 34, 72)):  # a heap of boulders
-        d = ((x - bx + w / 2) % w) - w / 2
-        near_h = np.maximum(near_h, np.sqrt(np.clip(1 - (d / br) ** 2, 0, 1)) * bh)
-    d = ((x - 1250 + w / 2) % w) - w / 2
-    near_h = np.maximum(near_h, np.where(np.abs(d) < 130, 90 + d * 0.55, 0) * (np.abs(d) < 130))
-    d = ((x - 1780 + w / 2) % w) - w / 2
-    near_h = np.maximum(near_h, np.clip(1 - np.abs(d) / 34, 0, 1) ** 1.4 * 210)
+    # round 8: more buttes, each its own width, height and stepped top (the butte family only: the
+    # boulders, the slanted ramp and the needle of round 7 read as primitives)
+    near_h = np.maximum(near_h, _butte(x, 760, 54, 150, w, 11, 70))
+    near_h = np.maximum(near_h, _butte(x, 728, 22, 168, w, 7, 20))
+    near_h = np.maximum(near_h, _butte(x, 1260, 96, 112, w, 12, 80))
+    near_h = np.maximum(near_h, _butte(x, 1296, 34, 128, w, 8, 24))
     for _ in range(9):  # kopjes: heaps of rounded boulders
         c = rng.uniform(0, w)
         for k in range(int(rng.integers(3, 6))):
@@ -485,9 +480,11 @@ def fg_grass() -> Image.Image:
     x = rng.uniform(0, 120)
     while x < w - 60:
         half = rng.uniform(50, 140)
-        tall = rng.uniform(24, 40) if rng.random() < 0.85 else rng.uniform(44, 62)  # (round 4: lower: nothing hidden)
+        # round 8: a darker, taller foreground over the soil band, now and then over the grass line (the
+        # ground read as a flat green strip over a flat brown band); still under the Red Bobs' rows
+        tall = rng.uniform(34, 56) if rng.random() < 0.88 else rng.uniform(62, 76)
         clumps.append((x + half, half, tall))
-        x += half * 2 + rng.uniform(10, 150)  # (round 2: denser, a frame along the whole edge)
+        x += half * 2 + rng.uniform(4, 110)  # (denser, a frame along the whole edge)
     for cx, half, tall in clumps:
         blades = []
         for _ in range(int(half * 2.2)):
@@ -529,7 +526,7 @@ def fg_grass() -> Image.Image:
     a = np.maximum(a, np.clip(np.arange(h)[:, None] - edge[None, :], 0, 1))
     a = blur(a, 1.4, wrap_x=True)  # out of focus
     yy = np.linspace(0, 1, h)[:, None] * np.ones((1, w))
-    col = mix(hexc("3a3214"), hexc("140c06"), smooth(0.35, 1.0, yy))
+    col = mix(hexc("2a2410"), hexc("0e0804"), smooth(0.25, 1.0, yy))  # (round 8: darker)
     rim = np.clip(a - np.roll(np.roll(a, 3, axis=0), 3, axis=1), 0, 1)
     col = mix(col, hexc("c88a3a"), blur(rim, 1.0, wrap_x=True) * 0.55)
     return dither_rgba(np.clip(col, 0, 255), np.clip(a * 1.15, 0, 1), rng)

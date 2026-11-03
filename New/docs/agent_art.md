@@ -276,3 +276,20 @@ win and defeat renders; (6) the studio logo; (7) the null texture on the first b
 - Red Bobs: each wears its own face (smile, laugh, wink), one in four a twinkling star glint on its
   gloss all the time, a stronger lean (±0.35 rad) and size spread (88-110 %).
 - Results: captures and before_after.png in _agents/AAA/art/round_7/; tests log _agents/AAA/art/round_7_tests.log.
+
+## Round 8
+
+- "Hatching on the skin reads as grime": no ink hull on Panoramic's body (on his carved muscles it
+  drew fine lines over the skin); the outer ink only, from hero_atlas.py (`INK_PX` 1.6); the painted
+  muscle grooves of the base colour almost gone (`flatten_textures(r=10, k=0.95)`). The bandit and
+  the props keep their hull.
+- A sun-side rim: the toon rim stronger and wider (day 1.3 / 0.48, sunset 2.3 / 0.38) in every render,
+  and HeroView's shader rim 1.0 at 2.6 px.
+- The bandit: drawn 1.38x (was 1.25; its box for the rules unchanged; BanditView.REACH 44), the run
+  more upright (spine straightened), a darker, wider contact shadow.
+- Red Bobs: a big bright shine and a second small one on the sheet, a bigger hotspot sprite, a star
+  glint on every other one.
+- The bandit's raised club was cut by the top of its sheet cell: he is drawn smaller in the sheet
+  (STAND_PX 160) and bigger on screen (DRAW_SCALE 1.52: 10 % bigger than round 7), same sheet size.
+- Results: captures and before_after.png in _agents/AAA/art/round_8/; tests log
+  _agents/AAA/art/round_8_tests.log. Hero atlas 9.29 Mpx (round 7: 9.49).

@@ -48,6 +48,11 @@ void fragment() {
 	float dash_row = fract(d / 7.0);
 	float dash = step(0.62, noise(vec2(x * 0.06 - t * 0.5, floor(d / 7.0) * 5.3))) * (1.0 - smoothstep(0.0, 0.18, abs(dash_row - 0.5)));
 	c = mix(c, mix(c, vec3(1.0, 0.97, 0.9), 0.5), dash * (1.0 - smoothstep(10.0, 44.0, d)));
+	// round 8: the grassy banks mirrored just under the surface near them (the pool reads as water
+	// between banks, not a cyan box)
+	float near_bank = 1.0 - smoothstep(14.0, 40.0, min(p.x, rect_size.x - p.x) - 8.0);
+	float mirror = near_bank * smoothstep(3.0, 5.0, d) * (1.0 - smoothstep(12.0, 16.0, d + (ripple - 0.5) * 4.0));
+	c = mix(c, vec3(0.16, 0.3, 0.2), mirror * 0.75);
 	// a few glints on the light band
 	vec2 q = vec2(x / 10.0, d / 6.0);
 	vec2 cell = floor(q);

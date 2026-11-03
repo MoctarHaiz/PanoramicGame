@@ -317,7 +317,8 @@ func blocks(pos: Vector2) -> bool:
 	return _pause.global_hit_rect().has_point(pos)
 
 
-## The way home: a solid dark groove, a thick bright gold fill with a lit top edge to where he is,
+## The way home: a solid dark groove marked with faint chevrons towards the house, a thick bright
+## gold fill with a lit top edge to where he is,
 ## Panoramic's face in a gold ring at its tip, and the house on a glowing gold disc at the end.
 class _Track extends Control:
 	const HEAD := preload("res://assets/art/ui/head.png")
@@ -357,10 +358,19 @@ class _Track extends Control:
 		var w := Hud.TRACK_W - 26.0
 		var groove := Rect2(x0, y - GROOVE / 2, w, GROOVE)
 		_rounded(groove.grow(2.0), Hud.PLATE_LINE, GROOVE / 2 + 2.0)
-		# the way still to go: a solid dark groove, in shade at its top (a track, not a dotted line)
-		_rounded(groove, Color("3e1c0a"), GROOVE / 2)
-		_rounded(Rect2(groove.position + Vector2(0, 6), groove.size - Vector2(0, 6)), Color("6a3a1a"), GROOVE / 2 - 2.0)
+		# the way still to go: a solid dark groove (a track, not a dotted line)
+		_rounded(groove, Color("54290f"), GROOVE / 2)
 		var fill_w := maxf(w * progress, 0.0)
+		# the way still to go, marked: faint chevrons towards the house (one draw call for them all)
+		var marks := PackedVector2Array()
+		var mx := x0 + 30.0
+		while mx < x0 + w - 18.0:
+			if mx > x0 + fill_w + 14.0:
+				marks.append_array([Vector2(mx - 4.0, y - 5.0), Vector2(mx + 2.0, y + 1.0),
+						Vector2(mx + 2.0, y + 1.0), Vector2(mx - 4.0, y + 7.0)])
+			mx += 26.0
+		if not marks.is_empty():
+			draw_multiline(marks, Color(1, 0.88, 0.62, 0.3), 3.0, true)
 		if fill_w > 6.0:  # the way done: a thick bright gold fill with a lit top
 			var fill := Rect2(x0 + 2, y - GROOVE / 2 + 2, fill_w - 2, GROOVE - 4)
 			_rounded(fill, Color("e07a0c"), fill.size.y / 2)

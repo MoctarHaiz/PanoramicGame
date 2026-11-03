@@ -42,7 +42,7 @@
    "path": "assets/art/bandit/club.png",
    "status": "approved",
    "technical": {
-    "dimensions": "63x61",
+    "dimensions": "59x55",
     "alpha": true,
     "anchor": "bottom-centre at the boots",
     "frames": null,
@@ -174,7 +174,7 @@
    "path": "assets/art/hero/hero_atlas_0.png",
    "status": "approved",
    "technical": {
-    "dimensions": "2044x2048",
+    "dimensions": "2048x2048",
     "alpha": true,
     "anchor": "per hero_frames.json (ground origin / hips / hands)",
     "frames": null,
@@ -210,7 +210,7 @@
    "path": "assets/art/hero/hero_atlas_1.png",
    "status": "approved",
    "technical": {
-    "dimensions": "2040x1980",
+    "dimensions": "2048x1964",
     "alpha": true,
     "anchor": "per hero_frames.json (ground origin / hips / hands)",
     "frames": null,
@@ -246,7 +246,7 @@
    "path": "assets/art/hero/hero_atlas_2.png",
    "status": "approved",
    "technical": {
-    "dimensions": "1964x612",
+    "dimensions": "2004x528",
     "alpha": true,
     "anchor": "per hero_frames.json (ground origin / hips / hands)",
     "frames": null,
@@ -315,7 +315,7 @@
    "path": "assets/art/hero/hero_menu.png",
    "status": "approved",
    "technical": {
-    "dimensions": "691x933",
+    "dimensions": "667x903",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -348,7 +348,7 @@
    "path": "assets/art/hero/hero_win.png",
    "status": "approved",
    "technical": {
-    "dimensions": "366x969",
+    "dimensions": "362x969",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -414,7 +414,7 @@
    "path": "assets/art/hero/stand_front.png",
    "status": "approved",
    "technical": {
-    "dimensions": "285x664",
+    "dimensions": "282x664",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -447,7 +447,7 @@
    "path": "assets/art/hero/stand_side.png",
    "status": "approved",
    "technical": {
-    "dimensions": "321x584",
+    "dimensions": "318x584",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,

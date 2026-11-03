@@ -31,7 +31,7 @@ static var _club: Texture2D
 static var _shade: Texture2D
 
 ## How far a running bandit's body reaches ahead of its centre (units): the club may touch a wall.
-const REACH := 40.0
+const REACH := 44.0  ## (round 8: drawn bigger)
 
 var world: World
 var wall_shift := 0.0  ## held off a wall face it is pressed on (units, >= 0; WorldView eases it)
@@ -45,7 +45,7 @@ var _run_frames := 8
 ## The raider is drawn a quarter larger than its sheet (from the feet up): about three quarters of
 ## Panoramic's height, an adult rather than a child next to him. Its hit box (World.BANDIT_SIZE, the
 ## 2017 rules) is unchanged; rings meet it at chest height either way.
-const DRAW_SCALE := 1.25
+const DRAW_SCALE := 1.52  ## (round 8: 10 % bigger on screen than before (bandit_sheet.py draws him a little smaller in the sheet); its box for the rules is unchanged)
 
 var _scale := 0.5
 var _anchor := Vector2.ZERO
@@ -80,7 +80,7 @@ static func load_art() -> void:
 	g.fill_to = Vector2(1.0, 0.5)
 	g.gradient = Gradient.new()
 	g.gradient.offsets = PackedFloat32Array([0.0, 0.55, 1.0])
-	g.gradient.colors = PackedColorArray([Color(0.1, 0.04, 0.08, 0.62), Color(0.1, 0.04, 0.08, 0.32), Color(0.1, 0.04, 0.08, 0)])
+	g.gradient.colors = PackedColorArray([Color(0.08, 0.03, 0.06, 0.78), Color(0.08, 0.03, 0.06, 0.42), Color(0.08, 0.03, 0.06, 0)])
 	_shade = g
 
 
@@ -225,7 +225,7 @@ func _draw() -> void:
 func _draw_shadow() -> void:
 	if _ko or not _grounded:
 		return
-	_ground_shadow.draw_set_transform(Vector2(_jolt * 0.5, -1.0), 0.0, Vector2(0.8, 0.17))
+	_ground_shadow.draw_set_transform(Vector2(_jolt * 0.5, -1.0), 0.0, Vector2(0.95, 0.2))
 	_ground_shadow.draw_texture(_shade, -Vector2(32, 32))
 	_ground_shadow.draw_set_transform(Vector2.ZERO)
 

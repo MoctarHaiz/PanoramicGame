@@ -730,6 +730,8 @@ def run_full(i):
     """The user's run at full stride (the bandits run 291 units/s against the ground), the club raised
     over his shoulder (round 6: a bigger, readable threat silhouette)."""
     apply(sample("run", 1 + i))
+    turn("Spine", -7)  # (round 8: less crouched, a taller silhouette)
+    turn("Spine1", -4)
     aim("LeftArm", 0.35, 0.5, -0.3)
     aim("LeftForeArm", -0.55, 0.85, -0.1)  # the club over his shoulder, angled back
     club_visible(True)
@@ -812,8 +814,8 @@ def bandit_anims():
 
 TOON = {
     # shade, mid, lit (multipliers of the albedo), rim colour, rim strength, rim width
-    "day": ((0.5, 0.43, 0.62), (0.8, 0.72, 0.7), (1.06, 0.98, 0.88), (1.0, 0.8, 0.5), 0.85, 0.55),
-    "sunset": ((0.5, 0.36, 0.4), (0.7, 0.52, 0.5), (1.0, 0.82, 0.64), (1.0, 0.5, 0.15), 1.6, 0.45),
+    "day": ((0.5, 0.43, 0.62), (0.8, 0.72, 0.7), (1.06, 0.98, 0.88), (1.0, 0.8, 0.5), 1.3, 0.48),
+    "sunset": ((0.5, 0.36, 0.4), (0.7, 0.52, 0.5), (1.0, 0.82, 0.64), (1.0, 0.5, 0.15), 2.3, 0.38),
 }
 TOON_CLOTH = {  # the cloth's bands: shade, mid, lit (warm cream, never grey)
     "day": ((0.78, 0.66, 0.55), (0.93, 0.85, 0.74), (1.04, 1.0, 0.93)),
@@ -1114,7 +1116,8 @@ def toon_setup():
     SC.view_settings.look = "None"
     SC.view_settings.exposure = 0.0
     SC.world.node_tree.nodes["Background"].inputs["Strength"].default_value = 0.0
-    flatten_textures()
+    # (round 8: "hatching on the skin reads as grime": the painted grooves almost gone)
+    flatten_textures(r=int(os.environ.get("FLAT_R", "10")), k=float(os.environ.get("FLAT_K", "0.95")))
     rig = bpy.data.objects["LightRig"]
     # the world's sun: upper left on screen, a little towards us (day) or behind him (sunset)
     key = add_sun("ToonKey", (1.0, 1.0, 1.0), 3.2, aim_from=(-0.45, 0.65, 0.6) if mode == "day" else (0.55, 0.62, 0.45), angle=1.0)
@@ -1141,7 +1144,11 @@ def toon_setup():
                 seen.add(m.name)
                 toon_material(m, mode)
         if ob == MESH or (ob.parent == ARM and ob.data.materials and ob.data.materials[0].name != "Eyes"):
-            ink_hull(ob, INK_WIDTH if ob == MESH else INK_WIDTH * 0.6)
+            # round 8: no ink hull on Panoramic's body: on his carved muscles it drew fine lines over
+            # the skin that read as grime at phone size; his outer ink comes from hero_atlas.py's
+            # inked(). The bandit (dark skin, the lines don't show) and the props keep theirs.
+            if ob != MESH or arg("--character") == "bandit":
+                ink_hull(ob, INK_WIDTH if ob == MESH else INK_WIDTH * 0.6)
 
 # ------------------------------------------------------------------ render
 

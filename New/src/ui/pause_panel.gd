@@ -105,7 +105,7 @@ static func moves_list() -> Array:
 			[Gesture.Kind.RIGHT, "MOVE_STEP"], [Gesture.Kind.TAP, "MOVE_THROW"]]
 
 
-## Music or sounds on and off, read at a glance: a badge on the tile's corner (a green "ON", a red
+## Music or sounds on and off, read at a glance: a badge on the tile's top right corner (a green "ON", a red
 ## "OFF"), and the icon itself (notes, a speaker with its waves; off: a speaker with a cross, or the
 ## notes dimmed and struck through). A gold tile, its name under it.
 class SoundSwitch extends VBoxContainer:
@@ -151,7 +151,8 @@ class SoundSwitch extends VBoxContainer:
 				slash.end_cap_mode = Line2D.LINE_CAP_ROUND
 				b.content.add_child(slash)
 
-	## The state's badge on the tile's lower right corner: a green pill "ON" or a red pill "OFF".
+	## The state's badge on the tile's top right corner (clear of the icon and the label under the tile):
+	## a green pill "ON" or a red pill "OFF".
 	static func _badge(on: bool) -> Control:
 		var pill := PanelContainer.new()
 		var st := StyleBoxFlat.new()
@@ -169,5 +170,5 @@ class SoundSwitch extends VBoxContainer:
 		var word := TranslationServer.translate("SWITCH_ON" if on else "SWITCH_OFF").to_upper()
 		pill.add_child(Ui.label(word, 27, Color.WHITE, Ui.font_display))
 		pill.size = pill.get_combined_minimum_size()
-		pill.position = Vector2(TILE - pill.size.x * 0.72, TILE - pill.size.y * 0.95)
+		pill.position = Vector2(TILE - pill.size.x * 0.7, -pill.size.y * 0.28)  # on the tile's top right corner
 		return pill

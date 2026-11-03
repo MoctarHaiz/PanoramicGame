@@ -32,7 +32,7 @@ var _glint_k := 0.0
 var _scale := 1.0
 var _tilt := 0.0  # its own lean (radians): no two alike
 var _face := Face.SMILE  # its own face (round 7: a row was "identical tomatoes"): happy, laughing, winking
-var _star := false  # one in four wears a star glint on its gloss all the time
+var _star := false  # every other one wears a star glint on its gloss all the time
 
 
 static func load_art() -> void:
@@ -107,7 +107,7 @@ func _init(column := 0, row := 0) -> void:
 	_spec = Sprite2D.new()
 	_spec.texture = _halo_tex
 	_spec.material = _additive
-	_spec.scale = Vector2.ONE * 11.0 / 64.0  # (round 3: a stronger hotspot, they read as stickers)
+	_spec.scale = Vector2.ONE * 15.0 / 64.0  # (round 8: the shine is what reads at phone size)
 	_spec.modulate = Color(1, 0.98, 0.92, 1.0)
 	add_child(_spec)
 	_shine = Node2D.new()
@@ -122,7 +122,7 @@ func _init(column := 0, row := 0) -> void:
 	_scale *= 0.88 + 0.22 * h
 	_tilt = (fposmod(h * 7.31, 1.0) - 0.5) * 0.7
 	_face = [Face.SMILE, Face.JOY, Face.SMILE, Face.WINK, Face.JOY][int(h * 97.0) % 5]
-	_star = int(h * 53.0) % 4 == 0
+	_star = int(h * 53.0) % 2 == 0  # (round 8: every other one)
 	_pace = 3.0 + fposmod(column * 0.37 + row * 0.53, 0.8)
 	_clock = 0.0
 	_blink_at = 1.0 + fposmod(column * 1.37 + row * 0.71, 4.0)
@@ -144,7 +144,7 @@ func _process(delta: float) -> void:
 	_spec.modulate.a = 0.7 + 0.3 * sin(_clock * 5.3 + _phase)  # the hotspot twinkles
 	_spec.position = _sprite.position + Vector2(-6.0, -7.0).rotated(_sprite.rotation)
 	# blink every few seconds; once in a while a wink
-	var face := _face
+	var face := _face  # (one in four wears a star glint; see _star)
 	if _clock >= _blink_at:
 		face = Face.WINK if int(_blink_at * 7.0) % 9 == 0 else Face.BLINK
 		if _clock >= _blink_at + 0.13:

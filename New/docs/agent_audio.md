@@ -326,3 +326,10 @@ A lighter pattern never cuts into a heavier one still playing; nothing plays whe
   177.4, max 363 (two runs) -> 364-365 (seven runs; each play-time change tested alone: the "+1"'s
   position and scale, the glint, the reorders: none moves it).
 - Tests: 1023 checks, 0 failed, exit 0; --bot: home, 3 lives, 82 Red Bobs, 3 stars.
+
+## Round 8 (2026-11-03): ROUND8.md audio
+- Win: the soft left show (behind the hero, "an orange smear that cuts his silhouette") removed from
+  results_panel.gd (my line); the soft bokeh stays on the right. `Fx.card_bursts`: six crisp bursts over
+  three spots, the sky left of him (fresh at the `win` capture), right of the card, just left of the card.
+- "+1": PLUS_SCALE 0.8 -> 1.0 (it reads at phone size).
+- Tests: 1023 checks, 0 failed, bot home.

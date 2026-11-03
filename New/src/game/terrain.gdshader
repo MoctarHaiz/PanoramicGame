@@ -68,8 +68,9 @@ void fragment() {
 	vec3 c = mix(soil_colour, rock_colour, to_rock);
 	float ink = 0.0;
 	// rock: beds of blocks, each its own tone, a lit top face and a shaded underside, ink between
-	float by = level_pos.y + (noise(level_pos.x * 0.017) - 0.5) * 14.0;
-	by += sin(by * 0.045 + 1.3) * 11.0;  // (beds of uneven thickness: rock, not brickwork)
+	// (round 8: wavier beds, of very uneven thickness: it read as a crate)
+	float by = level_pos.y + (noise(level_pos.x * 0.023) - 0.5) * 26.0 + (noise(level_pos.x * 0.07 + 3.0) - 0.5) * 6.0;
+	by += sin(by * 0.045 + 1.3) * 17.0;
 	float bed_i = floor(by / 38.0);
 	float f = fract(by / 38.0);
 	float bw = mix(64.0, 150.0, hash(bed_i + 3.1));
@@ -78,13 +79,17 @@ void fragment() {
 	float g = fract(jx / bw);
 	float tone = hash(floor(jx / bw) * 7.3 + bed_i * 1.7);
 	float rock_k = to_rock * smoothstep(20.0, 30.0, depth);
-	c *= 1.0 + (tone - 0.5) * 0.16 * rock_k;
+	c *= 1.0 + (tone - 0.5) * 0.24 * rock_k;
 	c *= 1.0 + 0.16 * (1.0 - smoothstep(0.1, 0.16, f)) * rock_k;  // the top face of a bed, lit
 	c *= 1.0 - 0.2 * smoothstep(0.82, 0.88, f) * rock_k;  // its underside, in shade
 	c *= 1.0 + 0.1 * (1.0 - smoothstep(0.0, 9.0 / bw, g)) * rock_k;  // a block's side to the sun, lit
 	c *= 1.0 - 0.12 * smoothstep(1.0 - 12.0 / bw, 1.0 - 6.0 / bw, g) * rock_k;  // its far side, shaded
-	ink = max(ink, (1.0 - smoothstep(0.0, 0.045, f)) * rock_k);  // the crack between two beds
-	ink = max(ink, (1.0 - smoothstep(0.0, 1.6 / bw, min(g, 1.0 - g))) * rock_k * step(0.12, f));  // joints
+	// the crack between two beds, broken (not a ruled line); joints in some beds only, jagged
+	float crack_on = smoothstep(0.32, 0.42, noise(level_pos.x * 0.045 + bed_i * 7.1));
+	ink = max(ink, (1.0 - smoothstep(0.0, 0.045, f)) * rock_k * crack_on);
+	float joints_on = step(0.45, hash(bed_i + 11.3));
+	float gj = fract((jx + (noise(level_pos.y * 0.3 + bed_i) - 0.5) * 6.0) / bw);
+	ink = max(ink, (1.0 - smoothstep(0.0, 1.6 / bw, min(gj, 1.0 - gj))) * rock_k * step(0.12, f) * joints_on);
 	// soil: wavy strata, and stones (dark below, lit on top) here and there
 	float soil_k = (1.0 - to_rock) * smoothstep(14.0, 22.0, depth);
 	float sy = level_pos.y + sin(level_pos.x * 0.03) * 4.0 + noise(level_pos.x * 0.05) * 6.0;
@@ -104,8 +109,9 @@ void fragment() {
 	float lit = 1.0 - smoothstep(0.0, min(40.0, width * 0.36), from_left);
 	float away = 1.0 - smoothstep(0.0, min(56.0, width * 0.5), from_right);
 	float below_top = smoothstep(4.0, 30.0, depth);
-	float band_lit = smoothstep(0.45, 0.52, lit) * below_top;
-	float band_shade = smoothstep(0.45, 0.52, away) * below_top;
+	float waver = (noise(level_pos.y * 0.035 + float(cell.x)) - 0.5) * 0.3;  // (round 8: band edges follow the rock)
+	float band_lit = smoothstep(0.45, 0.52, lit + waver) * below_top;
+	float band_shade = smoothstep(0.45, 0.52, away - waver) * below_top;
 	c *= mix(vec3(1.0), sun_tint, band_lit);
 	c *= mix(vec3(1.0), shade_tint * 0.8, band_shade);
 	// under the grass lip: a crisp band of shadow; the foot of a wall darker; a ledge's underside
@@ -140,7 +146,7 @@ void fragment() {
 		// (the wall stands wider on the ground)
 		float grow = smoothstep(20.0, 46.0, depth) * (0.25 + 0.75 * smoothstep(0.0, 90.0, to_foot));
 		// round 2: deeper, slower bulges and notches (chunky breaks in the silhouette)
-		float reach = min(28.0, width * 0.17) * grow;
+		float reach = min(36.0, width * 0.2) * grow;  // (round 8: chunkier)
 		float wx = level_pos.x - from_left;  // the wall's left side: one pattern per wall, not per cell
 		float el = (0.2 + 0.5 * noise(level_pos.y * 0.017 + wx * 0.031) + 0.3 * noise(level_pos.y * 0.09 + 9.0)) * reach;
 		float er = (0.2 + 0.5 * noise(level_pos.y * 0.02 + wx * 0.027 + 40.0) + 0.3 * noise(level_pos.y * 0.1 + 3.0)) * reach;
