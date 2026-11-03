@@ -125,11 +125,10 @@ func _draw(ci: RID, rect: Rect2) -> void:
 		var band := Rect2(face.position + Vector2(0, face.size.y * 0.6), Vector2(face.size.x, face.size.y * 0.4))
 		_clipped(ci, face, fr, band, Color(bottom.darkened(0.3), 0.0), Color(bottom.darkened(0.3), lip))
 	if gloss > 0:
-		if w > 0:  # outlined candy: the top half lit, the light fading softly towards the middle
-			var inset := maxf(fr * 0.16, face.size.x * 0.025)
-			var g := Rect2(face.position + Vector2(inset, face.size.y * 0.06),
-					Vector2(face.size.x - inset * 2, face.size.y * 0.46))
-			_rounded(ci, g, minf(fr * 0.85, g.size.y / 2), Color(1, 1, 1, gloss * 0.9), Color(1, 1, 1, gloss * 0.08))
+		if w > 0:  # outlined: a soft light across the whole top of the face, following its curve and
+			# fading out by the middle (not a white capsule)
+			var g := Rect2(face.position, Vector2(face.size.x, face.size.y * 0.52))
+			_clipped(ci, face.grow(-2.0), maxf(fr - 2.0, 0.0), g, Color(1, 1, 1, gloss), Color(1, 1, 1, 0.0))
 		else:
 			var g := Rect2(face.position + Vector2(fr * 0.22, face.size.y * 0.07),
 					Vector2(face.size.x - fr * 0.44, face.size.y * 0.46))

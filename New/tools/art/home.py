@@ -103,7 +103,7 @@ def hut(R: float, H: float, door: bool, seed: int) -> tuple:
     cov = np.clip(blur(cov, 0.6) * 1.2, 0, 1)
     cov = np.maximum(cov, fin)
     strokes = thatch_strokes(w, h, inside, u, z, cx, base, Hp, rng)
-    t = np.clip(lam * 0.95 + 0.05, 0, 1)
+    t = np.clip(lam * 0.95 + 0.05 - 0.28 * np.clip(u, -1, 1), 0, 1)  # (round 7: clearly lit from the left)
     t = np.clip(t + 0.22 * (np.clip(z, 0, 1) - 0.45), 0, 1)  # round 2: lit from above, darker low down
     # round 5: the hero's style: the light in flat bands, the straw's strokes only a light texture
     t = np.clip(0.12 + 0.8 * cel(t, (0.36, 0.6)) + strokes * 0.07, 0, 1)

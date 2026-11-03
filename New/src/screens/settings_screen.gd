@@ -1,6 +1,6 @@
 extends Screen
 ## Settings, in the game's own kit, over the sunset behind a light scrim: a framed panel with its
-## ribbon, its back button a wooden boss set into the frame's top-left corner, floating with margins all round; Panoramic stands
+## ribbon, its back button in the panels' wood docked just outside its top-left corner, floating with margins all round; Panoramic stands
 ## whole at its left where there is room for him (never behind it). Inside, four titled groups, each
 ## a sunken card of rows split by fine lines (not ten identical bars): Sound (music and sounds
 ## volumes), Effects (vibration, screen shake, reduced motion), Game (language, replay the tutorial)
@@ -53,13 +53,13 @@ func _build() -> void:
 	var page := Control.new()
 	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	area.add_child(page)
-	var card := Card.new(Vector4(32, 78, 32, 30))  # room under the ribbon
+	var card := Card.new(Vector4(40, 84, 40, 38))  # room under the ribbon, clear of the frame
 	var columns := HBoxContainer.new()
 	columns.add_theme_constant_override(&"separation", 28)
 	card.add_child(columns)
 	var left := _column()
-	# one tile colour per group (amber sound, red effects, terracotta game, indigo help): the eye finds
-	# a group by its colour, and inside a group every tile is the same
+	# one tile colour per group (gold sound, red effects, orange game, bone help: all in the game's
+	# warm palette): the eye finds a group by its colour, and inside a group every tile is the same
 	left.add_child(_group("speaker-high-fill", tr("SOUND_GROUP"), Ui.Tone.GOLD, [
 		_slider_row("music-notes-fill", tr("MUSIC"), &"music_volume", &"music_on"),
 		_slider_row("speaker-high-fill", tr("SOUNDS"), &"sounds_volume", &"sounds_on"),
@@ -86,7 +86,7 @@ func _build() -> void:
 			help.append(_button_row("prohibit-fill", tr("REMOVE_ADS"), Services.store.price(), Services.store.buy_remove_ads))
 		help.append(_button_row("arrows-clockwise-bold", tr("RESTORE_PURCHASES"), "", Services.store.restore))
 	help.append(_button_row("info-fill", tr("CREDITS_BUTTON"), "", _show_credits))
-	right.add_child(_group("info-fill", tr("HELP"), Ui.Tone.BLUE, help))
+	right.add_child(_group("info-fill", tr("HELP"), Ui.Tone.WHITE, help))
 	columns.add_child(right)
 	var banner := Banner.new(tr("SETTINGS"), Ui.Tone.SUNSET, 48)
 	page.add_child(card)
@@ -98,7 +98,7 @@ func _build() -> void:
 		var room := page.size
 		var top := banner.custom_minimum_size.y * 0.5
 		card.size = card.get_combined_minimum_size()
-		var slot := back_button.custom_minimum_size.x * 0.5 + 6.0  # the back button rides the card's corner
+		var slot := back_button.custom_minimum_size.x + 18.0  # the back button's place, left of the card
 		var k := minf(1.0, minf((room.x - slot - 30.0) / card.size.x, (room.y - top - 12.0) / card.size.y))
 		card.scale = Vector2.ONE * k
 		var w := card.size.x * k
@@ -110,8 +110,9 @@ func _build() -> void:
 		banner.size = banner.custom_minimum_size
 		banner.position = Vector2(left_x + w / 2 - banner.size.x / 2, card.position.y - top)
 		back_button.size = back_button.custom_minimum_size
-		# set into the frame's top-left corner, a wooden boss nailed over it (part of the panel)
-		back_button.position = card.position + Vector2(24.0, 24.0) * k - back_button.size / 2
+		# docked just outside the card's top left, level with its top edge and the ribbon: with the panel,
+		# touching nothing (not the corner, not the band)
+		back_button.position = card.position + Vector2(-back_button.size.x - 14.0, -back_button.size.y * 0.45)
 		if hero:
 			hero.visible = show_hero
 			var origin := area.get_global_rect().position + page.position
@@ -162,9 +163,9 @@ func _group(icon_name: String, title: String, tone: Ui.Tone, rows: Array) -> VBo
 	g.add_child(head)
 	var well := PanelContainer.new()
 	var s := Card.well(18)
-	s.top = Color("efd9aa")  # the rows lighter than the tanned panel around them (contrast)
-	s.bottom = Color("fff3d8")
-	s.set_outline(Color("8a5a2c"), 2.5)
+	s.top = Color("fff8ea")  # the rows on near-white, clearly lighter than the tanned panel
+	s.bottom = Color("fffdf6")
+	s.set_outline(Color("6a3a14"), 3.0)
 	s.set_content_margin_all(4)
 	s.content_margin_left = 8
 	s.content_margin_right = 8
@@ -191,6 +192,9 @@ func _group(icon_name: String, title: String, tone: Ui.Tone, rows: Array) -> VBo
 			var icon := tile.get_child(0) as BoldIcon
 			if icon:
 				icon.outline = Ui.tone_colours(tone).outline
+				if tone == Ui.Tone.WHITE:  # on bone, the icon in the deep orange of the labels
+					icon.fill = Ui.LABEL_DEEP
+					icon.outline = Color(0, 0, 0, 0)
 				icon.queue_redraw()
 	return g
 
@@ -327,7 +331,7 @@ func _show_credits() -> void:
 	studio.custom_minimum_size = Vector2(0, 70)
 	box.add_child(studio)
 	box.add_child(Ui.label(tr("VERSION") % Config.version, 21, Color("8a5a3a"), Ui.font_body_bold))
-	var card := Card.new(Vector4(40, 56, 40, 30))
+	var card := Card.new(Vector4(44, 60, 44, 38))
 	card.add_child(box)
 	_credits.add_child(card)
 	var banner := Banner.new(tr("ABOUT"), Ui.Tone.BLUE, 40)

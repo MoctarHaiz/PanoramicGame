@@ -31,6 +31,8 @@ var _glint_at := 0.0
 var _glint_k := 0.0
 var _scale := 1.0
 var _tilt := 0.0  # its own lean (radians): no two alike
+var _face := Face.SMILE  # its own face (round 7: a row was "identical tomatoes"): happy, laughing, winking
+var _star := false  # one in four wears a star glint on its gloss all the time
 
 
 static func load_art() -> void:
@@ -117,8 +119,10 @@ func _init(column := 0, row := 0) -> void:
 	_phase = fposmod(column * 1.2 + row * 1.618 + fposmod(column * 2.399, 1.2), TAU)
 	# round 6 ("stamped tomatoes"): each a little bigger or smaller and leaning its own way
 	var h := fposmod(sin(column * 12.9898 + row * 78.233) * 43758.5453, 1.0)
-	_scale *= 0.9 + 0.18 * h
-	_tilt = (fposmod(h * 7.31, 1.0) - 0.5) * 0.4
+	_scale *= 0.88 + 0.22 * h
+	_tilt = (fposmod(h * 7.31, 1.0) - 0.5) * 0.7
+	_face = [Face.SMILE, Face.JOY, Face.SMILE, Face.WINK, Face.JOY][int(h * 97.0) % 5]
+	_star = int(h * 53.0) % 4 == 0
 	_pace = 3.0 + fposmod(column * 0.37 + row * 0.53, 0.8)
 	_clock = 0.0
 	_blink_at = 1.0 + fposmod(column * 1.37 + row * 0.71, 4.0)
@@ -140,7 +144,7 @@ func _process(delta: float) -> void:
 	_spec.modulate.a = 0.7 + 0.3 * sin(_clock * 5.3 + _phase)  # the hotspot twinkles
 	_spec.position = _sprite.position + Vector2(-6.0, -7.0).rotated(_sprite.rotation)
 	# blink every few seconds; once in a while a wink
-	var face := Face.SMILE
+	var face := _face
 	if _clock >= _blink_at:
 		face = Face.WINK if int(_blink_at * 7.0) % 9 == 0 else Face.BLINK
 		if _clock >= _blink_at + 0.13:
@@ -150,12 +154,17 @@ func _process(delta: float) -> void:
 	if _clock >= _glint_at:
 		_glint_k = 1.0
 		_glint_at = _clock + randf_range(1.2, 3.0)  # (often: a moving sparkle along a row)
-	if _glint_k > 0.0:
+	if _glint_k > 0.0 or _star:
 		_glint_k = maxf(_glint_k - delta * 1.8, 0.0)
 		_shine.queue_redraw()
 
 
 func _draw_glint() -> void:
+	if _star:  # a small four-point star sitting on the gloss, twinkling (seen in a still)
+		var tw := 0.75 + 0.25 * sin(_clock * 4.3 + _phase)
+		_shine.draw_set_transform(_sprite.position + Vector2(-7.0, -8.0).rotated(_sprite.rotation), 0.4, Vector2.ONE * 0.22 * tw)
+		_shine.draw_texture(_glint, -Vector2(24, 24), Color(1, 1, 1, 0.95))
+		_shine.draw_set_transform(Vector2.ZERO)
 	if _glint_k <= 0.0:
 		return
 	var k := sin(_glint_k * PI)  # flares up then down

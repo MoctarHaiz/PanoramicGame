@@ -266,6 +266,7 @@ func refresh(delta := 0.0) -> void:
 		layer.view_left = view_left
 		layer.view_width = view_width
 	_background.view_top = view_top
+	_background.hero_x = world.draw_hero().x
 	_level_root.position.x = -scroll
 	_ground.front.position.x = -scroll
 	_ground.ensure(scroll - view_left - 96.0, scroll - view_left + view_width + 96.0)

@@ -183,17 +183,18 @@ def spire(seed: int, w: int = 192, h: int = 1120) -> np.ndarray:
     t = y / h  # 0 top .. 1 foot
     cap_h = rng.uniform(26, 40)
     bulges = ndimage.gaussian_filter1d(rng.normal(0, 1, h), 55)
-    bulges = bulges / (np.abs(bulges).max() + 1e-6) * 9.0
+    bulges = bulges / (np.abs(bulges).max() + 1e-6) * 15.0  # (round 7: a rock stack, not a chimney)
     pinch = np.zeros(h)
-    for _ in range(int(rng.integers(2, 4))):  # soft waists where a softer bed wore away
-        py = rng.uniform(0.18, 0.7) * h
-        pinch += np.exp(-((y - py) / rng.uniform(14, 26)) ** 2) * rng.uniform(5, 9)
+    for _ in range(int(rng.integers(3, 5))):  # waists where a softer bed wore away
+        py = rng.uniform(0.15, 0.72) * h
+        pinch += np.exp(-((y - py) / rng.uniform(10, 22)) ** 2) * rng.uniform(7, 14)
     half = 37.0 + 8.0 * t + bulges - pinch + 34.0 * smooth_np(0.7, 1.0, t) ** 1.8
-    capw = 47.0 + rng.uniform(0, 5)
+    capw = 36.0 + rng.uniform(0, 10)  # (round 7: a broken top, not a chimney's flat cap)
     cap = smooth_np(cap_h + 6, cap_h - 2, y)  # 1 on the cap rock
     half = half * (1 - cap) + (capw - np.clip(4 - y, 0, 4) * 1.5) * cap
     undercut = np.exp(-((y - cap_h - 7) / 6.0) ** 2) * 6.0  # in, just under the cap
     half -= undercut
+    half = np.minimum(half, w / 2.0 - 4.0 - 7.0)  # (inside its cell, its wobble included)
     cx = w / 2.0 + ndimage.gaussian_filter1d(rng.normal(0, 1, h), 60) * 7.0
     left = cx - half
     right = cx + half

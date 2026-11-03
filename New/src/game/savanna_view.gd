@@ -34,8 +34,8 @@ const STRIPS := {
 ## the backdrop at a glance.
 const TREE_ROWS := [
 	[0.11, 170.0, 70.0, 488.0, 0.55, 0.3, 0.35, Color(0.62, 0.68, 0.82)],
-	[0.2, 300.0, 132.0, 540.0, 0.12, 0.12, 0.45, Color(0.68, 0.72, 0.8)],
-	[0.31, 520.0, 175.0, 604.0, 0.0, 0.05, 0.4, Color(0.96, 0.78, 0.5)],  # (round 6: lower: none rises between the pillars)
+	[0.2, 300.0, 104.0, 540.0, 0.12, 0.12, 0.45, Color(0.68, 0.72, 0.8)],  # (round 7: crowns under the jump band:
+	[0.31, 520.0, 130.0, 604.0, 0.0, 0.05, 0.4, Color(0.96, 0.78, 0.5)],  # they read as platforms there)
 ]
 const TREE_TINT := [Color(1, 1, 1), Color(0.7, 0.64, 0.54), Color(0.6, 0.54, 0.44)]  # (round 6: darker, warmer)
 ## animals.png (tools/art/savanna.py): two giraffes, an elephant, a herd of wildebeest (px regions)
@@ -58,6 +58,7 @@ var _tree_anchor: Array[float] = []
 var _painters: Array[Node2D] = []
 var front: Node2D  ## the foreground grass (WorldView adds it above the actors)
 var top: Node2D  ## round 3: acacia boughs framing the top of the screen (WorldView, above the actors)
+var hero_x := -999.0  ## round 7: his play x (WorldView): the near trees fade where they pass behind him
 
 
 class Painter extends Node2D:
@@ -160,14 +161,15 @@ func _draw_sky(ci: CanvasItem) -> void:
 
 func _draw_sun(ci: CanvasItem) -> void:
 	var s := SUN_SIZE * (1.0 + sin(_clock * 0.7) * 0.012)
-	ci.draw_texture_rect(_tex[&"sun"], Rect2(_sun() - Vector2(s, s) / 2, Vector2(s, s)), false, Color(1, 1, 1, 0.85))
+	# (round 7: softer: a blown-out bloom flattened the left third)
+	ci.draw_texture_rect(_tex[&"sun"], Rect2(_sun() - Vector2(s, s) / 2, Vector2(s, s)), false, Color(1, 0.9, 0.75, 0.55))
 
 
 ## God rays fanning from the sun to the lower right, breathing slowly.
 func _draw_rays(ci: CanvasItem) -> void:
 	var tex: Texture2D = _tex[&"rays"]
 	var k := 1.2
-	var a := 0.12 + 0.04 * sin(_clock * 0.45) + 0.02 * sin(_clock * 1.13)
+	var a := 0.05 + 0.02 * sin(_clock * 0.45) + 0.01 * sin(_clock * 1.13)  # (round 7: fainter)
 	ci.draw_texture_rect(tex, Rect2(_sun() - RAYS_ORIGIN * k, RAYS_SIZE * k), false, Color(1, 1, 1, a))
 
 
@@ -293,7 +295,8 @@ func _draw_trees(ci: CanvasItem, row_index: int) -> void:
 		# round 4: each tree leans its own way (a skew about its foot): no two alike
 		var foot := Vector2(x, row[3])
 		ci.draw_set_transform_matrix(Transform2D(0.0, Vector2.ONE, (_hash(seed + 14) - 0.5) * 0.36, foot))
-		ci.draw_texture_rect(tex, Rect2(rect.position - foot, rect.size), false)
+		var behind := 1.0 - 0.7 * (1.0 - smoothstep(40.0, 110.0, absf(x - hero_x))) if row_index == 2 else 1.0
+		ci.draw_texture_rect(tex, Rect2(rect.position - foot, rect.size), false, Color(1, 1, 1, behind))
 		ci.draw_set_transform_matrix(Transform2D.IDENTITY)
 
 

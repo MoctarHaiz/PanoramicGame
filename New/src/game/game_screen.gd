@@ -636,7 +636,7 @@ func _on_bandit_hit(b: World.Bandit, knocked_out: bool) -> void:
 	if knocked_out:
 		Haptics.knock()
 		_impact(&"medium", Vector2(7.0, -2.0))
-		Fx.plus_one(view.fx, Vector2(b.x - world.scroll, b.y - World.BANDIT_SIZE.y * 0.9) * 2.0)
+		Fx.plus_one(view.fx, Vector2(b.x - world.scroll - 6.0, b.y - 10.0) * 2.0)  # where the ring struck
 	else:
 		Haptics.select()
 		_impact(&"small", Vector2(3.0, 0.0))

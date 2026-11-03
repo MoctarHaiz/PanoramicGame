@@ -309,3 +309,20 @@ A lighter pattern never cuts into a heavier one still playing; nothing plays whe
   mine): texture equal (53.7 / 56.2 / 62.7 MB); results draw calls max 354 -> 351, play 370 -> 370;
   results objects 2 492 -> 2 789; worst own frame of play 13.3 -> 14.4 ms (noise; PASS).
 - Tests: 1023 checks, 0 failed, exit 0; --bot: home, 3 lives, 82 Red Bobs, 3 stars.
+
+## Round 7 (2026-11-03): ROUND7.md audio
+- "+1": PLUS_SCALE 1.3 -> 0.8 (~60 %), popping where the ring struck (game_screen: the bandit's hit point,
+  not above his head), rising 70 units; white core warming to pale gold at its foot (badge_text uniforms),
+  a gold rim (f2a516) inside the thick dark stroke, drop shadow, warm halo.
+- Home near confetti: size 3.0 -> 1.9, 8 -> 7 pieces, only a touch soft (the strip + one faint 1.1x copy
+  instead of three blurred copies): no "smudges on the lens".
+- Fireworks: side shows: spark bloom 38 -> 56 px, cores 11 -> 17 px and whiter, each burst's heart glows
+  for 45 % of its life (was 15 %); card bursts: wider glowing streaks, cores 12 px, heads 22 px, a heart
+  that glows 0.5 s with a wide bloom of its colour.
+- Draw calls: the 4-frame metal glint of impact_burst removed (its own batch at every hit); impact_burst
+  and bob_pop draw their shapes first and their soft light after (all additive: same look), so each kind
+  batches. Perf (perf.tscn, iPhone 15, full level, ba9bd96's fx/confetti/game_screen vs mine): texture
+  equal (54.5 / 56.9 / 63.5 MB); results draw calls max 336-337 -> 334-335; play draw calls mean 177.4 =
+  177.4, max 363 (two runs) -> 364-365 (seven runs; each play-time change tested alone: the "+1"'s
+  position and scale, the glint, the reorders: none moves it).
+- Tests: 1023 checks, 0 failed, exit 0; --bot: home, 3 lives, 82 Red Bobs, 3 stars.

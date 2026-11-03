@@ -6,7 +6,7 @@ extends Control
 ## - lives on the left: three glossy hearts; a lost one flashes, cracks in two and its halves fall
 ##   while the plate flashes red, leaving a dark socket; the last one beats when it is all that is
 ##   left;
-## - the way home in the middle: a thick gold track that fills as the level scrolls, Panoramic's
+## - the way home in the middle: a solid track that fills with gold as the level scrolls, Panoramic's
 ##   framed face running along it to the house on a gold disc at its end;
 ## - the Red Bobs on the right (counted the moment one is taken, the counter punching and
 ##   flashing) and the pause button on its own plate.
@@ -317,9 +317,8 @@ func blocks(pos: Vector2) -> bool:
 	return _pause.global_hit_rect().has_point(pos)
 
 
-## The way home: a sunken groove with the sandy path still to go (dashes), a thick gold fill with a
-## lit top edge to where he is, Panoramic's face in a gold ring at its tip, a flag halfway, and the
-## house on a glowing gold disc at the end.
+## The way home: a solid dark groove, a thick bright gold fill with a lit top edge to where he is,
+## Panoramic's face in a gold ring at its tip, and the house on a glowing gold disc at the end.
 class _Track extends Control:
 	const HEAD := preload("res://assets/art/ui/head.png")
 	const GROOVE := 26.0
@@ -358,28 +357,15 @@ class _Track extends Control:
 		var w := Hud.TRACK_W - 26.0
 		var groove := Rect2(x0, y - GROOVE / 2, w, GROOVE)
 		_rounded(groove.grow(2.0), Hud.PLATE_LINE, GROOVE / 2 + 2.0)
-		# the way still to go: a sandy path, in shade at its top, a dashed line along it
-		_rounded(groove, Color("b88a56"), GROOVE / 2)
-		_rounded(Rect2(groove.position + Vector2(0, 5), groove.size - Vector2(0, 5)), Color("e2bd84"), GROOVE / 2 - 2.0)
-		var dash := 14.0
-		var dx := x0 + 10.0
-		while dx < x0 + w - 12.0:
-			_rounded(Rect2(dx, y - 1.0, dash * 0.6, 5.0), Color(0.36, 0.16, 0.04, 0.85), 2.5)  # a clear path
-			dx += dash
+		# the way still to go: a solid dark groove, in shade at its top (a track, not a dotted line)
+		_rounded(groove, Color("3e1c0a"), GROOVE / 2)
+		_rounded(Rect2(groove.position + Vector2(0, 6), groove.size - Vector2(0, 6)), Color("6a3a1a"), GROOVE / 2 - 2.0)
 		var fill_w := maxf(w * progress, 0.0)
-		if fill_w > 6.0:
+		if fill_w > 6.0:  # the way done: a thick bright gold fill with a lit top
 			var fill := Rect2(x0 + 2, y - GROOVE / 2 + 2, fill_w - 2, GROOVE - 4)
 			_rounded(fill, Color("e07a0c"), fill.size.y / 2)
 			_rounded(Rect2(fill.position, Vector2(fill.size.x, fill.size.y * 0.6)), Color("ffcf3a"), fill.size.y * 0.3)
 			_rounded(Rect2(fill.position + Vector2(5, 3), Vector2(maxf(fill.size.x - 10, 0), 4)), Color(1, 1, 0.9, 0.8), 2.0)
-		# a little flag halfway
-		var mx := x0 + w * 0.5
-		var passed := mx <= x0 + fill_w
-		draw_line(Vector2(mx, y + 9), Vector2(mx, y - 17), Hud.PLATE_LINE, 4.0, true)
-		draw_colored_polygon(PackedVector2Array([Vector2(mx + 1, y - 18), Vector2(mx + 15, y - 13), Vector2(mx + 1, y - 7)]),
-				Hud.PLATE_LINE)
-		draw_colored_polygon(PackedVector2Array([Vector2(mx + 2, y - 16), Vector2(mx + 12, y - 12.5), Vector2(mx + 2, y - 9)]),
-				Color("ff4a2a") if passed else Color("fff0d0"))
 		# the house at the end, on a glowing gold disc
 		var hc := Vector2(x0 + w + 8, y)
 		var pulse := 0.5 + 0.5 * sin(_clock * 3.0)

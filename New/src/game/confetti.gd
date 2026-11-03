@@ -215,9 +215,9 @@ func _draw_pieces() -> void:
 			elif p.shape == Shape.STRIP or p.shape == Shape.STRIP_NEAR:
 				twist = Vector2(1.0, maxf(w, 0.3))
 			draw_set_transform(p.pos, p.turn, twist * grow)
-			if p.shape == Shape.STRIP_NEAR:  # out of focus: three soft copies, each larger and fainter
+			if p.shape == Shape.STRIP_NEAR:  # a touch out of focus: the strip and a faint, slightly larger copy
 				var c := _shade(p)
-				for blur: Vector2 in [Vector2(1.0, 0.5), Vector2(1.15, 0.28), Vector2(1.32, 0.16)]:
+				for blur: Vector2 in [Vector2(1.0, 0.85), Vector2(1.1, 0.25)]:
 					draw_texture_rect(tex, Rect2(-p.size * blur.x / 2, p.size * blur.x), false, Color(c, c.a * blur.y))
 				continue
 			draw_texture_rect(tex, Rect2(-p.size / 2, p.size), false, _shade(p))

@@ -351,3 +351,31 @@ that belongs to this world.
 - perf.gd, whole level, iPhone 15, the merged round 5 (a scratch copy) against this tree: texture
   58.2 / 53.7 / 53.7 / 56.2 / 62.7 MB -> 55.1 / 50.7 / 50.7 / 53.2 / 59.7 (menu, play, paused,
   results, menu again); draw calls 108 / 369 / 273 / 350 / 108 -> 102 / 361-371 / 265 / 332-338 / 102.
+
+## Round 7
+
+The blind A/B (round 6 vs 5) preferred round 5's menu and pause clearly: the gold-ochre Play didn't
+separate from the gold title and the sunset; Resume gold next to gold-brown tiles, "dull, muddy".
+ROUND7.md (ux): put the colour back, keep the round-6 build.
+
+- The kit (ui.gd): round 5's clean, saturated faces back (GREEN the main action again: Play, Resume,
+  Play again; GOLD the pause's tiles, brighter; SUNSET, CRIMSON, BLUE), still matte in their carved-
+  wood rings. OCHRE removed. GlossStyle: the light on an outlined face is a soft band across its whole
+  top, clipped to its curve and fading by the middle (no white capsule, no dot).
+- Pause: captions 34 in the heaviest weight, darker; Music and Sounds carry a badge on the tile's
+  corner, a green "ON" or a red "OFF" pill (SWITCH_ON/OFF, uppercase), besides the icon itself.
+- "New best!": a red rubber stamp (a thick red border and a fine one inside, red crown and letters,
+  no fill, a little askew), not a pill in a button's colour (results_panel._rubber_stamp).
+- Win: the rays sized to the card (1.45 x its larger side) and centred on it: behind the card only,
+  not through him or the fireworks.
+- Settings: the back button docked just outside the card's top-left corner, level with its top edge
+  (it touches neither the corner nor the band); Help's tiles bone with orange icons (on the warm
+  palette, no blue); the group wells near-white with a dark outline (real contrast with the tanned
+  panel); the card's margins widened for the thicker frame.
+- The band: the frame 24 (was 15), the band 22 tall, diamonds 34 apart, bevelled (four facets lit
+  from the upper left and a glint); the studs a little bigger, drawn from one picture (Card._stud_
+  texture): one draw call for all of them (five circles each before).
+- HUD: the way-home track a solid dark groove with the gold fill (no dashed line, no little flag).
+- perf.gd, iPhone 15, the merged round 6 (a scratch copy) against this tree: texture 58.9 / 54.5 /
+  54.5 / 56.9 / 63.5 MB -> 58.9 / 53.2 / 53.2 / 55.7 / 62.3 (menu, play, paused, results, menu
+  again); draw calls 102 / 363 / 265 / 336 / 102 -> 102 / 333-341 / 211 / 279 / 102.

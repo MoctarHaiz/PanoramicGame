@@ -79,7 +79,7 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 	home_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	home_button.pressed.connect(home)
 	buttons.add_child(home_button)
-	var go := Ui.candy_button(TranslationServer.translate("PLAY_AGAIN"), "arrow-counter-clockwise-bold", Ui.Tone.OCHRE, 100, 42)
+	var go := Ui.candy_button(TranslationServer.translate("PLAY_AGAIN"), "arrow-counter-clockwise-bold", Ui.Tone.GREEN, 100, 42)
 	go.custom_minimum_size.x = 340
 	go.pressed.connect(again)
 	go.shine()
@@ -315,13 +315,14 @@ static func _count_up(tree: SceneTree, value: DisplayText, target: int, suffix: 
 	bump.tween_property(value, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
-## NEW BEST!: a gold stamp with a big crown slams into its row under the count, upright (gold: a
-## reward, never the failure red), the card shakes, light and sparkles burst under it.
+## NEW BEST!: a red rubber stamp (a double red border on the parchment, red letters and crown, a
+## little tilted as a stamp lands: not a button) slams into its row under the count, the card shakes,
+## light and sparkles burst under it.
 static func _stamp(tree: SceneTree, panel: GamePanel, slot: Control, delay: float) -> void:
 	await tree.create_timer(delay).timeout
 	if not is_instance_valid(panel):
 		return
-	var chip := Ui.chip(TranslationServer.translate("NEW_BEST"), Ui.Tone.GOLD, 36, "crown-fill", 1.2)
+	var chip := _rubber_stamp(TranslationServer.translate("NEW_BEST"))
 	var stamp := Control.new()
 	stamp.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stamp.size = chip.get_combined_minimum_size()
@@ -329,6 +330,7 @@ static func _stamp(tree: SceneTree, panel: GamePanel, slot: Control, delay: floa
 	slot.add_child(stamp)  # in its own row of the card, between the count and the buttons
 	stamp.position = (slot.size - stamp.size) / 2
 	stamp.pivot_offset = stamp.size / 2
+	stamp.rotation = -0.07  # a stamp lands a little askew
 	stamp.scale = Vector2.ONE * 1.6
 	stamp.modulate.a = 0.0
 	var t := stamp.create_tween().set_parallel(true)
@@ -345,6 +347,45 @@ static func _stamp(tree: SceneTree, panel: GamePanel, slot: Control, delay: floa
 	Fx.badge_burst(fx, stamp.get_global_rect().get_center() * 2.0)
 	Audio.play_sfx(&"new_best")
 	Haptics.success()
+
+
+## The rubber stamp: red ink on the parchment, a thick border and a fine one inside it, the crown
+## and the words in the same red (no fill: it is printed on the card, it is not a button).
+static func _rubber_stamp(text: String) -> PanelContainer:
+	var ink := Color("c41e12")
+	var outer := StyleBoxFlat.new()
+	outer.bg_color = Color(1, 0.96, 0.9, 0.35)
+	outer.border_color = ink
+	outer.set_border_width_all(5)
+	outer.set_corner_radius_all(10)
+	outer.set_content_margin_all(5)
+	outer.anti_aliasing = true
+	var inner := StyleBoxFlat.new()
+	inner.draw_center = false
+	inner.border_color = Color(ink, 0.85)
+	inner.set_border_width_all(2)
+	inner.set_corner_radius_all(6)
+	inner.content_margin_left = 16
+	inner.content_margin_right = 18
+	inner.content_margin_top = 0
+	inner.content_margin_bottom = 2
+	inner.anti_aliasing = true
+	var box := PanelContainer.new()
+	box.add_theme_stylebox_override(&"panel", outer)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var line := PanelContainer.new()
+	line.add_theme_stylebox_override(&"panel", inner)
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override(&"separation", 10)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(Ui.bold_icon("crown-fill", 36, ink, Color(0, 0, 0, 0)))
+	var words := Ui.label(text.to_upper(), 32, ink, Ui.font_display)
+	row.add_child(words)
+	line.add_child(row)
+	box.add_child(line)
+	return box
 
 
 ## A short shake of `c` (a few px, a quarter of a second).

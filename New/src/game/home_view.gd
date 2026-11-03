@@ -41,13 +41,12 @@ func build() -> void:
 	_put(back, "home_hut_low", LEFT + 1400.0, 0.8, Color(0.86, 0.84, 0.9), true).material = form(1.0)
 	_fence(back, LEFT + 120.0, LEFT + 680.0)
 	_fence(back, LEFT + 960.0, LEFT + 1900.0)
-	var sign_shadow := _put(back, "home_sign", LEFT + 556.0, 1.35, Color(0.08, 0.04, 0.06, 0.4))  # (round 6: its shadow)
-	sign_shadow.skew = 0.35
+	# (round 7: no shadow copy of the sign behind it: it read as a faint duplicate arrow)
 	_put(back, "home_sign", LEFT + 548.0, 1.35, Color.WHITE).material = form(0.0, 0.6)
 	_put(back, "home_pot", hut_left + float(hut_info["door_x"]) - 62.0, 1.0, Color.WHITE)
 	# round 3: the homestead is alive: a cooking fire in the yard, and people at it who greet him
 	_fire = Fire.new()
-	_fire.position = Vector2(LEFT + 430.0, GROUND - 8.0)  # (on a hearth stone, over the grass blades)
+	_fire.position = Vector2(LEFT + 622.0, GROUND - 8.0)  # (round 7: by the hut, in the pushed-in shot)
 	_fire.scale = Vector2(1.5, 1.5)
 	back.add_child(_fire)
 	var fire_smoke := _smoke()

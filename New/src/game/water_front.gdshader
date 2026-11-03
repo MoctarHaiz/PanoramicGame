@@ -41,5 +41,16 @@ void fragment() {
 	lap *= 0.65 + 0.35 * sin(x * 0.9 + t * 3.1) * sin(x * 0.37 - t * 1.7);
 	c = mix(c, vec3(0.97, 1.0, 1.0), lap);
 	a = max(a, lap * 0.95);
+	// round 7: a bank slopes into the pool: a wedge of wet earth over the soil's face, wider
+	// deeper down, an ink line on its slope (the face read as a hard vertical edge)
+	if ((fade_left == 0.0) != (fade_right == 0.0) && d > 0.0) {
+		float into = fade_left == 0.0 ? p.x - 2.0 : rect_size.x - 2.0 - p.x;
+		float wedge = clamp((d - 1.0) * 0.34, 0.0, 16.0) + sin(d * 0.45 + x * 0.1) * 1.2;
+		float in_wedge = 1.0 - smoothstep(wedge - 0.6, wedge + 0.6, into);
+		vec3 mud = mix(vec3(0.36, 0.24, 0.17), deep.rgb, clamp(d / 70.0, 0.0, 0.6));
+		c = mix(c, mud, in_wedge);
+		c = mix(c, vec3(0.12, 0.07, 0.08), (1.0 - smoothstep(0.0, 1.6, abs(into - wedge))) * smoothstep(1.0, 4.0, d));
+		a = max(a, in_wedge * smoothstep(0.0, 2.0, d));
+	}
 	COLOR = vec4(c, a * side);
 }

@@ -233,3 +233,17 @@ Worktree: `_agents/wt/env/New`. Captures: `_agents/AAA/env/round_<n>/`. Owns `wo
   (~15 ms, the ground's map data waits a frame) and draws the whole screen for the first time (HUD
   texts and their glyph pages, the hero atlas pages, ~45-60 ms); the next frame builds the ground's
   data (~22 ms). Next: the ground's data on a worker thread, and the HUD's text warmed in the menu.
+
+## Round 7
+
+- The HOME sign's "faint duplicate arrow": my round 6 shadow copy of the sign; removed.
+- The sun softer (its disc and bloom dimmer and warmer, the rays and the grade's wash fainter).
+- Trees: the two nearer rows lower (their flat crowns sat at jump height and read as platforms);
+  the nearest row fades where it passes behind him (SavannaView.hero_x): no tree cuts his silhouette.
+- Mesas: not all flat-topped (a heap of boulders, a slanted cuesta, a pinnacle), and each landmark
+  its own stone colour along the strip.
+- Spires: rock stacks, not chimneys (stronger bulges and waists, a broken top, inside their cells).
+- The vine sags 15-26 units between knots tied ±5 units off the line.
+- Pools: each bank slopes in, a wedge of wet earth over the soil's face, inked (water_front.gdshader).
+- Home: the thatch clearly lit from the left; the campfire moved by the hut (it was cropped).
+- Before/after: AAA/env/round_7/before_after_r6_r7.jpg.

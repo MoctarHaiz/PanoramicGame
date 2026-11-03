@@ -519,21 +519,22 @@ def _ring_in_hand(hand_bone="RightHand"):
 
 
 def pose_key_art():
-    """The title screen: three-quarters towards us, weight on one leg, the ring raised in his right
-    hand by his face, his left fist on his hip, head up: his face clear of his hair."""
-    reset_turn()
-    apply(sample("idle", 1))
-    aim("RightArm", 0.35, -0.15, 0.6)
-    aim("RightForeArm", 0.35, 0.95, 0.05)
-    aim("RightHand", 0.2, 1.0)
-    aim("LeftArm", -0.1, -0.85, -0.5)
-    aim("LeftForeArm", 0.75, -0.15, -0.3)
-    turn("Spine", -3)
-    turn("Neck", -4)
-    turn("Head", -6)
-    ARM.rotation_euler.z = math.radians(-28.0)
+    """The title screen (round 7): the throw, caught as the ring leaves his hand (round 4's dynamic
+    pose), turned three-quarters to us, his head turned to us and lifted so his face shows; the ring
+    a hand's breadth out from his fingers, flying."""
+    pose_menu_throw()
+    turn("Neck", -8)
+    turn("Head", -14)
+    turn("Head", -KEY_LOOK, axis=(0.0, 0.0, 1.0))  # his face turned to us
     bpy.context.view_layer.update()
-    _ring_in_hand()
+    ring = bpy.data.objects["MenuRing"]
+    hand = ARM.matrix_world @ ARM.pose.bones[P + "RightHand"].tail
+    away = (hand - ARM.matrix_world @ ARM.pose.bones[P + "RightForeArm"].head).normalized()
+    ring.location = hand + away * 0.11 + Vector((0.0, -0.02, 0.0))
+    ring.rotation_euler = (math.radians(62), math.radians(28), 0.0)
+
+
+KEY_LOOK = 30.0  ## degrees his head turns from the throw towards us on the title screen
 
 
 def pose_celebrate():
@@ -547,7 +548,8 @@ def pose_celebrate():
     aim("RightArm", 0.25, -0.55, 0.65)
     aim("RightForeArm", 0.7, 0.65, -0.15)
     turn("Spine", -5)
-    turn("Head", -8)
+    turn("Neck", -8)
+    turn("Head", -16)  # chin up: his face out from under his hair
     ARM.rotation_euler.z = math.radians(-22.0)
     bpy.context.view_layer.update()
 
@@ -557,8 +559,8 @@ SEAT_TWIST = -25.0  ## degrees: his chest and face turned back to us
 
 
 def pose_seated():
-    """Game over: sat on the ground, dazed, both knees drawn up (compact: nothing reaching out), one
-    forearm resting on a knee, the other hand to his head, his face turned up to us."""
+    """Game over: sat on the ground, dazed, both knees drawn up (compact: nothing reaching out), his
+    forearms resting on his knees, his head tilted, his face turned up to us (no arm across it)."""
     reset_turn()
     apply(sample("idle", 1))
     for side, lean in (("Right", 0.12), ("Left", -0.12)):
@@ -566,14 +568,15 @@ def pose_seated():
         aim(side + "Leg", 0.25, -1.0, lean * 0.5)
         aim(side + "Foot", 1.0, -0.15)
     turn("Spine", -10)
-    aim("LeftArm", 0.45, -0.55, -0.45)
-    aim("LeftForeArm", 0.9, 0.15, 0.15)
-    aim("RightArm", 0.3, 0.5, 0.8)
-    aim("RightForeArm", -0.25, 0.7, -0.65)
+    for side, lean in (("Left", -1.0), ("Right", 1.0)):  # both forearms resting on his knees
+        aim(side + "Arm", 0.45, -0.55, 0.45 * lean)
+        aim(side + "ForeArm", 0.9, 0.1, -0.15 * lean)
+        aim(side + "Hand", 0.6, -0.8)
     turn("Spine1", SEAT_TWIST * 0.4, axis=(0.0, 0.0, 1.0))
     turn("Head", SEAT_TWIST, axis=(0.0, 0.0, 1.0))
-    turn("Head", 10, axis=(0.0, 1.0, 0.0))  # tilted, dazed
-    turn("Head", -8)
+    turn("Head", 12, axis=(0.0, 1.0, 0.0))  # tilted, dazed
+    turn("Neck", -6)
+    turn("Head", -14)  # looking up at us, his face clear
     seat = bone_z("Hips") - 0.09
     low = min(seat, bone_z("RightToe_End"), bone_z("LeftToe_End"))
     shift_hips(0.0, 0.0 - low)
@@ -659,10 +662,10 @@ def make_bandit():
         ramp = nodes.new("ShaderNodeValToRGB")
         el = ramp.color_ramp.elements
         el[0].position, el[0].color = 0.05, (0.03, 0.015, 0.03, 1)
-        el[1].position, el[1].color = 0.72, (1.0, 0.22, 0.02, 1)  # the wraps: hot orange-red (round 6:
-        # magenta read purple on the green grass)
+        el[1].position, el[1].color = 0.72, (0.16, 0.2, 0.75, 1)  # the wraps: deep indigo (round 7: the
+        # UI's beadwork indigo, against the yellow-olive ground; orange-brown blended into it)
         mid = el.new(0.3)
-        mid.color = (0.07, 0.035, 0.03, 1)  # the skin: near black
+        mid.color = (0.05, 0.04, 0.09, 1)  # the skin: blue-black
         links.new(tex.outputs["Color"], bw.inputs["Color"])
         links.new(bw.outputs["Val"], ramp.inputs["Fac"])
         links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
@@ -678,7 +681,7 @@ def make_bandit():
     band = bpy.context.object
     band.scale = (0.95, 1.12, 1.0)
     bpy.ops.object.shade_smooth()
-    band.data.materials.append(_material("Mask", (1.0, 0.62, 0.02), 0.5))  # his signature: an ochre-gold mask
+    band.data.materials.append(_material("Mask", (0.95, 0.04, 0.03), 0.5))  # his signature: a red mask band
     eye_mat = _material("Eyes", (1.0, 0.6, 0.1), 0.3, (1.0, 0.62, 0.12), 16.0)
     parts = [band]
     for side in (-1.0, 1.0):
@@ -1023,6 +1026,73 @@ def flatten_textures(size=2048, r=4, k=0.6):
         tex.image = done[tex.image.name]
 
 
+FRINGE_UP = 0.075  ## metres the fringe in front of his eyes is lifted (round 7: "hair over the eyes")
+FRINGE_BACK = 0.055  ## and swept back
+FRONT = float(os.environ.get("FRINGE_FRONT", "1"))  ## the way he faces in the mesh's rest shape (+y)
+
+
+def lift_fringe():
+    """Lifts the locks of hair hanging in front of his eyes up and back, in the mesh's rest shape (so in
+    every pose): hair is found by its colour in the base colour picture (near black), the fringe by
+    where it is (in front of his face, from below his eyes to his brow). The user's file is unchanged."""
+    if MESH.get("fringe_lifted"):
+        return
+    m = MESH.data.materials[0]
+    # the base colour picture: the one not feeding the normal map (the bandit's goes through a ramp)
+    tex = next(n for n in m.node_tree.nodes if n.type == "TEX_IMAGE" and not any(
+        l.to_node.type == "NORMAL_MAP" for l in n.outputs[0].links))
+    img = tex.image.copy()
+    img.scale(1024, 1024)
+    px = np.empty(1024 * 1024 * 4, np.float32)
+    img.pixels.foreach_get(px)
+    px = px.reshape(1024, 1024, 4)
+    # hair: dark and cool (blue-black); his skin is as dark but warm (red over blue)
+    hair_px = ((px[..., :3] @ np.array([0.3, 0.59, 0.11], np.float32)) < 0.25) & (px[..., 0] - px[..., 2] < 0.012)
+    me = MESH.data
+    nl, nv = len(me.loops), len(me.vertices)
+    uv = np.empty(nl * 2, np.float32)
+    me.uv_layers.active.data.foreach_get("uv", uv)
+    uv = uv.reshape(nl, 2)
+    vi = np.empty(nl, np.int32)
+    me.loops.foreach_get("vertex_index", vi)
+    ix = np.clip((uv[:, 0] % 1.0) * 1023, 0, 1023).astype(np.int32)
+    iy = np.clip((uv[:, 1] % 1.0) * 1023, 0, 1023).astype(np.int32)
+    corner = hair_px[iy, ix].astype(np.float32)
+    # by piece of mesh (each lock, the face, the body are separate pieces): a piece is hair if most of
+    # its corners are, so a lock moves whole, never torn
+    ne = len(me.edges)
+    ev = np.empty(ne * 2, np.int32)
+    me.edges.foreach_get("vertices", ev)
+    ev = ev.reshape(ne, 2)
+    label = np.arange(nv, dtype=np.int64)
+    for _ in range(400):
+        lo = np.minimum(label[ev[:, 0]], label[ev[:, 1]])
+        before = label.copy()
+        np.minimum.at(label, ev[:, 0], lo)
+        np.minimum.at(label, ev[:, 1], lo)
+        label = label[label]
+        label = label[label]
+        if np.array_equal(label, before):
+            break
+    share = np.bincount(label[vi], weights=corner, minlength=nv) / np.maximum(np.bincount(label[vi], minlength=nv), 1)
+    hair = (share[label] > 0.6).astype(np.float32)
+    co = np.empty(nv * 3, np.float32)
+    me.vertices.foreach_get("co", co)
+    co = co.reshape(nv, 3)
+    head = ARM.matrix_world @ ARM.data.bones[P + "Head"].head_local
+    # a smooth field in front of his eyes (the rest shape faces +y): the locks there bend up and back
+    # as a whole, nothing is torn (a gaussian, no hard edge)
+    centre = np.array([head.x, head.y + FRONT * 0.1, head.z + 0.05], np.float32)
+    d2 = (((co - centre) / np.array([0.08, 0.075, 0.065], np.float32)) ** 2).sum(1)
+    w = hair * np.exp(-d2)
+    co[:, 2] += w * FRINGE_UP
+    co[:, 1] -= w * FRINGE_BACK * FRONT
+    me.vertices.foreach_set("co", co.ravel())
+    me.update()
+    MESH["fringe_lifted"] = True
+    print("FRINGE", int((w > 0.01).sum()), "vertices lifted")
+
+
 def face_light():
     """Puts the interface pictures' face light in front of his face (towards the camera)."""
     light = bpy.data.objects.get("FaceLight")
@@ -1031,11 +1101,12 @@ def face_light():
     head = ARM.pose.bones[P + "Head"]
     mid = ARM.matrix_world @ ((head.head + head.tail) / 2)
     forward = (SC.camera.matrix_world.to_3x3() @ Vector((0.0, 0.0, 1.0))).normalized()  # towards the camera
-    light.location = mid + forward * 0.16 + Vector((0.0, 0.0, 0.04))
+    light.location = mid + forward * 0.16 + Vector((0.0, 0.0, 0.08))  # front and above: brow, eyes
 
 
 def toon_setup():
     mode = "sunset" if arg("--light", "day") == "sunset" else "day"
+    lift_fringe()
     for ob in list(bpy.data.objects):
         if ob.type == "LIGHT":
             bpy.data.objects.remove(ob, do_unlink=True)
@@ -1055,7 +1126,7 @@ def toon_setup():
     fill.parent = rig
     if mode == "sunset":  # and a small light on his face, placed for each pose (face_light())
         data = bpy.data.lights.new("FaceLight", "POINT")
-        data.energy = float(os.environ.get("FACE_W", "0.6"))
+        data.energy = float(os.environ.get("FACE_W", "1.6"))
         data.shadow_soft_size = 0.05
         data.use_custom_distance = True
         data.cutoff_distance = 0.32

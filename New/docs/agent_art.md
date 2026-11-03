@@ -258,3 +258,21 @@ win and defeat renders; (6) the studio logo; (7) the null texture on the first b
 - Ground shadows in play: the hero's and the bandit's shadow nodes are drawn at z 1, over the
   grass blades in front of the runners that hid them.
 - Results: captures and before_after.png in _agents/AAA/art/round_6/; tests log _agents/AAA/art/round_6_tests.log.
+
+## Round 7: a face, a bandit that pops
+
+- `lift_fringe()` (in `toon_setup()`, every render): the locks hanging in front of his eyes are lifted
+  7.5 cm and swept back 5.5 cm in the mesh's rest shape (so in every pose). Hair is found by its
+  colour in the base colour picture (dark and cool: his skin is as dark but warm), per piece of mesh
+  (a lock moves whole: a union-find over the mesh's edges), weighted by a smooth gaussian in front of
+  his eyes (the rest shape faces +y). The user's file is unchanged.
+- The interface pictures: a stronger face light (1.6 W) in front and above his face; the key art is
+  the throw again (round 4's dynamic pose), head turned 30° to us and lifted, the steel ring flying
+  a hand's breadth from his fingers; the win pose chin up; the defeat with both forearms on his knees,
+  head tilted, looking up (no arm across his face).
+- The bandit: deep indigo wraps, blue-black skin, a red mask band, the black crest, the bone-white
+  club raised (the toon rim on his sun side). `lift_fringe()` finds the base colour picture by
+  elimination (not the normal map's), since the bandit's goes through a ramp.
+- Red Bobs: each wears its own face (smile, laugh, wink), one in four a twinkling star glint on its
+  gloss all the time, a stronger lean (±0.35 rad) and size spread (88-110 %).
+- Results: captures and before_after.png in _agents/AAA/art/round_7/; tests log _agents/AAA/art/round_7_tests.log.

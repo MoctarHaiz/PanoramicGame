@@ -300,6 +300,9 @@ def mesas() -> Image.Image:
         # aerial perspective: the plane's own haze, thicker towards its foot
         col = mix(col, HAZE_HIGH, haze_k)
         col = mix(col, HAZE, smooth(0.55 * h, h, yy) * 0.45)
+        # round 7: each landmark its own stone: redder, more ochre, greyer along the strip
+        hue = noise1(w, 7, r, 2)[None, :]
+        col = col * (1.0 + np.dstack([(hue - 0.5) * 0.22, (hue - 0.5) * 0.06, -(hue - 0.5) * 0.16]))
         return col, cov
 
     far_h = np.zeros(w)
@@ -316,6 +319,14 @@ def mesas() -> Image.Image:
     near_h = np.maximum(near_h, _butte(x, 1520, 170, 136, w, 14, 110))  # the broad stepped mesa
     near_h = np.maximum(near_h, _butte(x, 1455, 60, 168, w, 10, 30))
     near_h = np.maximum(near_h, _butte(x, 1960, 40, 182, w, 10, 60))  # a lone butte
+    # round 7: not all flat-topped: a rounded inselberg, a slanted cuesta, a pointed pinnacle
+    for bx, br, bh in ((700, 52, 96), (760, 66, 138), (826, 48, 110), (872, 34, 72)):  # a heap of boulders
+        d = ((x - bx + w / 2) % w) - w / 2
+        near_h = np.maximum(near_h, np.sqrt(np.clip(1 - (d / br) ** 2, 0, 1)) * bh)
+    d = ((x - 1250 + w / 2) % w) - w / 2
+    near_h = np.maximum(near_h, np.where(np.abs(d) < 130, 90 + d * 0.55, 0) * (np.abs(d) < 130))
+    d = ((x - 1780 + w / 2) % w) - w / 2
+    near_h = np.maximum(near_h, np.clip(1 - np.abs(d) / 34, 0, 1) ** 1.4 * 210)
     for _ in range(9):  # kopjes: heaps of rounded boulders
         c = rng.uniform(0, w)
         for k in range(int(rng.integers(3, 6))):

@@ -121,7 +121,7 @@ func enter(_data: Dictionary) -> void:
 	_play_pop.size = _play_box.custom_minimum_size
 	_play_pop.pivot_offset = _play_pop.size / 2
 	_play_box.add_child(_play_pop)
-	_play = Ui.candy_button(tr("PLAY"), "play-fill", Ui.Tone.OCHRE, 124, 62)
+	_play = Ui.candy_button(tr("PLAY"), "play-fill", Ui.Tone.GREEN, 124, 62)
 	_play.size = _play_box.custom_minimum_size
 	_play.pressed.connect(func() -> void: Nav.go(&"game", {}, _play.get_global_rect().get_center()))
 	_play.idle(0.06)

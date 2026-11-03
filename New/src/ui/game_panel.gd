@@ -78,7 +78,7 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	back.add_child(vignette)
 	if rays:
-		_rays = Rays.new(1800, Color(1, 0.82, 0.42, 0.34), 20)  # a strong sunburst behind the card
+		_rays = Rays.new(1200, Color(1, 0.82, 0.42, 0.42), 20)  # a strong sunburst behind the card
 		_rays.material = Fx.additive()
 		add_child(_rays)
 		if Prefs.motion():
@@ -236,7 +236,14 @@ func _place() -> void:
 	_pop.position = centre - whole / 2
 	_pop.scale = Vector2.ONE * _u * _k
 	if _rays:
-		_rays.position = centre + Vector2(art_w / 2 * _k, 0) - _rays.size / 2
+		# behind the card only: centred on it, reaching a little past its edges (not through him or the
+		# fireworks)
+		var at := centre + (Vector2(art_w + card_size.x / 2, _top + lift + card_size.y / 2) - whole / 2) * _k
+		var d := maxf(card_size.x, card_size.y) * _k * 1.45
+		_rays.size = Vector2(d, d)
+		_rays.pivot_offset = _rays.size / 2
+		_rays.position = at - _rays.size / 2
+		_rays.queue_redraw()
 	card.position = Vector2(art_w, _top + lift)
 	if _gild:
 		_gild.position = card.position

@@ -10,7 +10,7 @@ extends PanelContainer
 ## `well()` is the style of a sunken area inside the body (the results' counts, settings' rows).
 
 const INK := Color("2e0d04")
-const FRAME := 15.0  ## width of the wooden frame
+const FRAME := 24.0  ## width of the wooden frame (it carries the Zulu band)
 const FRAME_TOP := Color("c8642a")
 const FRAME_BOTTOM := Color("6e240a")
 const TRIM := 4.0  ## the gold ring inside the frame
@@ -159,8 +159,8 @@ func _zulu_band(r: Rect2) -> void:
 				Rect2(tile_w - fposmod(span, tile_w), 0, span, tiles[1].get_height()))
 
 
-const BAND_STEP := 22.0  ## one diamond and its share of the band
-const BAND_H := 14.0  ## the band, top to bottom (nearly the frame's width)
+const BAND_STEP := 34.0  ## one diamond and its share of the band
+const BAND_H := 22.0  ## the band, top to bottom (nearly the frame's width)
 const BAND_SCALE := 3  ## the tile's pixels per unit (sharp on a phone's screen)
 static var _band: Array[ImageTexture] = []
 
@@ -183,11 +183,20 @@ static func _band_tiles() -> Array[ImageTexture]:
 			var i := int(p.x / BAND_STEP)
 			var c := Vector2((i + 0.5) * BAND_STEP, BAND_H / 2)
 			# a diamond's "distance": 0 on its edge, positive inside (in units, roughly)
-			var d := (1.0 - (absf(p.x - c.x) / 9.6 + absf(p.y - c.y) / 5.8)) * 4.6
+			var hw := BAND_STEP * 0.44
+			var hh := BAND_H * 0.42
+			var d := (1.0 - (absf(p.x - c.x) / hw + absf(p.y - c.y) / hh)) * hh
 			var col := cream.lerp(Color("e8cf9c"), p.y / BAND_H)  # the cream darkens a little downwards
-			col = col.blend(Color(edge, clampf((d + 1.0) * s + 0.5, 0.0, 1.0)))
-			var fill: Color = fills[i % 2].lightened(0.12 if p.y < c.y else 0.0)  # a lit upper half
-			col = col.blend(Color(fill, clampf(d * s + 0.5, 0.0, 1.0)))
+			col = col.blend(Color(edge, clampf((d + 1.2) * s + 0.5, 0.0, 1.0)))
+			# bevelled: four facets lit from the upper left (a cut bead), a bright point on its top facet
+			var fill: Color = fills[i % 2]
+			var left := p.x < c.x
+			var up := p.y < c.y
+			var facet := fill.lightened(0.38) if left and up else (fill.lightened(0.14) if up else
+					(fill.darkened(0.1) if left else fill.darkened(0.34)))
+			col = col.blend(Color(facet, clampf(d * s + 0.5, 0.0, 1.0)))
+			var glint := p.distance_to(c + Vector2(-hw * 0.32, -hh * 0.42))
+			col = col.blend(Color(1, 1, 0.95, 0.7 * clampf((1.6 - glint) * s * 0.5, 0.0, 1.0)))
 			img.set_pixel(px, py, col)
 	var mirrored := img.duplicate() as Image
 	mirrored.flip_x()
@@ -203,12 +212,38 @@ func _studs(r: Rect2) -> void:
 	if r.size.x > 520.0:
 		spots.append(Vector2(r.get_center().x, r.position.y + m))
 		spots.append(Vector2(r.get_center().x, r.end.y - m))
-	for c: Vector2 in spots:
-		draw_circle(c + Vector2(0, 1.5), 6.5, Color(0.1, 0.02, 0.0, 0.5), true, -1, true)
-		draw_circle(c, 6.0, INK, true, -1, true)
-		draw_circle(c, 4.6, Color("c27a22"), true, -1, true)
-		draw_circle(c - Vector2(0.6, 0.8), 3.6, Color("ffd36b"), true, -1, true)
-		draw_circle(c - Vector2(1.6, 1.8), 1.4, Color(1, 1, 0.92, 0.95), true, -1, true)
+	var stud := _stud_texture()
+	for c: Vector2 in spots:  # one picture, drawn as rects: they batch into one draw call
+		draw_texture_rect(stud, Rect2(c - Vector2(STUD, STUD) / 2, Vector2(STUD, STUD)), false)
+
+
+const STUD := 20.0  ## a stud's picture, side in units
+static var _stud: ImageTexture
+
+
+## A gold stud drawn once (3x): its shadow, an ink ring, the gold, a lit dome, a glint.
+static func _stud_texture() -> ImageTexture:
+	if _stud:
+		return _stud
+	var s := 3.0
+	var n := int(STUD * s)
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	var c := Vector2(n, n) / 2
+	var layers := [[Vector2(0, 2.0), 8.5, Color(0.1, 0.02, 0.0, 0.5)], [Vector2.ZERO, 8.0, INK],
+			[Vector2.ZERO, 6.2, Color("c27a22")], [Vector2(-0.8, -1.0), 4.8, Color("ffd36b")],
+			[Vector2(-2.1, -2.4), 1.9, Color(1, 1, 0.92, 0.95)]]
+	for py in n:
+		for px in n:
+			var p := Vector2(px + 0.5, py + 0.5)
+			var col := Color(0, 0, 0, 0)
+			for l: Array in layers:
+				var d: float = p.distance_to(c + (l[0] as Vector2) * s) / s
+				var a := clampf(((l[1] as float) - d) * s + 0.5, 0.0, 1.0)
+				var lc: Color = l[2]
+				col = col.blend(Color(lc, lc.a * a))
+			img.set_pixel(px, py, col)
+	_stud = ImageTexture.create_from_image(img)
+	return _stud
 
 
 ## Points filled with a vertical gradient over the paper grain (tiled by the points' own position).

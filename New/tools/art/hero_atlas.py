@@ -232,6 +232,9 @@ def grounded(arr: np.ndarray) -> np.ndarray:
     return out
 
 
+MENU_PIXELS = 550000  ## the menu picture's pixel budget (with its padding and shadow: no more than round 6's 0.61 Mpx)
+
+
 def pictures() -> None:
     """The pictures the interface shows, each lit by its screen's own light (the sunset rim from
     behind, the warm bounce: tools/art/blender/hero_render.py --light sunset): the menu's hero (full
@@ -240,7 +243,12 @@ def pictures() -> None:
     on the ground), and the turnaround stands."""
     ui = RENDER.parent / "render_ui"
     hero = trimmed(ui / "menu_hero/000.png", 1100)
-    save(grounded(hero), "hero_menu.png")
+    menu = hero
+    if hero.shape[0] * hero.shape[1] > MENU_PIXELS:  # a wide pose: as many pixels as an upright one
+        k = (MENU_PIXELS / (hero.shape[0] * hero.shape[1])) ** 0.5
+        img = Image.fromarray((np.clip(hero, 0, 1) * 255 + 0.5).astype(np.uint8), "RGBA")
+        menu = premultiplied_resize(img, k)
+    save(grounded(menu), "hero_menu.png")
     # the portrait: 660 x 752 from his hair to his hips
     h, w = hero.shape[:2]
     crop_h = int(h * 0.56)

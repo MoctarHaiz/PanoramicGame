@@ -20,7 +20,7 @@ static func open(host: Control, resume: Callable, home: Callable, hide: Array = 
 	var help := CenterContainer.new()  # where the moves open (Controls)
 	help.visible = false
 	body.add_child(help)
-	var go := Ui.candy_button(tr_key("RESUME"), "play-fill", Ui.Tone.OCHRE, 122, 54)
+	var go := Ui.candy_button(tr_key("RESUME"), "play-fill", Ui.Tone.GREEN, 122, 54)
 	go.custom_minimum_size.x = 2 * TILE + GAP + 120.0  # the main action, not a full-width bar
 	go.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	go.pressed.connect(resume)
@@ -67,7 +67,7 @@ static func _tile(icon_name: String, tone: Ui.Tone, caption: String) -> VBoxCont
 
 ## The name of a tile, under it.
 static func _caption(caption: String) -> Label:
-	return Ui.label(caption, 31, Color("5a2408"), Ui.font_title)
+	return Ui.label(caption, 34, Color("3a1404"), Ui.font_display)
 
 
 ## The five moves, each on a dark tile where a hand plays its gesture, its name under it.
@@ -105,9 +105,9 @@ static func moves_list() -> Array:
 			[Gesture.Kind.RIGHT, "MOVE_STEP"], [Gesture.Kind.TAP, "MOVE_THROW"]]
 
 
-## Music or sounds on and off, shown on the icon in both states: on, the icon itself (notes; a speaker
-## with its waves); off, its off icon (a speaker with a cross) or, where there is none, the icon dimmed
-## and struck through. A gold tile, its name under it.
+## Music or sounds on and off, read at a glance: a badge on the tile's corner (a green "ON", a red
+## "OFF"), and the icon itself (notes, a speaker with its waves; off: a speaker with a cross, or the
+## notes dimmed and struck through). A gold tile, its name under it.
 class SoundSwitch extends VBoxContainer:
 	var _option: StringName
 	var _icon_name := ""
@@ -138,6 +138,7 @@ class SoundSwitch extends VBoxContainer:
 			Audio.apply_settings()
 			_fill())
 		_holder.add_child(b)
+		b.add_child(_badge(on))
 		if not on and _off_icon.is_empty():  # no off icon: dimmed and struck through, a dark-edged red bar
 			b.content.self_modulate.a = 0.38
 			var side: float = b.content.custom_minimum_size.x
@@ -149,3 +150,24 @@ class SoundSwitch extends VBoxContainer:
 				slash.begin_cap_mode = Line2D.LINE_CAP_ROUND
 				slash.end_cap_mode = Line2D.LINE_CAP_ROUND
 				b.content.add_child(slash)
+
+	## The state's badge on the tile's lower right corner: a green pill "ON" or a red pill "OFF".
+	static func _badge(on: bool) -> Control:
+		var pill := PanelContainer.new()
+		var st := StyleBoxFlat.new()
+		st.bg_color = Color("4fae22") if on else Color("d8261a")
+		st.border_color = Color("1e3a0c") if on else Color("4a0804")
+		st.set_border_width_all(4)
+		st.set_corner_radius_all(18)
+		st.content_margin_left = 13
+		st.content_margin_right = 13
+		st.content_margin_top = 0
+		st.content_margin_bottom = 1
+		st.anti_aliasing = true
+		pill.add_theme_stylebox_override(&"panel", st)
+		pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var word := TranslationServer.translate("SWITCH_ON" if on else "SWITCH_OFF").to_upper()
+		pill.add_child(Ui.label(word, 27, Color.WHITE, Ui.font_display))
+		pill.size = pill.get_combined_minimum_size()
+		pill.position = Vector2(TILE - pill.size.x * 0.72, TILE - pill.size.y * 0.95)
+		return pill
