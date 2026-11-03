@@ -19,11 +19,13 @@ extends Node
 ##
 ## Godot --path . --fixed-fps 60 --resolution 200x200 --always-on-top res://tests/perf.tscn -- \
 ##     [--device=iphone15_2556x1179 | --size=2556x1179] [--seconds=40] [--pause-at=20] [--ads=on]
-##     [--jump-mb=4] [--out=build/perf/perf.json]
+##     [--jump-mb=4] [--hide=soil,FrontGrass] [--out=build/perf/perf.json]
 ## --device takes a size and notches from tests/capture.gd (default iphone15_2556x1179); --seconds
 ## plays that much of the run (default: the whole level, about 2 minutes); --pause-at pauses the
 ## run that many seconds in (default 20); --ads=on keeps room for the ad banner; --jump-mb lists every
-## frame whose texture memory grew by more than that (default 4 MB), with the nodes added then.
+## frame whose texture memory grew by more than that (default 4 MB), with the nodes added then;
+## --hide hides the game screen's nodes with those names (wildcards: as tests/strip.gd), for an A/B
+## of what one layer costs (run both on a quiet machine: the frame times move with its load).
 ## macOS skips drawing a covered window: such frames are drawn on demand (force_draw), so the
 ## numbers hold, but keep --always-on-top. The first run records the bot (about 5 minutes, then
 ## kept in build/qa/). Frame times are only meaningful on a quiet machine (others' renders and
@@ -135,6 +137,9 @@ func _ready() -> void:
 		await get_tree().process_frame
 	var game: Node = Nav.current
 	game.autopilot = replay
+	for name: String in String(a.get("hide", "")).split(",", false):  # A/B: what a layer costs
+		for n: Node in game.find_children(name, "CanvasItem", true, false):
+			n.visible = false
 	await _wait(SETTLE)
 	_phase = "run"
 	_run_clock = 0.0

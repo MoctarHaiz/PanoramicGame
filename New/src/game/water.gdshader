@@ -39,10 +39,11 @@ void fragment() {
 	float ripple = noise(vec2(x * 0.03 + t * 0.35, floor(d / 5.0) * 3.7));
 	float band_y = d + (ripple - 0.5) * 5.0;
 	vec3 c = deep.rgb;
-	c = mix(c, mix(shallow.rgb, deep.rgb, 0.45), step(band_y, 34.0));
-	c = mix(c, shallow.rgb, step(band_y, 18.0));
+	c = mix(c, mix(shallow.rgb, deep.rgb, 0.5), step(band_y, 30.0));
+	c = mix(c, shallow.rgb * 1.08, step(band_y, 15.0));
 	vec3 sky_band = mix(sky_tint.rgb, vec3(0.62, 0.82, 0.9), 0.35);
-	c = mix(c, sky_band, step(band_y, 8.0));
+	c = mix(c, sky_band, step(band_y, 6.0));
+	c *= mix(1.0, 0.72, smoothstep(6.0, 60.0, d));  // (round 6: deeper is darker within the bands: it reads small)
 	// ripple dashes: short light strokes along the bands, sliding with the current
 	float dash_row = fract(d / 7.0);
 	float dash = step(0.62, noise(vec2(x * 0.06 - t * 0.5, floor(d / 7.0) * 5.3))) * (1.0 - smoothstep(0.0, 0.18, abs(dash_row - 0.5)));

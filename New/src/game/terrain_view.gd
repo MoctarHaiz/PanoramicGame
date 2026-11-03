@@ -41,7 +41,7 @@ const TUFT := Vector2(64, 48)  ## tufts.png: one row of 8
 const FRONT_H := 24.0  ## front_grass.png: blades rise from 14 units under the surface
 const FRONT_BASE := 18.0
 const FOOT_SHADE := Color(0.18, 0.06, 0.14, 0.62)  ## at the foot of a wall
-const CAST_SHADE := Color(0.16, 0.1, 0.2, 0.55)  ## a wall's long shadow on the ground (round 4: softer, no seam)
+const CAST_SHADE := Color(0.16, 0.1, 0.2, 0.68)  ## a wall's long shadow on the ground (soft-started: no seam)
 const CAST_K := 0.75  ## its length per unit of the wall's height (a low sun)
 const DRAPE := Vector2(30, 50)  ## grass_drape.png: two pieces (left side, right side), each this size
 const DRAPE_IN := 8.0  ## units of a drape over its own cell (the rest hangs past the open side)
@@ -210,7 +210,7 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 		var end := span % 100
 		var w := float(span / 10000)
 		var h := (end - r) * T + (40.0 if end >= Level.ROWS else 22.0)
-		var width := SPIRE.x * (1.0 if w == 1.0 else 1.7)
+		var width := SPIRE.x * (1.0 if w == 1.0 else 1.7) * (0.86 + 0.34 * _hash(c, 21, 100) / 100.0)  # (round 6: each its own width)
 		var rect := Rect2(x + T * w / 2 - width / 2, y - 6.0, width, h + 4.0)
 		if _hash(c, 17, 2) == 0:  # mirrored now and then (a negative width flips in place): no twins
 			rect.size.x = -rect.size.x
@@ -221,7 +221,7 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 	# (round 4: no more strip of earth under a ledge's cells: it stopped square before the ledge's
 	# rounded ends; the masses below and the ledge's own shade make its underside)
 	if open_s and not pole and not (solid(c - 1, r) and not solid(c - 1, r + 1)):
-		_hang_masses(c, r, b[&"mass"])
+		_hang_masses(c, r, b[&"mass"], b[&"foot"])
 	if not open_n and _wall_foot(c, r):  # (round 2) the ground's grass runs on across a wall's foot
 		b[&"caps"].items.append([Rect2(x, y - CAP_ABOVE, T, CAP_H),
 				Rect2(fposmod(x * PX, STRIP), 0, T * PX, CAP_H * PX), Color.WHITE])
@@ -233,7 +233,7 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 	# instead, which wraps the corner and fades into the next cell's strip
 	if not open_w and not open_e:
 		b[&"caps"].items.append([Rect2(x, y - CAP_ABOVE, T, CAP_H),
-				Rect2(fposmod(x * PX, STRIP), 0, T * PX, CAP_H * PX), Color.WHITE])
+				Rect2(_strip_x(c, x), 0, T * PX, CAP_H * PX), _grass_tone(c)])
 	if open_w:
 		b[&"ends"].items.append([Rect2(x - END_OUT, y - CAP_ABOVE, END_W, END_H),
 				Rect2(0, 0, END_W * PX, END_H * PX), Color.WHITE])
@@ -242,7 +242,7 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 				Rect2(END_W * PX, 0, END_W * PX, END_H * PX), Color.WHITE])
 	if not open_w and not open_e:
 		b[&"roots"].items.append([Rect2(x, y, T, ROOTS_H),
-				Rect2(fposmod(x * PX, STRIP), 0, T * PX, ROOTS_H * PX), Color.WHITE])
+				Rect2(_strip_x(c, x), 0, T * PX, ROOTS_H * PX), Color.WHITE])
 	# the tufted lip over each open side
 	if open_w:
 		b[&"drape"].items.append([Rect2(x - (DRAPE.x - DRAPE_IN), y - DRAPE_TOP, DRAPE.x, DRAPE.y),
@@ -282,7 +282,7 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 ## Round 2: under a floating ledge (from its left end, cell c of row r), the earth and rock it
 ## carries (hanging.png): biggest under its middle, smaller to its ends, so it reads as a floating
 ## island; never down into what lies under it.
-func _hang_masses(c: int, r: int, batch: Batch) -> void:
+func _hang_masses(c: int, r: int, batch: Batch, batch_shadow: Batch) -> void:
 	var n := 0
 	while n < 60 and solid(c + n, r) and not solid(c + n, r + 1):
 		n += 1
@@ -298,6 +298,14 @@ func _hang_masses(c: int, r: int, batch: Batch) -> void:
 	var x1 := (c + n) * T - MASS_INSET  # (they ran ~2 cells past them, their flat tops showing)
 	if x1 - x0 < 24.0:
 		return
+	# round 6: its shadow on the ground below, away from the low sun (further the higher it floats)
+	var ground_r := r + 1 + free
+	if ground_r < Level.ROWS and solid(c + n / 2, ground_r):
+		var drop := free * T
+		var sx := c * T + length * 0.5 + drop * 0.35
+		var sw := length * 0.95 + 40.0
+		batch_shadow.items.append([Rect2(sx - sw / 2, ground_r * T - 14.0, sw, 30.0), Rect2(0, 0, 64, 64),
+				Color(0.14, 0.08, 0.18, clampf(0.55 - drop / 900.0, 0.2, 0.5))])
 	for i in count:
 		var u := (i + 0.5) / count
 		var k := 0.5 + 0.5 * pow(sin(PI * u), 0.7) if count > 1 else 1.0
@@ -337,6 +345,20 @@ func _find_feet() -> void:
 			if (top_left or top_right) and i - start <= 16 and not _in_pole(_c0 + start, r - 1):
 				for k in range(start, i):
 					_feet[r * _cols + k] = 1
+
+
+## Round 6: where a cell reads the grass strip: each run of 24 cells from its own place in it (the
+## 1024-unit repeat showed), in px.
+func _strip_x(c: int, x: float) -> float:
+	return fposmod(x * PX + _hash(floori(c / 24.0), 77, 1000) * 1.7, STRIP)
+
+
+## Round 6: the grass a little lighter or darker, warmer or greener, drifting slowly along the ground.
+static func _grass_tone(c: int) -> Color:
+	var i := floori(c / 7.0)
+	var t := smoothstep(0.0, 1.0, c / 7.0 - i)
+	var v := lerpf(_hash(i, 5, 100), _hash(i + 1, 5, 100), t) / 100.0
+	return Color(0.94 + v * 0.12, 0.97 + v * 0.06, 0.92 + v * 0.06)
 
 
 func _in_pole(c: int, r: int) -> bool:

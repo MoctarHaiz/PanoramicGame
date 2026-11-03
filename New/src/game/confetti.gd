@@ -7,14 +7,14 @@ extends Node2D
 ## pieces smear along their path. Everything is drawn in a few batched calls, then the node frees
 ## itself. Made by Fx (rescue, game over, the bushes, the stone).
 
-enum Shape { PAPER, RIBBON, SEQUIN, STAR, LEAF, CHIP, COIN, PETAL, BEAD, STREAMER, STRIP }
+enum Shape { PAPER, RIBBON, SEQUIN, STAR, LEAF, CHIP, COIN, PETAL, BEAD, STREAMER, STRIP, STRIP_NEAR }
 
 ## Size of each shape in design px at size 1.
 const SIZES := {
 	Shape.PAPER: Vector2(19, 12), Shape.RIBBON: Vector2(30, 10), Shape.SEQUIN: Vector2(13, 13),
 	Shape.STAR: Vector2(19, 19), Shape.LEAF: Vector2(27, 14), Shape.CHIP: Vector2(15, 13), Shape.COIN: Vector2(22, 22),
 	Shape.PETAL: Vector2(18, 11), Shape.BEAD: Vector2(10, 10), Shape.STREAMER: Vector2(54, 15),
-	Shape.STRIP: Vector2(22, 8),
+	Shape.STRIP: Vector2(22, 8), Shape.STRIP_NEAR: Vector2(24, 10),
 }
 const STREAK_SPEED := 420.0  ## faster than this (px/s), a piece leaves a smear
 ## Two-tone paper (STRIP): the colour of a strip's back for each front colour (others: darker).
@@ -187,7 +187,7 @@ func _draw_blur(shape: int) -> void:
 		if speed > STREAK_SPEED:
 			var k := minf((speed - STREAK_SPEED) / 600.0, 1.0)
 			var c := _shade(p)
-			if p.shape == Shape.STREAMER or p.shape == Shape.RIBBON:  # a ribbon leaves two fading afterimages of itself
+			if p.shape in [Shape.STREAMER, Shape.RIBBON, Shape.STRIP_NEAR]:  # two fading afterimages of itself
 				for back in [0.022, 0.044]:
 					draw_set_transform(p.pos - p.vel * back, p.turn, Vector2(1.0, maxf(absf(cos(p.flip)), 0.55)))
 					draw_texture_rect(_textures[p.shape], Rect2(-p.size / 2, p.size), false, Color(c, c.a * 0.3 * k * (1.0 - back * 12.0)))
@@ -212,9 +212,14 @@ func _draw_pieces() -> void:
 			var twist := Vector2(w, 1.0)
 			if p.shape == Shape.STREAMER or p.shape == Shape.RIBBON:
 				twist = Vector2(1.0, maxf(w, 0.55))
-			elif p.shape == Shape.STRIP:
+			elif p.shape == Shape.STRIP or p.shape == Shape.STRIP_NEAR:
 				twist = Vector2(1.0, maxf(w, 0.3))
 			draw_set_transform(p.pos, p.turn, twist * grow)
+			if p.shape == Shape.STRIP_NEAR:  # out of focus: three soft copies, each larger and fainter
+				var c := _shade(p)
+				for blur: Vector2 in [Vector2(1.0, 0.5), Vector2(1.15, 0.28), Vector2(1.32, 0.16)]:
+					draw_texture_rect(tex, Rect2(-p.size * blur.x / 2, p.size * blur.x), false, Color(c, c.a * blur.y))
+				continue
 			draw_texture_rect(tex, Rect2(-p.size / 2, p.size), false, _shade(p))
 	draw_set_transform(Vector2.ZERO)
 
@@ -258,7 +263,7 @@ func _shade(p: Piece) -> Color:
 	var lit := 0.6 + 0.4 * absf(face)
 	var base := p.colour
 	if face < 0.0:
-		if p.shape == Shape.STRIP:  # two-tone paper: its other side shows as it turns over
+		if p.shape == Shape.STRIP or p.shape == Shape.STRIP_NEAR:  # two-tone paper: its other side shows as it turns over
 			base = p.back
 		else:
 			lit *= 0.8
@@ -270,7 +275,7 @@ func _shade(p: Piece) -> Color:
 
 ## How much a piece catches the light (0 to 1): for an instant as it turns full face.
 func _glint(p: Piece) -> float:
-	if p.shape in [Shape.LEAF, Shape.CHIP, Shape.PETAL, Shape.STREAMER, Shape.RIBBON]:  # satin and leaves: their sheen is in their shading
+	if p.shape in [Shape.LEAF, Shape.CHIP, Shape.PETAL, Shape.STREAMER, Shape.RIBBON, Shape.STRIP_NEAR]:  # satin and leaves: their sheen is in their shading
 		return 0.0
 	return pow(maxf(cos(p.flip + p.glint_phase), 0.0), 24.0) * maxf(cos(p.flip), 0.0)
 
@@ -342,6 +347,9 @@ static func _bake_textures() -> void:
 	_textures[Shape.STRIP] = _bake(Vector2i(44, 16), func(u: Vector2) -> Vector2:
 		var d := _box(u, Vector2(0.95, 0.85), 0.2)
 		return Vector2(0.78 + 0.18 * (1.0 - absf(u.x + 0.3)) - 0.08 * u.y, d))
+	# A paper strip close to the eye: the strip's own picture (so they batch together), drawn out of
+	# focus by _draw_pieces (three soft copies).
+	_textures[Shape.STRIP_NEAR] = _textures[Shape.STRIP]
 	# A streamer: a wide satin ribbon in a gentle double curl, shaded across its width (lit edge on
 	# top, a glossy band, its underside darker) and darker where the curl turns away from the light.
 	_textures[Shape.STREAMER] = _bake(Vector2i(96, 30), func(u: Vector2) -> Vector2:

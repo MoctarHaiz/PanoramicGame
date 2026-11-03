@@ -123,3 +123,13 @@ kept alive by test lambdas that capture them).
   (noise blurred 22 x 5, its x-gradient lights the cliffs) at 1 px per unit, magnified 1.8-3.2x; not compression
   (decoded import = PNG). Island: the soil band is still a square box (A/B with --hide).
 - 1022 checks, 1 failed (the iPad HUD band, a real bug); quick 775, 0 failed.
+
+## Round 6 (audit of the round 5 merge, 85be753)
+
+- Light hero outline = hero_render.py's hull Emission INK (0.16, 0.07, 0.04) read by Blender as linear: renders as
+  sRGB (111, 75, 56), a bronze band inside hero_atlas.py's dark sRGB ring (41, 18, 10): a double line. Measured on
+  the raw render and the judge's capture (110, 72, 54). Linear value to use: (0.022, 0.006, 0.003).
+- Home "black rectangle" = HomeView.Fire._draw()'s pot: a flat Color(0.16, 0.1, 0.09) trapezoid over vector flames.
+- perf: `--hide=` for A/B. Cel soil layer: no measurable cost (A/B twice); 9-20 ms render-CPU spikes in every run
+  under load 10-16. Budgets pass (texture 62-63 MB, own work 13.5-14.2 ms). Pause draw calls 435 -> 273.
+- Tests 1022, 0 failed; quick 775, 0 failed.

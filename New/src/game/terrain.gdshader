@@ -109,10 +109,11 @@ void fragment() {
 	c *= mix(vec3(1.0), sun_tint, band_lit);
 	c *= mix(vec3(1.0), shade_tint * 0.8, band_shade);
 	// under the grass lip: a crisp band of shadow; the foot of a wall darker; a ledge's underside
-	float lip = 14.0 + noise(level_pos.x * 0.09) * 6.0;
-	c *= 1.0 - 0.45 * (1.0 - smoothstep(lip - 1.0, lip + 1.0, depth));
-	if (width < 200.0) {
-		c *= 1.0 - 0.28 * (1.0 - smoothstep(26.0, 30.0, to_foot)) * smoothstep(30.0, 40.0, depth);
+	float lip = 18.0 + noise(level_pos.x * 0.09) * 8.0;  // (round 6: deeper, the grass overhangs)
+	c *= 1.0 - 0.55 * (1.0 - smoothstep(lip - 1.0, lip + 1.0, depth));
+	c *= 1.0 - 0.18 * (1.0 - smoothstep(lip + 1.0, lip + 9.0, depth));  // (and a soft fall-off under it)
+	if (width < 200.0) {  // a dark contact where a wall meets the ground
+		c *= 1.0 - 0.42 * (1.0 - smoothstep(22.0, 30.0, to_foot)) * smoothstep(30.0, 40.0, depth);
 	}
 	float to_bottom = 32.0 - mod(level_pos.y, 32.0);
 	c *= 1.0 - 0.38 * (1.0 - smoothstep(9.0, 11.0, to_bottom)) * ledge;
@@ -124,6 +125,9 @@ void fragment() {
 		// (round 4: rounder, deeper: a one-cell ledge no longer ends in a straight vertical edge)
 		float cut = max(depth - 6.0, 0.0) * 1.3 + noise(level_pos.y * 0.2 + float(cell.x)) * 4.0;
 		taper = cells.g < 0.5 ? 1.0 - smoothstep(cut - 0.7, cut + 0.7, from_left) : 0.0;
+		// (round 6) a warm rim along an island's end on the sun's side
+		float end_rim = cells.g < 0.5 ? (1.0 - smoothstep(0.0, 4.0, from_left - cut)) * step(cut, from_left) : 0.0;
+		c = mix(c, min(c * 1.5 + rim_colour * 0.22, vec3(1.0)), end_rim * 0.7);
 		taper = max(taper, cells.b < 0.5 ? 1.0 - smoothstep(cut - 0.7, cut + 0.7, from_right) : 0.0);
 	}
 	// New: a wall's open sides are eroded (bulges and notches along its height, more towards its

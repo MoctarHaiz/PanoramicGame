@@ -2776,6 +2776,39 @@
    }
   },
   {
+   "id": "world-tree_acacia_6",
+   "role": "background tree (acacia, baobab), anchors in tree_info.json",
+   "path": "assets/art/world/tree_acacia_6.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "560x400",
+    "alpha": true,
+    "anchor": "bottom-centre at the trunk",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette",
+    "light-direction"
+   ],
+   "source": {
+    "kind": "authored-procedural",
+    "url_or_tool": "tools/art/trees.py",
+    "creator": "Claude for Haiz Studio",
+    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
+    "prompt_or_source_record": "tools/art/trees.py",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
    "id": "world-tree_baobab_1",
    "role": "background tree (acacia, baobab), anchors in tree_info.json",
    "path": "assets/art/world/tree_baobab_1.png",
@@ -2812,6 +2845,72 @@
    "id": "world-tree_baobab_2",
    "role": "background tree (acacia, baobab), anchors in tree_info.json",
    "path": "assets/art/world/tree_baobab_2.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "460x560",
+    "alpha": true,
+    "anchor": "bottom-centre at the trunk",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette",
+    "light-direction"
+   ],
+   "source": {
+    "kind": "authored-procedural",
+    "url_or_tool": "tools/art/trees.py",
+    "creator": "Claude for Haiz Studio",
+    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
+    "prompt_or_source_record": "tools/art/trees.py",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "world-tree_baobab_3",
+   "role": "background tree (acacia, baobab), anchors in tree_info.json",
+   "path": "assets/art/world/tree_baobab_3.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "460x560",
+    "alpha": true,
+    "anchor": "bottom-centre at the trunk",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette",
+    "light-direction"
+   ],
+   "source": {
+    "kind": "authored-procedural",
+    "url_or_tool": "tools/art/trees.py",
+    "creator": "Claude for Haiz Studio",
+    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
+    "prompt_or_source_record": "tools/art/trees.py",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "world-tree_baobab_4",
+   "role": "background tree (acacia, baobab), anchors in tree_info.json",
+   "path": "assets/art/world/tree_baobab_4.png",
    "status": "approved",
    "technical": {
     "dimensions": "460x560",

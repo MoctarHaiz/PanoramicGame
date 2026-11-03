@@ -41,6 +41,8 @@ func build() -> void:
 	_put(back, "home_hut_low", LEFT + 1400.0, 0.8, Color(0.86, 0.84, 0.9), true).material = form(1.0)
 	_fence(back, LEFT + 120.0, LEFT + 680.0)
 	_fence(back, LEFT + 960.0, LEFT + 1900.0)
+	var sign_shadow := _put(back, "home_sign", LEFT + 556.0, 1.35, Color(0.08, 0.04, 0.06, 0.4))  # (round 6: its shadow)
+	sign_shadow.skew = 0.35
 	_put(back, "home_sign", LEFT + 548.0, 1.35, Color.WHITE).material = form(0.0, 0.6)
 	_put(back, "home_pot", hut_left + float(hut_info["door_x"]) - 62.0, 1.0, Color.WHITE)
 	# round 3: the homestead is alive: a cooking fire in the yard, and people at it who greet him
@@ -206,8 +208,8 @@ func _smoke() -> CPUParticles2D:
 	return p
 
 
-## Round 3: a cooking fire in the yard: a ring of stones, flames licking up and flickering (drawn,
-## no picture), a pot on three stones over it, its light on the ground (home_glow.png, added).
+## Round 3: a cooking fire in the yard (drawn, no picture): a ring of stones, crossed logs, flames
+## licking up and flickering, its light on the ground (home_glow.png, added).
 class Fire extends Node2D:
 	var _clock := 0.0
 	var _glow: Sprite2D
@@ -229,19 +231,26 @@ class Fire extends Node2D:
 		queue_redraw()
 
 	func _draw() -> void:
-		for i in 5:  # the flames: tongues swaying and stretching, hot cores
-			var x := (i - 2) * 6.0
-			var h := 26.0 + 9.0 * sin(_clock * (7.0 + i) + i * 1.7) + (6.0 if i == 2 else 0.0)
-			var lean := sin(_clock * 3.1 + i) * 4.0 + 3.0
-			var base := 7.0 - absf(i - 2) * 1.2
-			draw_colored_polygon(PackedVector2Array([Vector2(x - base, -4), Vector2(x + base, -4), Vector2(x + lean, -4 - h)]),
-					Color(1.0, 0.45, 0.1, 0.9))
-			draw_colored_polygon(PackedVector2Array([Vector2(x - base * 0.5, -4), Vector2(x + base * 0.5, -4), Vector2(x + lean * 0.6, -4 - h * 0.6)]),
-					Color(1.0, 0.85, 0.4, 0.95))
-		for i in 7:  # the stones
-			var sx := (i - 3) * 8.0
-			draw_circle(Vector2(sx, -2.0 - absf(i - 3) * 0.4), 5.5, Color(0.22, 0.15, 0.13))
-			draw_circle(Vector2(sx - 1.5, -3.5), 2.2, Color(0.75, 0.42, 0.22))  # lit by the fire
-		draw_colored_polygon(PackedVector2Array([Vector2(-12, -30), Vector2(12, -30), Vector2(10, -16), Vector2(-10, -16)]),
-				Color(0.16, 0.1, 0.09))  # the pot over it, in silhouette
-		draw_line(Vector2(-13, -31), Vector2(13, -31), Color(0.85, 0.5, 0.25), 2.0)
+		# round 6: a campfire (the pot over it read as a black box): hearth stones, two crossed logs,
+		# flame tongues over them
+		for i in 7:  # flat stones, lit on top, in a ring
+			var sx := (i - 3) * 7.5
+			draw_set_transform(Vector2(sx, -2.0), 0.0, Vector2(1.0, 0.55))
+			draw_circle(Vector2.ZERO, 5.0, Color(0.36, 0.3, 0.28))
+			draw_circle(Vector2(-0.8, -1.8), 3.4, Color(0.62, 0.5, 0.42))
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		for side in [-1.0, 1.0]:  # the logs, crossed, their ends glowing
+			var a := Vector2(-16.0 * side, -2.0)
+			var b := Vector2(12.0 * side, -12.0)
+			draw_line(a, b, Color(0.3, 0.17, 0.1), 5.0)
+			draw_line(a + Vector2(0, -1.5), b + Vector2(0, -1.5), Color(0.55, 0.32, 0.18), 1.6)
+			draw_circle(b, 2.6, Color(1.0, 0.55, 0.18))
+		for i in 5:  # the flames: tongues swaying and stretching, a hot core in each
+			var x := (i - 2) * 5.5
+			var h := 24.0 + 8.0 * sin(_clock * (7.0 + i) + i * 1.7) + (8.0 if i == 2 else 0.0) - absf(i - 2) * 3.0
+			var lean := sin(_clock * 3.1 + i) * 3.5 + 2.0
+			var base := 6.0 - absf(i - 2) * 0.8
+			draw_colored_polygon(PackedVector2Array([Vector2(x - base, -6), Vector2(x + base, -6), Vector2(x + lean * 0.5 + base * 0.6, -6 - h * 0.5),
+					Vector2(x + lean, -6 - h), Vector2(x + lean * 0.5 - base * 0.6, -6 - h * 0.5)]), Color(1.0, 0.42, 0.1, 0.92))
+			draw_colored_polygon(PackedVector2Array([Vector2(x - base * 0.5, -6), Vector2(x + base * 0.5, -6), Vector2(x + lean * 0.6, -6 - h * 0.62)]),
+					Color(1.0, 0.86, 0.42, 0.95))

@@ -311,6 +311,7 @@ def rondavel(seed: int = 83) -> Image.Image:
     col = mix(col, ramp(np.clip(0.7 - (xx - cx) / (6 * PX), 0, 1), THATCH), fin)
     a = np.clip(np.maximum.reduce([wall.astype(float), roof.astype(float), fin]), 0, 1)
     a = blur(a, 0.6)
+    col = mix(col, hexc("2a160e"), ink_edge(np.clip(a * 1.2, 0, 1), 2.4) * 0.85)  # (round 6: inked as the main hut)
     return dither_rgba(np.clip(col, 0, 255), np.clip(a * 1.2, 0, 1), rng)
 
 
@@ -340,6 +341,7 @@ def granary() -> Image.Image:
     col = mix(col, b_col, basket)
     col = mix(col, r_col, roof)
     a = np.clip(np.maximum.reduce([legs, basket, roof]), 0, 1)
+    col = mix(col, hexc("2a160e"), ink_edge(a, 2.2) * 0.85)  # (round 6: inked as the main hut)
     return dither_rgba(np.clip(col, 0, 255), a, rng)
 
 
@@ -351,20 +353,34 @@ def fence() -> Image.Image:
     x = 0.0
     run = 0.0  # stakes come in runs of similar height, the line of tops wanders
     while x < w:
-        sw = rng.uniform(4, 10) * PX
+        sw = rng.uniform(3.5, 12) * PX  # (round 6: wider range)
         run += rng.normal(0, 7.5) * PX  # round 2: the line of tops wanders more
         run = float(np.clip(run, -16 * PX, 28 * PX))
         top = float(np.clip(16 * PX + run + rng.uniform(-11, 11) * PX, 0, 52 * PX))
         if rng.random() < 0.08:  # now and then a tall forked post
             top = 0.0
-        lean = rng.uniform(-2.5, 2.5) * PX
+        lean = rng.uniform(-4.5, 4.5) * PX
         tip = rng.uniform(-2, 2) * PX
-        pts = [(x, h), (x + sw, h), (x + sw + lean, top + 4 * PX), (x + sw / 2 + tip + lean, top), (x + lean, top + 4 * PX)]
+        kind = rng.random()  # round 6: pointed, flat-cut or forked tops
+        if kind < 0.55:
+            pts = [(x, h), (x + sw, h), (x + sw + lean, top + 4 * PX), (x + sw / 2 + tip + lean, top), (x + lean, top + 4 * PX)]
+        elif kind < 0.8:
+            pts = [(x, h), (x + sw, h), (x + sw + lean, top + 1 * PX), (x + lean, top + 2.5 * PX)]
+        else:
+            pts = [(x, h), (x + sw, h), (x + sw + lean, top), (x + sw / 2 + lean, top + 5 * PX), (x + lean, top)]
         stakes.append(pts)
         lit.append([(x, h), (x + sw * 0.35, h), (x + sw * 0.35 + lean, top + 3 * PX), (x + lean, top + 4 * PX)])
         if rng.random() < 0.3:  # an old stake, darker
             dark.append(pts)
         x += sw + (rng.uniform(0.3, 2.2) if rng.random() > 0.08 else rng.uniform(5, 12)) * PX  # a gap now and then
+    # round 6: now and then a brace across a few stakes, and lashings binding them
+    braces = []
+    for _ in range(5):
+        bx = rng.uniform(0, w - 70 * PX)
+        y0, y1 = rng.uniform(40, 60) * PX, rng.uniform(20, 34) * PX
+        span = rng.uniform(30, 60) * PX
+        braces.append([(bx, y0), (bx + 3 * PX, y0 + 2 * PX), (bx + span + 3 * PX, y1 + 2 * PX), (bx + span, y1)])
+    stakes = stakes + braces
     m = poly_mask(w, h, stakes)
     lm = poly_mask(w, h, lit)
     dm = poly_mask(w, h, dark)
@@ -378,6 +394,10 @@ def fence() -> Image.Image:
         col = mix(col, hexc("4e3a28") * (1 + 0.3 * (np.sin(xx * 0.6) > 0.5))[..., None], band * 0.9)
         m = np.maximum(m, band * 0.95)
     col *= (1 - 0.4 * smooth(h * 0.7, h, yy))[..., None]
+    knots = poly_mask(w, h, [], ellipses=[(rng.uniform(0, w), wy + rng.uniform(-2, 2) * PX, 3 * PX, 2.4 * PX)
+                                          for wy in (30 * PX, 62 * PX) for _ in range(14)])
+    col = mix(col, hexc("6a4a2c"), knots * m)  # lashings knotted round the stakes
+    col = mix(col, hexc("2a160e"), ink_edge(np.clip(m, 0, 1), 2.2) * 0.8)  # inked as the huts
     return dither_rgba(np.clip(col, 0, 255), np.clip(m, 0, 1), rng)
 
 
@@ -397,54 +417,32 @@ def sign() -> Image.Image:
     # carving: letters and a border of triangles, cut in (dark in the groove, a light lower-right lip)
     carve = Image.new("L", (w * SS, h * SS), 0)
     d = ImageDraw.Draw(carve)
-    # round 2: the letters cut with a chisel (the rounded font read as a text layer pasted on):
-    # wedge strokes, a little uneven, as a hand would cut them
-    k = PX * SS
-    top_y, bot_y = by0 + 9 * PX, by1 - 9 * PX
-
-    def cut(pts):
-        d.polygon([((x + rng.uniform(-0.45, 0.45) * PX) * SS, (y + rng.uniform(-0.45, 0.45) * PX) * SS) for x, y in pts], fill=255)
-
-    def stroke(x0, y0, x1, y1, wd):
-        dx, dy = x1 - x0, y1 - y0
-        n = np.hypot(dx, dy)
-        nx, ny = -dy / n * wd / 2, dx / n * wd / 2
-        cut([(x0 + nx * 0.8, y0 + ny * 0.8), (x0 + (x1 - x0) * 0.5 + nx * 1.1, y0 + (y1 - y0) * 0.5 + ny * 1.1),
-             (x1 + nx * 0.8, y1 + ny * 0.8), (x1 - nx * 0.8, y1 - ny * 0.8),
-             (x0 + (x1 - x0) * 0.5 - nx * 1.1, y0 + (y1 - y0) * 0.5 - ny * 1.1), (x0 - nx * 0.8, y0 - ny * 0.8)])
-
-    sw = 4.6 * PX  # stroke width
-    lw = 15 * PX  # letter width
-    x = 12 * PX
-    hgt = bot_y - top_y
-    # H
-    stroke(x + sw / 2, top_y, x + sw / 2, bot_y, sw)
-    stroke(x + lw - sw / 2, top_y, x + lw - sw / 2, bot_y, sw)
-    stroke(x + sw / 2, top_y + hgt * 0.5, x + lw - sw / 2, top_y + hgt * 0.5, sw * 0.9)
-    x += lw + 3.5 * PX
-    # O: an eight-sided ring
-    ocx, ocy, rx, ry = x + lw / 2 + 0.5 * PX, (top_y + bot_y) / 2, lw / 2 + 0.5 * PX, hgt / 2
-    ring = [(ocx + rx * np.cos(a), ocy + ry * np.sin(a)) for a in np.linspace(0, 2 * np.pi, 9)[:8] + np.pi / 8]
-    cut(ring)
-    inner = [(ocx + (rx - sw) * np.cos(a), ocy + (ry - sw * 0.95) * np.sin(a)) for a in np.linspace(0, 2 * np.pi, 9)[:8] + np.pi / 8]
-    d.polygon([(px_ * SS, py_ * SS) for px_, py_ in inner], fill=0)
-    x += lw + 4.5 * PX
-    # M
-    stroke(x + sw / 2, top_y, x + sw / 2, bot_y, sw)
-    stroke(x + lw + 2 * PX - sw / 2, top_y, x + lw + 2 * PX - sw / 2, bot_y, sw)
-    stroke(x + sw * 0.6, top_y + 1 * PX, x + (lw + 2 * PX) / 2, top_y + hgt * 0.62, sw * 0.85)
-    stroke(x + lw + 2 * PX - sw * 0.6, top_y + 1 * PX, x + (lw + 2 * PX) / 2, top_y + hgt * 0.62, sw * 0.85)
-    x += lw + 2 * PX + 3.5 * PX
-    # E
-    stroke(x + sw / 2, top_y, x + sw / 2, bot_y, sw)
-    stroke(x + sw / 2, top_y + sw * 0.45, x + lw - 2 * PX, top_y + sw * 0.45, sw * 0.9)
-    stroke(x + sw / 2, top_y + hgt * 0.5, x + lw - 3.5 * PX, top_y + hgt * 0.5, sw * 0.85)
-    stroke(x + sw / 2, bot_y - sw * 0.45, x + lw - 2 * PX, bot_y - sw * 0.45, sw * 0.9)
+    # round 6: the letters painted by hand on the wood (they read as a stencil): each its own tilt
+    # and height, drawn in a separate mask from the carved border
+    paint_img = Image.new("L", (w * SS, h * SS), 0)
+    dp = ImageDraw.Draw(paint_img)
+    font = ImageFont.truetype(str(ROOT / "assets/fonts/Fredoka.ttf"), int(27 * PX * SS))
+    try:
+        font.set_variation_by_axes([700])
+    except Exception:
+        pass
+    x = 11.0 * PX * SS
+    for ch in "HOME":
+        glyph = Image.new("L", (int(40 * PX * SS), int(44 * PX * SS)), 0)
+        ImageDraw.Draw(glyph).text((4 * PX * SS, 2 * PX * SS), ch, font=font, fill=255)
+        glyph = glyph.rotate(rng.uniform(-5, 5), resample=Image.BICUBIC, center=(glyph.width / 2, glyph.height / 2))
+        bbox = glyph.getbbox()
+        gy = (by0 + by1) / 2 * SS - (bbox[1] + bbox[3]) / 2 + rng.uniform(-1.2, 1.2) * PX * SS
+        paint_img.paste(255, (int(x - bbox[0]), int(gy)), glyph)
+        x += (bbox[2] - bbox[0]) + rng.uniform(1.2, 2.4) * PX * SS
     for i in range(14):  # small triangles along the top and bottom edges
         x0 = (10 + i * 6) * PX * SS
         d.polygon([(x0, (by0 + 3.5 * PX) * SS), (x0 + 4 * PX * SS, (by0 + 3.5 * PX) * SS), (x0 + 2 * PX * SS, (by0 + 6.5 * PX) * SS)], fill=255)
         d.polygon([(x0, (by1 - 3.5 * PX) * SS), (x0 + 4 * PX * SS, (by1 - 3.5 * PX) * SS), (x0 + 2 * PX * SS, (by1 - 6.5 * PX) * SS)], fill=255)
     cm = np.asarray(carve, float).reshape(h, SS, w, SS).mean(axis=(1, 3)) / 255
+    pm = np.asarray(paint_img, float).reshape(h, SS, w, SS).mean(axis=(1, 3)) / 255
+    brush = blur(rng.standard_normal((h, w)), (0.6, 2.2))  # brush-stroke edges, not a clean font
+    pm = np.clip((pm - 0.5 + brush * 0.12) * 4 + 0.5, 0, 1)
     groove = np.clip(cm - np.roll(np.roll(cm, -2, 0), -2, 1) * 0.0, 0, 1)
     lip = np.clip(np.roll(np.roll(cm, 2, 0), 2, 1) - cm, 0, 1)
     shadow_in = np.clip(cm - np.roll(np.roll(cm, 2, 0), 2, 1), 0, 1)
@@ -459,15 +457,20 @@ def sign() -> Image.Image:
             nail = poly_mask(w, h, [], ellipses=[(nx, ny, 1.8 * PX, 1.8 * PX)])
             col = mix(col, hexc("2a2220"), nail)
             col = mix(col, hexc("d8d0c8"), poly_mask(w, h, [], ellipses=[(nx - 0.5 * PX, ny - 0.5 * PX, 0.7 * PX, 0.7 * PX)]))
-    # the letters: cut into the wood and painted, the paint worn off here and there; in each cut
-    # the wall on its upper left in shadow, the wall on its lower right catching the sun
-    lit_in = np.clip(cm - np.roll(np.roll(cm, -2, 0), -2, 1), 0, 1)
-    paint = smooth(0.32, 0.42, fbm(h, w, 10, 12, 3, rng, False))  # where the paint holds
-    letters = mix(hexc("f4e2b8"), hexc("e8a64a"), np.clip((yy - by0) / (by1 - by0), 0, 1))
-    letters = mix(col * 0.45, letters, paint[..., None])  # (worn: the bare cut wood shows)
-    letters = mix(letters, hexc("2a1208"), np.clip(shadow_in * 1.6, 0, 1) * 0.85)
-    letters = mix(letters, hexc("ffe6b0"), np.clip(lit_in * 1.6, 0, 1) * 0.6)
-    col = mix(col, letters, groove)
+    # the border's triangles: cut in (shadow on the upper left wall of each cut)
+    col = mix(col, col * 0.55, np.clip(groove + shadow_in, 0, 1) * board[..., None][..., 0] * 0.8)
+    # the letters, painted: a dark outline, then the cream paint, worn through to the wood in places
+    outline = np.clip(blur(pm, 1.3) * 2.2, 0, 1) * board
+    col = mix(col, hexc("2a140a"), np.clip(outline - pm, 0, 1) * 0.85)
+    paint = smooth(0.3, 0.45, fbm(h, w, 12, 16, 3, rng, False))  # where the paint holds
+    letters = mix(hexc("f6e6c0"), hexc("ecb256"), np.clip((yy - by0) / (by1 - by0), 0, 1))
+    letters = mix(col * 0.8, letters, (0.25 + 0.75 * paint)[..., None])
+    col = mix(col, letters, pm * board)
+    # the wood weathered: scratches, a knot, darker worn edges
+    scratch = np.clip(blur(rng.standard_normal((h, w)), (0.4, 9.0)) * 3.0 - 2.4, 0, 1) * board
+    col = mix(col, hexc("c8a07a"), scratch * 0.5)
+    knot = poly_mask(w, h, [], ellipses=[(rng.uniform(70, 88) * PX, rng.uniform(by0 / PX + 8, by1 / PX - 8) * PX, 3 * PX, 1.8 * PX)])
+    col = mix(col, hexc("3a2214"), knot * 0.8)
     col = mix(post_col, col, board)
     edge = np.clip(board - np.roll(np.roll(board, 2, 0), 2, 1), 0, 1)
     col = mix(col, hexc("ffe2a8"), edge * 0.5)

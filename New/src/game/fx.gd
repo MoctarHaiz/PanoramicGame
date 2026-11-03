@@ -34,7 +34,6 @@ const PARTY_SHAPES := [Confetti.Shape.PETAL, Confetti.Shape.PETAL, Confetti.Shap
 		Confetti.Shape.BEAD, Confetti.Shape.SEQUIN]
 const PLUS_SIZE := 118  ## font size of the "+1" and the "×N" (design px): one size, scaled per use
 const PLUS_SCALE := 1.3  ## the "+1" drawn bigger than its glyphs' size (it reads at phone size)
-const PLUS_FILL := Color("fff6e4")  ## the "+1"'s cream-white
 ## The badges' outlines (px): the dark stroke and the warm rim. The "+1" and the "×N" share them and
 ## the font size, so their glyphs are rasterised once (each size and outline is megabytes of pages).
 const BADGE_OUTLINES: Array[int] = [34, 16]
@@ -72,6 +71,7 @@ static var _puff_tex: Texture2D
 static var _vignette_tex: Texture2D
 static var _edge_tex: Texture2D
 static var _additive: CanvasItemMaterial
+static var _badge: ShaderMaterial
 static var _plus_font: Font
 
 
@@ -119,21 +119,29 @@ static func impact_burst(parent: Node, at: Vector2, away: Vector2, size: StringN
 			Vector2(0.2, 0.4))
 
 
-## The "+1" of a knock-out: a bold cream-white number on a thick solid dark stroke and a drop shadow:
-## it reads on any ground, the bright sky and the brown earth alike (no custom shader: the title
-## font is MSDF, and Godot's own text drawing decodes it); that pops in (0 to 1.5 to 1 in six frames), rises 40 units easing out, holds and fades.
+## The "+1" of a knock-out: a bold number filled with the Red Bob's colours (pale gold to red, a gloss:
+## badge_text.gdshader, which works with the MSDF title font) on a thick dark stroke with a deep red
+## rim, a drop shadow and a warm glow behind: it reads on any ground, the sky and the earth alike; that pops in (0 to 1.5 to 1 in six frames), rises 40 units easing out, holds and fades.
 ## (Drawn at PLUS_SIZE with BADGE_OUTLINES like the streak's "×N": one set of glyphs for both.)
 static func plus_one(parent: Node, at: Vector2) -> void:
 	var node := Node2D.new()
 	node.position = at
+	node.material = badge_material()
+	var halo := Sprite2D.new()  # a warm glow behind the number (added light), breathing with its pop
+	halo.texture = glow_texture()
+	halo.material = additive()
+	halo.show_behind_parent = true
+	halo.modulate = Color(1, 0.58, 0.16, 1.0)
+	halo.scale = Vector2(2.5, 1.7)
+	node.add_child(halo)
 	var font := plus_font()
 	var w := font.get_string_size("+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE).x
 	var base := Vector2(-w / 2, PLUS_SIZE * 0.36)  # the baseline that centres the figures on the node
 	node.draw.connect(func() -> void:
 		node.draw_string_outline(font, base + Vector2(4, 12), "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, BADGE_OUTLINES[0], Color(0.05, 0.02, 0.0, 0.6))
 		node.draw_string_outline(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, BADGE_OUTLINES[0], Color("1c0b02"))
-		node.draw_string_outline(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, BADGE_OUTLINES[1], Color("2e1405"))
-		node.draw_string(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, PLUS_FILL))
+		node.draw_string_outline(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, BADGE_OUTLINES[1], Color("4a0c04"))
+		node.draw_string(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, Color.WHITE))  # white: filled gold to red
 	parent.add_child(node)
 	var big := PLUS_SCALE
 	node.scale = Vector2.ZERO
@@ -184,11 +192,15 @@ static func confetti_burst(parent: Node, at: Vector2) -> void:
 	c.gravity = 900.0
 	c.drag = 1.6
 	c.flutter = 520.0
-	# small two-tone paper strips (their backs another colour: they flash light and dark as they
-	# turn) in three sizes, the near ones bigger and fewer; a few gold sequins; sparkles
-	c.spray(28, [Confetti.Shape.STRIP], STREAMER_COLOURS, Vector2(700, 1600), Vector2.UP, 70.0, 1.25, Vector2(2.4, 3.2), 30.0)
-	c.spray(12, [Confetti.Shape.STRIP], STREAMER_COLOURS, Vector2(800, 1700), Vector2.UP, 60.0, 1.65, Vector2(2.4, 3.2), 30.0)
-	c.spray(5, [Confetti.Shape.STRIP], STREAMER_COLOURS, Vector2(900, 1800), Vector2.UP, 50.0, 2.1, Vector2(2.4, 3.2), 30.0)
+	# two-tone paper strips (their backs another colour: they flash light and dark as they turn) in
+	# three depths: far ones small and hazed by the air, mid ones crisp, near ones big, out of focus and
+	# smeared by their speed (they fly wider and faster: they are closer); a few gold sequins; sparkles
+	var far: Array[Color] = []
+	for col in STREAMER_COLOURS:
+		far.append(col.lerp(Color("cfd6ee"), 0.35))
+	c.spray(30, [Confetti.Shape.STRIP], far, Vector2(600, 1400), Vector2.UP, 60.0, 0.75, Vector2(2.6, 3.4), 30.0)
+	c.spray(24, [Confetti.Shape.STRIP], STREAMER_COLOURS, Vector2(750, 1700), Vector2.UP, 65.0, 1.35, Vector2(2.4, 3.2), 30.0)
+	c.spray(8, [Confetti.Shape.STRIP_NEAR], STREAMER_COLOURS, Vector2(1100, 2100), Vector2.UP, 80.0, 3.0, Vector2(2.0, 2.6), 30.0)
 	c.spray(6, [Confetti.Shape.SEQUIN], GOLD, Vector2(600, 1500), Vector2.UP, 75.0, 1.0, Vector2(2.0, 2.8), 30.0)
 	c.sparkle(24, GOLD, Vector2(200, 650), 1.0, Vector2(0.6, 1.2))
 
@@ -205,6 +217,80 @@ static func fireworks(parent: Node, from: Vector2, inward: float) -> void:
 	for i in 3:
 		show.launch(from, Vector2(inward * randf_range(0.06, 0.2), -1.0).normalized() * randf_range(1100.0, 1300.0),
 				i * 0.3)
+
+
+## Sharp fireworks behind the results card (`card`, a Control; `parent` is behind it, effects units):
+## five crisp chrysanthemum bursts, one every 0.9 s, alternating just outside its left and right
+## edges (the sky beside it; half of each passes behind the card), glowing streaks with white-gold
+## cores that fly out, droop and fade, a flash at the heart. In focus, unlike the soft bokeh of the
+## side fireworks.
+static func card_bursts(parent: Node2D, card: Control) -> void:
+	var box: Rect2 = parent.get_global_transform().affine_inverse() * card.get_global_rect()
+	var spots := [Vector2(box.position.x - box.size.x * 0.06, box.position.y + box.size.y * 0.3),
+			Vector2(box.end.x + box.size.x * 0.1, box.position.y + box.size.y * 0.28)]
+	var show := SharpBurst.new()
+	show.material = additive()
+	show.radius = box.size.x * 0.3
+	parent.add_child(show)
+	for i in 5:
+		show.burst(spots[i % spots.size()], i * 0.9, FIREWORK_HUES[(i * 2) % FIREWORK_HUES.size()])
+
+
+class SharpBurst extends Node2D:
+	const LIFE := 1.25  ## seconds a burst's streaks live
+	const RAYS := 48  ## streaks a burst
+	var radius := 400.0  ## how far its streaks reach (effects px)
+	var _bursts: Array[Vector4] = []  # x, y, start (s), hue index
+	var _hues: Array[Color] = []
+	var _rays: Array[Vector2] = []  # per burst, RAYS directions x speed share
+	var _clock := 0.0
+
+	func burst(at: Vector2, delay: float, hue: Color) -> void:
+		_bursts.append(Vector4(at.x, at.y, delay, 0.0))
+		_hues.append(hue)
+		for k in RAYS:
+			_rays.append(Vector2.from_angle(k * TAU / RAYS + randf_range(-0.05, 0.05)) * randf_range(0.75, 1.0))
+
+	func _process(delta: float) -> void:
+		_clock += delta
+		var last := 0.0
+		for b in _bursts:
+			last = maxf(last, b.z)
+		if _clock > last + LIFE:
+			queue_free()
+		queue_redraw()
+
+	## Every part is the one soft-light texture, stretched (a streak is a long thin glow): the whole show
+	## is one batch, three sprites a spark.
+	func _draw() -> void:
+		var tex := Fx.glow_texture()
+		for i in _bursts.size():
+			var b := _bursts[i]
+			var t := _clock - b.z
+			if t < 0.0 or t > LIFE:
+				continue
+			var k := t / LIFE
+			var at := Vector2(b.x, b.y)
+			var reach := radius * (1.0 - pow(1.0 - minf(t / 0.55, 1.0), 3.0))  # fast out, then slowing
+			var droop := Vector2(0.0, 140.0 * k * k)  # they fall as they fade
+			var fadeout := 1.0 - k * k
+			var hot := Color(1, 0.96, 0.85).lerp(_hues[i], minf(k * 1.6, 1.0))
+			if t < 0.12:  # the heart's flash
+				var r := 120.0 * (1.0 + t * 4.0)
+				draw_set_transform(Vector2.ZERO)
+				draw_texture_rect(tex, Rect2(at - Vector2(r, r), Vector2(r, r) * 2), false, Color(1, 0.95, 0.8, 1.0 - t / 0.12))
+			for j in RAYS:
+				var ray := _rays[i * RAYS + j]
+				var head := at + ray * reach + droop * ray.length()
+				var tail := at + ray * reach * maxf(0.55, 1.0 - 0.6 * (1.0 - k)) + droop * 0.5
+				var length := maxf(head.distance_to(tail), 4.0)
+				draw_set_transform((head + tail) / 2.0, (head - tail).angle())
+				draw_texture_rect(tex, Rect2(-length / 2.0 - 8.0, -14.0, length + 16.0, 28.0), false, Color(_hues[i], 0.45 * fadeout))
+				draw_texture_rect(tex, Rect2(-length / 2.0, -4.0, length, 8.0), false, Color(hot, fadeout))
+				draw_set_transform(head)
+				var r := 13.0 * (1.0 - 0.4 * k)
+				draw_texture_rect(tex, Rect2(-Vector2(r, r), Vector2(r, r) * 2), false, Color(hot, fadeout))
+		draw_set_transform(Vector2.ZERO)
 
 
 class FireworkShow extends Node2D:
@@ -1022,6 +1108,16 @@ static func additive() -> CanvasItemMaterial:
 	return _additive
 
 
+## The material of the "+1": its white letters filled pale gold to red (badge_text.gdshader).
+static func badge_material() -> ShaderMaterial:
+	if not _badge:
+		_badge = ShaderMaterial.new()
+		_badge.shader = preload("res://src/game/badge_text.gdshader")
+		_badge.set_shader_parameter(&"top_y", -PLUS_SIZE * 0.42)
+		_badge.set_shader_parameter(&"bottom_y", PLUS_SIZE * 0.38)
+	return _badge
+
+
 static func plus_font() -> Font:
 	if not _plus_font:
 		_plus_font = Ui.title_font(700)
@@ -1167,6 +1263,7 @@ static func warm_up(parent: Control) -> void:
 	glow_dot.scale = Vector2(0.05, 0.05)
 	holder.add_child(glow_dot)
 	var text := Node2D.new()
+	text.material = badge_material()  # the "+1"'s shader compiled now, not at the first knock-out
 	text.draw.connect(_draw_badge_glyphs.bind(text))
 	holder.add_child(text)
 	var bits := Confetti.make(holder, Vector2.ZERO)
@@ -1184,6 +1281,7 @@ static func warm_up(parent: Control) -> void:
 static func warm_glyphs(parent: Node) -> void:
 	var text := Node2D.new()
 	text.modulate.a = 0.01
+	text.material = badge_material()
 	text.draw.connect(_draw_badge_glyphs.bind(text))
 	parent.add_child(text)
 	var t := text.create_tween()

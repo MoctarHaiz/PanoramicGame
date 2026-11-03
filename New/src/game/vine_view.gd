@@ -17,8 +17,8 @@ const CATCH_KICK := 170.0  ## units/s down when he catches it (it gives ~11 unit
 const STIFF := 230.0  ## the spring (1/s²): about 2.4 bounces a second
 const DAMP := 7.0  ## (1/s): 2-3 bounces before it settles
 const REACH := 95.0  ## units either side of his hands over which the vine bends
-const SAG_MIN := 5.0  ## round 4: units a span hangs down between its knots, from ..
-const SAG_MAX := 10.0  ## .. to
+const SAG_MIN := 9.0  ## units a span hangs down between its knots (round 6: deeper), from ..
+const SAG_MAX := 17.0  ## .. to
 const KNOT_RANGE := 3.0  ## units a knot is tied above or below the line
 
 var view_left := 0.0

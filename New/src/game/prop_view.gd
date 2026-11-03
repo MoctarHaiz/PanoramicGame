@@ -116,6 +116,12 @@ func _bank_reeds(level: Level, first_col: int, end_col: int) -> void:
 			_add(&"prop_reeds", Vector2(x, r * Level.TILE + 16.0), height, side < 0, Color(0.92, 0.94, 0.9))
 			# its reflection: upside down under the surface, in the water's colours
 			_add(&"prop_reeds", Vector2(x, r * Level.TILE + 6.0), -height * 0.7, side < 0, REFLECT)
+		# round 6: rocks heaped at the foot of a pole standing in the pool
+		if level.kind_at(c - 1, r) == Level.Kind.WATER and level.kind_at(c + 1, r) == Level.Kind.WATER:
+			_add(&"prop_rock_a", Vector2((c + 0.5) * Level.TILE - 15.0, r * Level.TILE + 12.0), 20.0 + _hash(c, 3, 8), false,
+					Color(0.82, 0.78, 0.76))
+			_add(&"prop_rock_b", Vector2((c + 0.5) * Level.TILE + 17.0, r * Level.TILE + 11.0), 14.0 + _hash(c, 4, 6), true,
+					Color(0.8, 0.76, 0.74))
 
 
 ## A grass top in the middle of a run of at least 6, not under Red Bobs, about one in eight.

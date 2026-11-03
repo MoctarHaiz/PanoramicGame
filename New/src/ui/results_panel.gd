@@ -224,7 +224,8 @@ static func _reveal(game: Control, panel: GamePanel, world: World, stars: Array[
 			Fx.coin_shower(rain, panel.size.x, panel.size.y)
 			var view := panel.size * 2.0  # New (audio): fireworks in the sky behind him and the card
 			Fx.fireworks(back, Vector2(view.x * 0.04, view.y * 1.02), 1.0)
-			Fx.fireworks(back, Vector2(view.x * 0.96, view.y * 1.02), -1.0))
+			Fx.fireworks(back, Vector2(view.x * 0.96, view.y * 1.02), -1.0)
+			Fx.card_bursts(back, panel.card))  # New (audio): sharp bursts round the card's top
 	_count_up(tree, bobs, world.bobs, total, t, panel)
 	t += COUNT_TIME + 0.1
 	if bar:

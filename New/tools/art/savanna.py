@@ -323,10 +323,11 @@ def mesas() -> Image.Image:
             cc = c + k * rr * rng.uniform(0.9, 1.4)
             d = ((x - cc + w / 2) % w) - w / 2
             near_h = np.maximum(near_h, np.sqrt(np.clip(1 - (d / rr) ** 2, 0, 1)) * rr * rng.uniform(1.0, 1.8))
-    far_col, far_cov = plane(far_h, 6.0, [(0.0, "566292"), (0.45, "8188ae"), (0.75, "c9a7a6"), (1.0, "f4cfa4")],
-                             0.38, 0.35, 81)
-    near_col, near_cov = plane(near_h, 5.0, [(0.0, "2e3066"), (0.38, "554f82"), (0.6, "a4697a"), (0.8, "e8925e"),
-                                             (1.0, "ffc98e")], 0.1, 0.85, 83)
+    # round 6: less lavender, more contrast: warm sandstone lit, a dusky rose-brown shade
+    far_col, far_cov = plane(far_h, 6.0, [(0.0, "6a5a78"), (0.45, "947e94"), (0.75, "d0a690"), (1.0, "f6cc9c")],
+                             0.3, 0.35, 81)
+    near_col, near_cov = plane(near_h, 5.0, [(0.0, "3a2a44"), (0.38, "6a4658"), (0.6, "b0644e"), (0.8, "ec9050"),
+                                             (1.0, "ffc887")], 0.06, 0.9, 83)
     col = mix(far_col, near_col, near_cov)
     cov = np.maximum(far_cov, near_cov)
     return dither_rgba(col, cov, rng)

@@ -204,3 +204,32 @@ Worktree: `_agents/wt/env/New`. Captures: `_agents/AAA/env/round_<n>/`. Owns `wo
   of trodden earth is gone: his boots on the grass line, not in the dirt under it.
 - Perf (iPhone 15, before the lossless mesas): texture memory 64.1 MB overall (play 53.2), frames
   pass (worst own work 13.7 ms), level open worst frame 112 ms.
+
+## Round 6
+
+- The black rectangle at home: the cooking fire's pot (a flat dark trapezoid) over hearth stones
+  that read as tyres. Now a campfire: flat lit stones, two crossed logs with glowing ends, flame
+  tongues.
+- Light depth: a deeper, wider shade under every grass lip with a soft fall-off; a dark contact where
+  a wall meets the ground; the walls' cast shadows stronger (still soft-started: no seam); each
+  floating ledge's shadow on the ground below it, away from the sun; a warm rim on an island's end on
+  the sun's side.
+- Values: the mid-ground darker and warmer (mid hills, the two nearer tree rows); the mesas less
+  lavender (warm sandstone lit, dusky rose-brown shade) and less hazed.
+- Hang: the near tree row lower (no acacia rising between the pillars); each river pole its own width;
+  rocks heaped at each pole's foot.
+- The vine sags deeper between its knots (9-17 units).
+- Pools: narrower sky band, saturated shallows, darker with depth.
+- Home: the camera pushes in to 1.6 (he is bigger); the sign casts a shadow; the rondavel and the
+  granary inked like the main hut.
+- Before/after: AAA/env/round_6/before_after_r5_r6.jpg.
+- Round 6, second pass: distinct tree silhouettes (acacias: umbrella x2, tall, windswept, a low
+  flat-top, a double trunk; baobabs: bottle x2, squat, slim; trees.py `style`); the grass strip read
+  from a different place every 24 cells and its tone drifting along the ground (its 1024-unit repeat
+  showed); the fence in stakes of varied width, tip and lean, braces across, lashings, inked; the HOME
+  sign's letters painted by hand (Fredoka, each tilted and set its own height, brush edges, worn paint,
+  a dark painted outline) on weathered wood (scratches, a knot). Captures: AAA/env/round_6b/.
+- What is left in the level-open frame (117 ms; measured in round 3): the swap frame builds the world
+  (~15 ms, the ground's map data waits a frame) and draws the whole screen for the first time (HUD
+  texts and their glyph pages, the hero atlas pages, ~45-60 ms); the next frame builds the ground's
+  data (~22 ms). Next: the ground's data on a worker thread, and the HUD's text warmed in the menu.

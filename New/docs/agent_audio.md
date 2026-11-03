@@ -290,3 +290,22 @@ A lighter pattern never cuts into a heavier one still playing; nothing plays whe
   results 56.0, menu after 64.1 MB); results draw calls max 516 -> 515; objects 2 758 -> 2 930; play draw
   calls max 429 -> 431 (noise); worst own frame of play 9.0 ms (PASS).
 - Tests: 1017 checks, 0 failed, exit 0; --bot: home, 3 lives, 82 Red Bobs, 3 stars.
+
+## Round 6 (2026-11-03): AAA/judge/j05 (merged round 5: 0/12, 6.08)
+- "+1": filled with the Red Bob's colours (pale gold, gold, orange, red, a gloss band) by a new shader of
+  mine, `src/game/badge_text.gdshader`, which only recolours COLOR where the vertex colour was white and
+  never samples TEXTURE (so it works with the MSDF title font); dark stroke with a deep red rim; a warm
+  additive glow sprite behind (show_behind_parent). Its material is compiled in Fx.warm_up and
+  Fx.warm_glyphs (otherwise the first knock-out would compile it).
+- Win: `Fx.card_bursts` (SharpBurst, one line added to UX's results_panel.gd): five crisp chrysanthemum
+  bursts, one every 0.9 s, alternating just outside the card's left and right edges, behind it; each a
+  flash and 48 streaks drawn as stretched glow sprites (a wide coloured glow, a hot core, a head): in
+  focus, unlike the side fireworks' bokeh; one is fresh at the `win` capture (3.4 s).
+- Home confetti in three depths: far strips small and hazed towards the sky colour (30, size 0.75), mid
+  crisp (24, 1.35), near big and out of focus (8 STRIP_NEAR, 3.0: three soft stacked copies) with two
+  afterimages as motion blur; all two-tone and spinning; gold sequins and sparkles.
+- Batching: the sharp bursts are one texture (one batch); STRIP_NEAR reuses the strip's picture so all
+  strips batch together. Perf (perf.tscn, iPhone 15, full level; 85be753's fx/confetti/results_panel vs
+  mine): texture equal (53.7 / 56.2 / 62.7 MB); results draw calls max 354 -> 351, play 370 -> 370;
+  results objects 2 492 -> 2 789; worst own frame of play 13.3 -> 14.4 ms (noise; PASS).
+- Tests: 1023 checks, 0 failed, exit 0; --bot: home, 3 lives, 82 Red Bobs, 3 stars.

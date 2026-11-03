@@ -35,9 +35,9 @@ const STRIPS := {
 const TREE_ROWS := [
 	[0.11, 170.0, 70.0, 488.0, 0.55, 0.3, 0.35, Color(0.62, 0.68, 0.82)],
 	[0.2, 300.0, 132.0, 540.0, 0.12, 0.12, 0.45, Color(0.68, 0.72, 0.8)],
-	[0.31, 520.0, 250.0, 604.0, 0.0, 0.05, 0.4, Color(0.96, 0.78, 0.5)],
+	[0.31, 520.0, 175.0, 604.0, 0.0, 0.05, 0.4, Color(0.96, 0.78, 0.5)],  # (round 6: lower: none rises between the pillars)
 ]
-const TREE_TINT := [Color(1, 1, 1), Color(0.8, 0.8, 0.76), Color(0.72, 0.7, 0.64)]
+const TREE_TINT := [Color(1, 1, 1), Color(0.7, 0.64, 0.54), Color(0.6, 0.54, 0.44)]  # (round 6: darker, warmer)
 ## animals.png (tools/art/savanna.py): two giraffes, an elephant, a herd of wildebeest (px regions)
 const ANIMALS := [Rect2(0, 0, 140, 220), Rect2(140, 12, 128, 208), Rect2(268, 68, 220, 152), Rect2(488, 132, 300, 88)]
 const CLOUD_SCALE := 2.0  ## cloud_N.png are stored at half size (soft, no detail to lose)
@@ -88,7 +88,7 @@ func _ready() -> void:
 	_painter(_draw_trees.bind(0)).material = _haze(TREE_ROWS[0], TREE_TINT[0])
 	_painter(_draw_band.bind(528.0, 80.0, 0.04))
 	_painter(_draw_rays).material = add
-	_painter(_draw_strip.bind(&"mid_hills"), true).material = _haze([0, 0, 0, 0, 0.0, 0.0, 0, Color(0.96, 0.76, 0.52)], Color(0.8, 0.78, 0.66))
+	_painter(_draw_strip.bind(&"mid_hills"), true).material = _haze([0, 0, 0, 0, 0.0, 0.0, 0, Color(0.96, 0.76, 0.52)], Color(0.66, 0.56, 0.42))  # (round 6: the darker, warmer mid-ground)
 	_painter(_draw_trees.bind(1)).material = _haze(TREE_ROWS[1], TREE_TINT[1])
 	_painter(_draw_trees.bind(2)).material = _haze(TREE_ROWS[2], TREE_TINT[2])
 	_painter(_draw_strip.bind(&"near_grass"), true).material = _haze([0, 0, 0, 0, 0.0, 0.0, 0, Color(1, 1, 1)], Color(0.84, 0.74, 0.58))

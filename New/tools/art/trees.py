@@ -175,13 +175,23 @@ def foot_grass(img: Image.Image, cx: float, half: float, seed: int) -> Image.Ima
     return dither_rgba(np.clip(out, 0, 255), out_a, rng)
 
 
-def acacia(seed: int, w: int = 560, h: int = 400) -> tuple:
-    """Umbrella thorn: trunk at x = w * 0.5 on the bottom row."""
+def acacia(seed: int, w: int = 560, h: int = 400, style: str = "umbrella") -> tuple:
+    """Umbrella thorn: trunk at x = w * 0.5 on the bottom row. Round 6: `style` gives distinct
+    silhouettes (no repeated stamps): umbrella, tall (a high narrow crown), windswept (leaning, its
+    crown blown to one side), flat (a low wide table), double (two trunks from one foot)."""
     rng = np.random.default_rng(seed)
     cv = Canvas(w, h)
     base = (w * rng.uniform(0.42, 0.55), h - 1.0)
     trunk_h = h * rng.uniform(0.28, 0.38)
     lean = rng.uniform(-0.18, 0.18)
+    side = 1.0 if rng.random() < 0.5 else -1.0
+    if style == "tall":
+        trunk_h = h * rng.uniform(0.5, 0.56)
+    elif style == "windswept":
+        lean = 0.36 * side
+        base = (w * (0.5 - 0.14 * side), base[1])
+    elif style == "flat":
+        trunk_h = h * rng.uniform(0.16, 0.2)
     top = (base[0] + trunk_h * lean, base[1] - trunk_h)
     tw = rng.uniform(19, 25)
     cv.limb((base[0], base[1] + 4), top, tw * 1.25, tw * 0.85, bend=rng.uniform(-6, 6))
@@ -190,10 +200,25 @@ def acacia(seed: int, w: int = 560, h: int = 400) -> tuple:
     cv.limb((base[0] + tw * 1.2, base[1] + 2), (base[0], base[1] - tw * 1.5), tw * 0.5, tw * 0.3)
     crown_y = h * rng.uniform(0.14, 0.2)
     crown_w = w * rng.uniform(0.40, 0.47)
+    ccx = w / 2  # the crown's middle
+    if style == "tall":
+        crown_y, crown_w = h * rng.uniform(0.06, 0.1), w * rng.uniform(0.25, 0.3)
+    elif style == "windswept":
+        crown_w, ccx = w * rng.uniform(0.32, 0.38), w / 2 + side * w * 0.12
+    elif style == "flat":
+        crown_y, crown_w = h * rng.uniform(0.5, 0.56), w * rng.uniform(0.44, 0.48)
+    tops = [top]
+    if style == "double":  # a second trunk from the same foot, leaning the other way
+        top2 = (base[0] - trunk_h * (lean + 0.3 * side), base[1] - trunk_h * 0.82)
+        cv.limb((base[0], base[1] + 4), top2, tw * 1.0, tw * 0.7, bend=rng.uniform(-6, 6))
+        tops.append(top2)
     tips = []
-    n = int(rng.integers(3, 5))
+    n = int(rng.integers(3, 5)) + (1 if style == "double" else 0)
     for i in range(n):
+        top = tops[i % len(tops)]
         a = -np.pi / 2 + (i - (n - 1) / 2) * rng.uniform(0.38, 0.5) + rng.uniform(-0.1, 0.1)
+        if style == "windswept":
+            a += side * 0.35
         ln = (top[1] - crown_y) / max(0.35, -np.sin(a)) * rng.uniform(0.55, 0.7)
         mid = (top[0] + np.cos(a) * ln, top[1] + np.sin(a) * ln)
         cv.limb(top, mid, tw * 0.85, tw * 0.55, bend=rng.uniform(-8, 8))
@@ -202,7 +227,7 @@ def acacia(seed: int, w: int = 560, h: int = 400) -> tuple:
             a2 = a + (j - 0.5) * rng.uniform(0.35, 0.7)
             tx = mid[0] + np.cos(a2) * rng.uniform(40, 90) * (1.3 if abs(np.cos(a)) > 0.4 else 1.0)
             ty = crown_y + rng.uniform(4, 22)
-            tx = np.clip(tx, w / 2 - crown_w * 0.95, w / 2 + crown_w * 0.95)
+            tx = np.clip(tx, ccx - crown_w * 0.95, ccx + crown_w * 0.95)
             cv.limb(mid, (tx, ty), tw * 0.55, tw * 0.22, bend=rng.uniform(-10, 10))
             tips.append((tx, ty))
     # crown: separate flat pads over the branch tips, at slightly different heights, a couple
@@ -218,15 +243,22 @@ def acacia(seed: int, w: int = 560, h: int = 400) -> tuple:
     return foot_grass(img, base[0], tw * 2.2, seed), base[0]
 
 
-def baobab(seed: int, w: int = 460, h: int = 560) -> tuple:
+def baobab(seed: int, w: int = 460, h: int = 560, style: str = "bottle") -> tuple:
     """A baobab: a bottle trunk with vertical folds, a crown of massive crooked limbs that grow
-    out of it like roots in the air, and sparse leaf clusters at the twigs."""
+    out of it like roots in the air, and sparse leaf clusters at the twigs. Round 6: `style`:
+    bottle, squat (short and wide), slim (tall and narrow)."""
     rng = np.random.default_rng(seed)
     cv = Canvas(w, h)
     cx = w * 0.5
     trunk_top = h * rng.uniform(0.42, 0.47)
     bottom_w = w * rng.uniform(0.36, 0.42)
     top_w = bottom_w * rng.uniform(0.62, 0.74)
+    if style == "squat":
+        trunk_top, bottom_w = h * rng.uniform(0.56, 0.6), w * rng.uniform(0.48, 0.52)
+        top_w = bottom_w * rng.uniform(0.74, 0.82)
+    elif style == "slim":
+        trunk_top, bottom_w = h * rng.uniform(0.3, 0.34), w * rng.uniform(0.24, 0.28)
+        top_w = bottom_w * rng.uniform(0.6, 0.68)
     yy, xx = np.mgrid[0:h * SS, 0:w * SS].astype(float) / SS
     t = np.clip((yy - trunk_top) / (h - trunk_top), 0, 1)
     belly = np.sin(t * np.pi) * 0.1
@@ -290,12 +322,14 @@ def baobab(seed: int, w: int = 460, h: int = 560) -> tuple:
 
 def main() -> None:
     info = {}
-    for i, seed in enumerate((101, 107, 113, 127, 131)):
-        img, ax = acacia(seed)
+    # round 6: distinct silhouettes, not one stamp at different sizes
+    for i, (seed, style) in enumerate(((101, "umbrella"), (107, "tall"), (113, "windswept"), (127, "flat"),
+                                       (131, "umbrella"), (137, "double"))):
+        img, ax = acacia(seed, style=style)
         save(img, f"tree_acacia_{i + 1}.png")
         info[f"tree_acacia_{i + 1}"] = {"size": list(img.size), "anchor_x": round(float(ax), 1)}
-    for i, seed in enumerate((201, 211)):
-        img, ax = baobab(seed)
+    for i, (seed, style) in enumerate(((201, "bottle"), (211, "squat"), (223, "slim"), (229, "bottle"))):
+        img, ax = baobab(seed, style=style)
         save(img, f"tree_baobab_{i + 1}.png")
         info[f"tree_baobab_{i + 1}"] = {"size": list(img.size), "anchor_x": round(float(ax), 1)}
     (WORLD / "tree_info.json").write_text(json.dumps(info, indent=1))
