@@ -14,6 +14,7 @@
   home_pot.png        a clay beer pot (ukhamba) with incised chevrons
   home_glow.png       warm firelight (drawn additively, flickering)
   home_yard.png       trodden earth before the doorway, laid over the grass
+  home_door_light.png (round 10) the firelight pouring out of the doorway onto the ground (additive)
 home.json gives sizes and the doorway's place in the hut picture (used by src/game/home_view.gd).
 2 px per design unit, lit from the upper left like everything else.
 
@@ -254,9 +255,11 @@ def hut(R: float, H: float, door: bool, seed: int) -> tuple:
         # (round 9: "a flat dark arch": the firelight fills more of it, warm up to the arch's shadow)
         g = np.clip(1 - np.hypot((xx - dcx - dw * 0.3) / (dw * 2.1), (yy - base + 10 * PX) / (dh * 0.95)), 0, 1)
         inner = ramp(g ** 1.1, [(0, "1e0a06"), (0.25, "4a1a0c"), (0.5, "8e3814"), (0.75, "d06a26"), (1, "ffbe62")])
-        # the curved inner wall: thatch ribs lit by the fire, darker overhead
-        ribs = (np.sin((xx - dcx) * 0.35 + (yy - base) * 0.05) > 0.55) * smooth(base - dh * 0.8, base - 20 * PX, yy)
-        inner = mix(inner, inner * 0.72, ribs * 0.6)
+        # the curved inner wall, darker overhead and at its sides, a soft straw grain (round 10: no
+        # stripes: with the doorway's light they read as a cheap starburst)
+        wall_shade = smooth(0.55, 1.0, np.abs(xx - dcx) / dw) * 0.35 + smooth(base - dh * 0.55, door_top, yy) * 0.35
+        grain_in = blur(rng.standard_normal((h, w)), (6.0, 1.2))
+        inner = inner * (1 - wall_shade[..., None]) * (1 + 0.06 * np.clip(grain_in / (grain_in.std() + 1e-6), -2, 2))[..., None]
         # the floor: trodden earth catching the light
         floor_ = smooth(base - 16 * PX, base - 10 * PX, yy)
         inner = mix(inner, mix(hexc("5a2a14"), hexc("c0703a"), g), floor_ * 0.8)
@@ -596,6 +599,22 @@ def glow() -> Image.Image:
     return dither_rgba(np.ones((s, s, 3)) * hexc("ff9a40"), a)
 
 
+def door_light() -> Image.Image:
+    """Round 10: the hut's firelight pouring out of the doorway onto the ground in front of it, drawn
+    additively over the yard's grass (the doorway "filled with flat orange stripe rays: a cheap
+    starburst, not light pouring out"): a soft fan widening from the threshold, brightest at its
+    root, 256 x 128 px (its root at the top centre)."""
+    w, h = 256, 128
+    yy, xx = np.mgrid[0:h, 0:w].astype(float)
+    v = yy / h
+    half = 0.16 + 0.34 * v  # the fan widens away from the doorway
+    u = np.abs(xx / w - 0.5) / half
+    a = np.exp(-(u ** 2) * 2.2) * np.exp(-v * 2.4) * smooth(0.0, 0.08, v)
+    a = a / a.max()
+    rgb = ramp(np.clip(1 - v, 0, 1), [(0.0, "ff7a2a"), (0.6, "ffa448"), (1.0, "ffd08a")])
+    return dither_rgba(rgb, np.clip(a, 0, 1))
+
+
 def main() -> None:
     info = {}
     img, front, i = hut(168, 300, True, 61)  # round 2: bigger, its doorway taller than him
@@ -611,7 +630,7 @@ def main() -> None:
     save(img, "home_hut_low.png")
     info["home_hut_low"] = i
     for name, f in (("home_granary", granary), ("home_fence", fence), ("home_sign", sign), ("home_pot", pot),
-                    ("home_glow", glow), ("home_yard", yard)):
+                    ("home_glow", glow), ("home_yard", yard), ("home_door_light", door_light)):
         im = f()
         save(im, name + ".png")
         info[name] = {"size": [im.width / PX, im.height / PX]}

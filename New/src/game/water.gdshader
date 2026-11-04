@@ -7,8 +7,8 @@ shader_type canvas_item;
 uniform vec2 rect_size = vec2(192.0, 140.0);
 uniform float x_offset = 0.0;  // level x of the rect, so neighbouring pools move as one sea
 uniform float level_top = 0.0;  // level y of the rect's top
-uniform vec4 shallow : source_color = vec4(0.13, 0.58, 0.66, 1.0);  // round 2: deeper, less candy
-uniform vec4 deep : source_color = vec4(0.02, 0.1, 0.26, 1.0);
+uniform vec4 shallow : source_color = vec4(0.12, 0.42, 0.5, 1.0);  // round 2: deeper, less candy (round 10: less cyan)
+uniform vec4 deep : source_color = vec4(0.04, 0.07, 0.2, 1.0);
 uniform vec4 sky_tint : source_color = vec4(1.0, 0.82, 0.62, 1.0);
 uniform vec4 foam : source_color = vec4(0.97, 0.99, 1.0, 1.0);
 uniform sampler2D soil_tex : source_color, repeat_enable, filter_linear_mipmap;  // the banks' earth
@@ -53,8 +53,14 @@ void fragment() {
 	vec3 c = deep.rgb;
 	c = mix(c, mix(shallow.rgb, deep.rgb, 0.5), step(band_y, 30.0));
 	c = mix(c, shallow.rgb * 1.08, step(band_y, 15.0));
-	vec3 sky_band = mix(sky_tint.rgb, vec3(0.62, 0.82, 0.9), 0.35);
-	c = mix(c, sky_band, step(band_y, 6.0));
+	// (round 10, "a flat cyan rectangle with a white rim": the low sun's sky lies on the surface in a
+	// warm gold sheen, broken by the ripples, over the teal)
+	vec3 sky_band = mix(sky_tint.rgb, vec3(1.0, 0.66, 0.36), 0.3);
+	float row = floor(d / 2.6);
+	float streak = smoothstep(0.48, 0.56, noise(vec2(x * 0.022 - t * 0.3 + row * 3.1, row * 1.7)))
+			* (1.0 - smoothstep(0.3, 0.5, abs(fract(d / 2.6) - 0.5) * 2.0 - 0.35));
+	float sheen = streak * (1.0 - smoothstep(3.0, 16.0, d));
+	c = mix(c, sky_band, max(step(band_y, 3.0) * 0.85, sheen * 0.8));
 	c *= mix(1.0, 0.72, smoothstep(6.0, 60.0, d));  // (round 6: deeper is darker within the bands: it reads small)
 	// round 9: the reflection: the picture above the surface mirrored under it, broken by the
 	// ripples (rows of it slide sideways), darker and bluer with depth, strongest near the surface
@@ -99,9 +105,9 @@ void fragment() {
 	c += vec3(1.0, 0.97, 0.85) * step(0.9, h) * flash * star * (1.0 - smoothstep(2.0, 12.0, d));
 	// the foam line on top, its thickness wandering; round 9: in drifting patches over a thin bright
 	// line of sky, not an even white border all along
-	float patch = smoothstep(0.38, 0.7, noise(vec2(x * 0.03 - t * 0.25, 1.7)));
+	float patch = smoothstep(0.5, 0.78, noise(vec2(x * 0.03 - t * 0.25, 1.7)));
 	float thick = 1.0 + 2.8 * patch + 0.8 * noise(vec2(x * 0.11 - t * 0.8, 4.2));
-	vec3 top_col = mix(mix(sky_band, foam.rgb, 0.6), foam.rgb, patch);
+	vec3 top_col = mix(mix(sky_band, foam.rgb, 0.35), foam.rgb, patch * 0.8);
 	c = mix(c, top_col, 1.0 - smoothstep(thick - 0.5, thick + 0.5, d));
 	float flecks = step(0.7, noise(vec2(x * 0.22 - t * 0.5, floor((d - thick) / 2.0) * 7.0))) * patch
 			* step(thick, d) * (1.0 - smoothstep(thick, thick + 6.0, d));

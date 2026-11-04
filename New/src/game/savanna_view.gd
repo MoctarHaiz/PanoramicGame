@@ -38,7 +38,7 @@ const STRIPS := {
 ## washes everything out"): a cool, quiet background behind a warm, saturated playfield.
 const TREE_ROWS := [
 	[0.11, 190.0, 70.0, 488.0, 0.5, 0.25, 0.45, Color(0.44, 0.48, 0.64)],  # (round 9: sparser: a dotted line of stamps)
-	[0.2, 300.0, 104.0, 540.0, 0.16, 0.1, 0.45, Color(0.5, 0.54, 0.68)],  # (round 7: crowns under the jump band:
+	[0.2, 300.0, 104.0, 540.0, 0.3, 0.1, 0.45, Color(0.56, 0.58, 0.7)],  # (round 7: crowns under the jump band:
 	[0.31, 520.0, 130.0, 604.0, 0.0, 0.05, 0.4, Color(0.96, 0.78, 0.5)],  # they read as platforms there)
 ]
 ## (round 6: the near rows darker, warmer; round 9: a little lighter again, so their crowns' lit tops
@@ -46,6 +46,7 @@ const TREE_ROWS := [
 const TREE_TINT := [Color(1, 1, 1), Color(0.76, 0.7, 0.6), Color(0.72, 0.66, 0.54)]
 ## animals.png (tools/art/savanna.py): two giraffes, an elephant, a herd of wildebeest (px regions)
 const ANIMALS := [Rect2(0, 0, 140, 220), Rect2(140, 12, 128, 208), Rect2(268, 68, 220, 152), Rect2(488, 132, 300, 88)]
+const CLOUD_SHADOW_GAP := 700.0  ## round 10: units of the plain between two clouds' shadows
 const CLOUD_SCALE := 2.0  ## cloud_N.png are stored at half size (soft, no detail to lose)
 const FRONT_SCROLL := 1.35  ## the foreground grass moves faster than the ground
 const FRONT_PROP_SCROLL := 1.6  ## round 9: the big things in front, nearer still
@@ -97,11 +98,14 @@ func _ready() -> void:
 	# (round 9: the far hills slate blue and darker: they were the pale milky band)
 	_painter(_draw_strip.bind(&"far_hills"), true).material = _haze([0, 0, 0, 0, 0.42, 0.0, 0, Color(0.42, 0.46, 0.64)], Color(0.78, 0.8, 0.92))
 	_painter(_draw_trees.bind(0)).material = _haze(TREE_ROWS[0], TREE_TINT[0])
-	_painter(_draw_rays).material = add
-	_painter(_draw_strip.bind(&"mid_hills"), true).material = _haze([0, 0, 0, 0, 0.0, 0.0, 0, Color(0.96, 0.76, 0.52)], Color(0.66, 0.56, 0.42))  # (round 6: the darker, warmer mid-ground)
+	var mid := _haze([0, 0, 0, 0, 0.0, 0.0, 0, Color(0.66, 0.66, 0.74)], Color(0.66, 0.56, 0.42))  # (round 6: the darker, warmer mid-ground)
+	mid.set_shader_parameter(&"far_top", 0.42)  # (round 10: its far crests in the air: depth between the rows)
+	_painter(_draw_strip.bind(&"mid_hills"), true).material = mid
 	_painter(_draw_trees.bind(1)).material = _haze(TREE_ROWS[1], TREE_TINT[1])
 	_painter(_draw_trees.bind(2)).material = _haze(TREE_ROWS[2], TREE_TINT[2])
 	_painter(_draw_strip.bind(&"near_grass"), true).material = _haze([0, 0, 0, 0, 0.0, 0.0, 0, Color(1, 1, 1)], Color(0.84, 0.74, 0.58))
+	_painter(_draw_cloud_shadows)  # (round 10) shadows of the clouds sliding over the plain
+	_painter(_draw_rays).material = add  # (round 10: over the midground: the sun's light reaches the scene)
 	_painter(_draw_lane).material = add  # (round 3) the low sun on the grass behind the play
 	_painter(_draw_motes).material = add
 	_painter(_draw_birds)
@@ -167,8 +171,8 @@ func _draw_sky(ci: CanvasItem) -> void:
 ## The sun: its golden halo laid over the sky (`bloom` false), then its hot disc and bloom added.
 func _draw_sun(ci: CanvasItem, bloom: bool) -> void:
 	var s := SUN_SIZE * (1.0 + sin(_clock * 0.7) * 0.012)
-	if bloom:
-		ci.draw_texture_rect(_tex[&"sun"], Rect2(_sun() - Vector2(s, s) * 0.3, Vector2(s, s) * 0.6), false, Color(1, 1, 1, 0.9))
+	if bloom:  # (round 10: softer, warmer: "a hard white disc")
+		ci.draw_texture_rect(_tex[&"sun"], Rect2(_sun() - Vector2(s, s) * 0.32, Vector2(s, s) * 0.64), false, Color(1, 0.9, 0.7, 0.62))
 	else:
 		ci.draw_texture_rect(_tex[&"sun_halo"], Rect2(_sun() - Vector2(s, s) * 0.36, Vector2(s, s) * 0.72), false, Color(1, 1, 1, 0.75))
 
@@ -176,8 +180,8 @@ func _draw_sun(ci: CanvasItem, bloom: bool) -> void:
 ## God rays fanning from the sun to the lower right, breathing slowly.
 func _draw_rays(ci: CanvasItem) -> void:
 	var tex: Texture2D = _tex[&"rays"]
-	var k := 1.2
-	var a := 0.12 + 0.04 * sin(_clock * 0.45) + 0.02 * sin(_clock * 1.13)
+	var k := 1.7  # (round 10: longer and stronger: they reach the midground)
+	var a := 0.2 + 0.05 * sin(_clock * 0.45) + 0.02 * sin(_clock * 1.13)
 	ci.draw_texture_rect(tex, Rect2(_sun() - RAYS_ORIGIN * k, RAYS_SIZE * k), false, Color(1, 1, 1, a))
 
 
@@ -254,6 +258,24 @@ func _draw_lane(ci: CanvasItem) -> void:  # (round 9: lower and fainter: it whit
 	ci.draw_texture_rect(_tex[&"haze"], Rect2(_x0(), 540.0, _x1() - _x0(), 90.0), false, Color(1.0, 0.7, 0.36, 0.13))
 
 
+## Round 10 ("a flat olive band"): the shadows of the clouds lying across the plain, long and soft,
+## sliding slowly with the wind and the midground's scroll.
+func _draw_cloud_shadows(ci: CanvasItem) -> void:
+	var tex: Texture2D = _tex[&"mote"]
+	var x0 := _x0()
+	var x1 := _x1()
+	var offset := scroll * 0.2 + _clock * 4.0
+	var first := floori((x0 + offset) / CLOUD_SHADOW_GAP) - 1
+	for i in range(first, first + int((x1 - x0) / CLOUD_SHADOW_GAP) + 3):
+		if _hash(i * 17 + 3) < 0.35:
+			continue
+		var w := 380.0 + _hash(i * 7 + 1) * 520.0
+		var cx := i * CLOUD_SHADOW_GAP + _hash(i * 5 + 2) * CLOUD_SHADOW_GAP * 0.6 - offset
+		var cy := 590.0 + _hash(i * 3 + 4) * 30.0
+		var hgt := 46.0 + _hash(i * 11 + 5) * 30.0
+		ci.draw_texture_rect(tex, Rect2(cx - w / 2, cy - hgt / 2, w, hgt), false, Color(0.16, 0.12, 0.24, 0.3))
+
+
 ## A soft band of warm air across the view.
 func _draw_band(ci: CanvasItem, y: float, height: float, alpha: float) -> void:
 	ci.draw_texture_rect(_tex[&"haze"], Rect2(_x0(), y - height / 2, _x1() - _x0(), height), false,
@@ -280,7 +302,7 @@ func _draw_trees(ci: CanvasItem, row_index: int) -> void:
 			continue
 		var t := int(_hash(seed + 1) * _trees.size()) % _trees.size()
 		var tex := _trees[t]
-		var height: float = row[2] * (0.65 + _hash(seed + 2) * 0.7) * (0.62 if slot & 1 == 1 else 1.0)
+		var height: float = row[2] * (0.5 + _hash(seed + 2) * 0.95) * (0.62 if slot & 1 == 1 else 1.0)  # (round 10: more unequal)
 		if tex.get_height() > tex.get_width():  # baobabs: taller pictures, same tree scale
 			height *= 1.15
 		var anchor := _tree_anchor[t]

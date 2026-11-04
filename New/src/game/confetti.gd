@@ -8,26 +8,33 @@ extends Node2D
 ## in one batch and its light in another; then the node frees itself. Made by Fx (rescue, game
 ## over, the bushes, the stone).
 
-enum Shape { PAPER, RIBBON, SEQUIN, STAR, LEAF, CHIP, COIN, PETAL, BEAD, STREAMER, STRIP, SOFT }
+enum Shape { PAPER, RIBBON, SEQUIN, STAR, LEAF, CHIP, COIN, PETAL, BEAD, STREAMER, STRIP }
 
 ## Size of each shape in design px at size 1.
 const SIZES := {
 	Shape.PAPER: Vector2(19, 12), Shape.RIBBON: Vector2(30, 10), Shape.SEQUIN: Vector2(13, 13),
 	Shape.STAR: Vector2(19, 19), Shape.LEAF: Vector2(27, 14), Shape.CHIP: Vector2(15, 13), Shape.COIN: Vector2(22, 22),
 	Shape.PETAL: Vector2(18, 11), Shape.BEAD: Vector2(10, 10), Shape.STREAMER: Vector2(54, 15),
-	Shape.STRIP: Vector2(22, 8), Shape.SOFT: Vector2(29, 20),
+	Shape.STRIP: Vector2(22, 8),
 }
 const STREAK_SPEED := 420.0  ## faster than this (px/s), a piece leaves a smear
-## Two-tone paper (PAPER, STRIP, SOFT): the colour of a piece's back for each front colour (others: darker).
-const TWO_TONE := {"ffcf3a": Color("fff4d0"), "e8452e": Color("ffb37a"), "4a43a8": Color("8fd0ff"),
-		"fff1d0": Color("ffcf3a"), "ff7a52": Color("ffe0b0"), "f5b81c": Color("b86a10"), "3fb8e0": Color("c8f0ff"),
-		"e84a8a": Color("ffc0d8")}
+const SHUTTER := 0.03  ## s of its path a moving piece is stretched over (a camera's motion blur)
+## The pieces the motion blur stretches: the paper, the coins and the party's bits (not the knocked-out
+## stars, leaves or stone: they keep their shapes).
+const BLURRED := [Shape.PAPER, Shape.STRIP, Shape.COIN, Shape.PETAL, Shape.RIBBON, Shape.STREAMER,
+		Shape.SEQUIN, Shape.BEAD]
+## Two-tone paper (PAPER, STRIP): the colour of a piece's back for each front colour (others:
+## darker): warm, a shade deeper, so a tumbling piece flashes light and dark in the sunset's colours.
+const TWO_TONE := {"ffd84a": Color("e0901a"), "ffe27a": Color("e8b030"), "ffc12a": Color("c87010"),
+		"e8452e": Color("a82a18"), "c8341f": Color("ff7a4a"), "ff6a2a": Color("b83a10")}
 const ATLAS_WIDTH := 256  ## px: every picture of the confetti and of its light, side by side
 const PAD := 4  ## px of clear between two pictures of the atlas (its mipmaps don't bleed)
 
 static var _atlas: ImageTexture
 static var _regions := {}  # Shape or light name (&"flare", &"glow", &"streak", &"dot") -> Rect2 in the atlas
 static var _additive: CanvasItemMaterial
+static var _sheet: Image  # the atlas's picture once baked, until atlas() makes it a texture
+static var _baking := -1  # the WorkerThreadPool task baking it (-1: none)
 
 ## Pulls the pieces down (px/s²), slows them (per second: terminal speed = gravity / drag), and
 ## pushes flat pieces sideways as they flip (px/s²).
@@ -79,10 +86,26 @@ static func make(parent: Node, at: Vector2) -> Confetti:
 	return c
 
 
-## The atlas of every piece and light (baked at the first use: Fx.warm_up does it at boot).
+## Starts baking the atlas's picture on a worker thread (Fx.warm_up, at boot): about 0.1 s of GDScript
+## on a desktop, several times that on a phone, kept out of the boot's frames.
+static func bake_soon() -> void:
+	if not _atlas and _baking < 0:
+		_baking = WorkerThreadPool.add_task(_bake_sheet)
+
+
+## The atlas of every piece and light: the thread's picture made a texture (waiting for the thread if
+## it isn't done), or baked here if no thread was started.
 static func atlas() -> Texture2D:
 	if not _atlas:
-		_bake_textures()
+		if _baking >= 0:
+			WorkerThreadPool.wait_for_task_completion(_baking)
+			_baking = -1
+		else:
+			_bake_sheet()
+		_additive = CanvasItemMaterial.new()
+		_additive.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		_atlas = ImageTexture.create_from_image(_sheet)
+		_sheet = null
 	return _atlas
 
 
@@ -223,13 +246,34 @@ func _draw() -> void:
 			twist = Vector2(1.0, maxf(w, 0.55))
 		elif p.shape == Shape.STRIP:
 			twist = Vector2(1.0, maxf(w, 0.3))
-		elif p.shape == Shape.PAPER or p.shape == Shape.SOFT:
+		elif p.shape == Shape.PAPER:
 			twist = Vector2(maxf(w, 0.3), 1.0)
+		var smear := _smear(p)  # motion blur: stretched along its path, a touch fainter
 		var c := _shade(p)
-		c.a *= clear
-		draw_set_transform(p.pos, p.turn, twist * grow)
+		c.a *= clear / pow(smear, 0.35)
+		draw_set_transform_matrix(_placed(p, twist * grow, smear))
 		draw_texture_rect_region(_atlas, Rect2(-p.size / 2, p.size), _regions[p.shape], c)
 	draw_set_transform(Vector2.ZERO)
+
+
+## Where and how a piece is drawn: at its place, turned, squashed by its tumble (`scale`), then
+## stretched by `smear` along the way it moves.
+func _placed(p: Piece, scale: Vector2, smear: float) -> Transform2D:
+	var x := Vector2(cos(p.turn), sin(p.turn)) * scale.x
+	var y := Vector2(-sin(p.turn), cos(p.turn)) * scale.y
+	if smear > 1.0:
+		var v := p.vel.normalized()
+		x += v * x.dot(v) * (smear - 1.0)
+		y += v * y.dot(v) * (smear - 1.0)
+	return Transform2D(x, y, p.pos)
+
+
+## How far a piece stretches along its path (1: not at all): the way it goes in SHUTTER seconds,
+## against its size (a coin, solid metal, a little; none for the shapes not BLURRED).
+func _smear(p: Piece) -> float:
+	if p.shape not in BLURRED:
+		return 1.0
+	return clampf(1.0 + p.vel.length() * SHUTTER / maxf(p.size.x, p.size.y), 1.0, 1.35 if p.shape == Shape.COIN else 2.4)
 
 
 ## The pieces' glints and the sparkles, added onto the scene (one atlas: one batch).
@@ -277,7 +321,7 @@ func _shade(p: Piece) -> Color:
 	var lit := 0.6 + 0.4 * absf(face)
 	var base := p.colour
 	if face < 0.0:
-		if p.shape in [Shape.STRIP, Shape.PAPER, Shape.SOFT]:  # two-tone paper: its other side shows as it turns over
+		if p.shape in [Shape.STRIP, Shape.PAPER]:  # two-tone paper: its other side shows as it turns over
 			base = p.back
 		else:
 			lit *= 0.8
@@ -289,7 +333,7 @@ func _shade(p: Piece) -> Color:
 
 ## How much a piece catches the light (0 to 1): for an instant as it turns full face.
 func _glint(p: Piece) -> float:
-	if p.shape in [Shape.LEAF, Shape.CHIP, Shape.PETAL, Shape.STREAMER, Shape.RIBBON, Shape.SOFT]:  # satin, leaves, a blur: no flash
+	if p.shape in [Shape.LEAF, Shape.CHIP, Shape.PETAL, Shape.STREAMER, Shape.RIBBON]:  # satin and leaves: no flash
 		return 0.0
 	return pow(maxf(cos(p.flip + p.glint_phase), 0.0), 24.0) * maxf(cos(p.flip), 0.0)
 
@@ -301,10 +345,9 @@ func _fade(age: float, life: float) -> float:
 # ---------------------------------------------------------------- textures
 
 ## The shapes, white and shaded as if lit from the upper left (the colour comes from the piece), and
-## the light (a glint, a soft glow, a spark's streak and its hot head), packed into one atlas.
-static func _bake_textures() -> void:
-	_additive = CanvasItemMaterial.new()
-	_additive.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+## the light (a glint, a soft glow, a spark's streak and its hot head), packed into one picture: only
+## images, no texture or other server object, so it runs on a worker thread (bake_soon).
+static func _bake_sheet() -> void:
 	var images := {}
 	# A paper square: a rounded rectangle with a slight curl (a lit band across it, the far end
 	# turning into shade) and a crisp lit top edge: it reads as paper even at its size on a phone.
@@ -367,11 +410,6 @@ static func _bake_textures() -> void:
 	images[Shape.STRIP] = _bake(Vector2i(44, 16), func(u: Vector2) -> Vector2:
 		var d := _box(u, Vector2(0.95, 0.85), 0.2)
 		return Vector2(0.78 + 0.18 * (1.0 - absf(u.x + 0.3)) - 0.08 * u.y, d))
-	# A paper square close to the eye, out of focus: a flat rounded rectangle whose edges melt into a
-	# wide soft falloff (the size in SIZES includes it), lit a little from above.
-	images[Shape.SOFT] = _bake(Vector2i(64, 44), func(u: Vector2) -> Vector2:
-		var d := -_box(u, Vector2(0.62, 0.56), 0.3) / 12.0  # signed distance to its edge (u units)
-		return Vector2(0.9 - 0.08 * u.y, 1.0 - smoothstep(-0.3, 0.36, d)))
 	# A streamer: a wide satin ribbon in a gentle double curl, shaded across its width (lit edge on
 	# top, a glossy band, its underside darker) and darker where the curl turns away from the light.
 	images[Shape.STREAMER] = _bake(Vector2i(96, 30), func(u: Vector2) -> Vector2:
@@ -407,7 +445,7 @@ static func _bake_textures() -> void:
 	_pack(images)
 
 
-## Lays the pictures out in rows in one atlas, tallest first, PAD apart, and keeps where each is.
+## Lays the pictures out in rows in one picture, tallest first, PAD apart, and keeps where each is.
 static func _pack(images: Dictionary) -> void:
 	var keys := images.keys()
 	keys.sort_custom(func(a: Variant, b: Variant) -> bool: return images[a].get_height() > images[b].get_height())
@@ -427,7 +465,7 @@ static func _pack(images: Dictionary) -> void:
 		var img: Image = images[key]
 		sheet.blit_rect(img, Rect2i(Vector2i.ZERO, img.get_size()), Vector2i(_regions[key].position))
 	sheet.generate_mipmaps()
-	_atlas = ImageTexture.create_from_image(sheet)
+	_sheet = sheet
 
 
 ## A picture whose every pixel comes from `shape` at u in -1..1: (brightness, coverage), coverage

@@ -10,7 +10,7 @@ hips, head, toes and hands (airborne frames hang from the hips, hanging ones fro
 Also writes the interface pictures (hero_menu.png, hero_win.png, hero_defeat.png) and portrait.png (the
 source of the HUD badge, the icons and the store art: tools/art/ui_art.py, icons.py, tools/store_art.py).
 
-    python3 tools/art/hero_atlas.py [RENDER_DIR]   # default ROOT/_agents/AAA/hero3d/render/p4/game
+    python3 tools/art/hero_atlas.py [RENDER_DIR]   # default ROOT/_agents/AAA/hero3d/render/r10/game
 
 (The AAA hero: rendered by hero_render.py from ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend, see
 ROOT/_agents/AAA/hero3d/render/render_all.sh; the interface pictures come from RENDER_DIR/../render_ui.)
@@ -25,7 +25,7 @@ from scipy import ndimage
 
 NEW = Path(__file__).resolve().parents[2]
 ROOT = next(p for p in NEW.parents if (p / "Making").is_dir())  # the folder with the user's Blender files
-RENDER = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "_agents/AAA/hero3d/render/p4/game"
+RENDER = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "_agents/AAA/hero3d/render/r10/game"  # (round 10: pass 4's, the hang, the catch, the win and the defeat re-rendered: hero3d/render/render_r10.sh)
 GROUND_SPEED = 8.0 * 960.0 / 1320.0 * 40.0  ## units a second the ground scrolls (World.SCROLL_SPEED)
 OUT = NEW / "assets/art/hero"
 SCALE = 0.40  ## render px -> atlas px (1024 renders: he stands ~690 px, ~276 px in the atlas; the ink line costs a little room)
@@ -231,16 +231,81 @@ def main() -> None:
     print(f"{len(frames)} frames, {len(names)} pages, {total / 1e6:.2f} Mpx")
 
 
-def trimmed(path: Path, height: int, sunset: bool = False) -> np.ndarray:
-    """A render cut to what it shows and reduced to `height` px."""
+def trimmed(path: Path, height: int, sunset: bool = False, under: np.ndarray | None = None) -> np.ndarray:
+    """A render cut to what it shows and reduced to `height` px; `under` (RGBA 0..1, the render's size): a
+    layer drawn behind the figure, cut and reduced with it, with no ink round it (the menu's throw trail)."""
     img = Image.open(path).convert("RGBA")
     box = img.getchannel("A").point(lambda v: 255 if v > 2 else 0).getbbox()
     img = img.crop(box)
-    arr = premultiplied_resize(img, height / img.height)
+    k = height / img.height
+    arr = premultiplied_resize(img, k)
     pad = np.zeros((arr.shape[0] + 8, arr.shape[1] + 8, 4), np.float32)
     pad[4:-4, 4:-4] = arr
     pad = sun_rim(pad, RIM_PX * height / 300.0, RIM_SUNSET if sunset else RIM_DAY)
-    return inked(pad, INK_PX_UI * height / 300.0)  # (as thick, for its size, as in the game before pass 3)
+    out = inked(pad, INK_PX_UI * height / 300.0)  # (as thick, for its size, as in the game before pass 3)
+    if under is not None:
+        u = premultiplied_resize(Image.fromarray((under * 255 + 0.5).astype(np.uint8), "RGBA").crop(box), k)
+        low = np.zeros_like(out)
+        low[4:4 + u.shape[0], 4:4 + u.shape[1]] = u[:out.shape[0] - 4, :out.shape[1] - 4]
+        a, b = out[..., 3:4], low[..., 3:4]
+        al = a + b * (1.0 - a)
+        out = np.concatenate([(out[..., :3] * a + low[..., :3] * b * (1.0 - a)) / np.maximum(al, 1e-4), al], -1)
+    return out
+
+
+TRAIL = np.array([0.74, 0.9, 1.0])  ## the throw trail's colour: the steel ring's cold light
+
+
+def throw_trail(folder: Path) -> np.ndarray:
+    """Round 10 ("the ring floats on its own above the hand: with no motion trail it reads as a UI glitch"): a
+    smear of cold light on the arc from his throwing hand to the ring (thin and faint at the hand, as wide as
+    the ring and brighter at it) with a bright core and two speed lines, at the render's size."""
+    from scipy.spatial import cKDTree
+    src = np.asarray(Image.open(folder / "000.png"))
+    points = json.loads((folder / "points.json").read_text())
+    hand = np.array(points["frames"][0]["hand_r"], np.float64)
+    lab, n = ndimage.label(src[..., 3] > 128)
+    sizes = ndimage.sum(np.ones_like(lab), lab, range(1, n + 1))
+    ring = np.argsort(-sizes)[1] + 1  # the second piece: the ring, flying free of his hand
+    ys, xs = np.nonzero(lab == ring)
+    centre = np.array([xs.mean(), ys.mean()])
+    radius = (xs.max() - xs.min()) / 2.0
+    d = centre - hand
+    length = np.hypot(*d)
+    normal = np.array([-d[1], d[0]]) / length  # (away from his body: the ring swings out as it leaves)
+    ctrl = (hand + centre) / 2.0 + normal * length * 0.22
+    t = np.linspace(0.0, 1.0, 400)[:, None]
+    curve = (1 - t) ** 2 * hand + 2 * (1 - t) * t * ctrl + t ** 2 * centre
+    tangent = np.gradient(curve, axis=0)
+    side = np.stack([tangent[:, 1], -tangent[:, 0]], -1) / np.maximum(np.hypot(*tangent.T)[:, None], 1e-6)
+    h, w = src.shape[:2]
+    x0, y0 = np.floor(np.minimum(hand, centre) - radius * 2).astype(int).clip(0)
+    x1, y1 = np.ceil(np.maximum(hand, centre) + radius * 2).astype(int)
+    x1, y1 = min(x1, w), min(y1, h)
+    yy, xx = np.mgrid[y0:y1, x0:x1]
+    pix = np.stack([xx.ravel(), yy.ravel()], -1).astype(np.float64)
+    out = np.zeros((h, w, 4), np.float32)
+
+    def stroke(path, width, alpha):
+        dist, i = cKDTree(path).query(pix)
+        k = i / (len(path) - 1)
+        a = np.clip((width(k) - dist) / 2.0 + 0.5, 0.0, 1.0) * alpha(k)
+        return a.reshape(yy.shape)
+
+    tt = t[:, 0]
+    band = stroke(curve, lambda k: radius * 0.8 * k ** 0.7, lambda k: 0.3 + 0.6 * k)
+    core = stroke(curve, lambda k: radius * 0.24 * k ** 0.7, lambda k: 0.95 * k ** 0.7)
+    lines = np.zeros_like(band)
+    for sgn in (-1.0, 1.0):  # speed lines either side, along the middle of the flight
+        path = curve + side * (sgn * radius * 1.15 * tt ** 0.8)[:, None]
+        keep = (tt > 0.3) & (tt < 0.85)
+        lines = np.maximum(lines, stroke(path[keep], lambda k: np.full_like(k, radius * 0.05), lambda k: 0.75 * np.sin(k * np.pi)))
+    a = np.maximum(np.maximum(band, core), lines)
+    a *= np.clip((np.hypot(xx - centre[0], yy - centre[1]) - radius * 0.98) / 3.0, 0.0, 1.0)  # (not in the ring's hole)
+    rgb = TRAIL + (1.0 - TRAIL) * np.clip(core * 1.2, 0, 1)[..., None]  # the core runs white
+    out[y0:y1, x0:x1, :3] = rgb
+    out[y0:y1, x0:x1, 3] = a
+    return out
 
 
 def save(arr: np.ndarray, name: str, pad: int = 8) -> None:
@@ -291,15 +356,15 @@ MENU_PIXELS = 550000  ## the menu picture's pixel budget (with its padding and s
 def pictures() -> None:
     """The pictures the interface shows, each lit by its screen's own light (the sunset rim from
     behind, the warm bounce: tools/art/blender/hero_render.py --light sunset): the menu's hero (full
-    length, mid-throw, a ring leaving his hand), the portrait (the same, head to hips, the size the
+    length, mid-throw, a ring leaving his hand on a trail of cold light), the portrait (the same, head to hips, the size the
     menu and cards expect), the win card's cheer, the game over's defeat (down on one knee, a hand
     on the ground). (Round 9: the turnaround stands, drawn nowhere, are gone.)"""
     ui = RENDER.parent / "render_ui"
     hero = trimmed(ui / "menu_hero/000.png", 1100, sunset=True)
-    menu = hero
-    if hero.shape[0] * hero.shape[1] > MENU_PIXELS:  # a wide pose: as many pixels as an upright one
-        k = (MENU_PIXELS / (hero.shape[0] * hero.shape[1])) ** 0.5
-        img = Image.fromarray((np.clip(hero, 0, 1) * 255 + 0.5).astype(np.uint8), "RGBA")
+    menu = trimmed(ui / "menu_hero/000.png", 1100, sunset=True, under=throw_trail(ui / "menu_hero"))  # (the portrait: none)
+    if menu.shape[0] * menu.shape[1] > MENU_PIXELS:  # a wide pose: as many pixels as an upright one
+        k = (MENU_PIXELS / (menu.shape[0] * menu.shape[1])) ** 0.5
+        img = Image.fromarray((np.clip(menu, 0, 1) * 255 + 0.5).astype(np.uint8), "RGBA")
         menu = premultiplied_resize(img, k)
     save(grounded(menu), "hero_menu.png")
     # the portrait: 660 x 752 from his hair to his hips

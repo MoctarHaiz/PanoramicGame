@@ -44,8 +44,9 @@ arrows or WASD to move, space to throw, P or Esc to pause.
   recorded run and reports, for the menu, the run, pause and the results: texture and video memory, draw
   calls, frame times (the game's own work and the wall time), nodes, pictures loaded mid-run, against
   the budgets (texture memory under 80 MB, no frame of play over 16 ms, nothing left behind). Exit code 1
-  if one fails; JSON in `build/perf/`. `--textures=12` lists the biggest pictures in memory per phase;
-  `--hide=name,…` hides layers for an A/B of their cost.
+  if one fails; JSON in `build/perf/`. It runs the boot screen's warm-up first, as the game does.
+  `--textures=12` lists the biggest pictures in memory per phase; `--load-profile=10` shows where the
+  level's opening frame goes; `--hide=name,…` hides layers for an A/B of their cost.
 
 ## Controls (as in 2017)
 

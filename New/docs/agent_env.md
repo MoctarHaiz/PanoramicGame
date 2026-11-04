@@ -332,3 +332,59 @@ Numbers: tests 1023 checks, 0 failed (bot home). Perf (iPhone 15, perf.tscn): te
 Next: the pools are still a narrow band at the bottom under the dark grade and the foreground
 grass; the far escarpment is still a pale lavender plane; the mid-hill bushes are flat pills;
 the spires are still tall and thin (the rules' single cell).
+
+## Round 10 (after 452aa0e: round 9 won the blind A/B on 10/10 screens, 6.42 against the references)
+
+Kept everything; the judges' words and what was done:
+
+- **Pillar ("evenly sized stones with even outlines on a box with straight vertical sides")**:
+  big feature blocks among small fill stones (a second, finer Voronoi inside the cells that are
+  not feature blocks: `blocks()` in terrain.gdshader); each block's top face a lit plane along its
+  upper edge; cracks thicker or thinner by block; the light bands halfway between the pixel and the
+  block centre (a big block in a band's edge is not all in shade), the shade side wider; darker
+  towards the base (to the foot); the sides step bed by bed (each bed juts out or stands back its
+  own way, a slanted step into the next: stacked slabs, not one wavy line), the erosion deeper.
+- **Island underside ("a Voronoi grid of same-size polygons, like paving"; "evenly spaced
+  bumps")**: hanging.png's rocks are a power diagram: two to four big feature rocks among fill
+  stones (straight edges, no bubbles); darker down to each mass's own tip; in `_hang_masses` each
+  mass its own depth, width and place along the ledge, one deep under the middle.
+- **Hang pillars ("smooth pale tubes with notches: bamboo")**: notches rare (a row of them read
+  as bamboo nodes), the far side in shade (the light shifted), darker stone, rock blocks in each
+  bed rounded by the light with a lit bevel and ink on their shaded joints.
+- **The vine ("a regular sine wave: a clothesline")**: runs of spans pulled nearly taut, others
+  hanging deep (slack shared by three spans); a thinner, darker liana behind it, tied at other
+  places (spans 1.47 long) and hanging lower (`_back_sag`, drawn only: the rules' vine and his
+  hands use `sag_at` as before).
+- **The sun ("a hard white disc; no rays or falloff reach the scene"; "its glare bleaches its
+  corner")**: its added disc softer and warmer; the god rays drawn over the midground, longer and
+  stronger; the grade's warm wash stronger and reaching further; the grade's shade kept off only
+  the disc itself (60 %, a smaller radius), not its corner.
+- **Mesas under the island "like table legs"**: round 8's butte at x 760 of far_mesas.png removed
+  (with the tall butte and the chimneys three evenly spaced columns stood under the climb's
+  island). (A phase shift of the strip was tried and dropped: it changed the home's backdrop,
+  a clear win in round 9.)
+- **Midground ("a flat olive band, the same acacia stamp at the same size, no atmospheric falloff
+  between rows")**: the mid hills' far crests in the air (haze.gdshader `far_top`), the middle
+  tree row hazier, the trees' sizes more unequal; shadows of the clouds lying across the plain,
+  long and soft, sliding with the wind (`_draw_cloud_shadows`).
+- **Water ("a flat cyan rectangle with a white rim")**: less cyan, deeper; the low sun's sky lies on
+  the surface in long gold streaks broken by the ripples; the rim pale gold, the foam patches
+  rarer.
+- **Home**: the doorway's rays removed (they were Fx.home_glow's `rays()`, audio's fx.gd: one line,
+  marked) and the stripes inside the hut (my thatch ribs) replaced by a soft shaded wall; the
+  firelight pours out of the doorway onto the grass (home_door_light.png, a fan from the
+  threshold, additive); the campfire lights the fence and the yard round it (a wide warm light).
+
+- **QA ENV-1, the start shot's bandit cut by the right edge**: the start card holds the world at
+  scroll 0 and the level's first bandit waits at x 1024 (its picture 960-1069), the camera showing
+  1040 units (73 % of him, in the phone's rounded corner). While the start card holds the world, a
+  waiting bandit whose picture is not wholly inside the screen's safe area is not drawn
+  (WorldView `start_hold` / `safe_right`, set by `_place_camera`); it fades in (0.25 s) as the run
+  starts, then slides in from the edge with the world. The rules, the camera and its fairness are
+  unchanged (VIEW_AHEAD stays 1040: 1085 would have cost 4 % of his size on 19.5:9 phones).
+- **QA, the level open's frame (~80 ms)**: TerrainView.build's data (the solid cells, the stacks,
+  the wall feet, the depth picture: ~23 ms headless) is now `prepare()`, run on a worker thread
+  from WorldView.setup (joined in the next frame, or when the view leaves the tree); build() then
+  only makes the layers (~6 ms). The ~17 ms before the start card is not in env's files.
+
+Before/after crops: `AAA/env/round_10/ba_*.jpg`.

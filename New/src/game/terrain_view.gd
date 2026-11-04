@@ -53,7 +53,7 @@ const MASS_INSET := 44.0  ## units the masses stay in from a ledge's ends (its t
 const NARROW_CELLS := 6  ## a wall at most this many cells wide is a pillar (shaded as a column to its foot)
 const DIR := "res://assets/art/world/"
 
-var level: Level
+var level: Level  ## set by build(): the layers exist
 var front: Node2D  ## blades in front of the runners: added by WorldView above them
 
 var _layers := {}  # name -> Node2D holding that layer's chunks
@@ -66,6 +66,9 @@ var _solid := PackedByteArray()  # cached solid cells, columns first_col - 1 .. 
 var _feet := PackedByteArray()  # cells at the ground line under a wall (_wall_foot()), rows 0 .. ROWS - 1
 var _c0 := 0
 var _cols := 0
+var _map: Level  # the map prepare() reads (on a worker thread: level is set only once build() runs)
+var _prepared := false
+var _depth_px := PackedByteArray()
 
 
 class Batch extends Node2D:
@@ -91,8 +94,11 @@ func is_built() -> bool:
 	return level != null
 
 
-func build(lvl: Level, first_col: int, end_col: int) -> void:
-	level = lvl
+## Round 10 (QA: the level open's frame took ~80 ms, ~40 of it here): the ground's data alone, no
+## nodes (the solid cells, the stacks, the wall feet, the depth picture's bytes): WorldView works it
+## out on a worker thread while the level's first frame is drawn; build() makes the layers.
+func prepare(lvl: Level, first_col: int, end_col: int) -> void:
+	_map = lvl
 	_c0 = first_col - 1
 	_cols = end_col - first_col + 2
 	_solid.resize(_cols * (Level.ROWS + 2))
@@ -115,6 +121,14 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 		if span >= 20000 and c + 1 <= end_col:
 			_poles[c - first_col + 2] = span + 10000  # the same rows, drawn by its left column
 	_find_feet()
+	_depth_px = _depth_bytes(first_col, end_col)
+	_prepared = true
+
+
+func build(lvl: Level, first_col: int, end_col: int) -> void:
+	if not _prepared:
+		prepare(lvl, first_col, end_col)
+	level = lvl
 	var soil := ShaderMaterial.new()
 	soil.shader = preload("res://src/game/terrain.gdshader")
 	var sway := ShaderMaterial.new()
@@ -131,7 +145,8 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 	_layers[&"front"] = front
 	_layers[&"front_cast"] = front.get_child(0)
 
-	soil.set_shader_parameter(&"depth_tex", _depth_texture(first_col, end_col))
+	soil.set_shader_parameter(&"depth_tex", ImageTexture.create_from_image(
+			Image.create_from_data(end_col - first_col, Level.ROWS, false, Image.FORMAT_RGBA8, _depth_px)))
 	soil.set_shader_parameter(&"first_col", first_col)
 	var textures := {
 		&"soil": load(DIR + "terrain_shape.png"),
@@ -308,9 +323,12 @@ func _hang_masses(c: int, r: int, batch: Batch, batch_shadow: Batch) -> void:
 		batch_shadow.items.append([Rect2(sx - sw / 2, ground_r * T - 14.0, sw, 30.0), Rect2(0, 0, 64, 64),
 				Color(0.14, 0.08, 0.18, clampf(0.55 - drop / 900.0, 0.2, 0.5))])
 	for i in count:
-		var u := (i + 0.5) / count
-		var k := 0.5 + 0.5 * pow(sin(PI * u), 0.7) if count > 1 else 1.0
-		var width := minf(length / count * 1.45 + 24.0, 260.0) * (0.85 + 0.15 * k)
+		# round 10 ("the scalloped bottom edge has evenly spaced bumps: mechanical"): each mass its own
+		# depth, width and place, one deep under the middle
+		var u := (i + 0.5 + (_hash(c + i, r + 5, 100) / 100.0 - 0.5) * 0.7) / count
+		var k := 0.5 + 0.5 * pow(sin(PI * clampf(u, 0.0, 1.0)), 0.7) if count > 1 else 1.0
+		k *= 0.45 + 0.55 * _hash(c + i, r + 9, 100) / 100.0 if i != count / 2 else 1.0
+		var width := minf(length / count * 1.45 + 24.0, 260.0) * (0.75 + 0.55 * _hash(c + i, r + 11, 100) / 100.0)
 		width = minf(width, x1 - x0)
 		var cx := clampf(c * T + u * length, x0 + width / 2, x1 - width / 2)
 		var v := _hash(c + i, r, MASS_VARIANTS)
@@ -425,6 +443,12 @@ static func soft_disc() -> GradientTexture2D:
 ## to rock with depth, and lights each wall from the sun's side (G) and shades its far side (B),
 ## continuously from cell to cell.
 func _depth_texture(first_col: int, end_col: int) -> ImageTexture:
+	return ImageTexture.create_from_image(Image.create_from_data(end_col - first_col, Level.ROWS, false,
+			Image.FORMAT_RGBA8, _depth_bytes(first_col, end_col)))
+
+
+## The depth picture's pixels (_depth_texture()), worked out anywhere (no rendering).
+func _depth_bytes(first_col: int, end_col: int) -> PackedByteArray:
 	# New: running counts down each column and along each row (one pass each way) instead of
 	# walking up to 15 cells from every cell: the same picture, ~10x faster (the level opens sooner)
 	var n := end_col - first_col
@@ -475,7 +499,7 @@ func _depth_texture(first_col: int, end_col: int) -> ImageTexture:
 			if r < rows:
 				var open_below := r < rows - 1 and s[at + r + 2] == 0
 				px[(r * n + i) * 4 + 3] = run + (128 if open_below else 0)
-	return ImageTexture.create_from_image(Image.create_from_data(n, rows, false, Image.FORMAT_RGBA8, px))
+	return px
 
 
 ## Grass tops and walls are solid; past either end of the map the edge column repeats, and the
@@ -497,7 +521,7 @@ func _solid_at(c: int, r: int) -> bool:
 func _kind(c: int, r: int) -> int:
 	if r < 0:
 		return Level.Kind.NONE
-	return Level.kind_of(level.id_at(clampi(c, 0, Level.COLS - 1), r))
+	return Level.kind_of(_map.id_at(clampi(c, 0, Level.COLS - 1), r))
 
 
 static func _hash(a: int, b: int, n: int) -> int:

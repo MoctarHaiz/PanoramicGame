@@ -69,14 +69,15 @@ RADIUS = 0.444  ## of the picture (round 8's ball: BobView sizes the ball from b
 LIGHT = np.array([-0.5, -0.62, 0.6])  ## towards the sun (x right, y down, z to us): upper left, as in the world
 DEEP, BODY, LIT = (0.4, 0.0, 0.08), (0.76, 0.02, 0.14), (1.0, 0.2, 0.28)  ## the ruby's bands (sRGB)
 TABLE = 0.56  ## the table's size (of the stone's radius): the face sits on it
-STAR, GIRDLE = 0.62, 0.74  ## how far out (0 table, 1 rim) the star facets' points and the girdle facets reach
 CORE = (1.0, 0.46, 0.46)  ## the hottest facets (the stone's fire)
+RIM = (1.0, 0.62, 0.62)  ## the bright rim inside its ink
 
 
 def gem() -> tuple[np.ndarray, np.ndarray]:
     """The ruby (RGBA, S x S, colours 0..1) and its lighting value (for the face's shade): seen from above like
-    a cut stone, an octagonal table in the middle (the face sits on it) ringed by crown facets that catch the
-    sun on the near side and the light coming back out of the stone on the far side."""
+    a cut stone, an octagonal table in the middle (the face sits on it) ringed by eight big crown facets (round
+    10: "facets too small to read": one per side of the table, no more), a bright rim just inside the ink and
+    one hard white glint."""
     yy, xx = np.mgrid[0:S, 0:S].astype(np.float32)
     c, r = S / 2.0, S * RADIUS
     u, v = (xx + 0.5 - c) / r, (yy + 0.5 - c) / r
@@ -91,36 +92,31 @@ def gem() -> tuple[np.ndarray, np.ndarray]:
     local = np.mod(th + sector / 2.0, sector) - sector / 2.0  # angle from the middle of an octagon side
     table_r = TABLE * np.cos(sector / 2.0) / np.cos(local)  # the octagon's edge along this ray
     in_table = edge(rr - table_r)
-    # the crown, as on a brilliant: a star facet on each side of the table (a triangle, its point outwards), a
-    # kite between two stars (from a table corner out to the rim), and small girdle facets round the rim
-    side_mid = th - local  # the middle of this side of the octagon
-    sr = np.clip((rr - table_r) / np.maximum(1.0 - table_r, 1e-3), 0.0, 1.0)  # 0 at the table, 1 at the rim
-    star = edge(sr - STAR * (1.0 - np.abs(local) / (sector / 2.0)))
-    girdle = edge(GIRDLE - sr) * (1.0 - star)
-    corner = side_mid + np.sign(local) * sector / 2.0  # the kite's corner of the table
-    half = np.floor((th + np.pi) / (sector / 2.0))
-    gmid = (half + 0.5) * (sector / 2.0) - np.pi
-    az = np.where(star > 0.5, side_mid, np.where(girdle > 0.5, gmid, corner))
-    tilt = np.where(star > 0.5, np.radians(26.0), np.where(girdle > 0.5, np.radians(66.0), np.radians(44.0)))
-    fn = np.stack([np.sin(tilt) * np.cos(az), np.sin(tilt) * np.sin(az), np.cos(tilt)], -1)
-    alt = np.where(np.mod(half, 2) == 0, 1.0, -1.0)  # neighbours never alike: every cut shows
-    lit_k = np.maximum(fn @ light, 0.7 * (fn @ back))  # the sun on the near facets, the stone's fire on the far ones
-    tone = 0.75 * lit_k + 0.25 * (u * light[0] + v * light[1] + 0.6) + 0.09 * alt
+    # the crown: one facet per side of the table, tilted away from it (its own flat tone)
+    side = np.floor((th + sector / 2.0) / sector)
+    side_mid = side * sector
+    tilt = np.radians(42.0)
+    fn = np.stack([np.sin(tilt) * np.cos(side_mid), np.sin(tilt) * np.sin(side_mid), np.full_like(th, np.cos(tilt))], -1)
+    lit_k = np.maximum(fn @ light, 0.72 * (fn @ back))  # the sun on the near facets, the stone's fire on the far ones
+    tone = lit_k + 0.08 * np.where(np.mod(side, 2) == 0, 1.0, -1.0)  # neighbours never alike
     deep, body, lit, hot = (np.array(x, np.float32) for x in (DEEP, BODY, LIT, CORE))
-    crown = deep + (body - deep) * _smooth(0.42, 0.44, tone)[..., None]
-    crown = crown + (lit - crown) * _smooth(0.66, 0.68, tone)[..., None]
-    crown = crown + (hot - crown) * (_smooth(0.84, 0.86, tone) * 0.7)[..., None]
-    # the table: the body, glowing where the light comes back out (lower right), a soft hot core
-    table = body + (lit - body) * _smooth(0.75, 0.1, np.hypot(u - 0.16, v - 0.2))[..., None] * 0.85
+    crown = deep + (body - deep) * _smooth(0.52, 0.54, tone)[..., None]
+    crown = crown + (lit - crown) * _smooth(0.72, 0.74, tone)[..., None]
+    crown = crown + (hot - crown) * (_smooth(0.86, 0.88, tone) * 0.6)[..., None]
+    # the table: the body, glowing where the light comes back out (lower right)
+    table = body + (lit - body) * _smooth(0.75, 0.1, np.hypot(u - 0.16, v - 0.2))[..., None] * 0.8
     rgb = crown + (table - crown) * in_table[..., None]
-    rgb = rgb * (1.0 - 0.35 * _smooth(0.9, 0.99, rr))[..., None]  # the girdle: a little darker at the rim
-    # the flash: the crown facet that mirrors the sun to us turns white (a crisp facet, a gem's highlight)
-    refl = 2.0 * fn[..., 2:3] * fn - np.array([0.0, 0.0, 1.0])
-    flash = _smooth(0.94, 0.96, refl @ light) * (1.0 - in_table) * edge(rr - 0.93)
-    dot = edge(np.hypot(u + 0.2, v + 0.3) - 0.07)  # a pin-point on the table
-    glint = edge(np.hypot(u - 0.52, v - 0.47) - 0.045) * 0.9  # and a small one on the far facets
-    spec = np.maximum(np.maximum(flash, dot), glint)
-    rgb = rgb + (1.0 - rgb) * spec[..., None]
+    # the bright rim just inside the ink (round 10: instead of a soft halo round it), hottest towards the sun
+    # and where the light comes back out
+    toward = (u * light[0] + v * light[1]) / np.hypot(light[0], light[1]) / np.maximum(rr, 1e-3)
+    rim = edge(rr - 0.955) * edge(0.885 - rr) * (0.15 + 0.85 * np.abs(toward) ** 1.5)  # (not a bezel all round)
+    rgb = rgb + (np.array(RIM) - rgb) * (rim * 0.85)[..., None]
+    # one hard white glint: a crisp pane on the crown, towards the sun
+    a = np.radians(-40.0)
+    pu, pv = u + 0.42, v + 0.46
+    qu, qv = pu * np.cos(a) - pv * np.sin(a), pu * np.sin(a) + pv * np.cos(a)
+    glint = edge(np.abs(qu) / 0.2 + np.abs(qv) / 0.1 - 1.0)  # a rhombus, long across the facet
+    rgb = rgb + (1.0 - rgb) * glint[..., None]
     out = np.concatenate([np.clip(rgb, 0.0, 1.0), alpha[..., None]], -1).astype(np.float32)
     nz = np.sqrt(np.clip(1.0 - rr * rr, 0.0, 1.0))
     shade = np.clip(0.35 + 0.65 * (u * light[0] + v * light[1] + nz * light[2]), 0.0, 1.0) * (alpha > 0)

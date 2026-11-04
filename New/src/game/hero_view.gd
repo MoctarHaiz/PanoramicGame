@@ -40,6 +40,7 @@ const HURT_TIME := 0.33  ## seconds of the blow's reaction
 const STUMBLE := 0.14  ## seconds of the stumble after it, leaning back and catching himself
 const PULL := 0.16  ## seconds per hand-over-hand pull up a ledge
 const HAND_STEP := 0.2  ## seconds per hand step along the vine while hanging
+const VINE_INK_PX := 0.8  ## atlas px of ink added at the vine: hero_atlas.py's 2.8 x (1 / 0.78 - 1), the vine framing's zoom
 const WALK_IN := 70.0  ## units he walks into the doorway at home
 const DIE_PUSH := 40.0  ## units the fatal blow knocks him back
 const DIE_MIN_X := 70.0  ## play x he is never drawn left of when caught (the death stays on screen)
@@ -85,6 +86,7 @@ var _shadow_k := 0.0  # 0..1: his height above it (1: on it)
 var _shadow_w := 1.0  # the shadow's width (lying down: longer)
 var _world: World
 var _visible := 1.0
+var _vine_ink := 0.0  # 0..1: the extra ink while the camera frames the vine
 
 
 static func frames_data() -> Dictionary:
@@ -121,7 +123,7 @@ func _init() -> void:
 	_material.set_shader_parameter(&"rim_colour", Color(1.0, 0.86, 0.6))
 	_material.set_shader_parameter(&"rim_dir", Vector2(-0.6, -0.8))
 	_material.set_shader_parameter(&"outline_px", 0.0)
-	_material.set_shader_parameter(&"outline_colour", Color(0.08, 0.03, 0.05, 1.0))
+	_material.set_shader_parameter(&"outline_colour", Color(0.1, 0.045, 0.035, 1.0))  # (hero_atlas.py's ink)
 	_sprite.material = _material
 	add_child(_sprite)
 
@@ -409,9 +411,16 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 		_material.set_shader_parameter(&"tint", Color(1.0, 0.45, 0.35))
 	_material.set_shader_parameter(&"opacity", visible_k)
 	_material.set_shader_parameter(&"outline_opacity", visible_k * 0.9)  # (his white wraps against the pale sky)
+	# round 10 ("hanging from the vine he is pale, nearly vanishes into the sky"): the camera pulls out to frame
+	# the vine (about 0.8 of the run's zoom) and his baked ink thins on screen with him; the shader adds ink
+	# outside it so its weight on screen stays the run's
+	var at_vine := w.state == World.State.RUNNING and (w.hanging or _anim == &"catch")
+	_vine_ink = move_toward(_vine_ink, 1.0 if at_vine else 0.0, delta * 4.0)
+	_material.set_shader_parameter(&"outline_px", VINE_INK_PX * _vine_ink)
 	# (hero pass 3) at home the campfire, on his left, warms that side of him
 	var home_k := clampf(_end_time / 0.5, 0.0, 1.0) if phase == &"home" else 0.0
 	_material.set_shader_parameter(&"bounce", 0.6 * home_k)
+	_material.set_shader_parameter(&"back_rim", 0.9 * home_k)  # (round 10) and the lit hut behind him rims him
 	_material.set_shader_parameter(&"bounce_scale", 2.0 / maxf(float(region[2]), 1.0))
 	_update_shadow(w, p)
 	if is_instance_valid(_under):

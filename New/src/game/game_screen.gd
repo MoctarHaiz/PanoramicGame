@@ -287,6 +287,9 @@ func _place_camera(delta: float) -> void:
 	view.view_left = at.x / zoom_k
 	view.view_width = get_viewport_rect().size.x / zoom_k
 	view.view_top = -at.y / zoom_k
+	# (round 10, QA ENV-1) the start card's frame: no bandit cut by the right edge of the safe area
+	view.start_hold = _ready_to_start
+	view.safe_right = (_clip.size.x - Device.insets().z - _stage.position.x) / _stage.scale.x
 
 
 ## (gameplay) The rules' say over the camera, after its framing: it holds still while he drops into

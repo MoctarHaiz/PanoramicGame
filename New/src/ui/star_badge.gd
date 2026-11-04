@@ -30,7 +30,7 @@ func _init(side: float, is_lit := true) -> void:
 		glow.texture = Fx.glow_texture()
 		glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		glow.material = Fx.additive()
-		glow.modulate = Color(1, 0.8, 0.35, 0.5)
+		glow.modulate = Color(1, 0.75, 0.3, 0.3)  # soft: a white wash behind the stars flattened them
 		glow.size = Vector2(side, side) * 1.9
 		glow.position = Vector2(side, side) / 2 - glow.size / 2
 		glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -69,14 +69,12 @@ func _draw() -> void:
 	var o := maxf(side * 0.06, 2.5)  # outline thickness
 	var c := size / 2 + Vector2(0, side * 0.04)
 	var r := side * 0.5 - o
-	if not lit:  # the socket: a gold rim (lit at the top, deeper at the foot) around a dark sunken star
-		draw_colored_polygon(points(c + Vector2(0, o * 0.9), r + o * 0.6, 0.55), Color(1, 0.97, 0.88, 0.55))  # lit lip
-		draw_colored_polygon(points(c, r + o * 0.6, 0.55), RIM)
-		_gradient(points(c, r, 0.53), c, r, Color("ffe68a"), Color("d08a1c"))
-		var hole := points(c, r - o * 1.15, 0.5)
-		_gradient(hole, c, r, Color("1e0c06"), Color("4a2412"))  # deep at the top, a little light at its foot
-		draw_colored_polygon(points(c + Vector2(0, o * 0.75), r - o * 1.75, 0.48), Color("2a1208"))  # shade under its top
-		_gradient(points(c + Vector2(0, o * 0.9), r - o * 2.2, 0.46), c, r, Color("2e140a"), Color("5a2e16"))
+	if not lit:  # the socket: a star pressed into the panel: a fine brown outline, shade inside under
+		# its upper edges, warm sand towards its foot, the panel's light caught on the lip below it
+		draw_colored_polygon(points(c + Vector2(0, o * 0.8), r + o * 0.5, 0.55), Color(1, 0.98, 0.9, 0.75))  # lit lip
+		draw_colored_polygon(points(c, r + o * 0.5, 0.55), Color("8a5424"))
+		_gradient(points(c, r - o * 0.4, 0.53), c, r, Color("a87038"), Color("f0d29a"))
+		_gradient(points(c + Vector2(0, o * 0.7), r - o * 1.5, 0.5), c, r, Color("c8965a"), Color("f6dca8"))
 		return
 	# the ink outline (a fatter star), the bevel under the face, then the face
 	draw_colored_polygon(points(c + Vector2(0, o * 0.4), r + o * 0.6, 0.55), RIM)  # a fine warm rim

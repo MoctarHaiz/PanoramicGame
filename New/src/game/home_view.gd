@@ -20,6 +20,7 @@ var front: Node2D
 var _glow: Sprite2D
 var _fire: Node2D
 var _spill: Sprite2D  # firelight on the ground before the doorway
+var _pour: Sprite2D  # round 10: the light pouring out of the doorway onto the grass
 var _clock := 0.0
 var _welcome := 0.0  # the fire flares when he walks in (1 -> 0)
 
@@ -69,6 +70,16 @@ func build() -> void:
 	spill_add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	_spill.material = spill_add
 	yard.add_child(_spill)
+	# round 10: the hut's firelight pouring out of the doorway onto the grass before it, a fan from
+	# the threshold (the doorway's rays read as "a cheap starburst, not light pouring out")
+	_pour = Sprite2D.new()
+	_pour.texture = load(DIR + "home_door_light.png")
+	_pour.centered = false
+	_pour.offset = Vector2(-128, 0)
+	_pour.position = Vector2(hut_left + float(hut_info["door_x"]) + 4.0, GROUND - 14.0)
+	_pour.scale = Vector2(0.9, 0.42)
+	_pour.material = spill_add
+	yard.add_child(_pour)
 	var shade := Sprite2D.new()  # the hut's shadow on the ground, falling to the right (round 4: over the
 	shade.texture = TerrainView.cast_shade()  # grass of the yard, long: the sun is low on the left)
 	shade.centered = false
@@ -108,6 +119,7 @@ func _process(delta: float) -> void:
 		_glow.modulate = Color(1, 1, 1, minf(f * 0.55 + 0.25 * _welcome, 0.7))
 		_glow.scale = Vector2(0.9, 0.55) * (1.0 + 0.2 * _welcome)
 		_spill.modulate = Color(1, 0.8, 0.55, minf(f * 0.75 + 0.3 * _welcome, 1.0))
+		_pour.modulate = Color(1, 0.9, 0.75, minf(0.45 + f * 0.35 + 0.3 * _welcome, 1.0))
 
 
 ## He is home: the fire flares up to welcome him.
@@ -218,6 +230,7 @@ class Fire extends Node2D:
 	const CORE := [Color(1.0, 0.97, 0.7, 1.0), Color(1.0, 0.78, 0.3, 0.0)]
 	var _clock := 0.0
 	var _glow: Sprite2D
+	var _light: Sprite2D  # its light on the fence and the yard round it
 
 	func _ready() -> void:
 		_glow = Sprite2D.new()
@@ -229,11 +242,21 @@ class Fire extends Node2D:
 		_glow.material = add
 		add_child(_glow)
 		_glow.show_behind_parent = true
+		# round 10 ("the campfire casts no light on the fence or ground"): a wide warm light round it
+		_light = Sprite2D.new()
+		_light.texture = _glow.texture
+		_light.scale = Vector2(3.0, 1.8)
+		_light.position = Vector2(0, -26)
+		_light.material = add
+		add_child(_light)
+		_light.show_behind_parent = true
 		add_child(_sparks())
 
 	func _process(delta: float) -> void:
 		_clock += delta
-		_glow.modulate = Color(1, 0.75, 0.45, 0.55 + 0.1 * sin(_clock * 9.0) + 0.06 * sin(_clock * 23.0))
+		var flicker := 0.1 * sin(_clock * 9.0) + 0.06 * sin(_clock * 23.0)
+		_glow.modulate = Color(1, 0.75, 0.45, 0.75 + flicker)
+		_light.modulate = Color(1, 0.6, 0.3, 0.22 + flicker * 0.5)
 		queue_redraw()
 
 	func _draw() -> void:

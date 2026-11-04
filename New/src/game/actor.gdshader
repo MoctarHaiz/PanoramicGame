@@ -1,6 +1,7 @@
 shader_type canvas_item;
 // Characters (Panoramic, the bandits): a flash towards `tint` for a blow, and optionally a thin
-// dark outline and a warm rim on the edges facing the light, so they pop from the painted scenery.
+// dark outline and a warm rim on the edges facing the light, so they pop from the painted scenery, a warm
+// bounce from one side and a back rim (home).
 // (In Godot 4, COLOR already holds the texture times the modulate: it is not sampled again.)
 
 uniform float amount : hint_range(0.0, 1.0) = 0.0;
@@ -24,6 +25,12 @@ uniform float bounce = 0.0;
 uniform vec4 bounce_colour : source_color = vec4(1.35, 1.0, 0.7, 1.0);
 uniform vec2 bounce_dir = vec2(-1.0, 0.0);
 uniform float bounce_scale = 0.01;  // 1 / (half the frame's width, in local px): the sprite is an atlas region
+// A warm back rim (round 10, home: the lit hut behind him): a band just inside the ink on the edges that face
+// up and to the sides, the light from behind wrapping his silhouette; the ink line itself stays dark.
+uniform float back_rim = 0.0;  // 0..1
+uniform vec4 back_rim_colour : source_color = vec4(1.0, 0.6, 0.22, 1.0);
+uniform float back_rim_ink_px = 3.0;  // the ink round the outline, in texture pixels (no light on it)
+uniform float back_rim_px = 2.2;  // the band's width inside the ink
 varying vec2 local_pos;
 
 void vertex() {
@@ -57,6 +64,19 @@ void fragment() {
 		float out_a = c.a + o * (1.0 - c.a);
 		vec3 rgb = (c.rgb * c.a + outline_colour.rgb * o * (1.0 - c.a)) / max(out_a, 0.001);
 		c = vec4(rgb, out_a);
+	}
+	if (back_rim > 0.0 && c.a > 0.5) {
+		float lit = 0.0;
+		for (int i = 0; i < 6; i++) {
+			float t = -1.5708 + (float(i) - 2.5) * 0.45;  // fanned round up: up-left, up-right, down to the sides
+			vec2 d = vec2(cos(t), sin(t));
+			float near = texture(TEXTURE, uv + d * TEXTURE_PIXEL_SIZE * back_rim_ink_px).a;
+			float far = texture(TEXTURE, uv + d * TEXTURE_PIXEL_SIZE * (back_rim_ink_px + back_rim_px)).a;
+			lit = max(lit, near * (1.0 - far) * pow(max(-d.y, 0.0), 1.3));  // strongest on top, none below
+		}
+		// screened onto the colours (a light on the form, not a painted line): the hair and skin glow warm
+		vec3 glow = back_rim_colour.rgb * clamp(lit, 0.0, 1.0) * back_rim;
+		c.rgb = 1.0 - (1.0 - c.rgb) * (1.0 - glow);
 	}
 	if (bounce > 0.0) {
 		float side = smoothstep(-0.6, 0.9, dot(local_pos * bounce_scale, normalize(bounce_dir)));

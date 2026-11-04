@@ -150,3 +150,18 @@ kept alive by test lambdas that capture them).
   texture_debug_usage isn't exposed to scripts). Perf passes: run 49.9 MB, results 52.6, menu again 58.9; own work
   6.7-9.1 ms; level open 102-110 ms wall. menu_rock + logo (12.6 MB) stay loaded in play.
 - Outputs: AAA/qa/round_9/ (bugs.md, audit, sheets, crops, strips, share, perf_*).
+
+## Round 10 (audit of the round 9 merge, 452aa0e)
+
+- Worktree = 452aa0e file by file. Tests 1068 checks, 0 failed with --bot; audit 228 captures, no error.
+- HUD ">" = head.png's disc crosses the portrait's silhouette: the outer ink (trimmed() inked) next to the
+  transparent background (sunset disc). Art (ui_art.py crop).
+- Start bandit cut: the level's first bandit waits at x 1024 (drawn 960-1069); the camera shows VIEW_AHEAD 1040
+  where the zoom isn't capped: 73-74 % on screen (Pixel 100 %: zoom cap; iPad 0 %). The real first frame of every
+  run, not the capture. Env.
+- perf.gd now runs the boot's Fx.warm_up (it went straight to the menu): the warm-up's frosted veil and SoftShadow
+  (used nowhere else) allocate the window's back buffer for good: +15.3 MB at 2556x1179, +28.9 at iPad (probe).
+  Real flow: iPhone 15 77.7 MB, 17 Pro Max 81.7 FAIL, iPad 91.3 FAIL. Earlier rounds' perf was ~15 MB low.
+  Warm-up 108 ms (confetti atlas bake). New --load-profile: level open 84 ms (terrain layers, start card).
+- "+1" outlives its burst by ~0.2 s (strip): the judged frame caught it. Hang hero: same values as the run.
+- Outputs: AAA/qa/round_10/ (bugs.md, audit, sheets, crops, strips, share, perf_*, perf_boot_warm/).

@@ -382,3 +382,40 @@ A lighter pattern never cuts into a heavier one still playing; nothing plays whe
 - The paper's shading reads at full size; at phone size the pieces are mostly flat colour (a stronger curl or a
   thin darker edge could help if the judge still calls it flat).
 - The "+1"'s burst hides the bandit's legs for its first frames (he is already tumbling away).
+
+## Round 10 (2026-11-04): ROUND10.md audio (round 9 merged as 452aa0e; best round, 10/10 in the A/B)
+- "+1" caught "plain, no burst" in the `game` capture: the number's 0.3 s elastic wobble ran in parallel with
+  its 0.1 s settle step, so that step lasted 0.3 s and the number lived 0.91 s while its burst closed at 0.66 s:
+  the capture (0.75 s after the knock-out) caught it alone. Now one clock for both (PLUS_POP 0.06, SETTLE 0.1,
+  HOLD 0.55, OUT 0.16 = 0.87 s, about what players saw): the wobble has its own tween, the burst shrinks and
+  fades with the number. A richer fill: white top, gold middle, amber foot, a cream rim inside the dark stroke.
+  The `game` capture now shows it on its burst. Test: never a frame of the full-size number without its burst.
+- Confetti: warm only (PAPER_COLOURS bright gold, light gold, deep gold, red, crimson, orange-red; TWO_TONE backs a
+  deeper warm shade: no pale blue, lavender or cream), smaller (win behind 1.15, front 1.3; home mid 2.1, far 1.2
+  in a warm haze, rescue 1.5), fewer (win ~30 % less, home 34 pieces, rescue 16), SOFT out-of-focus pieces gone
+  (shape removed: "smudges on the lens"). Motion blur: every paper piece and coin is stretched along its path by
+  its speed over SHUTTER (0.03 s) against its size (up to 2.4x, coins 1.35x), a touch fainter (Confetti._placed,
+  _smear); the faint trailing copy of fast pieces stays.
+- Fireworks varied: FireworkShow.Kind CHRYSANTHEMUM (long streaks, white-gold middle), PEONY (fat stars on short
+  stubs), WILLOW (gold glitter drooping into long trails, 2.4 s), RING (sparks on the rim only), each with its own
+  sparks, life, drag, fall, trail and head (KINDS). `card_bursts` plays a plan of 8 (kind, colour, size 0.7-1.1),
+  never the same kind twice in a row, at three spots that don't mirror (left of him at 30 % of the height; right
+  of the card at 15 % and at 50 %, offset). `fireworks` shells: a peony, a chrysanthemum, a ring. No pink
+  (FIREWORK_HUES: gold, red, teal, orange, violet, white-gold); the bloom fainter (0.18) and smaller.
+- Tests: `_audio_round9` (now async): the warm palette front and back, the "+1" never alone, a show's shells of
+  three kinds, the chrysanthemum's sparks.
+- QA round 10 (AUD-1..3, `qa/round_10/bugs.md`): `Fx.warm_up` no longer draws the frosted veil and the SoftShadow
+  (each made Godot keep a window-sized back buffer: +15.3 MB on iPhone 15, +28.9 on iPad; the same lines UX
+  removed in base); the confetti atlas is baked on a worker thread (`Confetti.bake_soon`, called by the warm-up;
+  `atlas()` waits for it or bakes it itself, and makes the texture on the main thread): the warm-up's frame
+  110.4 -> 3.6 ms. AUD-3: the "+1"'s clock above. Test: the warm-up reads nothing from the screen.
+- The "+1"'s burst is one `canvas_item_add_triangle_array` (a feathered mitred stroke, the outer star, the inner
+  star round its pale middle): one draw call; its polygons, AA line and AA circle were five.
+- `home_glow`: env's base edit copied as is (no doorway rays), so the three-way merge is clean.
+- tests/perf.gd: base's (QA's real boot flow). Perf, iPhone 15, real flow (before = 452aa0e's fx/confetti, same
+  tool): texture menu 76.2 -> 60.6 MB, run 57.5 -> 42.2, results 59.9 -> 44.6, menu after 77.7 -> 62.4;
+  draw calls run mean 157.5 -> 156.6, max 323 -> 318; results mean 260.6 -> 258.9, max 274 -> 274. iPhone 17
+  Pro Max and iPad 13 now peak at 62.4 MB (QA: 81.7 and 91.3, over the budget). Frames PASS everywhere.
+- Tests: 1071 checks, 0 failed (--bot: home, 3 lives, 82 Red Bobs, 3 stars).
+- Stills: `AAA/audio/round_10/captures/` (iPhone 15, --ads=off): game (the judged moment: the "+1" on its burst),
+  game_plus1 (strip film, frame 22), win, home. Perf JSONs in `round_10/before/` and `round_10/after/`.

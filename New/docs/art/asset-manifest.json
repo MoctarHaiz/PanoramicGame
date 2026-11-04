@@ -282,7 +282,7 @@
    "path": "assets/art/hero/hero_defeat.png",
    "status": "approved",
    "technical": {
-    "dimensions": "728x702",
+    "dimensions": "730x702",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -348,7 +348,7 @@
    "path": "assets/art/hero/hero_win.png",
    "status": "approved",
    "technical": {
-    "dimensions": "400x1014",
+    "dimensions": "489x1014",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -673,13 +673,13 @@
   },
   {
    "id": "ui-corners",
-   "role": "the panels' corner brackets (brass with a red bead, iron with a slate one; arms ending in assegai blades)",
+   "role": "the panels' jewelled corner bosses (a bevelled ring set with beads, a domed cabochon: brass and red, dark bronze and garnet)",
    "path": "assets/art/ui/corners.png",
    "status": "approved",
    "technical": {
-    "dimensions": "600x600",
+    "dimensions": "288x144",
     "alpha": true,
-    "anchor": "a card's corner at (6, 6) units of each cell",
+    "anchor": "centre",
     "frames": null,
     "filtering": "linear"
    },
@@ -809,7 +809,7 @@
    "path": "assets/art/ui/logo.png",
    "status": "approved",
    "technical": {
-    "dimensions": "1170x702",
+    "dimensions": "1226x715",
     "alpha": true,
     "anchor": "centre",
     "frames": null,
@@ -1481,6 +1481,39 @@
     "creator": "Claude for Haiz Studio",
     "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
     "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "world-home_door_light",
+   "role": "HOME homestead piece (hut, fence, granary, sign, pot, glow)",
+   "path": "assets/art/world/home_door_light.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "256x128",
+    "alpha": true,
+    "anchor": "bottom-centre at the ground",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette",
+    "light-direction"
+   ],
+   "source": {
+    "kind": "authored-procedural",
+    "url_or_tool": "tools/art/home.py",
+    "creator": "Claude for Haiz Studio",
+    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
+    "prompt_or_source_record": "tools/art/home.py",
     "created_at": "2026-10-30",
     "attribution": ""
    },

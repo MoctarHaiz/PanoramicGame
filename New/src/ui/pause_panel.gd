@@ -21,7 +21,7 @@ static func open(host: Control, resume: Callable, home: Callable, hide: Array = 
 	help.visible = false
 	body.add_child(help)
 	var go := Ui.candy_button(tr_key("RESUME"), "play-fill", Ui.Tone.GREEN, 122, 54)
-	go.custom_minimum_size.x = 2 * TILE + GAP + 120.0  # the main action, not a full-width bar
+	go.custom_minimum_size.x = 4 * TILE + 3 * GAP  # as wide as the row of tiles under it (no dead margins)
 	go.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	go.pressed.connect(resume)
 	go.idle(0.04)
@@ -42,7 +42,7 @@ static func open(host: Control, resume: Callable, home: Callable, hide: Array = 
 	(home_tile.get_child(0).get_child(0) as JuicyButton).pressed.connect(home)
 	row.add_child(home_tile)
 	body.add_child(row)
-	return GamePanel.open(host, tr_key("PAUSED"), Ui.Tone.SUNSET, body, null, Color(0.05, 0.02, 0.06, 0.42),
+	return GamePanel.open(host, tr_key("PAUSED"), Ui.Tone.SUNSET, body, null, Color(0.05, 0.02, 0.06, 0.2),
 			Color(0, 0, 0, 0), false, hide)
 
 
@@ -158,17 +158,21 @@ class SoundSwitch extends VBoxContainer:
 		var st := StyleBoxFlat.new()
 		st.bg_color = Color("4fae22") if on else Color("d8261a")
 		st.border_color = Color("1e3a0c") if on else Color("4a0804")
-		st.set_border_width_all(4)
-		st.set_corner_radius_all(18)
-		st.content_margin_left = 13
-		st.content_margin_right = 13
-		st.content_margin_top = 0
-		st.content_margin_bottom = 1
+		st.set_border_width_all(5)
+		st.set_corner_radius_all(24)
+		st.content_margin_left = 16
+		st.content_margin_right = 16
+		st.content_margin_top = 1
+		st.content_margin_bottom = 3
+		st.shadow_color = Color(0, 0, 0, 0.35)
+		st.shadow_size = 4
+		st.shadow_offset = Vector2(0, 3)
 		st.anti_aliasing = true
 		pill.add_theme_stylebox_override(&"panel", st)
 		pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var word := TranslationServer.translate("SWITCH_ON" if on else "SWITCH_OFF").to_upper()
-		pill.add_child(Ui.label(word, 27, Color.WHITE, Ui.font_display))
+		pill.add_child(Ui.label(word, 36, Color.WHITE, Ui.font_display))  # big enough to read at a glance
 		pill.size = pill.get_combined_minimum_size()
-		pill.position = Vector2(TILE - pill.size.x * 0.7, -pill.size.y * 0.28)  # on the tile's top right corner
+		pill.position = Vector2(TILE - pill.size.x * 0.82, -pill.size.y * 0.36)  # on the tile's top right corner
+		pill.z_index = 1  # over the next tile, should it reach it
 		return pill

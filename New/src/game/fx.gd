@@ -25,18 +25,26 @@ const STREAMERS := [Confetti.Shape.STREAMER, Confetti.Shape.STREAMER, Confetti.S
 ## Their colours, curated: gold, the sunset's red and coral, cream, his indigo.
 const STREAMER_COLOURS: Array[Color] = [Color("ffcf3a"), Color("f5b81c"), Color("e8452e"), Color("ff7a52"),
 		Color("fff1d0"), Color("4a43a8")]
-## Paper confetti, two-tone (Confetti.TWO_TONE gives each its back): gold, the sunset's red and coral,
-## cream, his indigo, and a sky teal and a rose that stand out on the warm thatch and the sunset.
-const PAPER_COLOURS: Array[Color] = [Color("ffcf3a"), Color("e8452e"), Color("ff7a52"), Color("fff1d0"),
-		Color("4a43a8"), Color("3fb8e0"), Color("e84a8a"), Color("f5b81c")]
+## Paper confetti, two-tone (Confetti.TWO_TONE gives each its deeper back): the sunset's warm golds,
+## with red for accent (no pastels: they fight the sunset).
+const PAPER_COLOURS: Array[Color] = [Color("ffd84a"), Color("ffd84a"), Color("ffe27a"), Color("ffc12a"),
+		Color("e8452e"), Color("e8452e"), Color("c8341f"), Color("ff6a2a")]
 ## The paper of a celebration: mostly squares, some strips.
 const PAPER_SHAPES := [Confetti.Shape.PAPER, Confetti.Shape.PAPER, Confetti.Shape.PAPER, Confetti.Shape.STRIP]
 ## A firework's sparks: white-hot to gold to the sunset's orange and red.
 const FIREWORK: Array[Color] = [Color("fff6d8"), Color("ffd36b"), Color("ffab3a"), Color("ff6a3a")]
-## A shell's colour (one per shell): gold, rose, teal, orange, violet: bright on the dark sky behind.
-const FIREWORK_HUES: Array[Color] = [Color("ffc93a"), Color("ff4f86"), Color("3fe6d2"), Color("ff8a2a"), Color("b98aff")]
+## A burst's colour: gold, red, teal, orange, violet, white-gold: bright on the dark sky behind (no
+## pink: a row of pink line bursts read as one copied picture).
+const FIREWORK_HUES: Array[Color] = [Color("ffc93a"), Color("ff4a32"), Color("3fe6d2"), Color("ff9a2a"), Color("b98aff"),
+		Color("fff1cc")]
 const PLUS_SIZE := 118  ## font size of the "+1" and the "×N" (design px): one size, scaled per use
 const PLUS_SCALE := 1.0  ## the "+1" shows at its glyphs' size (a badge that reads at phone size)
+## The "+1"'s clock (s): it pops in, settles, holds, then shrinks away and fades; its burst keeps the
+## same clock, so the number is never seen without it.
+const PLUS_POP := 0.06
+const PLUS_SETTLE := 0.1
+const PLUS_HOLD := 0.55
+const PLUS_OUT := 0.16
 ## The badges' outlines (px): the dark stroke and the warm rim. The "+1" and the "×N" share them and
 ## the font size, so their glyphs are rasterised once (each size and outline is megabytes of pages).
 const BADGE_OUTLINES: Array[int] = [34, 16]
@@ -123,11 +131,11 @@ static func impact_burst(parent: Node, at: Vector2, away: Vector2, size: StringN
 
 
 ## The "+1" of a knock-out, popping out of a burst where the ring struck (pop_burst): a bold number
-## with a white core warming to pale gold at its foot (badge_text.gdshader, which works with the MSDF
-## title font), a gold rim inside a thick dark stroke and a drop shadow: it reads on the sky and on
-## brown earth. It pops in (0 to 1.5 to 1 in six frames), rises 26 units easing out (still on its
-## burst), holds and fades. (Drawn at PLUS_SIZE with BADGE_OUTLINES like the streak's "×N": one set
-## of glyphs for both.)
+## filled white at its top, gold through its middle and amber at its foot (badge_text.gdshader, which
+## works with the MSDF title font), a cream rim inside a thick dark stroke and a drop shadow: it reads
+## on the sky and on brown earth. It pops in (0 to 1.5 to 1), rises 26 units easing out (still on its
+## burst), holds and shrinks away with it (PLUS_POP .. PLUS_OUT: 0.87 s). (Drawn at PLUS_SIZE with
+## BADGE_OUTLINES like the streak's "×N": one set of glyphs for both.)
 static func plus_one(parent: Node, at: Vector2) -> void:
 	pop_burst(parent, at + Vector2(0.0, -8.0), PLUS_SIZE * 0.75)
 	var node := Node2D.new()
@@ -139,67 +147,104 @@ static func plus_one(parent: Node, at: Vector2) -> void:
 	node.draw.connect(func() -> void:
 		node.draw_string_outline(font, base + Vector2(4, 12), "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, BADGE_OUTLINES[0], Color(0.05, 0.02, 0.0, 0.6))
 		node.draw_string_outline(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, BADGE_OUTLINES[0], Color("1c0b02"))
-		node.draw_string_outline(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, BADGE_OUTLINES[1], Color("f2a516"))
-		node.draw_string(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, Color.WHITE))  # white: filled gold to red
+		node.draw_string_outline(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, BADGE_OUTLINES[1], Color("fff0c0"))
+		node.draw_string(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, Color.WHITE))  # white: filled gold to amber
 	parent.add_child(node)
 	var big := PLUS_SCALE
 	node.scale = Vector2.ZERO
 	node.rotation = -0.2
 	var t := node.create_tween()
-	t.tween_property(node, "scale", Vector2.ONE * 1.5 * big, 0.06).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	t.parallel().tween_property(node, "rotation", 0.06, 0.06)
-	t.tween_property(node, "scale", Vector2.ONE * big, 0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	t.parallel().tween_property(node, "rotation", 0.0, 0.3).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
-	t.tween_interval(0.35)
-	t.tween_property(node, "scale", Vector2.ONE * 0.7 * big, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
-	t.parallel().tween_property(node, "modulate:a", 0.0, 0.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	t.tween_property(node, "scale", Vector2.ONE * 1.5 * big, PLUS_POP).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	t.tween_property(node, "scale", Vector2.ONE * big, PLUS_SETTLE).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.tween_interval(PLUS_HOLD)
+	t.tween_property(node, "scale", Vector2.ONE * 0.7 * big, PLUS_OUT).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	t.parallel().tween_property(node, "modulate:a", 0.0, PLUS_OUT).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	t.tween_callback(node.queue_free)
+	var turn := node.create_tween()  # its own clock: the wobble never stretches the number's life
+	turn.tween_property(node, "rotation", 0.06, PLUS_POP)
+	turn.tween_property(node, "rotation", 0.0, 0.3).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 	node.create_tween().tween_property(node, "position:y", at.y - 26.0, 0.5) \
 			.set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
 
 
 ## The burst a "+1" pops out of (`radius`: its longest spikes, effects units), staying where the hit
 ## was: a jagged comic star in the number's dark stroke, red-orange at its tips warming to orange, a
-## gold star inside it turned half a spike, a pale hot middle. It slams open (0 to 1.2 to 1 in eight
-## frames), turns a little while the number holds, and snaps shut as the number goes. Drawn once
-## (its tweens move it), untextured: one batch.
+## gold star inside it turned half a spike, a pale hot middle. It slams open (0 to 1.2 to 1 with the
+## number's pop), turns a little while the number holds, and shrinks away and fades with it (the
+## "+1"'s clock: PLUS_POP .. PLUS_OUT). Drawn once (its tweens move it) as one untextured triangle
+## array: one draw call (each polygon, line or circle would be its own).
 static func pop_burst(parent: Node, at: Vector2, radius: float) -> void:
 	var node := Node2D.new()
 	node.position = at
 	node.rotation = randf() * TAU
-	var spikes := 12
+	var n := 24  # 12 spikes: a tip and a notch each
 	var outer := PackedVector2Array()
-	var outer_cols := PackedColorArray()
 	var inner := PackedVector2Array()
-	for k in spikes * 2:
-		var dir := Vector2.from_angle(k * PI / spikes)
+	for k in n:
+		var dir := Vector2.from_angle(k * TAU / n)
 		var tip := k % 2 == 0
 		outer.append(dir * radius * ((randf_range(0.9, 1.0) if k % 4 == 0 else randf_range(0.74, 0.82)) if tip else 0.56))
-		outer_cols.append(Color("f2401c") if tip else Color("ff9a1c"))
 		inner.append(dir * radius * (0.3 if tip else 0.52))  # its tips in the outer star's notches
-	var stroke: PackedVector2Array = Geometry2D.offset_polygon(outer, radius * 0.09, Geometry2D.JOIN_MITER)[0]
-	var edge := stroke.duplicate()
-	edge.append(stroke[0])
+	# one triangle array, drawn back to front: a feathered dark stroke (mitred out from each corner),
+	# the outer star (red-orange tips, orange notches), the gold inner star round a pale middle
+	var ink := Color("1c0b02")
+	var points := PackedVector2Array([Vector2.ZERO])
+	var colours := PackedColorArray([Color("ff9a1c")])
+	var stroke := PackedVector2Array()
+	var feather := PackedVector2Array()
+	for k in n:
+		var a := outer[(k + n - 1) % n]
+		var b := outer[k]
+		var c := outer[(k + 1) % n]
+		var n1 := (b - a).orthogonal().normalized()
+		var n2 := (c - b).orthogonal().normalized()
+		if n1.dot(a + b) < 0.0:  # (the edges' outward side)
+			n1 = -n1
+			n2 = -n2
+		var miter := (n1 + n2).normalized()
+		var push := radius * 0.09 / maxf(miter.dot(n1), 0.4)
+		stroke.append(b + miter * push)
+		feather.append(b + miter * (push + 1.8))
+	points.append_array(outer)  # 1 .. n
+	for k in n:
+		colours.append(Color("f2401c") if k % 2 == 0 else Color("ff9a1c"))
+	points.append_array(stroke)  # n + 1 .. 2n
+	points.append_array(feather)  # 2n + 1 .. 3n
+	for k in n:
+		colours.append(ink)
+	for k in n:
+		colours.append(Color(ink, 0.0))
+	points.append(Vector2.ZERO)  # 3n + 1: the pale middle
+	colours.append(Color("fff1b8"))
+	points.append_array(inner)  # 3n + 2 .. 4n + 1
+	for k in n:
+		colours.append(Color("ffd23a"))
+	var tris := PackedInt32Array()
+	for k in n:
+		var j := (k + 1) % n
+		tris.append_array([1 + k, n + 1 + k, n + 1 + j, 1 + k, n + 1 + j, 1 + j])  # the stroke
+		tris.append_array([n + 1 + k, 2 * n + 1 + k, 2 * n + 1 + j, n + 1 + k, 2 * n + 1 + j, n + 1 + j])  # its feather
+	for k in n:
+		tris.append_array([0, 1 + k, 1 + (k + 1) % n])  # the outer star
+	for k in n:
+		tris.append_array([3 * n + 1, 3 * n + 2 + k, 3 * n + 2 + (k + 1) % n])  # the inner star
 	node.draw.connect(func() -> void:
-		node.draw_colored_polygon(stroke, Color("1c0b02"))
-		node.draw_polyline(edge, Color("1c0b02"), 2.0, true)  # a smooth outer edge
-		node.draw_polygon(outer, outer_cols)
-		node.draw_colored_polygon(inner, Color("ffd23a"))
-		node.draw_circle(Vector2.ZERO, radius * 0.2, Color("fff1b8"), true, -1.0, true))
+		RenderingServer.canvas_item_add_triangle_array(node.get_canvas_item(), tris, points, colours))
 	parent.add_child(node)
 	node.scale = Vector2.ZERO
 	var t := node.create_tween()
-	t.tween_property(node, "scale", Vector2.ONE * 1.2, 0.05).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	t.tween_property(node, "scale", Vector2.ONE, 0.09).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	t.tween_interval(0.36)
-	t.tween_property(node, "scale", Vector2.ZERO, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	t.tween_property(node, "scale", Vector2.ONE * 1.2, PLUS_POP).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	t.tween_property(node, "scale", Vector2.ONE, PLUS_SETTLE).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.tween_interval(PLUS_HOLD)
+	t.tween_property(node, "scale", Vector2.ONE * 0.4, PLUS_OUT).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	t.parallel().tween_property(node, "modulate:a", 0.0, PLUS_OUT).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	t.tween_callback(node.queue_free)
-	node.create_tween().tween_property(node, "rotation", node.rotation + 0.4, 0.66) \
+	node.create_tween().tween_property(node, "rotation", node.rotation + 0.4, PLUS_POP + PLUS_SETTLE + PLUS_HOLD + PLUS_OUT) \
 			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
 ## A big reward: a warm flash, a burst of rays and speed lines, two rings of light,
-## twinkling stars and a fountain of big shaded two-tone paper that tumbles and catches the light.
+## twinkling stars and a fountain of shaded two-tone paper that tumbles and catches the light.
 static func rescue_burst(parent: Node, at: Vector2) -> void:
 	glow(parent, at, Color(1, 0.85, 0.6, 0.6), 0.4, 1.5, 0.28)
 	rays(parent, at, Color(1, 0.92, 0.66, 0.7), 12, 250.0, 0.5)
@@ -211,7 +256,7 @@ static func rescue_burst(parent: Node, at: Vector2) -> void:
 	c.drag = 2.1
 	c.flutter = 420.0
 	_behind_hero(c, parent)
-	c.spray(26, PAPER_SHAPES, PAPER_COLOURS, Vector2(420, 900), Vector2.UP, 105.0, 2.2, Vector2(0.9, 1.3))
+	c.spray(16, PAPER_SHAPES, PAPER_COLOURS, Vector2(420, 900), Vector2.UP, 105.0, 1.5, Vector2(0.9, 1.3))
 	c.sparkle(14, GOLD, Vector2(140, 420))
 
 
@@ -224,8 +269,8 @@ static func badge_burst(parent: Node, at: Vector2) -> void:
 
 
 ## A celebration bursting from one point (the doorway at home, behind the stars of a win):
-## two-tone paper thrown up and out in a fan in three depths, smearing while it flies fast, then
-## fluttering down; a flash and sparkles at the origin.
+## two-tone paper in the sunset's golds and red thrown up and out in a fan, in two depths, blurred
+## by its speed, then fluttering down; a flash and sparkles at the origin.
 static func confetti_burst(parent: Node, at: Vector2) -> void:
 	glow(parent, at, Color(1, 0.9, 0.65, 0.8), 0.3, 1.6, 0.35)
 	var c := Confetti.make(parent, at)
@@ -233,15 +278,13 @@ static func confetti_burst(parent: Node, at: Vector2) -> void:
 	c.drag = 1.6
 	c.flutter = 520.0
 	_behind_hero(c, parent)
-	# paper squares and strips (their backs another colour: they flash light and dark as they
-	# tumble): far ones smaller and hazed by the air, mid ones big, crisp and shaded, and a few near
-	# ones very big and out of focus, drawn last (they fly wider and faster: they are closer)
+	# paper squares and strips (their backs a deeper shade: they flash light and dark as they
+	# tumble): far ones small, in the warm haze of the horizon, mid ones crisp and shaded
 	var far: Array[Color] = []
 	for col in PAPER_COLOURS:
-		far.append(col.lerp(Color("cfd6ee"), 0.35))
-	c.spray(22, PAPER_SHAPES, far, Vector2(600, 1400), Vector2.UP, 60.0, 1.8, Vector2(2.6, 3.4), 30.0)
-	c.spray(30, PAPER_SHAPES, PAPER_COLOURS, Vector2(750, 1700), Vector2.UP, 65.0, 2.6, Vector2(2.4, 3.2), 30.0)
-	c.spray(4, [Confetti.Shape.SOFT], PAPER_COLOURS, Vector2(1300, 2000), Vector2.UP, 78.0, 4.6, Vector2(1.6, 2.2), 30.0)
+		far.append(col.lerp(Color("ffd9a8"), 0.25))
+	c.spray(12, PAPER_SHAPES, far, Vector2(600, 1400), Vector2.UP, 60.0, 1.2, Vector2(2.6, 3.4), 30.0)
+	c.spray(24, PAPER_SHAPES, PAPER_COLOURS, Vector2(750, 1700), Vector2.UP, 65.0, 2.1, Vector2(2.4, 3.2), 30.0)
 	c.sparkle(24, GOLD, Vector2(200, 650), 1.0, Vector2(0.6, 1.2))
 
 
@@ -255,23 +298,25 @@ static func _behind_hero(c: Confetti, parent: Node) -> void:
 
 
 ## Fireworks from `from` (a lower corner of the screen, effects units): three shells rise steeply,
-## leaning a little towards the middle (`inward`: +1 from the left, -1 from the right), each bursting
-## at its top into a crisp chrysanthemum (FireworkShow). Best behind the people and panels: they are
-## light in the sky.
+## leaning a little towards the middle (`inward`: +1 from the left, -1 from the right), bursting at
+## their tops, each a different kind (FireworkShow.Kind) and colour. Best behind the people and
+## panels: they are light in the sky.
 static func fireworks(parent: Node, from: Vector2, inward: float) -> void:
 	var show := FireworkShow.new()
 	show.material = additive()
 	show.radius = 300.0
 	parent.add_child(show)
-	for i in 3:
+	var shells := [[FireworkShow.Kind.PEONY, 1, 0.8], [FireworkShow.Kind.CHRYSANTHEMUM, 4, 1.0],
+			[FireworkShow.Kind.RING, 0, 0.7]]  # kind, colour (FIREWORK_HUES), size
+	for i in shells.size():
 		show.launch(from, Vector2(inward * randf_range(0.06, 0.16), -1.0).normalized() * randf_range(1150.0, 1300.0),
-				i * 0.6, (i * 2 + 1) % FIREWORK_HUES.size())
+				i * 0.6, shells[i][1], shells[i][0], shells[i][2])
 
 
 ## Crisp fireworks round the results card (`card`, a Control; `parent` is behind it, effects units):
-## eight bursts, one every 0.6 s, taking turns in the sky left of the hero and right of the card
-## (never on him: his silhouette stays clean), so any moment of the reveal shows one fresh and one
-## dying away.
+## eight bursts, one every 0.6 s, taking turns in the sky left of the hero (high) and right of the
+## card (higher, then lower: never mirrored), never on him; each a different kind, colour and size
+## from the one before, so any moment of the reveal shows a fresh one and an older one unlike it.
 static func card_bursts(parent: Node2D, card: Control) -> void:
 	var to_local := parent.get_global_transform().affine_inverse()
 	var box: Rect2 = to_local * card.get_global_rect()
@@ -284,45 +329,65 @@ static func card_bursts(parent: Node2D, card: Control) -> void:
 	show.material = additive()
 	show.radius = clampf(minf(left - view.position.x, right.y - right.x) * 0.42, 150.0, 300.0)
 	parent.add_child(show)
-	var spots := [Vector2((view.position.x + left) / 2.0, view.position.y + view.size.y * 0.26),
-			Vector2((right.x + right.y) / 2.0, view.position.y + view.size.y * 0.2),
-			Vector2((right.x + right.y) / 2.0 + show.radius * 0.2, view.position.y + view.size.y * 0.5)]
+	var spots := [Vector2((view.position.x + left) * 0.45, view.position.y + view.size.y * 0.3),
+			Vector2((right.x + right.y) / 2.0 + show.radius * 0.15, view.position.y + view.size.y * 0.15),
+			Vector2((right.x + right.y) / 2.0 - show.radius * 0.1, view.position.y + view.size.y * 0.5)]
 	var inside := Vector2(view.position.x + show.radius * 0.55, view.end.x - show.radius * 0.55)  # (narrow margins: a tablet)
-	for i in 8:
-		var at: Vector2 = spots[i % 3] + Vector2(randf_range(-30, 30), randf_range(-30, 30))
-		show.burst(Vector2(clampf(at.x, inside.x, inside.y), at.y), i * 0.6, (i * 2) % FIREWORK_HUES.size())
+	var plan := [[FireworkShow.Kind.CHRYSANTHEMUM, 0, 1.0], [FireworkShow.Kind.RING, 2, 0.75],
+			[FireworkShow.Kind.WILLOW, 0, 1.1], [FireworkShow.Kind.PEONY, 3, 0.8],
+			[FireworkShow.Kind.CHRYSANTHEMUM, 4, 0.9], [FireworkShow.Kind.PEONY, 1, 0.7],
+			[FireworkShow.Kind.WILLOW, 5, 1.0], [FireworkShow.Kind.RING, 3, 0.85]]  # kind, colour, size
+	for i in plan.size():
+		var at: Vector2 = spots[i % 3] + Vector2(randf_range(-40, 40), randf_range(-40, 40))
+		show.burst(Vector2(clampf(at.x, inside.x, inside.y), at.y), i * 0.6, plan[i][1], plan[i][0], plan[i][2])
 
 
 ## Fireworks, all one node and one batch (light added onto the scene, the Confetti atlas): shells
-## that rise and burst at their top, and bursts set off at a point. A burst is a chrysanthemum: a
-## white flash for a few frames, a bloom of its colour, and sparks flung out over a sphere (seen from
-## the side: dense at its rim, its middle in a second colour), each a crisp tapered streak behind a
-## white-hot head that cools to its colour, the streaks shortening as they slow, droop and dim; the
-## last of them glitter.
+## that rise and burst at their top, and bursts set off at a point, each of a Kind. A burst is a
+## white flash for a few frames, a faint bloom of its colour, and sparks flung out over a sphere
+## (seen from the side: dense at its rim), each a crisp tapered streak behind a white-hot head that
+## cools to its colour, the streaks shortening as they slow, droop and dim.
 class FireworkShow extends Node2D:
+	## A chrysanthemum: long crisp streaks, its slow middle in white-gold, glittering out; a peony:
+	## fat glowing stars on short stubs, a gold middle; a willow: gold glitter drooping into long
+	## falling trails that hang on; a ring: every spark on the rim, a crisp circle.
+	enum Kind { CHRYSANTHEMUM, PEONY, WILLOW, RING }
+	## Per kind: sparks, life (s), drag (per s: out fast, then hanging), fall (px/s²), its streak as a
+	## share of its path (fresh, dying), the streak's width and its head's radius (px).
+	const KINDS := {
+		Kind.CHRYSANTHEMUM: {"sparks": 60, "life": 1.5, "drag": 3.0, "fall": 260.0, "trail": Vector2(0.7, 0.15),
+				"width": 12.0, "head": 6.5},
+		Kind.PEONY: {"sparks": 46, "life": 1.3, "drag": 3.4, "fall": 200.0, "trail": Vector2(0.2, 0.06),
+				"width": 11.0, "head": 10.0},
+		Kind.WILLOW: {"sparks": 42, "life": 2.4, "drag": 2.4, "fall": 380.0, "trail": Vector2(0.85, 0.7),
+				"width": 8.0, "head": 5.0},
+		Kind.RING: {"sparks": 40, "life": 1.3, "drag": 3.2, "fall": 140.0, "trail": Vector2(0.4, 0.1),
+				"width": 10.0, "head": 7.0},
+	}
 	const GRAVITY := 900.0  ## pulls a rising shell (px/s²)
-	const DRAG := 3.0  ## slows the sparks (per s): out fast, then hanging
-	const FALL := 260.0  ## pulls the sparks (px/s²)
-	const SPARKS := 60  ## sparks a burst
-	const LIFE := 1.5  ## seconds a burst's sparks live (give or take 15 %)
-	const BLOOM := 0.8  ## seconds the bloom of its colour lights the sky
-	var radius := 300.0  ## how far a burst's sparks fly (px)
-	var _shells: Array[Vector4] = []  # x, y, delay (s), hue index
+	const BLOOM := 0.7  ## seconds the bloom of its colour lights the sky
+	var radius := 300.0  ## how far a burst of size 1 flings its sparks (px)
+	var _shells: Array[Vector4] = []  # x, y, delay (s), colour index
 	var _shell_vel: Array[Vector2] = []
 	var _shell_from: Array[Vector2] = []
-	var _bursts: Array[Vector4] = []  # x, y, age (s; below 0: waiting), hue index
+	var _shell_kind: Array[Vector2] = []  # kind, size
+	var _bursts: Array[Vector4] = []  # x, y, age (s; below 0: waiting), colour index
+	var _burst_kind: Array[Vector2] = []  # kind, size
 	var _sparks: Array[Vector4] = []  # x, y, age, life (s)
 	var _spark_vel: Array[Vector2] = []
 	var _spark_from: Array[Vector2] = []
 	var _spark_col: Array[Color] = []
+	var _spark_kind: Array[int] = []
 
-	func launch(at: Vector2, vel: Vector2, delay: float, hue: int) -> void:
+	func launch(at: Vector2, vel: Vector2, delay: float, hue: int, kind := Kind.CHRYSANTHEMUM, size := 1.0) -> void:
 		_shells.append(Vector4(at.x, at.y, delay, hue))
 		_shell_vel.append(vel)
 		_shell_from.append(at)
+		_shell_kind.append(Vector2(kind, size))
 
-	func burst(at: Vector2, delay: float, hue: int) -> void:
+	func burst(at: Vector2, delay: float, hue: int, kind := Kind.CHRYSANTHEMUM, size := 1.0) -> void:
 		_bursts.append(Vector4(at.x, at.y, -maxf(delay, 0.001), hue))  # (it goes off as its age passes 0)
+		_burst_kind.append(Vector2(kind, size))
 
 	func _process(delta: float) -> void:
 		for i in range(_shells.size() - 1, -1, -1):
@@ -334,24 +399,29 @@ class FireworkShow extends Node2D:
 			_shells[i].y += _shell_vel[i].y * delta
 			if randf() < delta * 40.0:  # the rising shell sheds embers
 				var at := Vector2(_shells[i].x, _shells[i].y)
-				_add_spark(at, at, Vector2(randf_range(-40, 40), randf_range(20, 80)), randf_range(0.25, 0.4), Fx.FIREWORK[1])
+				_add_spark(at, at, Vector2(randf_range(-40, 40), randf_range(20, 80)), randf_range(0.25, 0.4), Fx.FIREWORK[1],
+						Kind.PEONY)
 			if _shell_vel[i].y > -120.0:  # near its top: it bursts
 				_bursts.append(Vector4(_shells[i].x, _shells[i].y, 0.0, _shells[i].w))
-				_explode(Vector2(_shells[i].x, _shells[i].y), int(_shells[i].w))
+				_burst_kind.append(_shell_kind[i])
+				_explode(Vector2(_shells[i].x, _shells[i].y), int(_shells[i].w), int(_shell_kind[i].x), _shell_kind[i].y)
 				_shells.remove_at(i)
 				_shell_vel.remove_at(i)
 				_shell_from.remove_at(i)
+				_shell_kind.remove_at(i)
 		for i in range(_bursts.size() - 1, -1, -1):
 			var was := _bursts[i].z
 			_bursts[i].z += delta
 			if was < 0.0 and _bursts[i].z >= 0.0:
-				_explode(Vector2(_bursts[i].x, _bursts[i].y), int(_bursts[i].w))
+				_explode(Vector2(_bursts[i].x, _bursts[i].y), int(_bursts[i].w), int(_burst_kind[i].x), _burst_kind[i].y)
 			if _bursts[i].z > BLOOM:
 				_bursts.remove_at(i)
+				_burst_kind.remove_at(i)
 		for i in range(_sparks.size() - 1, -1, -1):
+			var kind: Dictionary = KINDS[_spark_kind[i]]
 			_sparks[i].z += delta
-			_spark_vel[i] -= _spark_vel[i] * minf(DRAG * delta, 0.5)
-			_spark_vel[i].y += FALL * delta
+			_spark_vel[i] -= _spark_vel[i] * minf(kind.drag * delta, 0.5)
+			_spark_vel[i].y += kind.fall * delta
 			_sparks[i].x += _spark_vel[i].x * delta
 			_sparks[i].y += _spark_vel[i].y * delta
 			if _sparks[i].z > _sparks[i].w:
@@ -359,27 +429,33 @@ class FireworkShow extends Node2D:
 				_spark_vel.remove_at(i)
 				_spark_from.remove_at(i)
 				_spark_col.remove_at(i)
+				_spark_kind.remove_at(i)
 		if _shells.is_empty() and _bursts.is_empty() and _sparks.is_empty():
 			queue_free()
 		queue_redraw()
 
 	## A burst at `at`: its sound and its sparks, evenly round (a little jitter), their speed the
-	## sphere's seen from the side; the slow ones (its middle) in a second colour.
-	func _explode(at: Vector2, hue: int) -> void:
+	## sphere's seen from the side (a ring: its rim only); the slow middle in a second colour.
+	func _explode(at: Vector2, hue: int, kind: int, size: float) -> void:
 		Audio.play_sfx(&"firework")
+		var k: Dictionary = KINDS[kind]
 		var outer: Color = Fx.FIREWORK_HUES[hue]
-		var inner: Color = Fx.FIREWORK_HUES[(hue + 2) % Fx.FIREWORK_HUES.size()].lerp(Color.WHITE, 0.3)
-		for k in SPARKS:
-			var z := randf_range(-1.0, 1.0)
+		var inner := Fx.FIREWORK[0] if kind == Kind.CHRYSANTHEMUM else Fx.FIREWORK[1]
+		if kind == Kind.WILLOW:  # gold glitter, whatever its colour: amber at its heart
+			inner = Fx.FIREWORK[2]
+		for i in k.sparks:
+			var z := randf_range(-0.15, 0.15) if kind == Kind.RING else randf_range(-1.0, 1.0)
 			var out := sqrt(1.0 - z * z)
-			var dir := Vector2.from_angle((k + randf_range(-0.3, 0.3)) * TAU / SPARKS)
-			_add_spark(at, at, dir * out * radius * DRAG, LIFE * randf_range(0.85, 1.15), outer if out > 0.6 else inner)
+			var dir := Vector2.from_angle((i + randf_range(-0.3, 0.3)) * TAU / k.sparks)
+			_add_spark(at, at, dir * out * radius * size * k.drag, k.life * randf_range(0.85, 1.15),
+					outer if out > 0.6 else inner, kind)
 
-	func _add_spark(at: Vector2, from: Vector2, vel: Vector2, life: float, colour: Color) -> void:
+	func _add_spark(at: Vector2, from: Vector2, vel: Vector2, life: float, colour: Color, kind: int) -> void:
 		_sparks.append(Vector4(at.x, at.y, 0.0, life))
 		_spark_vel.append(vel)
 		_spark_from.append(from)
 		_spark_col.append(colour)
+		_spark_kind.append(kind)
 
 	func _draw() -> void:
 		var tex := Confetti.atlas()
@@ -387,13 +463,14 @@ class FireworkShow extends Node2D:
 		var streak := Confetti.region(&"streak")
 		var dot := Confetti.region(&"dot")
 		var flare := Confetti.region(&"flare")
-		for b in _bursts:  # the heart: a white flash, then a bloom of its colour fading from the sky
+		for i in _bursts.size():  # the heart: a white flash, then a faint bloom of its colour
+			var b := _bursts[i]
 			if b.z < 0.0:
 				continue
 			var at := Vector2(b.x, b.y)
 			var k := b.z / BLOOM
-			var hue: Color = Fx.FIREWORK_HUES[int(b.w)]
-			_light(tex, glow, at, Vector2.ONE * radius * (0.7 + 0.5 * k), 0.0, Color(hue, 0.32 * (1.0 - k) * (1.0 - k)))
+			var r := radius * _burst_kind[i].y
+			_light(tex, glow, at, Vector2.ONE * r * (0.6 + 0.4 * k), 0.0, Color(Fx.FIREWORK_HUES[int(b.w)], 0.18 * (1.0 - k) * (1.0 - k)))
 			if b.z < 0.1:  # a hot point, not a white smudge
 				_light(tex, glow, at, Vector2.ONE * 60.0 * (1.0 + b.z * 6.0), 0.0, Color(1, 0.97, 0.9, 1.0 - b.z / 0.1))
 		for i in _shells.size():  # a rising shell: a short gold streak and its hot head
@@ -406,19 +483,22 @@ class FireworkShow extends Node2D:
 			_light(tex, dot, head, Vector2(8, 8), 0.0, Fx.FIREWORK[0])
 		for i in _sparks.size():
 			var s := _sparks[i]
+			var kind: Dictionary = KINDS[_spark_kind[i]]
+			var willow := _spark_kind[i] == Kind.WILLOW
 			var k := s.z / s.w
 			var fade := 1.0 - k * k
 			var hue := _spark_col[i]
 			var hot := Color(1, 0.98, 0.92).lerp(hue, minf(k * 2.4, 1.0))  # white-hot, cooling to its colour
 			var head := Vector2(s.x, s.y)
-			var length := head.distance_to(_spark_from[i]) * lerpf(0.7, 0.15, k)  # its path, shortening
+			var length := minf(head.distance_to(_spark_from[i]) * lerpf(kind.trail.x, kind.trail.y, k), radius * 0.7)
 			draw_set_transform(head, _spark_vel[i].angle())  # its head at 0, its path along -x
 			if length > 3.0:
-				var w := 6.0 * (1.0 - 0.35 * k)
+				var w: float = kind.width * 0.5 * (1.0 - 0.35 * k)
 				draw_texture_rect_region(tex, Rect2(-length, -w, length, w * 2.0), streak, Color(hue, fade))
-				draw_texture_rect_region(tex, Rect2(-length * 0.7, -2.25, length * 0.7, 4.5), streak, Color(hot, fade))
-			if k < 0.6 or fmod(s.z * 22.0 + i * 0.37, 1.0) < 0.55:  # the last of it glitters
-				var r := 6.5 * (1.0 - 0.35 * k)
+				draw_texture_rect_region(tex, Rect2(-length * 0.7, -w * 0.38, length * 0.7, w * 0.75), streak, Color(hot, fade))
+			var glitter := 0.3 if willow else 0.6  # from when it glitters (a willow almost at once)
+			if k < glitter or fmod(s.z * 22.0 + i * 0.37, 1.0) < 0.55:
+				var r: float = kind.head * (1.0 - 0.35 * k)
 				draw_texture_rect_region(tex, Rect2(-r, -r, r * 2.0, r * 2.0), dot, Color(hot, fade))
 				if k > 0.65 and i % 3 == 0:
 					draw_texture_rect_region(tex, Rect2(-13, -13, 26, 26), flare, Color(hot, fade))
@@ -794,7 +874,8 @@ static func home_glow(parent: Node, at: Vector2) -> void:
 		t.tween_property(g, "modulate:a", 0.2, 0.5).set_trans(Tween.TRANS_SINE)
 	t.tween_property(g, "modulate:a", 0.0, 0.8)
 	t.tween_callback(g.queue_free)
-	rays(parent, at + Vector2(0.0, -90.0), Color(1, 0.82, 0.55, 0.14), 14, 620.0, 1.8)
+	# (env, round 10: no rays from the doorway: "flat orange stripe rays: a cheap starburst"; the
+	# hut's light spills out on the ground instead, HomeView)
 	var p := CPUParticles2D.new()
 	p.position = at + Vector2(0, 40)
 	p.material = additive()
@@ -826,11 +907,11 @@ static func home_glow(parent: Node, at: Vector2) -> void:
 
 
 ## The win's shower over the results (`width` x `height`, screen units; `parent` is behind him and
-## the card): big shaded two-tone paper fluttering down beside the card for the whole reveal, most of
-## it behind him and the card (they hide what passes behind them: depth), and in front of everything
-## only where nothing is behind it (left of him, right of the card; fading if it drifts over the card
-## or him): gold coins tumbling and glinting as they turn, some paper, a few very big pieces close to
-## the eye and out of focus, gold motes twinkling; the coins' tinkle.
+## the card): shaded two-tone paper in the sunset's golds and red fluttering down beside the card for
+## the whole reveal, blurred by its motion, most of it behind him and the card (they hide what passes
+## behind them: depth), and in front of everything only where nothing is behind it (left of him,
+## right of the card; fading if it drifts over the card or him): gold coins tumbling and glinting as
+## they turn, some paper, gold motes twinkling; the coins' tinkle.
 static func coin_shower(parent: Node, width: float, height: float) -> void:
 	var front: Node = parent.get_parent() if parent.get_parent() else parent  # the panel: over everything
 	var holder := Node2D.new()
@@ -851,7 +932,7 @@ static func coin_shower(parent: Node, width: float, height: float) -> void:
 		paper.gravity = 520.0
 		paper.drag = 2.2
 		paper.flutter = 420.0
-		paper.rain(int(64 * side.y / width) + 8, side.y, PAPER_SHAPES, PAPER_COLOURS, 1.6, Vector2(3.4, 4.2), 2.2)
+		paper.rain(int(44 * side.y / width) + 6, side.y, PAPER_SHAPES, PAPER_COLOURS, 1.15, Vector2(3.4, 4.2), 2.2)
 	var left := (hero.position.x if hero.has_area() else card.position.x) - 8.0  # the sky left of him
 	var clear := [Vector3(0.0, left, 0.0), Vector3(card.end.x, width - card.end.x, 1.0)]
 	for strip: Vector3 in clear:  # in front: x, width, 1 right of the card
@@ -864,20 +945,13 @@ static func coin_shower(parent: Node, width: float, height: float) -> void:
 		coins.drag = 0.8
 		coins.flutter = 40.0
 		coins.avoid = Rect2(avoid.position - coins.position, avoid.size)
-		coins.rain(int(40 * share) + 4, strip.y, [Confetti.Shape.COIN], GOLD, 1.7, Vector2(1.8, 2.4), 2.0)
+		coins.rain(int(30 * share) + 3, strip.y, [Confetti.Shape.COIN], GOLD, 1.6, Vector2(1.8, 2.4), 2.0)
 		var paper := Confetti.make(holder, Vector2(strip.x, 0.0))
 		paper.gravity = 560.0
 		paper.drag = 2.1
 		paper.flutter = 420.0
 		paper.avoid = coins.avoid
-		paper.rain(int(40 * share) + 4, strip.y, PAPER_SHAPES, PAPER_COLOURS, 2.0, Vector2(3.2, 4.0), 2.2)
-		var near := Confetti.make(holder, Vector2(strip.x, 0.0))  # close to the eye: big, soft, falling fast
-		near.gravity = 760.0
-		near.drag = 1.6
-		near.flutter = 260.0
-		near.glints = false
-		near.avoid = coins.avoid
-		near.rain(4, strip.y, [Confetti.Shape.SOFT], PAPER_COLOURS, 4.4, Vector2(1.9, 2.3), 3.0)
+		paper.rain(int(26 * share) + 3, strip.y, PAPER_SHAPES, PAPER_COLOURS, 1.3, Vector2(3.2, 4.0), 2.2)
 		var motes := Confetti.make(holder, Vector2(strip.x + strip.y / 2.0, height * 0.35))
 		motes.avoid = Rect2(avoid.position - motes.position, avoid.size)
 		motes.sparkle(8, GOLD, Vector2(120, 420), 0.8, Vector2(0.6, 1.1), strip.y * 0.4)
@@ -1147,14 +1221,14 @@ static func additive() -> CanvasItemMaterial:
 	return _additive
 
 
-## The material of the "+1": its white letters filled pale gold to red (badge_text.gdshader).
+## The material of the "+1": its white letters filled white to gold to amber (badge_text.gdshader).
 static func badge_material() -> ShaderMaterial:
 	if not _badge:
 		_badge = ShaderMaterial.new()
 		_badge.shader = preload("res://src/game/badge_text.gdshader")
-		_badge.set_shader_parameter(&"top_colour", Color("ffffff"))  # a white core that reads on sky and earth,
-		_badge.set_shader_parameter(&"mid_colour", Color("fffbe8"))  # warming to pale gold at its foot
-		_badge.set_shader_parameter(&"bottom_colour", Color("ffd860"))
+		_badge.set_shader_parameter(&"top_colour", Color("ffffff"))  # a white top that reads on sky and earth,
+		_badge.set_shader_parameter(&"mid_colour", Color("ffe98a"))  # gold through its middle, amber at its
+		_badge.set_shader_parameter(&"bottom_colour", Color("ffb12a"))  # foot (inside a cream rim, a dark stroke)
 		_badge.set_shader_parameter(&"top_y", -PLUS_SIZE * 0.42)
 		_badge.set_shader_parameter(&"bottom_y", PLUS_SIZE * 0.38)
 	return _badge
@@ -1269,15 +1343,13 @@ static func burst(parent: Node, at: Vector2, colours: Array[Color], amount: int,
 
 
 ## Draws each of the game's shaders once, almost invisible, so that they are compiled while the
-## logo shows and the first pickup, hit or game over doesn't stutter. Bakes the confetti too.
+## logo shows and the first pickup, hit or game over doesn't stutter; starts baking the confetti.
+## Nothing here reads the screen (a shader that does, or a CanvasGroup, makes Godot keep a back buffer
+## the size of the window for good: 15 MB on an iPhone, 29 MB on an iPad).
 static func warm_up(parent: Control) -> void:
 	var holder := Control.new()
 	holder.modulate.a = 0.01
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var veil := Ui.frosted_veil()
-	veil.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	veil.size = Vector2(4, 4)
-	holder.add_child(veil)
 	for shader: Shader in [preload("res://src/game/light_grade.gdshader"),
 			preload("res://src/game/flash.gdshader"), preload("res://src/game/water.gdshader"),
 			preload("res://src/game/sway.gdshader"), preload("res://src/game/actor.gdshader"),
@@ -1288,11 +1360,6 @@ static func warm_up(parent: Control) -> void:
 		rect.material = ShaderMaterial.new()
 		rect.material.shader = shader
 		holder.add_child(rect)
-	var shadow := SoftShadow.new()
-	var dot := ColorRect.new()
-	dot.size = Vector2(4, 4)
-	shadow.add_child(dot)
-	holder.add_child(shadow)
 	var glow_dot := Sprite2D.new()
 	glow_dot.texture = glow_texture()
 	glow_dot.material = additive()
@@ -1302,9 +1369,7 @@ static func warm_up(parent: Control) -> void:
 	text.material = badge_material()  # the "+1"'s shader compiled now, not at the first knock-out
 	text.draw.connect(_draw_badge_glyphs.bind(text))
 	holder.add_child(text)
-	var bits := Confetti.make(holder, Vector2.ZERO)  # its atlas is baked now, not at the first pickup
-	bits.spray(2, [Confetti.Shape.PAPER], PARTY, Vector2(1, 2))
-	bits.sparkle(1, SPARKS, Vector2(1, 2))
+	Confetti.bake_soon()  # the confetti's atlas, on a thread: not in this frame, nor at the first pickup
 	parent.add_child(holder)
 	var t := holder.create_tween()
 	t.tween_interval(0.3)

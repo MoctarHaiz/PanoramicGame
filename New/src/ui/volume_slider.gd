@@ -1,8 +1,9 @@
 class_name VolumeSlider
 extends Control
 ## A volume in the interface's candy style: a groove sunk into the panel, filled with gold up to
-## the value, and a white candy knob in a gold ring to drag (or tap the groove). Steps of 10 %; at
-## 0 the sound is off. A tick plays at each step while dragging.
+## the value, and a white candy knob in a gold ring to drag (or tap the groove); the value written on
+## it ("80%": inside the gold, or past the knob when the gold is short). Steps of 10 %; at 0 the
+## sound is off. A tick plays at each step while dragging.
 
 signal changed(value: float)
 
@@ -62,13 +63,6 @@ func _draw() -> void:
 		GlossStyle.fill_rounded(ci, fill, gr - 3.5, Color("ffe066"), Color("e8860e"))
 		GlossStyle.fill_rounded(ci, Rect2(fill.position + Vector2(5, 2), Vector2(maxf(fill.size.x - 10, 0), 4)), 2.0,
 				Color(1, 1, 0.9, 0.75), Color(1, 1, 0.9, 0.5))
-	# the scale along the track, notches every quarter (dark on the fill, light on the empty groove): it
-	# reads as a slider even when full
-	for q in range(1, 4):
-		var x := inside.position.x + inside.size.x * q / 4.0
-		var on_fill := x < cx
-		draw_line(Vector2(x, inside.position.y + 3.0), Vector2(x, inside.end.y - 3.0),
-				Color(0.45, 0.2, 0.02, 0.55) if on_fill else Color(1, 0.95, 0.85, 0.45), 3.0, true)
 	var knob_r := r - 2.0
 	var centre := Vector2(cx, r)
 	draw_circle(centre + Vector2(0, 4), knob_r, Color(Ui.NIGHT, 0.3), true, -1, true)
@@ -80,3 +74,19 @@ func _draw() -> void:
 	draw_set_transform(centre - Vector2(knob_r * 0.12, knob_r * 0.34), -0.35, Vector2(1.0, 0.55))
 	draw_circle(Vector2.ZERO, knob_r * 0.42, Color(1, 1, 1, 0.95), true, -1, true)
 	draw_set_transform(Vector2.ZERO)
+	_value_text(inside, cx, knob_r)
+
+
+## The value on the groove: dark on the gold left of the knob when it fits, else light on the empty
+## groove right of it.
+func _value_text(inside: Rect2, cx: float, knob_r: float) -> void:
+	var french := TranslationServer.get_locale().begins_with("fr")
+	var words := ("%d %%" if french else "%d%%") % roundi(value * 100.0)
+	var font: Font = Ui.font_display
+	var px := 21
+	var w := font.get_string_size(words, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
+	var base := inside.get_center().y + px * 0.36
+	if cx - knob_r - inside.position.x >= w + 14.0:
+		draw_string(font, Vector2(cx - knob_r - 8.0 - w, base), words, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color("6a2a04"))
+	elif inside.end.x - (cx + knob_r) >= w + 12.0:
+		draw_string(font, Vector2(cx + knob_r + 8.0, base), words, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color(1, 0.95, 0.85, 0.9))

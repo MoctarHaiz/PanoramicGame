@@ -19,7 +19,7 @@ var art: Control
 var _pop: Control
 var _ground: TextureRect
 var _shadow: TextureRect
-var _rays: Rays
+var _halo: TextureRect  # a win's warm light behind the card
 var _back: Control  # the picture behind, its scrim and vignette
 var _picture: TextureRect
 var _hidden: Array[CanvasItem] = []  # what it hid behind it, shown again when it goes
@@ -34,8 +34,8 @@ var _u := 0.7  # the entrance's pop
 
 
 ## Opens a panel over `host` (the game screen). `veil`: the colour the game behind is washed with
-## (its alpha: how much); `glow`: the light the character stands in; `rays`: a big burst of light
-## turning behind the card; `hide`: what to leave out of the picture behind (the HUD, the effects).
+## (its alpha: how much); `glow`: the light the character stands in; `rays`: a warm light blooming
+## behind the card (a win); `hide`: what to leave out of the picture behind (the HUD, the effects).
 ## The panel shows a frame later, once that picture is taken.
 static func open(host: Control, title: String, tone: Ui.Tone, body: Control, character: Control = null,
 		veil := Color(0.05, 0.02, 0.06, 0.42), glow := Color(1, 0.8, 0.45, 0.55), rays := false,
@@ -76,19 +76,26 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 	vignette.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	vignette.stretch_mode = TextureRect.STRETCH_SCALE
 	vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	vignette.modulate = Color(0.01, 0.02, 0.06, 0.85) if _mood == &"loss" else Color(0.03, 0.0, 0.02, 0.7)
+	# a defeat's colder, darker corners; the pause's light (the scene keeps its colour)
+	vignette.modulate = Color(0.02, 0.01, 0.03, {&"loss": 0.85, &"win": 0.7}.get(_mood, 0.45))
 	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	back.add_child(vignette)
-	if rays:
-		_rays = Rays.new(1200, Color(1, 0.82, 0.42, 0.42), 20)  # a strong sunburst behind the card
-		_rays.material = Fx.additive()
-		add_child(_rays)
-		if Prefs.motion():
-			_rays.create_tween().set_loops().tween_property(_rays, "rotation", TAU, 40.0).from(0.0)
+	if rays:  # a warm light blooming behind the card (hard rays on the dark read as wallpaper stripes)
+		_halo = TextureRect.new()
+		_halo.texture = Fx.glow_texture()
+		_halo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_halo.material = Fx.additive()
+		_halo.modulate = Color(1, 0.72, 0.32, 0.6)
+		_halo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_halo)
+		if Prefs.motion():  # it breathes
+			var t := _halo.create_tween().set_loops()
+			t.tween_property(_halo, "modulate:a", 0.75, 1.6).set_trans(Tween.TRANS_SINE)
+			t.tween_property(_halo, "modulate:a", 0.5, 1.6).set_trans(Tween.TRANS_SINE)
 	_pop = Control.new()  # placed by hand in the safe area (_place): what the entrance animates
 	_pop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_pop)
-	card = Card.new(Vector4(46, 64, 46, 40))
+	card = Card.new(Vector4(54, 68, 54, 46))  # inside the thick frame and its trim
 	card.set_mood(_mood)
 	card.add_child(body)
 	banner = Banner.new(title, tone, 54)
@@ -241,15 +248,10 @@ func _place() -> void:
 	_pop.pivot_offset = whole / 2
 	_pop.position = centre - whole / 2
 	_pop.scale = Vector2.ONE * _u * _k
-	if _rays:
-		# behind the card only: centred on it, reaching a little past its edges (not through him or the
-		# fireworks)
+	if _halo:  # centred on the card, reaching well past its edges
 		var at := centre + (Vector2(art_w + card_size.x / 2, _top + lift + card_size.y / 2) - whole / 2) * _k
-		var d := maxf(card_size.x, card_size.y) * _k * 1.45
-		_rays.size = Vector2(d, d)
-		_rays.pivot_offset = _rays.size / 2
-		_rays.position = at - _rays.size / 2
-		_rays.queue_redraw()
+		_halo.size = card_size * _k * Vector2(1.9, 2.1)
+		_halo.position = at - _halo.size / 2
 	card.position = Vector2(art_w, _top + lift)
 	if _gild:
 		_gild.position = card.position

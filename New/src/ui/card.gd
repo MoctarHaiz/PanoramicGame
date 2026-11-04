@@ -1,25 +1,25 @@
 class_name Card
 extends PanelContainer
 ## The panel of the interface kit (pause, results, settings, About), as the pop-ups of top mobile
-## games, in his world's materials: a deep shadow cast on the game behind, a dark ink outline, a frame
-## of carved wood bevelled (lit along its top and outer edge, shaded at its foot), a brass bracket over
-## each corner (its arms ending in assegai blades, a red bead in the bend: corners.png), a gold trim
-## ring inside it, and a body of tanned hide (paper.png grain) that sinks under the frame (shade along
-## its top, sides and foot, a soft light in its middle: it curves). Text on the body is dark brown. A
-## mood (set_mood) gilds it for a win, or turns it to cold iron and grey hide for a loss.
+## games, in his world's materials: a deep shadow cast on the game behind, a dark ink outline, a thick
+## frame of carved wood bevelled (lit along its top and outer edge, shaded at its foot), a jewelled
+## brass boss on each corner (a ring of beads, a red cabochon: corners.png), a broad gold trim inside
+## it, and a body of tanned hide (paper.png grain) that sinks under the frame (shade along its top,
+## sides and foot, a soft light in its middle: it curves). Text on the body is dark brown. A mood
+## (set_mood) gilds it for a win, or darkens it to old bronze and dusty hide for a loss.
 ## The light variant (the start card, tutorial hints) is a see-through dark glass with a gold line.
 ## `well()` is the style of a sunken area inside the body (the results' counts, settings' rows).
 
 const INK := Color("2e0d04")
-const FRAME := 18.0  ## width of the wooden frame (tools/art/ui_kit.py bakes the corners for it)
+const FRAME := 26.0  ## width of the wooden frame
 const FRAME_TOP := Color("c8642a")
 const FRAME_BOTTOM := Color("6e240a")
-const TRIM := 4.0  ## the gold ring inside the frame
+const TRIM := 6.0  ## the gold ring inside the frame
 const TRIM_TOP := Color("ffe9a0")
 const TRIM_BOTTOM := Color("e0901c")
 const PAPER := preload("res://assets/art/ui/paper.png")
-const CORNERS := preload("res://assets/art/ui/corners.png")  ## brass (row 0) and iron (row 1) brackets
-const CORNER_CELL := 100.0  ## one bracket's cell in units, from 6 units outside the card's corner
+const CORNERS := preload("res://assets/art/ui/corners.png")  ## the corner bosses: brass, then bronze (tools/art/ui_kit.py)
+const BOSS := 56.0  ## a corner boss, side in units
 
 var top_colour := Color("f6e4bc")  ## tanned hide, warm at the top
 var bottom_colour := Color("dcb47c")  ## and darker towards its foot
@@ -28,7 +28,7 @@ var frame_bottom := FRAME_BOTTOM
 var trim_top := TRIM_TOP
 var trim_bottom := TRIM_BOTTOM
 var radius := 34.0
-var iron := false  ## a defeat's iron corners and studs instead of brass
+var bronze := false  ## a defeat's dark bronze bosses and studs instead of brass
 var _framed := true
 var _shadow_box: StyleBoxFlat
 
@@ -49,8 +49,9 @@ func _init(margin := Vector4(34, 40, 34, 34), light := false) -> void:
 	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED  # the hide grain tiles
 
 
-## A mood for the panel: &"win" a gold frame and a bright trim on a warm hide; &"loss" slate-dark
-## wood, steel trim, iron corners, a grey hide (the defeat drained of warmth); anything else the wood.
+## A mood for the panel: &"win" a gold frame and a bright trim on a warm hide; &"loss" dark smoked
+## wood, a dull bronze trim and bosses, a dusty grey hide (the defeat drained, still of his warm
+## world, not cold steel); anything else the wood.
 func set_mood(mood: StringName) -> void:
 	match mood:
 		&"win":
@@ -60,14 +61,14 @@ func set_mood(mood: StringName) -> void:
 			trim_bottom = Color("f2c24a")
 			top_colour = Color("fff0c8")
 			bottom_colour = Color("ecc884")
-		&"loss":  # cold: slate-stained wood, steel trim, iron corners, a grey hide
-			frame_top = Color("66708a")
-			frame_bottom = Color("232838")
-			trim_top = Color("e4eaf4")
-			trim_bottom = Color("7c879e")
-			top_colour = Color("e8e6e0")
-			bottom_colour = Color("b6b4ae")
-			iron = true
+		&"loss":  # drained: smoked wood, old bronze, a dusty hide
+			frame_top = Color("7a5a46")
+			frame_bottom = Color("2e1c14")
+			trim_top = Color("e8c896")
+			trim_bottom = Color("8a6238")
+			top_colour = Color("ece4d6")
+			bottom_colour = Color("c2b6a2")
+			bronze = true
 	queue_redraw()
 
 
@@ -140,33 +141,30 @@ func _draw() -> void:
 		draw_polyline(line, Color(Ui.GOLD, 0.55), 2.0, true)
 
 
-## The brackets over the four corners (corners.png: the top and bottom left ones, mirrored for the
-## right): one picture, four rects.
+## The jewelled bosses on the four corners (corners.png), centred on the frame where it turns: one
+## picture, four rects (they batch into one draw call).
 func _corners(r: Rect2) -> void:
-	var cell := CORNERS.get_height() / 2.0
-	var row := cell if iron else 0.0
-	for c: Array in [[r.position, 0.0, 1.0], [Vector2(r.end.x, r.position.y), 0.0, -1.0],
-			[Vector2(r.position.x, r.end.y), cell, 1.0], [r.end, cell, -1.0]]:
-		var bottom: bool = c[1] > 0.0
-		draw_set_transform(c[0], 0.0, Vector2(c[2], 1.0))
-		var at := Vector2(-6.0, -(CORNER_CELL - 6.0) if bottom else -6.0)
-		draw_texture_rect_region(CORNERS, Rect2(at, Vector2(CORNER_CELL, CORNER_CELL)), Rect2(c[1], row, cell, cell))
-	draw_set_transform(Vector2.ZERO)
+	var cell := float(CORNERS.get_height())
+	var src := Rect2(cell if bronze else 0.0, 0.0, cell, cell)
+	var m := radius - (radius - FRAME * 0.5) * 0.7071  # the frame's middle where it turns, from the corner
+	for c: Vector2 in [r.position + Vector2(m, m), Vector2(r.end.x - m, r.position.y + m),
+			Vector2(r.position.x + m, r.end.y - m), r.end - Vector2(m, m)]:
+		draw_texture_rect_region(CORNERS, Rect2(c - Vector2(BOSS, BOSS) / 2, Vector2(BOSS, BOSS)), src)
 
 
 ## Gold studs nailed into the middle of the frame's long edges on a wide card (the corners carry
-## their brackets); iron-grey on a defeat.
+## their bosses); dull bronze on a defeat.
 func _studs(r: Rect2) -> void:
 	if r.size.x <= 520.0:
 		return
 	var m := FRAME * 0.5
 	var stud := _stud_texture()
-	var tint := Color(0.72, 0.78, 0.92) if iron else Color.WHITE
+	var tint := Color(0.78, 0.66, 0.54) if bronze else Color.WHITE
 	for c: Vector2 in [Vector2(r.get_center().x, r.position.y + m), Vector2(r.get_center().x, r.end.y - m)]:
 		draw_texture_rect(stud, Rect2(c - Vector2(STUD, STUD) / 2, Vector2(STUD, STUD)), false, tint)
 
 
-const STUD := 18.0  ## a stud's picture, side in units
+const STUD := 22.0  ## a stud's picture, side in units
 static var _stud: ImageTexture
 
 

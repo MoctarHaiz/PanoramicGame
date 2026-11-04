@@ -10,7 +10,8 @@ extends Screen
 ## colour. Every row is a thumb-sized target. Credits
 ## (About, the fonts and icons, the studio, the version) open over it.
 
-const ROW_H := 76.0  ## height of a row (the whole row takes the touch)
+const ROW_H := 82.0  ## height of a row (the whole row takes the touch)
+const BUTTON := 78.0  ## the header's back and info buttons
 const COLUMN_W := 380.0
 const HERO_ART := "res://assets/art/hero/hero_menu.png"
 const INK := Color("4a1e04")
@@ -55,15 +56,15 @@ func _build() -> void:
 	var page := Control.new()
 	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	area.add_child(page)
-	var card := Card.new(Vector4(36, 118, 36, 38))  # room under the ribbon for the back button
+	var card := Card.new(Vector4(44, 140, 44, 44))  # a header under the ribbon: the back and info buttons
 	var columns := HBoxContainer.new()
 	columns.add_theme_constant_override(&"separation", 22)
 	card.add_child(columns)
 	# one tile colour per group (gold sound, red effects, orange game, bone help, blue purchases: the
 	# kit's tones): the eye finds a group by its colour, and inside a group every tile is
-	# the same. The rows are grouped so the columns end level (no empty band): on a wide screen three
-	# columns (big text, room to breathe) of three, three and four rows; on a narrower one two of five,
-	# Panoramic beside them where there is room.
+	# the same. The rows are grouped so the columns end level (no empty block): on a wide screen three
+	# columns (big text, room to breathe) of three rows, the credits behind the info button in the
+	# header; on a narrower one two columns of five, Panoramic beside them where there is room.
 	var view := get_viewport().get_visible_rect().size
 	var wide := view.x >= view.y * 1.7
 	var music := _slider_row("music-notes-fill", tr("MUSIC"), &"music_volume", &"music_on")
@@ -74,8 +75,9 @@ func _build() -> void:
 	var language := _button_row("translate-fill", tr("LANGUAGE"), tr("LANGUAGE_NAME"), _switch_language)
 	var tutorial := _button_row("hand-pointing-fill", tr("REPLAY_TUTORIAL"), "", _replay_tutorial)
 	var help: Array = [_button_row("star-fill", tr("RATE"), "", Config.open_store_review),
-			_button_row("shield-check-fill", tr("PRIVACY_POLICY"), "", Config.open_privacy_policy),
-			_button_row("info-fill", tr("CREDITS_BUTTON"), "", _show_credits)]
+			_button_row("shield-check-fill", tr("PRIVACY_POLICY"), "", Config.open_privacy_policy)]
+	if not wide:  # (a wide screen has the info button in the header)
+		help.append(_button_row("info-fill", tr("CREDITS_BUTTON"), "", _show_credits))
 	var layout: Array  # columns of groups
 	var switches := 0  # the column with the switches' long labels
 	if wide:
@@ -105,9 +107,14 @@ func _build() -> void:
 	var banner := Banner.new(tr("SETTINGS"), Ui.Tone.SUNSET, 48)
 	page.add_child(card)
 	page.add_child(banner)
-	var back_button := Ui.wood_button("arrow-left-bold", Vector2(72, 72), 36.0)  # in the panel's wood
+	var back_button := Ui.wood_button("arrow-left-bold", Vector2(BUTTON, BUTTON), BUTTON / 2)  # in the panel's wood
 	back_button.pressed.connect(back)
 	page.add_child(back_button)
+	var info: JuicyButton = null  # the credits, at the header's other end (a wide screen: three rows a column)
+	if wide:
+		info = Ui.wood_button("info-fill", Vector2(BUTTON, BUTTON), BUTTON / 2)
+		info.pressed.connect(_show_credits)
+		page.add_child(info)
 	var place := func() -> void:
 		var room := page.size
 		var top := banner.custom_minimum_size.y * 0.5
@@ -123,11 +130,15 @@ func _build() -> void:
 		card.position = Vector2(left_x, top + (room.y - top - card.size.y * k) / 2)
 		banner.size = banner.custom_minimum_size
 		banner.position = Vector2(left_x + w / 2 - banner.size.x / 2, card.position.y - top)
-		back_button.custom_minimum_size = Vector2(72.0, 72.0) * k  # the panel's scale (its touch stays 86+)
+		back_button.custom_minimum_size = Vector2(BUTTON, BUTTON) * k  # the panel's scale (its touch stays 86+)
 		back_button.size = back_button.custom_minimum_size
-		# docked inside the panel, on the hide at its top left under the frame (the panel's own header):
-		# neither floating beside it nor over its corner or band
-		back_button.position = card.position + Vector2(Card.FRAME + 16.0, Card.FRAME + 14.0) * k
+		# docked inside the panel, on the hide at its top left under the frame (the panel's own header,
+		# its own row above the groups): neither floating beside it nor over its corner
+		back_button.position = card.position + Vector2(Card.FRAME + 20.0, Card.FRAME + 16.0) * k
+		if info:  # the same at the top right
+			info.custom_minimum_size = back_button.custom_minimum_size
+			info.size = info.custom_minimum_size
+			info.position = card.position + Vector2(card.size.x - Card.FRAME - 20.0 - BUTTON, Card.FRAME + 16.0) * k
 		if hero:
 			hero.visible = show_hero
 			var origin := area.get_global_rect().position + page.position
@@ -200,9 +211,9 @@ func _group(icon_name: String, title: String, tone: Ui.Tone, rows: Array) -> VBo
 	for row: Control in rows:  # the group's colour on its rows' tiles
 		var tile := row.find_child("Tile", true, false) as PanelContainer
 		if tile:
-			var ts := Ui.candy_style(tone, 13.0, false, 4.0)
-			ts.set_content_margin_all(5)
-			ts.content_margin_bottom = 9
+			var ts := Ui.candy_style(tone, 15.0, false, 5.0)
+			ts.set_content_margin_all(6)
+			ts.content_margin_bottom = 11
 			tile.add_theme_stylebox_override(&"panel", ts)
 			var icon := tile.get_child(0) as BoldIcon
 			if icon:
@@ -222,15 +233,15 @@ func _row(icon_name: String, text: String, right: Control) -> Control:
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var tile := PanelContainer.new()
 	tile.name = "Tile"
-	var ts := Ui.candy_style(Ui.Tone.SUNSET, 13.0, false, 4.0)
-	ts.set_content_margin_all(5)
-	ts.content_margin_bottom = 9
+	var ts := Ui.candy_style(Ui.Tone.SUNSET, 15.0, false, 5.0)
+	ts.set_content_margin_all(6)
+	ts.content_margin_bottom = 11
 	tile.add_theme_stylebox_override(&"panel", ts)
 	tile.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	tile.add_child(Ui.bold_icon(icon_name, 32, Ui.WHITE, Ui.tone_colours(Ui.Tone.SUNSET).outline))
+	tile.add_child(Ui.bold_icon(icon_name, 42, Ui.WHITE, Ui.tone_colours(Ui.Tone.SUNSET).outline))  # big icon tiles
 	row.add_child(tile)
-	var l := Ui.label(text, 30, INK, Ui.font_title, HORIZONTAL_ALIGNMENT_LEFT)
+	var l := Ui.label(text, 32, INK, Ui.font_title, HORIZONTAL_ALIGNMENT_LEFT)
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.custom_minimum_size.x = 140

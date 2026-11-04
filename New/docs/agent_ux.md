@@ -483,3 +483,61 @@ would give it content); the HUD plates stay dark glass (some may still read as b
 French badge's two long words are small; the logo's letters are custom but still a gold bevel; the
 brass corners are new and untested with the judges; the defeat figure sits on a shadow, not on
 ground; head.png is still round 1's crop (art, QA #3).
+
+## Round 10
+
+Round 9 merged (452aa0e): 6.42 against the references (best so far), preferred to round 8 on 10/10
+screens. ROUND10.md (ux): the cold steel defeat and its navy well, the blue side buttons, the badge
+against the 84, three same-size stars washed by a white burst over wallpaper rays, the pause's tiny ON
+tabs, clip-art corners, thin frame, dead margins, faint sparkle and near-black dim, settings' uneven
+columns, valueless sliders and desktop feel, the logo's hidden shield and the empty star as a hole, a
+tooltip-like "Tap to start", the HUD's dark empty trough, small portrait, stray ">" and dark pause.
+
+- HUD: the ">" was the cheek's ink outline in head.png (art's round-9 crop) against the bright disc:
+  tools/art/ui_art.py crops it again (FACE (282, 238), radius 94) on a dark warm disc, so the outline
+  melts into it and the lit face pops. The portrait 62 units (over the plate's edges); the way home a
+  sandy trail with his footprints leading to the house (drawn once, the gold covers them), 300 wide;
+  the pause in the bright brass ring (Ui.icon_button's new `ring`).
+- Defeat (card.gd, results_panel.gd): smoked wood, old bronze trim, dark bronze bosses, a dusty hide
+  (not cold steel); the count's well a lighter dusty brown (not a navy hole), the way-home bar in it
+  warm; a red ribbon; "what happened" a bold red display line with a fine outline; him bigger (0.66
+  of the card) on a dim warm patch of light.
+- Win and defeat: Home and Share two quiet bone buttons, 34 apart (no blue beside the green); the NEW
+  BEST badge 54, its place as tall as it and 26 wider (air before the 84, inside the groove); the
+  middle star 204 against 134, raised; the stars' white glow gone, their flares and own glow softer,
+  the stage's sunburst a soft deep orange; behind the win card a breathing warm light instead of the
+  hard rays (GamePanel `_halo`); the leaping hero 8 % clear of the card.
+- Pause: ON/OFF badges 36 (were 27), drawn over the next tile; Resume as wide as the tiles' row; the
+  dim 0.2 with a light vignette (0.45): the scene keeps its colour.
+- Panels: the frame 26 (was 18), the trim 6; jewelled bosses on the corners instead of the leaf
+  brackets (corners.png re-baked by ui_kit.py: a bevelled ring set with beads, a domed cabochon;
+  brass and red, dark bronze and garnet), 56 units; middle studs 22. Panel margins 54/68/54/46.
+- Glints (juicy_button.gd): twice the size, a soft halo, long and short arms (Play, Resume, Play
+  again).
+- Settings: three columns of three rows (Sound and feel; Game; Help: tutorial, rate, privacy), the
+  credits behind an info button at the header's right, the back button at its left, in their own row
+  (top margin 140); icon tiles bigger (42 px icons), rows 82, text 32; shorter words ("Tutorial",
+  "Rate us", "Privacy"); the volume written on each slider ("80%", in the gold or past the knob), the
+  quarter notches gone. iPad: two columns of five as before.
+- Menu: the empty star a light socket pressed into the plaque (outline, shade inside its upper
+  edges, sand at its foot, a lit lip); the logo's shield moved left (only its right edge behind the
+  C and the Z) and leaning less (-0.1).
+- Start: "Tap to start" in big display letters (70, cream to gold, outline 8, depth 7, a slight arch)
+  on a soft dark glow, no pill; a big hand (118) tapping with its ripples beside it; a heartbeat.
+- Tests: 1068 checks, 0 failed. Captures AAA/ux/round_10/{en,fr}/ (iPhone 15, iPad, 1280 x 720),
+  round's start in round_10/before/.
+- perf.gd, iPhone 15 (load average 8 on the Mac): texture 58.0 / 40.3 / 40.3 / 43.0 / 61.1 MB (menu,
+  play, paused, results, menu again); draw calls max 117 / 390 / 223 / 269 / 117; worst own work in
+  play 8.8 ms (PASS).
+
+### Round 10, QA's audit (qa/round_10/bugs.md)
+- Perf: the boot's warm-up drew `Ui.frosted_veil()` and a `SoftShadow`, nothing else used them, and
+  each kept the window's back buffer for good (+15 MB on iPhone 15, +29 MB on iPad: iPhone 17 Pro
+  Max and iPad 13 over budget in the real boot flow). Deleted: `frosted_veil()`, `frost.gdshader`,
+  `SoftShadow` and `soft_shadow.gdshader`; in `fx.gd` (audio's) the warm-up's two pieces drawing
+  them, the same lines audio removes. QA's new `tests/perf.gd` (it runs the warm-up) copied in.
+- Win: the leaping hero already stands clear (overlap -0.08 this round, was 0.0).
+- NEW BEST: its place 44 units wider than the badge (was 26): about twice the air before the 84.
+- After these: 1067 checks, 0 failed (one script fewer: soft_shadow.gd). perf.gd with the boot's
+  warm-up (QA's): texture memory peaks at 61.1 MB on iPhone 15, iPhone 17 Pro Max and iPad 13 (QA's
+  audit: 77.7, 81.7 FAIL, 91.3 FAIL); worst own work in play 8.1-8.7 ms (PASS everywhere).

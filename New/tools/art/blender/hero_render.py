@@ -565,6 +565,56 @@ def pose_authored(name, chakram=False, stars=False):
     bpy.context.view_layer.update()
 
 
+def pose_win_leap():
+    """The win picture (the authored AAA_key_win) with its bent leg opened (round 10: "the leaping hero's bent leg
+    folds in oddly": the shin was folded back under the thigh, across the other leg): the thigh kept up, the
+    shin hanging down and a little forward from the knee, the toes pointed."""
+    pose_authored("key_win")
+    aim("RightLeg", float(os.environ.get("WIN_SHIN_X", "0.1")), -1.0, float(os.environ.get("WIN_SHIN_D", "-0.28")))
+    aim("RightFoot", 0.25, -0.9, -0.3)
+
+
+STAR_GOLD = (1.0, 0.8, 0.16)  ## sRGB: the dizzy stars, the game's own gold (the results' stars)
+
+
+def chunky_stars():
+    """The defeat's dizzy stars in the game's own language (round 10: "stock clip-art"): thick, bevelled,
+    cel-shaded gold with a hot rim and an ink line, like the stars of the results panel; the spiral over his
+    head gone, the orbit trail kept."""
+    tools = _aaa_toon()
+    trail = bpy.data.materials.get("AAA_star_trail")
+    if trail is not None:  # the orbit's streak warm, the stars' light (it was a cold white)
+        for n in trail.node_tree.nodes:
+            if n.type == "BSDF_PRINCIPLED":
+                n.inputs["Base Color"].default_value = (*_lin(1.0, 0.9, 0.6), 1.0)
+                n.inputs["Emission Color"].default_value = (*_lin(1.0, 0.86, 0.5), 1.0)
+    for ob in bpy.data.objects:
+        if ob.name.startswith("AAA_DizzySwirl"):
+            ob.hide_render = True
+        if not ob.name.startswith("AAA_DizzyStar") or ob.get("chunky"):
+            continue
+        ob["chunky"] = True
+        bevel = ob.modifiers.new("Round", "BEVEL")  # (an 8 cm star, 2.4 cm thick: its edges rounded, puffy)
+        bevel.width = 0.007
+        bevel.segments = 3
+        bevel.limit_method = "ANGLE"
+        m = bpy.data.materials.get("AAA_star_toon")
+        if m is None:
+            m = bpy.data.materials.new("AAA_star_toon")
+            m.use_nodes = True
+            m["toon"] = "belt"
+            m["flat"] = _lin(*STAR_GOLD)
+            m["rim"] = _lin(1.0, 0.97, 0.7)
+            m["rim_k"] = 0.9
+            m["aaa_base"] = "AAA_albedo"
+            m["aaa_normal"] = ""
+            tools.build(m, "sunset")
+        ob.data.materials.clear()
+        ob.data.materials.append(m)
+        ink_hull(ob, 0.0025)
+        bpy.context.view_layer.update()
+
+
 def pose_key_art():
     """The title screen (round 7): the throw, caught as the ring leaves his hand (round 4's dynamic
     pose), turned three-quarters to us, his head turned to us and lifted so his face shows; the ring
@@ -668,8 +718,8 @@ def anims():
     out["win_front"] = ("front", [lambda: pose_celebrate()], 0.15, 7.0)
     if "key_menu" in ACTIONS:  # (hero pass 2: the poses authored by hand on the timeline)
         out["menu_hero"] = ("front", [lambda: pose_authored("key_menu", chakram=True)], -0.06, 6.0)
-        out["win_front"] = ("front", [lambda: pose_authored("key_win")], -0.03, 7.0)
-        out["defeat"] = ("front", [lambda: pose_authored("key_defeat", stars=True)], 0.03, -9.0)  # (looking down a little: he sits on the ground)
+        out["win_front"] = ("front", [lambda: pose_win_leap()], -0.03, 7.0)
+        out["defeat"] = ("front", [lambda: (pose_authored("key_defeat", stars=True), chunky_stars())], 0.03, -9.0)  # (looking down a little: he sits on the ground)
     if arg("--turn"):  # the turnaround, for reviews (--anims turn --turn)
         out["turn"] = ("front", [lambda k=k: pose_turn(k) for k in range(4)], 0.0)
     return out

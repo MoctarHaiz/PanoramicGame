@@ -388,3 +388,33 @@ win and defeat renders; (6) the studio logo; (7) the null texture on the first b
   (the source of the badge, the icons and the store art). ART-3: the knock-out above.
 - Tests: `_test_art_round9()` (the grounded boots, the sheet's size and frames, the leap frame, the knock-out's
   tilt and length, the Bob's ruby hue and glow).
+
+## Round 10 (the hero's model and look kept; the judges' named flaws)
+
+- **Red Bobs** ("soft magenta halos merge into one pink smear along a row; facets too small to read"): no glow
+  round them at all (BobView: the additive halo, the soft hot spot and the always-on star are gone; one hard glint
+  in the sheet now and then flares into a star). `bob_sheet.py`: eight big crown facets (one per side of the table,
+  was 24 star, kite and girdle facets), a bright rim just inside the ink strongest towards the sun and where the
+  light comes back out (not a bezel all round), one hard white rhombus glint.
+- **Menu: the ring's trail** ("it floats above the hand with no motion trail: a UI glitch"): `hero_atlas.py
+  throw_trail()` paints a smear of cold light on the arc from his throwing hand to the ring (thin and faint at the
+  hand, ring-wide and brighter at the ring, a white core, two speed lines), drawn behind the figure with no ink
+  round it (`trimmed(..., under=)`); the ring found as the render's second piece, the hand from points.json. The
+  portrait is cut from the picture without it (it feeds the HUD badge, the icons and the store art).
+- **Win** ("the bent leg folds in oddly"): `pose_win_leap()`: the authored AAA_key_win with the bent leg's shin
+  hanging down and a little forward from the knee, the toes pointed (it was folded back under the thigh, across the
+  other leg). hero_win.png is wider (489 px, was 400).
+- **Defeat** ("the stars stock clip-art"): `chunky_stars()`: the dizzy stars bevelled and cel-shaded in the game's
+  gold with a hot rim and ink (the results panel's language), the spiral gone, the orbit streak warm.
+- **Home** ("front-lit cel rendering ignores the strong orange backlight from inside the hut"): `actor.gdshader`
+  back rim: a band just inside the ink on the edges that face up (none below), screened on in warm orange;
+  HeroView turns it on with the campfire's bounce at home.
+- **Hang** ("pale against the sky"): dropped after QA (his hang frames match the run's values; the camera draws
+  back at the vine). A hang with the light turning with him was rendered and set aside
+  (`_agents/AAA/blender/r10_hang_lightfollow/`). Kept: HeroView adds 0.8 atlas px of ink outside the baked one
+  while he is at the vine (`VINE_INK_PX`), so the ink's weight on screen stays the run's when the camera pulls out.
+- Renders: `hero3d/render/render_r10.sh` -> `hero3d/render/r10/` (win_front and defeat re-rendered; everything
+  else symlinked to pass 4's p4/); hero_atlas.py reads r10/game. The atlas pages and portrait.png are
+  pixel-identical to round 9.
+- Tests: `_test_art_round10()` (the vine ink, the home back rim, the menu's trail) and the Bob checks (a bright rim
+  on the sun's side, no glow sprite).

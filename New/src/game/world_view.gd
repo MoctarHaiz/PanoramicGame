@@ -7,6 +7,7 @@ extends Node2D
 signal bob_popped(at: Vector2)  ## where a Red Bob was collected, in this node's units
 
 const HANG_DRAW_DROP := 58.0  ## the rules hang him half above the screen: draw him below its top
+const BANDIT_RIGHT := 46.0  ## round 10: units a bandit's picture reaches right of its feet (QA: 960-1069 at x 1024)
 ## Round 9: the pictures the pools mirror (their savanna strips and the sky)
 const WATER_MIRRORS := {"grass_tex": "near_grass", "hills_tex": "mid_hills", "sky_tex": "sky"}
 const EXTRA_COLUMNS := 70  ## ground drawn past the end of the map for wide screens
@@ -17,6 +18,11 @@ var view_left := 0.0
 var view_width := World.VIEW_W
 ## Play y at the top of the screen: below 0 when the camera draws back (GameScreen), sky above.
 var view_top := 0.0
+## Round 10 (QA ENV-1): while the start card holds the world (GameScreen), a waiting bandit whose
+## picture is not wholly inside the screen's safe area is not drawn (the level's first one stood
+## cut by the right edge, in the phone's rounded corner); it fades in once the run starts.
+var start_hold := false
+var safe_right := INF  ## play x of the right edge of the screen's safe area (GameScreen)
 
 var _background: SavannaView
 var _vine: VineView
@@ -34,6 +40,7 @@ var _hero: HeroView
 ## Effects layer: the Fx kit is sized for a 1280-tall design, so it draws at half scale here.
 var fx: Node2D
 var _dust_clock := 0.0
+var _ground_task := -1  # round 10: the worker thread working out the ground's data (-1: none)
 var _water: Array[ShaderMaterial] = []  # the pools' (round 9: the scroll for their reflection)
 var _was_climbing := false
 
@@ -126,14 +133,28 @@ func _add_ground() -> void:
 	_ground = TerrainView.new()
 	_level_root.add_child(_ground)
 	if is_inside_tree():
+		# (round 10, QA: the open frame took ~80 ms: the ground's data is worked out on a worker
+		# thread meanwhile, only its layers are made the next frame)
+		_ground_task = WorkerThreadPool.add_task(_ground.prepare.bind(world.level, -12, Level.COLS + EXTRA_COLUMNS))
 		get_tree().process_frame.connect(_build_ground, CONNECT_ONE_SHOT)
 	else:
 		_build_ground()
 
 
 func _build_ground() -> void:
+	_join_ground()
 	if not _ground.is_built():
 		_ground.build(world.level, -12, Level.COLS + EXTRA_COLUMNS)
+
+
+func _join_ground() -> void:
+	if _ground_task >= 0:
+		WorkerThreadPool.wait_for_task_completion(_ground_task)
+		_ground_task = -1
+
+
+func _exit_tree() -> void:
+	_join_ground()  # (the thread must not outlive the ground it fills)
 
 
 ## HOME: the homestead over the last screen; Panoramic walks into the hut's doorway.
@@ -407,6 +428,8 @@ func _place_bandits(scroll: float, delta: float) -> void:
 		v.wall_shift = push if push > v.wall_shift else lerpf(v.wall_shift, push, 1.0 - exp(-delta * 12.0))
 		v.position = Vector2(x + v.wall_shift, y + World.BANDIT_SIZE.y / 2 + GameArt.FEET_SINK)
 		v.show_state(standing)
+		var held := start_hold and not b.active and x + v.wall_shift + BANDIT_RIGHT > safe_right
+		v.modulate.a = 0.0 if held else move_toward(v.modulate.a, 1.0, delta * 4.0)
 		# one still waiting out of the play window over a hole would stand on air: not drawn
 		if not b.active:
 			var feet_row := floori((b.wait_y + World.BANDIT_SIZE.y / 2 + 4.0) / Level.TILE)

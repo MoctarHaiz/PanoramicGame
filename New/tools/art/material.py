@@ -199,8 +199,8 @@ def spire(seed: int, w: int = 192, h: int = 1120) -> np.ndarray:
         out = big + mid + rough
         for j in joints:  # at some joints a notch, under others the bed steps out (a ledge)
             k = rng.random()
-            if k < 0.4:
-                out -= np.exp(-((y - j) / rng.uniform(5, 12)) ** 2) * rng.uniform(5, 14)
+            if k < 0.12:  # (round 10: rarely a notch: a row of them read as bamboo nodes)
+                out -= np.exp(-((y - j) / rng.uniform(8, 16)) ** 2) * rng.uniform(3, 7)
             elif k < 0.8:  # a block jutting out on this side
                 out += rng.uniform(5, 14) * smooth_np(j - 2, j + 4, y) * (1 - smooth_np(j + 30, j + 150, y))
         return out
@@ -229,12 +229,33 @@ def spire(seed: int, w: int = 192, h: int = 1120) -> np.ndarray:
     dist_j = np.min(np.abs(y[:, None] - joints[None, :]), axis=1)
     below_j = np.array([y[k] - joints[joints <= y[k]].max() if (joints <= y[k]).any() else 99.0 for k in range(h)])
     shade_j = np.exp(-np.clip(below_j, 0, None) / 8.0) * 0.32
-    lam = 0.47 + 0.5 * turn - 0.3 * facets + 0.35 * grain - shade_j[:, None]
+    # round 10 ("smooth pale tubes: almost no lit / shadow difference"): the far side in shade, and
+    # rock blocks in the beds, each rounded by the light with a lit bevel on its sun side
+    lam = 0.38 + 0.58 * turn - 0.3 * facets + 0.35 * grain - shade_j[:, None]
+    sites = []
+    for b in range(len(joints) + 1):
+        y0 = joints[b - 1] if b > 0 else 0.0
+        y1 = joints[b] if b < len(joints) else float(h)
+        for _ in range(max(1, int((y1 - y0) / rng.uniform(55, 90)))):
+            yc = rng.uniform(y0 + 10, max(y0 + 12, y1 - 10))
+            for xc in (rng.uniform(0.1, 0.45) * w, rng.uniform(0.55, 0.9) * w):
+                if rng.random() < 0.8:
+                    sites.append((xc, yc))
+    sites = np.array(sites)
+    sd = (xx[..., None] - sites[None, None, :, 0]) ** 2 + ((yy[..., None] - sites[None, None, :, 1]) * 0.8) ** 2
+    so = np.argsort(sd, axis=2)[..., :2]
+    s1 = np.take_along_axis(sd, so[..., :1], axis=2)[..., 0]
+    s2 = np.take_along_axis(sd, so[..., 1:2], axis=2)[..., 0]
+    near = so[..., 0]
+    apart = np.hypot(sites[near, 0] - sites[so[..., 1], 0], (sites[near, 1] - sites[so[..., 1], 1]) * 0.8)
+    bjoint = (s2 - s1) / (2.0 * np.maximum(apart, 1.0))  # px to the block's edge
+    bface = np.clip(((sites[near, 0] - xx) * 0.6 + (sites[near, 1] - yy) * 0.8) / 40.0, -1, 1)  # >0: its upper left
+    lam += bface * 0.12 + (1 - smooth_np(2.0, 9.0, bjoint)) * np.sign(bface) * smooth_np(0.05, 0.5, np.abs(bface)) * 0.22
     lam += cap_k[:, None] * 0.14 * (turn > -0.35)
     # the band edges follow the beds: each bed's lit band a little wider or narrower
     lam += (rng.random(len(joints) + 1)[bed] - 0.5)[:, None] * 0.18
     lam = 0.1 + 0.8 * cel(np.clip(lam, 0, 1), (0.38, 0.64))
-    rgb = ramp_np(lam, [(0.0, "2e1c30"), (0.3, "5a3040"), (0.52, "a4583a"), (0.76, "dc8a4c"), (1.0, "ffc47e")])
+    rgb = ramp_np(lam, [(0.0, "26162a"), (0.3, "4e2a3a"), (0.52, "9a5034"), (0.76, "d68044"), (1.0, "f8b46c")])
     # each bed its own stone: redder, paler, greyer; soft patches within it
     tones = rng.choice([0, 1, 2, 3], len(joints) + 1, p=[0.4, 0.25, 0.2, 0.15])
     tint = np.array([[1.0, 1.0, 1.0], [1.06, 0.92, 0.86], [1.08, 1.06, 0.96], [0.92, 0.9, 0.98]])[tones[bed]]
@@ -242,7 +263,7 @@ def spire(seed: int, w: int = 192, h: int = 1120) -> np.ndarray:
     patch = ndimage.gaussian_filter(rng.standard_normal((h, w)), 10.0)
     rgb *= (1.0 + np.clip(patch / (patch.std() + 1e-6), -2, 2) * 0.04)[..., None]
     # long vertical fissures down the faces (jointing: rock splits along, not only across)
-    ink = np.zeros((h, w))
+    ink = (1 - smooth_np(1.0, 2.2, bjoint)) * (bface < 0.3) * (ndimage.gaussian_filter(rng.standard_normal((h, w)), 6) > -0.2)
     for _ in range(int(rng.integers(2, 4))):
         y0 = rng.uniform(cap_h + 10, h * 0.55)
         y1 = min(y0 + rng.uniform(140, 380), h * 0.8)

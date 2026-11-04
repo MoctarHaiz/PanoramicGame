@@ -1,17 +1,18 @@
 class_name ResultsPanel
 extends RefCounted
 ## The end of a run, over the game (GamePanel), told in order so the eye can follow it:
-## - Home: a red ribbon on the gilded card; the three stars slam into their gold-rimmed sockets one
+## - Home: a red ribbon on the gilded card; the three stars (the middle one bigger, raised) slam into
+##   their sockets one
 ##   after the other, each with a burst and its note (the third shakes the card), coins and confetti
 ##   rain in front of everything; then the Red Bobs roll up with ticks in a groove cut into the
 ##   parchment; a NEW BEST burst badge slams in last beside the count (its place kept in the count's
 ##   row from the start: nothing moves, nothing is covered, no empty band). Panoramic stands at the
 ##   left with his arms up, in a pool of gold light, a big burst of rays turning behind the card.
-## - A lost run, in another mood: the world behind drained grey and blue, the card in cold iron and
-##   grey hide, a slate GAME OVER ribbon and what happened under it; the Red Bobs roll up, then the
+## - A lost run, in another mood: the world behind drained grey, the card in smoked wood, old bronze
+##   and dusty hide, a red GAME OVER ribbon and what happened under it; the Red Bobs roll up, then the
 ##   bar of the way home fills to where he got (the house at its end in a gold disc: the goal); the
 ##   buttons are there at once. Panoramic dazed on the ground in a cold, dim light.
-## PLAY AGAIN (the big green one) between Home and Share, both in the one quiet blue, from the start.
+## PLAY AGAIN (the big green one) between Home and Share, two quiet bone buttons, from the start.
 
 const HERO_WIN := "res://assets/art/hero/hero_win.png"  ## the art track's render (arms up), when there
 const HERO_LOSE := "res://assets/art/hero/hero_defeat.png"  # the art track's defeat pose
@@ -19,7 +20,7 @@ const HERO_STAND := "res://assets/art/ui/hero_stand.png"  ## fallbacks, loaded o
 const HERO_DOWN := "res://assets/art/ui/hero_down.png"  ## kept them in texture memory all the time)
 const STAR_STEP := 0.32  ## seconds between two stars
 const COUNT_TIME := 0.7  ## seconds the Red Bobs take to roll up
-const BADGE := 60.0  ## the NEW BEST badge's radius (its spikes)
+const BADGE := 54.0  ## the NEW BEST badge's radius (its spikes)
 
 
 ## Opens the results over `game` (the game screen). `news`: what Save.record_run found new.
@@ -32,9 +33,14 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 	if won:
 		body.add_child(_stars_stage(stars))
 	else:
-		# what happened: deep red letters on the parchment, no stroke (a stroke on red closes the letters)
-		var why := Ui.label(TranslationServer.translate("FELL" if world.death_reason == &"fall" else "CAUGHT"),
-				38, Color("a01408"), Ui.font_display)
+		# what happened: bold red display letters on the parchment, a fine dark outline and a little
+		# depth (heavy enough to read as the headline; a thick stroke on red would close the letters)
+		var why := Ui.display_text(TranslationServer.translate("FELL" if world.death_reason == &"fall" else "CAUGHT"),
+				42, Color("f0401e"), Color("4e0804"), Color("b01408"))
+		why.outline_width = 3.5
+		why.depth = 3.0
+		why.shadow = Color(0, 0, 0, 0)
+		why.refresh()
 		var air := MarginContainer.new()  # room for a new best's crown over the groove below
 		air.add_theme_constant_override(&"margin_bottom", 14)
 		air.add_child(why)
@@ -60,8 +66,9 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 	bobs.refresh()
 	bobs.custom_minimum_size.x = maxf(bobs.custom_minimum_size.x, 300.0)
 	big.add_child(bobs)
-	var slot := Control.new()  # a new best's badge lands here, beside the count: its place is kept
-	slot.custom_minimum_size = Vector2(BADGE * 1.7, 0)
+	var slot := Control.new()  # a new best's badge lands here, beside the count: its place is kept,
+	# with air between it and the count, and as tall as it (it stays inside the groove)
+	slot.custom_minimum_size = Vector2(BADGE * 2.0 + 44.0, BADGE * 2.0 + 6.0)
 	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	slot.visible = news.get("best_bobs", false)
 	big.add_child(slot)
@@ -73,14 +80,14 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 		var way := HBoxContainer.new()  # what the bar measures, said beside it (not a second score)
 		way.alignment = BoxContainer.ALIGNMENT_CENTER
 		way.add_theme_constant_override(&"separation", 12)
-		way.add_child(Ui.label(TranslationServer.translate("WAY_HOME"), 28, Color("e6ecfa"), Ui.font_title))
+		way.add_child(Ui.label(TranslationServer.translate("WAY_HOME"), 28, Color("fff0d8"), Ui.font_title))
 		way.add_child(bar)
 		lines.add_child(way)
 	body.add_child(well)
 	var buttons := HBoxContainer.new()
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
-	buttons.add_theme_constant_override(&"separation", 22)
-	var home_button := Ui.icon_button("house-fill", Ui.Tone.BLUE, 96.0, 30.0)
+	buttons.add_theme_constant_override(&"separation", 34)  # air between them: one main button, two quiet ones
+	var home_button := Ui.icon_button("house-fill", Ui.Tone.WHITE, 88.0, 28.0)
 	home_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	home_button.pressed.connect(home)
 	buttons.add_child(home_button)
@@ -89,7 +96,7 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 	go.pressed.connect(again)
 	go.shine()
 	buttons.add_child(go)
-	var share_button := Ui.icon_button("share-network-fill", Ui.Tone.BLUE, 96.0, 30.0)
+	var share_button := Ui.icon_button("share-network-fill", Ui.Tone.WHITE, 88.0, 28.0)
 	share_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	share_button.pressed.connect(share)
 	buttons.add_child(share_button)
@@ -102,21 +109,21 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 	if won:  # warm and radiant: a red ribbon on the gold (gold on gold was lost)
 		panel = GamePanel.open(game, title, Ui.Tone.CRIMSON, body, _hero(true), Color(0.2, 0.07, 0.02, 0.38),
 				Color(1, 0.78, 0.4, 0.75), true, hide, &"win")
-	else:  # cold and dim: slate, iron, a grey world
-		panel = GamePanel.open(game, title, Ui.Tone.SLATE, body, _hero(false), Color(0.03, 0.05, 0.14, 0.5),
-				Color(0.5, 0.6, 1.0, 0.25), false, hide, &"loss")
+	else:  # drained and dim: a grey world, old bronze, a red ribbon, him on a dim warm patch of ground
+		panel = GamePanel.open(game, title, Ui.Tone.CRIMSON, body, _hero(false), Color(0.06, 0.04, 0.06, 0.45),
+				Color(1.0, 0.72, 0.45, 0.32), false, hide, &"loss")
 	_reveal(game, panel, world, stars, bobs, total, bar, slot, news.get("best_bobs", false), buttons, go)
 	return panel
 
 
 ## The groove under the run's count: cut into the parchment (InsetStyle: shade under its upper
 ## edge, the lit lip of the parchment under it), dark, so the cream numbers stand out on it; warm
-## leather after a win, cold slate after a loss.
+## leather after a win, a lighter dusty brown after a loss (not a dark hole in the card).
 static func _dark_well(won: bool) -> InsetStyle:
 	var s := InsetStyle.new(22.0)
-	s.top = Color("4a2210") if won else Color("262c3e")
-	s.bottom = Color("74401e") if won else Color("465070")
-	s.outline = Card.INK if won else Color("141a2c")
+	s.top = Color("4a2210") if won else Color("5e4c40")
+	s.bottom = Color("74401e") if won else Color("86725f")
+	s.outline = Card.INK if won else Color("2e1c14")
 	s.content_margin_top = 12
 	s.content_margin_bottom = 14
 	return s
@@ -125,16 +132,11 @@ static func _dark_well(won: bool) -> InsetStyle:
 ## The three stars, placed by hand: the middle one bigger and higher, over a turning sunburst.
 static func _stars_stage(stars: Array[Control]) -> Control:
 	var stage := Control.new()
-	stage.custom_minimum_size = Vector2(0, 168)
-	var burst := Rays.new(860, Color(1, 0.62, 0.14, 0.32), 18)  # the one sunburst of the win: warm orange
-	stage.add_child(burst)  # rays on the cream (light added to cream barely shows)
-	var glow := TextureRect.new()
-	glow.texture = Fx.glow_texture()
-	glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	glow.material = Fx.additive()
-	glow.modulate = Color(1, 0.8, 0.4, 0.7)
-	glow.size = Vector2(560, 280)
-	stage.add_child(glow)
+	stage.custom_minimum_size = Vector2(0, 204)
+	# the one sunburst of the win: a deep warm orange, soft, so the gold stars stand out on it (a white
+	# glow behind them washed them out)
+	var burst := Rays.new(820, Color(1, 0.5, 0.08, 0.2), 18)
+	stage.add_child(burst)
 	if Prefs.motion():
 		var spin := burst.create_tween().set_loops()
 		spin.tween_property(burst, "rotation", TAU, 30.0).from(0.0)
@@ -144,7 +146,7 @@ static func _stars_stage(stars: Array[Control]) -> Control:
 	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(row)
 	for i in 3:
-		var side := 170.0 if i == 1 else 148.0
+		var side := 204.0 if i == 1 else 134.0  # the middle one clearly the biggest, raised
 		var slot := Control.new()
 		slot.custom_minimum_size = Vector2(side, side)
 		slot.size_flags_vertical = Control.SIZE_SHRINK_END if i != 1 else Control.SIZE_SHRINK_BEGIN
@@ -158,8 +160,7 @@ static func _stars_stage(stars: Array[Control]) -> Control:
 		row.add_child(slot)
 		stars.append(star)
 	stage.resized.connect(func() -> void:
-		burst.position = stage.size / 2 - burst.size / 2
-		glow.position = stage.size / 2 - glow.size / 2)
+		burst.position = stage.size / 2 - burst.size / 2)
 	return stage
 
 
@@ -176,15 +177,15 @@ static func _hero(won: bool) -> TextureRect:
 		art.set_meta(&"ground", 0.946 if won else 0.935)
 	if won:
 		art.set_meta(&"tall", 1.06)  # arms up: he stands a head above the card
-		art.set_meta(&"overlap", 0.0)  # beside it: his raised hand clear of the ribbon
+		art.set_meta(&"overlap", -0.08)  # beside it, with air: his raised hand clear of the ribbon
 	else:
 		var tex_size := art.texture.get_size()
 		# whatever his shape he stays clear of the card's frame and band (a little air between)
 		if tex_size.x > tex_size.y * 1.2:  # lying on the ground (very wide)
 			art.set_meta(&"tall", 0.5)
 			art.set_meta(&"overlap", -0.03)
-		elif tex_size.x > tex_size.y * 0.8:  # seated (wide): on the ground beside the card
-			art.set_meta(&"tall", 0.56)
+		elif tex_size.x > tex_size.y * 0.8:  # seated (wide): on the ground beside the card, big enough
+			art.set_meta(&"tall", 0.66)  # not to float small in the dark
 			art.set_meta(&"overlap", -0.03)
 		else:  # an upright one: beside the card with a little air, a boot clear of the frame
 			art.set_meta(&"tall", 0.62)
@@ -281,14 +282,14 @@ static func _slam_star(tree: SceneTree, star: Control, i: int, delay: float, pan
 	flare.size = star.size * 2.4
 	flare.position = star.size / 2 - flare.size / 2
 	flare.pivot_offset = flare.size / 2
-	flare.modulate = Color(1, 0.85, 0.4, 0.9)
+	flare.modulate = Color(1, 0.78, 0.3, 0.6)
 	flare.show_behind_parent = true
 	star.add_child(flare)
 	var bloom := flare.create_tween()
-	bloom.tween_property(flare, "modulate:a", 0.35, 0.5).from(0.9)
+	bloom.tween_property(flare, "modulate:a", 0.22, 0.5).from(0.6)
 	if Prefs.motion():
-		bloom.tween_property(flare, "modulate:a", 0.55, 1.0).set_trans(Tween.TRANS_SINE)
-		bloom.tween_property(flare, "modulate:a", 0.35, 1.0).set_trans(Tween.TRANS_SINE)
+		bloom.tween_property(flare, "modulate:a", 0.34, 1.0).set_trans(Tween.TRANS_SINE)
+		bloom.tween_property(flare, "modulate:a", 0.22, 1.0).set_trans(Tween.TRANS_SINE)
 		bloom.set_loops()
 		var shine := star.create_tween().set_loops()
 		shine.tween_interval(1.4 + i * 0.35)
@@ -399,8 +400,8 @@ class WayBar extends Control:
 		var ci := get_canvas_item()
 		var r := Rect2(Vector2(0, 10), Vector2(size.x - 40.0, size.y - 20))
 		var rad := r.size.y / 2
-		GlossStyle.fill_rounded(ci, r.grow(3.0), rad + 3.0, Color("141a2c"), Color("141a2c"))
-		GlossStyle.fill_rounded(ci, r, rad, Color("1a1e2c"), Color("343c56"))  # a groove in the slate
+		GlossStyle.fill_rounded(ci, r.grow(3.0), rad + 3.0, Color("1e1208"), Color("1e1208"))
+		GlossStyle.fill_rounded(ci, r, rad, Color("2a1c14"), Color("4a3a30"))  # a groove in the dusty well
 		GlossStyle.fill_clipped(ci, r, rad, Rect2(r.position, Vector2(r.size.x, r.size.y * 0.5)),
 				Color(0, 0, 0, 0.5), Color(0, 0, 0, 0))
 		var w := maxf(r.size.x * _shown, r.size.y)

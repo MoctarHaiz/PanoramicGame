@@ -1285,13 +1285,13 @@ func _test_audio() -> void:
 		n.free()
 	# round 3: fireworks have a sound; the confetti has streamers
 	_check(Audio.has_sfx(&"firework") and Confetti.SIZES.has(Confetti.Shape.STREAMER), "fireworks sound; the confetti has streamers")
-	_audio_round9()
+	await _audio_round9()
 	for p: AudioStreamPlayer in Audio._sfx + Audio._ui + [Audio._music, Audio._music_out, Audio._drive, Audio._ambience]:
 		p.stop()
 
 
-## Round 9: one atlas for the confetti and its light, out-of-focus near pieces, the "+1"'s burst,
-## crisp fireworks.
+## Rounds 9-10: one atlas for the confetti and its light, warm paper, the "+1" never without its
+## burst, crisp fireworks of several kinds.
 func _audio_round9() -> void:
 	var atlas := Confetti.atlas()
 	var keys: Array = Confetti.Shape.values() + [&"flare", &"glow", &"streak", &"dot"]
@@ -1302,7 +1302,22 @@ func _audio_round9() -> void:
 	var inside := keys.all(func(k: Variant) -> bool: return Rect2(Vector2.ZERO, atlas.get_size()).encloses(Confetti.region(k)))
 	_check(apart and inside, "every confetti piece and light is its own region of one atlas (one batch a node)")
 	_check(atlas.get_width() * atlas.get_height() <= 256 * 256, "the confetti atlas stays small (%s px)" % atlas.get_size())
-	_check(Confetti.SIZES[Confetti.Shape.SOFT].x > Confetti.SIZES[Confetti.Shape.PAPER].x, "near pieces are big and soft")
+	# the boot's warm-up reads nothing from the screen (that keeps a window-sized back buffer for good)
+	var boot := Control.new()
+	add_child(boot)
+	Fx.warm_up(boot)
+	var reads := 0
+	for n: Node in boot.find_children("*", "CanvasItem", true, false):
+		var m: Material = (n as CanvasItem).material
+		if n is CanvasGroup or (m is ShaderMaterial and (m as ShaderMaterial).shader
+				and "screen_texture" in (m as ShaderMaterial).shader.code):
+			reads += 1
+	_check(reads == 0, "the boot's warm-up reads nothing from the screen (%d pieces do)" % reads)
+	boot.free()
+	var warm := true
+	for col: Color in Fx.PAPER_COLOURS + Array(Confetti.TWO_TONE.values()):
+		warm = warm and (col.h < 0.17 or col.h > 0.95) and col.s > 0.45
+	_check(warm, "the confetti is the sunset's golds and red, front and back: no pastels")
 	var c := Confetti.new()
 	c.avoid = Rect2(0, 0, 100, 100)
 	var piece := Confetti.Piece.new()
@@ -1322,6 +1337,16 @@ func _audio_round9() -> void:
 	var kids := fx.get_children()
 	_check(kids.size() == 2 and kids[0].position.distance_to(Vector2(300, 200)) < 12.0 and kids[1].material == Fx.badge_material(),
 			"the \"+1\" pops out of a burst at the hit point, behind it")
+	var pop: Node2D = kids[0]
+	var number: Node2D = kids[1]
+	var alone := 0
+	var start := Time.get_ticks_msec()
+	while is_instance_valid(number) and Time.get_ticks_msec() - start < 3000:
+		if number.scale.x >= 0.95 and number.modulate.a > 0.5 and not (is_instance_valid(pop) and pop.scale.x > 0.5):
+			alone += 1
+		await get_tree().process_frame
+	await get_tree().process_frame
+	_check(alone == 0 and not is_instance_valid(pop), "the \"+1\" is never seen without its burst; they go together (%d frames alone)" % alone)
 	# the fireworks: crisp sparks flung out evenly, then gone
 	var show := Fx.FireworkShow.new()
 	fx.add_child(show)
@@ -1333,11 +1358,18 @@ func _audio_round9() -> void:
 	var reach := 0.0
 	for s: Vector4 in show._sparks:
 		reach = maxf(reach, Vector2(s.x, s.y).distance_to(Vector2(500, 300)))
-	_check(count == Fx.FireworkShow.SPARKS and reach > show.radius * 0.6 and reach < show.radius * 1.3,
+	_check(count == Fx.FireworkShow.KINDS[Fx.FireworkShow.Kind.CHRYSANTHEMUM].sparks and reach > show.radius * 0.6
+			and reach < show.radius * 1.3,
 			"a burst flings its sparks out to about its radius (%d sparks, %.0f of %.0f px)" % [count, reach, show.radius])
 	for i in 140:
 		show._process(1.0 / 60.0)
 	_check(show.is_queued_for_deletion(), "a firework show frees itself once its sparks are gone")
+	Fx.fireworks(fx, Vector2(900, 1200), -1.0)
+	var shells: Fx.FireworkShow = fx.get_child(fx.get_child_count() - 1)
+	var kinds := {}
+	for k: Vector2 in shells._shell_kind:
+		kinds[int(k.x)] = true
+	_check(kinds.size() == shells._shell_kind.size() and kinds.size() == 3, "a show's shells are each a different kind of burst")
 	fx.free()
 
 
@@ -2037,6 +2069,7 @@ func _test_art() -> void:
 	_check(stacks >= 5 and river >= 5, "the poles are drawn as stacks (%d, %d standing in the river)" % [stacks, river])
 	terrain.free()
 	_test_art_round9()
+	_test_art_round10()
 
 
 ## Round 9: the hero's boots on the ground in every grounded frame; the bandit reads in every moment (its sheet
@@ -2085,18 +2118,55 @@ func _test_art_round9() -> void:
 	_check(widest <= BanditView.KO_TILT + 0.01, "a knocked-out bandit tilts back, no cartwheel (%.2f rad at most)" % widest)
 	_check(t < 1.0, "it is gone %.2f s after the blow" % t)
 	holder.queue_free()
-	# a Red Bob: ruby crimson (its blue over its green, not a tomato's orange-red) with a glow round its edge
+	# a Red Bob: ruby crimson (its blue over its green, not a tomato's orange-red), a bright rim inside its ink on
+	# the sun's side, and (round 10) no glow round it: along a row the halos merged into one pink smear
 	var bob := Image.load_from_file(ProjectSettings.globalize_path(BobView.DIR + "bob.png"))
 	var sum := Color(0, 0, 0, 0)
 	for y in range(44, 100, 2):
 		for x in range(60, 100, 2):
 			sum += bob.get_pixel(x, y)
 	_check(sum.r > sum.b * 2.0 and sum.b > sum.g, "a Red Bob is ruby crimson, not tomato orange (%.2f %.2f %.2f)" % [sum.r, sum.g, sum.b])
-	var glow := BobView._make_glow().get_image()
-	var n := glow.get_width()
-	var edge := glow.get_pixel(int(n * (0.5 + BobView.GLOW_EDGE * 0.5)), n / 2).a
-	var out := glow.get_pixel(int(n * 0.97), n / 2).a
-	_check(edge > 0.6 and out < 0.05, "its glow hugs its edge and falls away (%.2f at the edge, %.2f outside)" % [edge, out])
+	var rim := bob.get_pixel(31, 23)  # 92 % of the way out towards the sun
+	_check(rim.r > 0.9 and rim.g > 0.45, "a bright rim inside its ink on the sun's side (%s)" % rim)
+	var one := BobView.new(3, 5)
+	var glows := 0
+	for child in one.get_children():
+		glows += 1 if child is Sprite2D and child != one.get_child(0) else 0
+	_check(one.get_child_count() == 2 and glows == 0, "no glow sprite round a Red Bob (%d children)" % one.get_child_count())
+	one.free()
+
+
+## Round 10: at the vine the hero's ink keeps the run's weight on screen (the camera pulls out there); at home the
+## lit hut rims him from behind; the menu's ring leaves a trail from his hand.
+func _test_art_round10() -> void:
+	var holder := Node2D.new()
+	add_child(holder)
+	var hero := HeroView.new()
+	holder.add_child(hero)
+	var w := _standing_world()
+	w.hanging = true
+	w.y = 0.0
+	w.prev_y = 0.0
+	for i in 40:
+		hero.show_state(w, w.draw_hero(), 1.0 / 60.0)
+	var ink: float = hero._material.get_shader_parameter(&"outline_px")
+	_check(_near(ink, HeroView.VINE_INK_PX, 0.02), "hanging, his ink thickens for the vine's framing (%.2f px)" % ink)
+	w.hanging = false
+	w.state = World.State.WON
+	w._phase = &"home"
+	w.end_time = World.HOME_LAND + 0.4
+	for i in 4:
+		hero.show_state(w, w.draw_hero(), 1.0 / 60.0)
+	var rim: float = hero._material.get_shader_parameter(&"back_rim")
+	_check(rim > 0.5, "at home the lit hut rims him from behind (%.2f)" % rim)
+	holder.queue_free()
+	var menu := Image.load_from_file(ProjectSettings.globalize_path(HeroView.DIR + "hero_menu.png"))
+	var trail := 0
+	for y in range(0, menu.get_height() / 3, 3):
+		for x in range(menu.get_width() / 2, menu.get_width(), 3):
+			var c := menu.get_pixel(x, y)
+			trail += 1 if c.a > 0.15 and c.a < 0.9 and c.b > c.r else 0  # the cold, half-clear streak
+	_check(trail > 150, "the menu's ring leaves a trail from his hand (%d samples)" % trail)
 
 
 ## The staging hooks for the views (the rules unchanged): a bandit's blow is seen coming (its swing
@@ -2307,6 +2377,26 @@ func _test_env() -> void:
 	_check(view._home.front.visible, "it is from his walk in (World.HOME_CHEER)")
 	_check(not FileAccess.file_exists(SavannaView.DIR + "canopy.png"), "no boughs smudge the top edge (round 9)")
 	view.queue_free()
+	# round 10 (QA ENV-1): at the start card a waiting bandit cut by the screen's right edge is not
+	# drawn; it fades in once the run starts
+	var view2 := WorldView.new()
+	add_child(view2)
+	var w2 := World.new()
+	w2.stand_at_start()
+	view2.setup(w2)
+	view2.start_hold = true
+	view2.safe_right = 1040.0
+	view2.refresh(0.0)
+	var first_bandit: BanditView = null
+	for id: int in view2._bandits:
+		var bv: BanditView = view2._bandits[id]
+		if bv.position.x + WorldView.BANDIT_RIGHT > 1040.0 and bv.position.x - 64.0 < 1040.0:
+			first_bandit = bv
+	_check(first_bandit != null and first_bandit.modulate.a == 0.0, "the start card shows no bandit cut by the right edge")
+	view2.start_hold = false
+	view2.refresh(0.5)
+	_check(first_bandit != null and first_bandit.modulate.a == 1.0, "it fades in once the run starts")
+	view2.queue_free()
 	# the world's shaders are compiled before the level opens, then the drawing that did it goes
 	WorldView.warm_up()
 	await get_tree().process_frame  # (added deferred: the root may be busy when the menu calls it)

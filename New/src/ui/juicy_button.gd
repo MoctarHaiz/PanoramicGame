@@ -154,21 +154,25 @@ class _Shine extends Control:
 	func _glints(style: GlossStyle, rect: Rect2) -> void:
 		var ring := style.top_rect(rect)
 		var rr := minf(style.radius - style.outline_width, minf(ring.size.x, ring.size.y) / 2)
-		var arm := ring.size.y * 0.24
-		for g: Array in [[Vector2(-1, -1), 0.0, 1.0], [Vector2(1, 1), 2.1, 0.7]]:
+		var arm := ring.size.y * 0.5  # big enough to read on a phone (round 9's read as a faint cross)
+		for g: Array in [[Vector2(-1, -1), 0.0, 1.0], [Vector2(1, 1), 2.1, 0.75]]:
 			var dir: Vector2 = g[0]
 			var corner := ring.get_center() + Vector2(ring.size.x / 2 - rr, ring.size.y / 2 - rr) * dir
 			var at := corner + dir.normalized() * (rr - style.frame_width * 0.5)
 			var beat := 0.5 + 0.5 * sin(_t * 2.4 + float(g[1]))
-			_star(at, arm * float(g[2]) * (0.6 + 0.4 * beat), 0.35 + 0.65 * beat)
+			_star(at, arm * float(g[2]) * (0.65 + 0.35 * beat), 0.5 + 0.5 * beat)
 
-	## A four-point glint: thin bright arms fading to their tips around a white core.
+	## A glint: a soft halo, four long bright arms and four short diagonal ones fading to their tips,
+	## a white core.
 	func _star(at: Vector2, arm: float, alpha: float) -> void:
-		var pts := PackedVector2Array()
-		var cols := PackedColorArray()
-		for i in 8:
-			var r := arm if i % 2 == 0 else arm * 0.16
-			pts.append(at + Vector2.from_angle(i * PI / 4 - PI / 2) * r)
-			cols.append(Color(1, 1, 0.92, 0.0 if i % 2 == 0 else alpha))
-		draw_polygon(pts, cols)
-		draw_circle(at, arm * 0.14, Color(1, 1, 0.95, alpha), true, -1, true)
+		draw_circle(at, arm * 0.42, Color(1, 0.95, 0.7, 0.16 * alpha), true, -1, true)
+		draw_circle(at, arm * 0.24, Color(1, 0.97, 0.8, 0.3 * alpha), true, -1, true)
+		for k: Array in [[arm, -PI / 2, 0.2], [arm * 0.45, -PI / 4, 0.3]]:
+			var pts := PackedVector2Array()
+			var cols := PackedColorArray()
+			for i in 8:
+				var r: float = k[0] if i % 2 == 0 else k[0] * k[2]
+				pts.append(at + Vector2.from_angle(i * PI / 4 + float(k[1])) * r)
+				cols.append(Color(1, 1, 0.92, 0.0 if i % 2 == 0 else alpha))
+			draw_polygon(pts, cols)
+		draw_circle(at, arm * 0.12, Color(1, 1, 0.97, alpha), true, -1, true)

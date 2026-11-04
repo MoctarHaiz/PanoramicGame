@@ -19,7 +19,7 @@ extends Node
 ##
 ## Godot --path . --fixed-fps 60 --resolution 200x200 --always-on-top res://tests/perf.tscn -- \
 ##     [--device=iphone15_2556x1179 | --size=2556x1179] [--seconds=40] [--pause-at=20] [--ads=on]
-##     [--jump-mb=4] [--hide=soil,FrontGrass] [--textures=12] [--out=build/perf/perf.json]
+##     [--jump-mb=4] [--hide=soil,FrontGrass] [--textures=12] [--load-profile=12] [--out=build/perf/perf.json]
 ## --device takes a size and notches from tests/capture.gd (default iphone15_2556x1179); --seconds
 ## plays that much of the run (default: the whole level, about 2 minutes); --pause-at pauses the
 ## run that many seconds in (default 20); --ads=on keeps room for the ad banner; --jump-mb lists every
@@ -28,7 +28,9 @@ extends Node
 ## of what one layer costs (run both on a quiet machine: the frame times move with its load);
 ## --textures lists, at the end of each phase, that many of the biggest pictures in memory (size,
 ## MB from the import settings) and what the menu holds after a run that it didn't before (all of
-## them in the JSON).
+## them in the JSON); --load-profile lists where the level's longest opening frame spent its time:
+## the longest gaps between one node entering the tree and the next (the work of the node before the
+## gap, or of its parent's code after adding it), that many of them.
 ## macOS skips drawing a covered window: such frames are drawn on demand (force_draw), so the
 ## numbers hold, but keep --always-on-top. The first run records the bot (about 5 minutes, then
 ## kept in build/qa/). Frame times are only meaningful on a quiet machine (others' renders and
@@ -66,6 +68,8 @@ var _last_texture := 0.0
 var _jump_mb := 4.0  # texture memory growth in one frame worth listing (--jump-mb)
 var _list_textures := 0  # how many of the biggest textures to print per phase (--textures; 0: none)
 var _textures := {}  # phase -> every texture in memory at its end: [MB, path or "", "w x h"], biggest first
+var _profile_load := 0  # how many of the opening frame's longest gaps to list (--load-profile; 0: none)
+var _load_events := []  # while the level opens: [usec, what entered the tree] ("" marks a frame's start)
 
 
 ## The first node to process each frame: notes the time.
@@ -99,6 +103,7 @@ func _ready() -> void:
 	var replay := BotReplay.recorded(1)  # before measuring: the first time it takes minutes
 	_jump_mb = float(a.get("jump-mb", "4"))
 	_list_textures = int(a.get("textures", "0"))
+	_profile_load = int(a.get("load-profile", "0"))
 	process_priority = 1000000  # last: _process measures the frame's scripts since _first
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(_first)
@@ -106,7 +111,9 @@ func _ready() -> void:
 	_all_pictures = _pictures("res://assets")
 	get_tree().node_added.connect(func(n: Node) -> void:
 		var what: String = n.get_script().resource_path.get_file() if n.get_script() else n.get_class()
-		_added[what] = _added.get(what, 0) + 1)
+		_added[what] = _added.get(what, 0) + 1
+		if _profile_load > 0 and _phase == "load":
+			_load_events.append([Time.get_ticks_usec(), "%s %s" % [what, n.name]]))
 
 	for i in 3:
 		await get_tree().process_frame
@@ -129,7 +136,12 @@ func _ready() -> void:
 	Nav.attach(host)
 
 	print("perf at %s (%d x %d), own render target %.1f MB, engine %.1f MB" % [device, px.x, px.y, _own_target / MB, _engine_base / MB])
-	# The menu (the game's pictures preload meanwhile, as after the logo).
+	# The boot screen's warm-up (the effects' shaders, the confetti atlas: boot_screen.gd), timed apart
+	# (a frame of the logo, not the level's opening), then the menu (the game's pictures preload
+	# meanwhile, as after the logo).
+	var warm_from := Time.get_ticks_usec()
+	Fx.warm_up(host)
+	print("  the boot's warm-up (Fx.warm_up): %.1f ms in one frame" % [(Time.get_ticks_usec() - warm_from) / 1000.0])
 	GameArt.preload_art()
 	Nav.go(&"menu")
 	await _settle()
@@ -208,6 +220,8 @@ func _process(_delta: float) -> void:
 	_added.clear()
 	if _run_clock >= 0.0:
 		_run_clock += get_process_delta_time()
+	if _profile_load > 0 and _phase == "load":
+		_load_events.append([now, ""])
 	if _phase.is_empty():
 		return
 	_phase_wall[_phase] = _phase_wall.get(_phase, 0.0) + frame_ms / 1000.0
@@ -361,6 +375,8 @@ func _report(device: String, px: Vector2i, out: String) -> bool:
 		print("biggest textures at the end of %s (%d pictures, %.1f MB in all):" % [phase, all.size() - 1, sum])
 		for t: Array in all.slice(0, _list_textures):
 			print("  %6.2f MB  %-11s %s" % [t[0], t[2], t[1]])
+	if _profile_load > 0:
+		_print_load_profile()
 	if _textures.has("menu") and _textures.has("menu_again"):
 		var before := {}
 		for t: Array in _textures.menu:
@@ -382,6 +398,30 @@ func _report(device: String, px: Vector2i, out: String) -> bool:
 				"checks": checks.map(func(c: Array) -> Dictionary: return {"what": c[0], "pass": c[1]}), "pass": ok}, "  "))
 		print("saved ", path)
 	return ok
+
+
+## The level's longest opening frame, cut at each node entering the tree: the longest gaps, with the
+## node before and after each (what ran in between is the first one's setup or its parent's code).
+func _print_load_profile() -> void:
+	var frames := []  # [start, end, events inside]
+	var start := -1
+	for i in _load_events.size():
+		if _load_events[i][1] == "":
+			if start >= 0:
+				frames.append([start, i])
+			start = i
+	var worst := [0, 0]
+	for f: Array in frames:
+		if _load_events[f[1]][0] - _load_events[f[0]][0] > _load_events[worst[1]][0] - _load_events[worst[0]][0]:
+			worst = f
+	var total: float = (_load_events[worst[1]][0] - _load_events[worst[0]][0]) / 1000.0
+	var gaps := []
+	for i in range(worst[0], worst[1]):
+		gaps.append([(_load_events[i + 1][0] - _load_events[i][0]) / 1000.0, _load_events[i][1], _load_events[i + 1][1]])
+	gaps.sort_custom(func(x: Array, y: Array) -> bool: return x[0] > y[0])
+	print("the level's longest opening frame: %.1f ms, %d nodes entered the tree; its longest gaps (ms, after, before):" % [total, worst[1] - worst[0] - 1])
+	for g: Array in gaps.slice(0, _profile_load):
+		print("  %6.1f  after %-40s before %s" % [g[0], g[1] if not g[1].is_empty() else "(the frame's start)", g[2] if not g[2].is_empty() else "(the frame's end)"])
 
 
 static func _mean(values: Array) -> float:

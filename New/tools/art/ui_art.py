@@ -3,7 +3,7 @@
 
     python3 tools/art/ui_art.py     # assets/art/ui/head.png
 
-- head.png: Panoramic's face on a warm sunset disc (128 px), cut from today's portrait (the menu's key
+- head.png: Panoramic's face on a dark warm disc (128 px), cut from today's portrait (the menu's key
   art): the marker that runs along the HUD's way home (the HUD draws its gold ring round it).
   (Round 9, QA ART-2: it was still round 1's studio-render face; the crop follows the portrait.)
 """
@@ -16,9 +16,12 @@ ROOT = Path(__file__).resolve().parents[2]
 PORTRAIT = ROOT / "assets/art/hero/portrait.png"
 OUT = ROOT / "assets/art/ui"
 
-SIZE = 128  # px of the badge (hud.gd draws it 42 units wide, in its own gold ring)
+SIZE = 128  # px of the badge (hud.gd draws it 60 units wide, in its own gold ring)
 SS = 4  # supersampling
-FACE, FACE_R = (286, 226), 116  ## his face in portrait.png (hair to chin), and the crop's radius (px)
+# his face in portrait.png (hair to chin) and the crop's radius (px): the face big in the badge at the
+# HUD's size; behind him a dark warm disc, so the cheek's ink outline against the clear background
+# melts into it (on the bright sunset it read as a stray ">" on the badge's right) and his lit face pops
+FACE, FACE_R = (282, 238), 94
 
 
 def disc_mask(n: int, r: float) -> Image.Image:
@@ -33,7 +36,7 @@ def head_badge() -> Image.Image:
     out = Image.new("RGBA", (n, n), (0, 0, 0, 0))
     # the sunset disc behind him
     yy = np.linspace(0, 1, n)[:, None] * np.ones((1, n))
-    top, bottom = np.array([255, 206, 110]), np.array([232, 98, 44])
+    top, bottom = np.array([92, 42, 26]), np.array([40, 14, 8])
     sky = (top * (1 - yy[..., None]) + bottom * yy[..., None]).astype(np.uint8)
     sky_img = Image.fromarray(np.dstack([sky, np.full((n, n), 255, np.uint8)]), "RGBA")
     inner_r = c - SS * 0.5

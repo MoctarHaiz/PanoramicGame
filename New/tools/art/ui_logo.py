@@ -8,14 +8,15 @@ from the upper left like the 3D hero, so the title belongs with him.
   ones), their ends cut like blades (the C's mouth, the Z's and L's feet run out to a point), the A's
   apex an assegai's point rising above the line; CHAKA over a bigger ZULU, both on one gentle arch,
   leaning forward a little (he runs).
-- Behind the middle of the words an isihlangu shield of cowhide (cream, dark brown patches, dark
-  leather laces threaded down its middle, its stick through it with a tuft of fur at the top) stands
-  taller than both lines, an assegai crossing behind it; its tips show above CHAKA and under ZULU
-  (the menu's ribbon crosses its foot): one mark, not a picture beside a title.
+- At the words' left an isihlangu shield of cowhide (cream, dark brown patches, dark leather laces
+  threaded down its middle, its stick through it with a tuft of fur at the top), taller than both
+  lines and leaning a little, its right edge behind the C and the Z (most of it clear: ZULU hid it),
+  an assegai crossing behind it; the menu's ribbon crosses its foot: one mark, not a picture beside
+  a title.
 - The letters: polished gold (a bright upper half, a crisp horizon to a deeper lower half, as metal
-  reflecting the sky and the ground) with a rounded bevel (normals from the letters' distance field: lit top-left edges, shaded bottom-right
-  ones, a hot specular), a thin light line inside a thick dark brown outline, an extruded depth, and
-  a soft drop shadow under the whole, cast on the shield.
+  reflecting the sky and the ground) with a rounded bevel (normals from the letters' distance field:
+  lit top-left edges, shaded bottom-right ones, a hot specular), a thin light line inside a thick dark
+  brown outline, an extruded depth, and a soft drop shadow under the whole, cast on the shield.
 """
 from pathlib import Path
 
@@ -271,17 +272,18 @@ def main() -> None:
     w, h = W * SS, H * SS
     unit = (w * 0.7) / word_width("CHAKA")  # px per letter unit
     zulu = 1.22  # ZULU's letters are bigger
-    words_x = w * 0.6  # the words' middle
+    words_x = w * 0.64  # the words' middle
     top1 = h * 0.22
     top2 = top1 + 100 * unit + 16 * unit
     block = (top2 + 100 * unit * zulu) - top1
     rgb = np.zeros((h, w, 3))
     a = np.zeros((h, w))
-    # the shield, taller than both lines, its right half behind the C and the Z, leaning; the assegai
-    # crossing behind it
+    # the shield, taller than both lines, its right edge behind the C and the Z, leaning a little; the
+    # assegai crossing behind it
     sh = block * 1.2
     left = words_x - word_width("CHAKA") * unit / 2
-    for lr, la in shield_layers(w, h, left + 30 * unit, top1 + block * 0.5, sh, -0.5, -0.22):
+    # (most of it clear of the letters: ZULU hid it; a lighter lean, balanced)
+    for lr, la in shield_layers(w, h, left - 34 * unit, top1 + block * 0.5, sh, -0.42, -0.1):
         rgb, a = over(rgb, a, lr, la)
     span = word_width("CHAKA") * unit * 1.06
     lines = [(word_mask(w, h, "CHAKA", words_x, top1, unit, span), top1, 100 * unit),

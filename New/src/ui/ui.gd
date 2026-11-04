@@ -397,8 +397,12 @@ func wood_button(icon_name: String, button_size := Vector2(84, 84), radius := 42
 
 
 ## A square-ish candy icon button in a tone (the menu's records and settings).
-func icon_button(icon_name: String, tone := Tone.SUNSET, side := 124.0, radius := 38.0) -> JuicyButton:
-	return _icon_button(icon_name, tone_colours(tone), Vector2(side, side), radius, LABEL_DEEP if tone == Tone.WHITE else WHITE)
+## `ring`: another ring than the tone's (FRAMES), e.g. the bright brass for a gold face on a dark HUD.
+func icon_button(icon_name: String, tone := Tone.SUNSET, side := 124.0, radius := 38.0, ring: Array = []) -> JuicyButton:
+	var c := tone_colours(tone)
+	if not ring.is_empty():
+		c.frame = ring
+	return _icon_button(icon_name, c, Vector2(side, side), radius, LABEL_DEEP if tone == Tone.WHITE else WHITE)
 
 
 func _icon_button(icon_name: String, c: Dictionary, button_size: Vector2, radius: float,
@@ -528,17 +532,6 @@ func blurred_snapshot(vp: Viewport, halvings := 4) -> Texture2D:
 		if img.get_width() > 8 and img.get_height() > 8:
 			img.shrink_x2()
 	return ImageTexture.create_from_image(img)
-
-
-## A full-screen veil that blurs and tints what is behind it (pause, game over).
-func frosted_veil(tint := Color(INK, 0.5)) -> ColorRect:
-	var r := ColorRect.new()
-	r.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var m := ShaderMaterial.new()
-	m.shader = preload("res://src/ui/frost.gdshader")
-	m.set_shader_parameter(&"tint", tint)
-	r.material = m
-	return r
 
 
 ## Fills a Control with a white card style background.
