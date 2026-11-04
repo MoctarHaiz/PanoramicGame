@@ -434,3 +434,13 @@ Kept round 11; added only what reads crisper (round 10's extra haze and shafts l
   (a darker humus band under the grass, red earth, an ochre layer with a lit top edge and shade
   under it, wavering), bigger and more stones in it, the grade's dark band along the bottom lighter
   (0.42 -> 0.3) ("an empty dark-brown dirt band"); each tree its own shade ("tiny clones").
+- **QA round 12, draw calls in play 210 mean / 367 max (158 / 318 at round 9)**: the world's layers
+  are named now, so `perf.tscn --hide=` can weigh them: SavannaView's painters `Bg_<what>` (e.g.
+  `Bg_strip_far_mesas`, `Bg_trees_1`, `Bg_cloud_shadows`, `Bg_front`), `Savanna`, `Vine` and its
+  `BackLiana` (now its own node, behind), `Level`, `Ground`, `Props`, `Water<col>`, `Actors`,
+  `WorldFx`, `LightGrade`. Measured (iPhone 15, 60 s of the run, mean / max draw calls): all
+  220.8 / 369; without every `Bg_*` 184.4 (-36); without `Level` 204.2 (-17, of it `Ground` -7);
+  without `Actors` 210.1 (-11); without `WorldFx` 208.2; the pools, the front layer, the cloud
+  shadows, the back liana: about 0-1.5 each. Without the HUD (named for the test only, not kept):
+  84.7: the HUD draws ~136 of the 220. The ~65 that grew since round 9 is not in the world's layers
+  (all of them together are ~65): it is in the HUD (ux).

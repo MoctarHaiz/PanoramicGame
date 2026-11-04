@@ -34,6 +34,7 @@ var dip := 0.0
 var _dip_speed := 0.0
 var _holding := false
 var _hold_x := 0.0  # play x of his hands
+var _back: Node2D  # round 12: the liana behind (BackLiana)
 var _taut := 0.0  # round 12: 0..1, how taut his weight pulls it about his hands (eased)
 var _clock := 0.0
 
@@ -57,6 +58,7 @@ func caught() -> void:
 
 func _process(_delta: float) -> void:
 	queue_redraw()
+	_back.queue_redraw()
 
 
 ## How far down the vine is at play x (units): each span hanging between its knots (round 4: knots
@@ -128,12 +130,20 @@ func _back_sag(lx: float) -> float:
 	return knots + pow(sin(PI * t), 2.0) * (14.0 + 26.0 * _rand(i * 23 + 9)) + sin(_clock * 1.1 + lx * 0.017) * 1.2
 
 
-func _draw() -> void:
+func _ready() -> void:
+	# (round 12, QA: its own node, behind the vine, so perf.tscn --hide can weigh it)
+	_back = Node2D.new()
+	_back.name = &"BackLiana"
+	_back.show_behind_parent = true
+	_back.draw.connect(_draw_back)
+	add_child(_back)
+
+
+func _draw_back() -> void:
 	var x0 := -view_left - SPAN
 	var x1 := view_width - view_left + SPAN
 	var h := TEXTURE.get_height() / float(VARIANTS)
 	var th := float(TEXTURE.get_height())
-	var white := PackedColorArray([Color.WHITE, Color.WHITE, Color.WHITE, Color.WHITE])
 	# the liana behind: darker (in the shade behind), thinner, its spans longer
 	var back := PackedColorArray([BACK_TINT, BACK_TINT, BACK_TINT, BACK_TINT])
 	var span := SPAN * BACK_SPAN
@@ -146,9 +156,17 @@ func _draw() -> void:
 			var b := left + span * (k + 1) / SLICES
 			var ya := Y + 2.0 + _back_sag(a + scroll)
 			var yb := Y + 2.0 + _back_sag(b + scroll)
-			draw_primitive(PackedVector2Array([Vector2(a, ya), Vector2(b, yb), Vector2(b, yb + h * 0.3), Vector2(a, ya + h * 0.3)]),
+			_back.draw_primitive(PackedVector2Array([Vector2(a, ya), Vector2(b, yb), Vector2(b, yb + h * 0.3), Vector2(a, ya + h * 0.3)]),
 					back, PackedVector2Array([Vector2(float(k) / SLICES, v * h / th), Vector2(float(k + 1) / SLICES, v * h / th),
 					Vector2(float(k + 1) / SLICES, (v + 1) * h / th), Vector2(float(k) / SLICES, (v + 1) * h / th)]), TEXTURE)
+
+
+func _draw() -> void:
+	var x0 := -view_left - SPAN
+	var x1 := view_width - view_left + SPAN
+	var h := TEXTURE.get_height() / float(VARIANTS)
+	var th := float(TEXTURE.get_height())
+	var white := PackedColorArray([Color.WHITE, Color.WHITE, Color.WHITE, Color.WHITE])
 	var first := _span_at(x0 + scroll)
 	var draw_h := h / 2.0
 	for i in range(first, first + int((x1 - x0) / SPAN) + 2):

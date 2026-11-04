@@ -48,9 +48,11 @@ var _was_climbing := false
 func setup(w: World) -> void:
 	world = w
 	_background = SavannaView.new()
+	_background.name = &"Savanna"  # (round 12, QA: names for perf.tscn --hide)
 	add_child(_background)
 
 	_level_root = Node2D.new()
+	_level_root.name = &"Level"
 	add_child(_level_root)
 	_add_home()
 	_add_water()
@@ -67,8 +69,10 @@ func setup(w: World) -> void:
 				_bobs[Vector2i(c, r)] = bob
 
 	_vine = VineView.new()
+	_vine.name = &"Vine"
 	add_child(_vine)
 	_actors = Node2D.new()
+	_actors.name = &"Actors"
 	add_child(_actors)
 	_hero = HeroView.new()
 	_actors.add_child(_hero)
@@ -81,6 +85,7 @@ func setup(w: World) -> void:
 	add_child(_background.front)
 	_add_grade()
 	fx = Node2D.new()
+	fx.name = &"WorldFx"
 	fx.scale = Vector2.ONE * 0.5
 	# (over everything in the level by its place, the last child: round 4: no z_index, which put the
 	# effects over the HUD too)
@@ -131,6 +136,7 @@ static func warm_up() -> void:
 ## wipe's cover): the frame the level opened in was too long (ENV-1).
 func _add_ground() -> void:
 	_ground = TerrainView.new()
+	_ground.name = &"Ground"
 	_level_root.add_child(_ground)
 	if is_inside_tree():
 		# (round 10, QA: the open frame took ~80 ms: the ground's data is worked out on a worker
@@ -170,6 +176,7 @@ func _add_home() -> void:
 ## behind the ground's grass blades.
 func _add_props() -> void:
 	_props = PropView.new()
+	_props.name = &"Props"
 	_level_root.add_child(_props)
 	_props.build(world.level, _solid, -12, Level.COLS + EXTRA_COLUMNS)
 
@@ -194,6 +201,7 @@ func _add_water() -> void:
 			while c < Level.COLS and world.level.kind_at(c, r) == Level.Kind.WATER:
 				c += 1
 			var rect := ColorRect.new()
+			rect.name = "Water%d" % start
 			# a little wider than the gap: the banks (drawn after) overlap it, no sky shows between
 			rect.position = Vector2(start * Level.TILE - 8.0, r * Level.TILE)
 			rect.size = Vector2((c - start) * Level.TILE + 16.0, World.VIEW_H - r * Level.TILE + 40.0)
@@ -278,6 +286,7 @@ func _splash_check(id: int, level_x: float, feet: float, surface: float, scroll:
 ## The low sun's light and the vignette over the world: one rectangle with light_grade.gdshader.
 func _add_grade() -> void:
 	_grade = ColorRect.new()
+	_grade.name = &"LightGrade"
 	_grade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var m := ShaderMaterial.new()
 	m.shader = preload("res://src/game/light_grade.gdshader")

@@ -112,6 +112,7 @@ func _ready() -> void:
 	_tex[&"fg_grass"] = load(DIR + "fg_grass.png")
 	_tex[&"fg_props"] = load(DIR + "fg_props.png")
 	front = Painter.new()
+	front.name = &"Bg_front"
 	front.paint = _draw_front
 	front.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	_painters.append(front)
@@ -120,6 +121,11 @@ func _ready() -> void:
 func _painter(fn: Callable, repeat := false) -> Painter:
 	var p := Painter.new()
 	p.paint = fn
+	# (round 12, QA: named, so perf.tscn --hide can weigh each layer: Bg_strip_far_mesas, Bg_trees_1, ...)
+	var parts := [fn.get_method().trim_prefix("_draw_")]
+	for arg: Variant in fn.get_bound_arguments():
+		parts.append(str(arg).replace(".", "_"))
+	p.name = "Bg_" + "_".join(parts)
 	if repeat:
 		p.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	add_child(p)
