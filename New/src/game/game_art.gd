@@ -15,7 +15,7 @@ const PRELOAD_DIRS := ["res://assets/art/world", "res://assets/art/hero", "res:/
 const LEVEL_SCRIPT := "res://src/game/game_screen.gd"  ## kept loaded with the art (preload_art)
 ## Menu-only pictures (the menu and the cards load them themselves): not kept, so they leave memory
 ## with the menu.
-const MENU_ONLY := ["sunset_", "portrait", "hero_menu", "hero_win", "hero_defeat", "stand_"]
+const MENU_ONLY := ["sunset_", "portrait", "hero_menu", "hero_win", "hero_defeat"]
 
 static var _pending := PackedStringArray()
 static var _kept: Array[Resource] = []

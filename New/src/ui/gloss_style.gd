@@ -172,6 +172,12 @@ static func fill_rounded(ci: RID, rect: Rect2, r: float, c_top: Color, c_bottom:
 	_rounded(ci, rect, maxf(0.0, minf(r, minf(rect.size.x, rect.size.y) / 2)), c_top, c_bottom)
 
 
+## The part of `band` inside the rounded rectangle `rect` (radius r), with a vertical gradient: a
+## shade or a light clipped to a shape, for code that draws itself.
+static func fill_clipped(ci: RID, rect: Rect2, r: float, band: Rect2, c_top: Color, c_bottom: Color) -> void:
+	_clipped(ci, rect, maxf(0.0, minf(r, minf(rect.size.x, rect.size.y) / 2)), band, c_top, c_bottom)
+
+
 ## A filled rounded rectangle with a vertical gradient (exact, as colours vary linearly with y).
 static func _rounded(ci: RID, rect: Rect2, r: float, c_top: Color, c_bottom: Color) -> void:
 	if rect.size.x <= 0 or rect.size.y <= 0:

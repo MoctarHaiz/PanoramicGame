@@ -4,7 +4,8 @@ extends Control
 ## HUD and the flying effects hidden for that frame (no ghost of a heart or a "+1" in it), shrunk and
 ## drawn back stretched through a cubic B-spline (soft_blur.gdshader: a smooth blur, no blocks, one
 ## draw call; no screen-sized copy kept), under a scrim of about 40 % and a darker vignette (it dims
-## the scene, it doesn't black it out), so the scene steps back and the panel owns the screen. A Card in
+## the scene, it doesn't black it out), so the scene steps back and the panel owns the screen; a
+## defeat drains its colour (grey, a colder vignette). A Card in
 ## the middle of the safe area, its title on a ribbon over its top edge; a character (`art`) at its
 ## left, overlapping its edge, standing in a pool of light with his shadow under his feet; the group
 ## is centred. The card pops in opaque (0.7 -> 1.06 -> 1, a back-ease), the ribbon drops in after
@@ -62,6 +63,7 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 	_picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var soft := ShaderMaterial.new()  # a cubic B-spline stretch of the small picture: no blocks
 	soft.shader = SOFT_BLUR
+	soft.set_shader_parameter(&"grey", 0.75 if _mood == &"loss" else 0.0)  # a defeat drains the world
 	_picture.material = soft
 	back.add_child(_picture)
 	var veil := ColorRect.new()
@@ -74,7 +76,7 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 	vignette.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	vignette.stretch_mode = TextureRect.STRETCH_SCALE
 	vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	vignette.modulate = Color(0.03, 0.0, 0.02, 0.7)
+	vignette.modulate = Color(0.01, 0.02, 0.06, 0.85) if _mood == &"loss" else Color(0.03, 0.0, 0.02, 0.7)
 	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	back.add_child(vignette)
 	if rays:
@@ -220,9 +222,13 @@ func _place() -> void:
 		var h := (card_size.y + _top * 0.6) * float(art.get_meta(&"tall", 1.0))
 		art.size = Vector2(h * tex_size.x / tex_size.y, h)
 		art_w = art.size.x * (1.0 - float(art.get_meta(&"overlap", 0.22)))
-	# a character taller than the card and its ribbon (arms up) lifts the whole group down a little
-	var lift := maxf((art.size.y - 4.0) - (card_size.y + _top), 0.0) if art else 0.0
-	var whole := Vector2(card_size.x + art_w, card_size.y + _top + lift)
+	# a character taller than the card and its ribbon (arms up) lifts the whole group down a little;
+	# a picture standing on its own shadow hangs the rest of itself (the shadow's pool, clear pixels)
+	# under the card's foot: the group takes that room too, so all of it stays on the screen
+	var ground := float(art.get_meta(&"ground", 0.99)) if art else 0.99
+	var lift := maxf((art.size.y * ground - 4.0) - (card_size.y + _top), 0.0) if art else 0.0
+	var below := maxf(art.size.y * (1.0 - ground) - 4.0, 0.0) if art else 0.0
+	var whole := Vector2(card_size.x + art_w, card_size.y + _top + lift + below)
 	var insets := Device.insets()
 	var side_l := maxf(insets.x + 12.0, size.x * 0.06)  # never near an edge (the group would lean)
 	var side_r := maxf(insets.z + 12.0, size.x * 0.06)
@@ -251,7 +257,10 @@ func _place() -> void:
 	banner.position = Vector2(art_w + (card_size.x - banner.size.x) / 2, lift)
 	if art:
 		var feet := Vector2(art.size.x * 0.5, lift + _top + card_size.y + 4.0)
-		art.position = feet - Vector2(art.size.x * 0.5, art.size.y * 0.99)
+		# a picture with its own contact shadow stands on it (its "ground": the share of its height where
+		# it is), with no second shadow under it; a plain crop on its soles
+		art.position = feet - Vector2(art.size.x * 0.5, art.size.y * ground)
+		_shadow.visible = not art.has_meta(&"ground")
 		_ground.size = Vector2(art.size.x * 1.6, art.size.x * 0.55)
 		_ground.position = feet - _ground.size / 2
 		_shadow.size = Vector2(art.size.x * 0.9, art.size.x * 0.16)

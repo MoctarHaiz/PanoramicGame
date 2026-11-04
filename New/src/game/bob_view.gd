@@ -1,15 +1,16 @@
 class_name BobView
 extends Node2D
-## A Red Bob in the level (assets/art/bob/: the ball rendered in 3D in Panoramic's light by
-## tools/art/blender/bob_render.py, its faces drawn by tools/art/bob_sheet.py): a glossy red ball with a face that
-## floats up and down (each at its own phase and pace, so a row never moves as one), sways, squashes
-## at the bottom of its float, blinks now and then, catches a glint of light, carries a hot specular
-## point on its gloss, and glows warm (an additive rim breathing round it) so a row reads as treasure.
+## A Red Bob in the level (assets/art/bob/: tools/art/bob_sheet.py paints it as a ruby with the 2017 face):
+## a translucent crimson gem with a face that floats up and down (each at its own phase and pace, so a row
+## never moves as one), sways, squashes at the bottom of its float, blinks now and then, catches a glint of
+## light, carries a hot pin-point on its window highlight, and glows (round 9, "still tomatoes": a rose
+## glow hugging its edge and breathing, additive) so a row reads as treasure.
 ## When Panoramic takes it, the game screen flies a copy to the counter (BobView.flier()).
 
 const DIR := "res://assets/art/bob/"
 const SIZE := 28.0  ## drawn width in units (a 32-unit tile: neighbours apart, never overlapping as they bob)
 enum Face { SMILE, BLINK, JOY, WINK }
+const SPEC_AT := Vector2(-4.2, -5.9)  ## units from its middle (at SIZE): the pin-point glint of bob_sheet.py's window
 
 static var _sheet: Texture2D
 static var _frame_px := 128
@@ -17,11 +18,12 @@ static var _radius_px := 57.0
 static var _faces := {}  # Face -> AtlasTexture
 static var _glint: Texture2D
 static var _halo_tex: Texture2D
+static var _glow_tex: Texture2D
 static var _additive: CanvasItemMaterial
 
 var _sprite: Sprite2D
-var _halo: Sprite2D  # the warm glow behind the ball
-var _spec: Sprite2D  # the hot specular point on its gloss (additive)
+var _halo: Sprite2D  # the rose glow round the gem
+var _spec: Sprite2D  # the hot pin-point on its window highlight (additive)
 var _pace := 3.4  # radians per second of its float
 var _shine: Node2D  # the glint, added onto the ball
 var _clock := 0.0
@@ -30,6 +32,7 @@ var _blink_at := 0.0
 var _glint_at := 0.0
 var _glint_k := 0.0
 var _scale := 1.0
+var _unit := 1.0  # the scale that draws it SIZE wide
 var _tilt := 0.0  # its own lean (radians): no two alike
 var _face := Face.SMILE  # its own face (round 7: a row was "identical tomatoes"): happy, laughing, winking
 var _star := false  # every other one wears a star glint on its gloss all the time
@@ -49,6 +52,7 @@ static func load_art() -> void:
 		_faces[f] = a
 	_glint = _make_glint()
 	_halo_tex = _make_halo()
+	_glow_tex = _make_glow()
 	_additive = CanvasItemMaterial.new()
 	_additive.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 
@@ -92,13 +96,31 @@ static func _make_halo() -> Texture2D:
 	return ImageTexture.create_from_image(img)
 
 
+## A glow that hugs the gem: full at its edge (GLOW_EDGE of the picture's radius), falling away outside.
+const GLOW_EDGE := 0.5
+const GLOW_SIZE := 2.0  ## the glow's width, in Bob widths
+
+
+static func _make_glow() -> Texture2D:
+	var n := 64
+	var img := Image.create_empty(n, n, false, Image.FORMAT_RGBA8)
+	for y in n:
+		for x in n:
+			var r := (Vector2(x + 0.5, y + 0.5) / (n / 2.0) - Vector2.ONE).length()
+			var k := clampf(1.0 - (r - GLOW_EDGE * 0.92) / (1.0 - GLOW_EDGE * 0.92), 0.0, 1.0)
+			img.set_pixel(x, y, Color(1, 1, 1, k * k * k))
+	img.generate_mipmaps()
+	return ImageTexture.create_from_image(img)
+
+
 func _init(column := 0, row := 0) -> void:
 	load_art()
 	_scale = scale_for(SIZE)
+	_unit = _scale
 	_halo = Sprite2D.new()
-	_halo.texture = _halo_tex
+	_halo.texture = _glow_tex
 	_halo.material = _additive
-	_halo.scale = Vector2.ONE * SIZE * 1.75 / 64.0
+	_halo.scale = Vector2.ONE * SIZE * GLOW_SIZE / 64.0
 	add_child(_halo)
 	_sprite = Sprite2D.new()
 	_sprite.texture = _faces[Face.SMILE]
@@ -107,7 +129,7 @@ func _init(column := 0, row := 0) -> void:
 	_spec = Sprite2D.new()
 	_spec.texture = _halo_tex
 	_spec.material = _additive
-	_spec.scale = Vector2.ONE * 15.0 / 64.0  # (round 8: the shine is what reads at phone size)
+	_spec.scale = Vector2.ONE * 9.0 / 64.0  # (round 9: small and hot; the sheet's window is crisp)
 	_spec.modulate = Color(1, 0.98, 0.92, 1.0)
 	add_child(_spec)
 	_shine = Node2D.new()
@@ -139,10 +161,10 @@ func _process(delta: float) -> void:
 	_sprite.scale = Vector2(_scale * (1.0 + squash), _scale * (1.0 - squash)) * pulse
 	_sprite.rotation = _tilt + 0.09 * sin(_clock * 2.1 - _phase * 0.7)
 	_halo.position = _sprite.position
-	_halo.modulate = Color(1.0, 0.48, 0.22, 0.7 + 0.2 * sin(_clock * 2.6 - _phase))  # a soft warm glow
-	_halo.scale = Vector2.ONE * SIZE * 2.2 / 64.0 * pulse
+	_halo.modulate = Color(1.0, 0.3, 0.42, 0.5 + 0.18 * sin(_clock * 2.6 - _phase))  # a rose glow, breathing
+	_halo.scale = Vector2.ONE * SIZE * GLOW_SIZE / 64.0 * (_sprite.scale.x / _unit)
 	_spec.modulate.a = 0.7 + 0.3 * sin(_clock * 5.3 + _phase)  # the hotspot twinkles
-	_spec.position = _sprite.position + Vector2(-6.0, -7.0).rotated(_sprite.rotation)
+	_spec.position = _sprite.position + SPEC_AT.rotated(_sprite.rotation) * _sprite.scale.x / _unit
 	# blink every few seconds; once in a while a wink
 	var face := _face  # (one in four wears a star glint; see _star)
 	if _clock >= _blink_at:
@@ -162,13 +184,13 @@ func _process(delta: float) -> void:
 func _draw_glint() -> void:
 	if _star:  # a small four-point star sitting on the gloss, twinkling (seen in a still)
 		var tw := 0.75 + 0.25 * sin(_clock * 4.3 + _phase)
-		_shine.draw_set_transform(_sprite.position + Vector2(-7.0, -8.0).rotated(_sprite.rotation), 0.4, Vector2.ONE * 0.22 * tw)
+		_shine.draw_set_transform(_sprite.position + SPEC_AT.rotated(_sprite.rotation) * _sprite.scale.x / _unit, 0.4, Vector2.ONE * 0.22 * tw)
 		_shine.draw_texture(_glint, -Vector2(24, 24), Color(1, 1, 1, 0.95))
 		_shine.draw_set_transform(Vector2.ZERO)
 	if _glint_k <= 0.0:
 		return
 	var k := sin(_glint_k * PI)  # flares up then down
-	var at := _sprite.position + Vector2(-6.5, -7.0)
+	var at := _sprite.position + SPEC_AT.rotated(_sprite.rotation) * _sprite.scale.x / _unit
 	_shine.draw_set_transform(at, _glint_k * 1.4, Vector2.ONE * (0.12 + 0.22 * k))
 	_shine.draw_texture(_glint, -Vector2(24, 24), Color(1, 1, 1, k))
 	_shine.draw_set_transform(Vector2.ZERO)

@@ -169,76 +169,127 @@ if __name__ == "__main__":
 
 
 def spire(seed: int, w: int = 192, h: int = 1120) -> np.ndarray:
-    """A sandstone spire standing in the river (RGBA, 2 px a unit). Round 2: painted like the buttes
-    on the horizon (they belong together, not a tree trunk): a flat cap rock a little wider than
-    its neck, a column that wavers and pinches between soft bulges, flaring into talus at its
-    foot; vertical gullies down its faces; beds of paler and redder stone across it. Lit by the low
-    sun on the upper left: warm on that side with a hot rim on its edge and its top, violet shade on
-    the far side, the foot darker and damp."""
+    """A sandstone stack standing in the river (RGBA, 2 px a unit). Round 9 (they read as "totem
+    poles / stacked bricks": an even column of equal waists and ruled beds): a natural stack that
+    tapers from a broad foot to a narrower broken top, each side its own wandering profile, only a
+    few uneven beds (a notch at some joints, a ledge stepping out under others, the rock above
+    shading the one below), long vertical fissures, each block its own stone colour and patches,
+    moss on its lit ledges and under the cap. Lit by the low sun on the upper left in the level's
+    cel bands (the pillars' palette: warm lit side, violet-brown shade), inked."""
+    from paint import cel, ink_edge
     rng = np.random.default_rng(seed)
-    n = 512
-    tex_h = sandstone_height(n, rng)
     yy, xx = np.mgrid[0:h, 0:w].astype(float)
     y = np.arange(h, dtype=float)
-    t = y / h  # 0 top .. 1 foot
-    cap_h = rng.uniform(26, 40)
-    bulges = ndimage.gaussian_filter1d(rng.normal(0, 1, h), 55)
-    bulges = bulges / (np.abs(bulges).max() + 1e-6) * 15.0  # (round 7: a rock stack, not a chimney)
-    pinch = np.zeros(h)
-    for _ in range(int(rng.integers(3, 5))):  # waists where a softer bed wore away
-        py = rng.uniform(0.15, 0.72) * h
-        pinch += np.exp(-((y - py) / rng.uniform(10, 22)) ** 2) * rng.uniform(7, 14)
-    half = 37.0 + 8.0 * t + bulges - pinch + 34.0 * smooth_np(0.7, 1.0, t) ** 1.8
-    capw = 36.0 + rng.uniform(0, 10)  # (round 7: a broken top, not a chimney's flat cap)
-    cap = smooth_np(cap_h + 6, cap_h - 2, y)  # 1 on the cap rock
-    half = half * (1 - cap) + (capw - np.clip(4 - y, 0, 4) * 1.5) * cap
-    undercut = np.exp(-((y - cap_h - 7) / 6.0) ** 2) * 6.0  # in, just under the cap
-    half -= undercut
-    half = np.minimum(half, w / 2.0 - 4.0 - 7.0)  # (inside its cell, its wobble included)
-    cx = w / 2.0 + ndimage.gaussian_filter1d(rng.normal(0, 1, h), 60) * 7.0
-    left = cx - half
-    right = cx + half
-    u = np.clip((xx - left[:, None]) / np.maximum(right - left, 1)[:, None], 0.0, 1.0)  # 0..1 across
+    t = y / h  # 0 top .. 1 foot (the river's surface is about 0.74 down on the poles in the river)
+    cap_h = rng.uniform(34, 52)
+    joints = [cap_h]
+    while joints[-1] < h:  # beds of very uneven thickness
+        joints.append(joints[-1] + rng.uniform(110, 300))
+    joints = np.array(joints[:-1])
+    bed = np.searchsorted(joints, y)  # bed index per row (0: the cap)
+    limit = w / 2.0 - 11.0  # (inside its cell, its wobble included)
+    base = 40.0 + 34.0 * smooth_np(0.0, 0.72, t) + 18.0 * smooth_np(0.62, 0.8, t)  # tapering up
+
+    def profile() -> np.ndarray:
+        big = ndimage.gaussian_filter1d(rng.normal(0, 1, h), 80)
+        big = big / (np.abs(big).max() + 1e-6) * 14.0
+        mid = ndimage.gaussian_filter1d(rng.normal(0, 1, h), 22)
+        mid = mid / (np.abs(mid).max() + 1e-6) * 6.0
+        rough = ndimage.gaussian_filter1d(rng.normal(0, 1, h), 5) * 2.6
+        out = big + mid + rough
+        for j in joints:  # at some joints a notch, under others the bed steps out (a ledge)
+            k = rng.random()
+            if k < 0.4:
+                out -= np.exp(-((y - j) / rng.uniform(5, 12)) ** 2) * rng.uniform(5, 14)
+            elif k < 0.8:  # a block jutting out on this side
+                out += rng.uniform(5, 14) * smooth_np(j - 2, j + 4, y) * (1 - smooth_np(j + 30, j + 150, y))
+        return out
+
+    cap_k = smooth_np(cap_h + 4, cap_h - 3, y)  # 1 on the cap rock
+    half_l = base + profile()
+    half_r = base + profile() - 3.0
+    capw = 44.0 + rng.uniform(0, 8)  # the cap a little wider than its neck
+    half_l = half_l * (1 - cap_k) + (capw + rng.uniform(-3, 3) - np.clip(6 - y, 0, 6) * 1.4) * cap_k
+    half_r = half_r * (1 - cap_k) + (capw - 2.0 - np.clip(6 - y, 0, 6) * 1.6) * cap_k
+    under_cap = np.exp(-((y - cap_h - 8) / 7.0) ** 2) * 7.0
+    half_l = np.minimum(half_l - under_cap, limit)
+    half_r = np.minimum(half_r - under_cap, limit)
+    cx = w / 2.0 + ndimage.gaussian_filter1d(rng.normal(0, 1, h), 90) * 5.0
+    left = cx - half_l
+    right = cx + half_r
     inside = np.clip(np.minimum(xx - left[:, None], right[:, None] - xx) + 0.5, 0.0, 1.0)
-    # light: the column's turn (lit on the left), gullies, a little of the stone's grain
-    turn = -(2.0 * u - 1.0)  # 1 facing the sun .. -1 away
-    flute = ndimage.gaussian_filter(rng.standard_normal((h, w)), (40.0, 7.0))  # few, broad, soft gullies
-    flute = np.gradient(flute / (flute.std() + 1e-6), axis=1) * 2.2
-    grain = tex_h[(yy.astype(int)) % n, (xx.astype(int) * 2) % n]
+    u = np.clip((xx - left[:, None]) / np.maximum(right - left, 1)[:, None], 0.0, 1.0)  # 0..1 across
+    turn = 1.0 - 2.0 * u  # 1 facing the sun .. -1 away
+    # the faces: broad, soft facets (a few large planes, not flutes), a little of the stone's grain
+    facets = ndimage.gaussian_filter(rng.standard_normal((h, w)), (60.0, 14.0))
+    facets = np.gradient(facets / (facets.std() + 1e-6), axis=1) * 3.0
+    grain = sandstone_height(512, rng)[(yy.astype(int)) % 512, (xx.astype(int) * 2) % 512]
     grain = grain - ndimage.gaussian_filter(grain, 4)
-    shade_lip = np.exp(-((y - cap_h - 4) / 7.0) ** 2) * 0.35  # the cap's shadow on the neck
-    lam = 0.5 + 0.5 * turn - 0.35 * flute + 0.4 * grain - shade_lip[:, None]
-    lam += cap[:, None] * 0.12 * (turn > -0.3)
-    lam = np.clip(lam, 0, 1)
-    from paint import cel  # (round 5: flat light bands, the hero's style)
-    lam = 0.12 + 0.76 * cel(lam, (0.36, 0.62))
-    stops = [(0.0, hexc("332a58")), (0.33, hexc("5e4470")), (0.55, hexc("aa6250")), (0.76, hexc("e0884e")),
-             (1.0, hexc("ffc884"))]
-    pos = np.array([p for p, _ in stops])
-    cols = np.array([c for _, c in stops])
-    rgb = np.dstack([np.interp(lam, pos, cols[:, k]) for k in range(3)])
-    # beds of rock across the column (rock is layered across, wood along): paler and redder bands,
-    # and the dark line of a bedding plane between some of them, bowed by the column's turn
-    wav = ndimage.gaussian_filter1d(rng.normal(0, 1, h), 25) * 4.0
-    bow = (2.0 * u - 1.0) ** 2 * 5.0
-    yb = yy + bow
-    beds = np.sin(yb * 0.07 + wav[:, None])
-    pale = hexc("f2c08a") * lam[..., None]
-    rgb = rgb + (pale - rgb) * (np.clip(beds, 0, 1) * 0.28)[..., None]
-    rgb *= (1.0 - 0.1 * np.clip(-beds, 0, 1))[..., None]
-    plane = np.abs(np.sin(yb * 0.07 * 0.5 + wav[:, None] * 0.5 + 0.8))
-    rgb *= (1.0 - 0.3 * np.clip(1.0 - plane / 0.05, 0, 1) * (u < 0.97))[..., None]
-    rgb = rgb * (1 - 0.15 * cap[:, None, None]) + hexc("f0c48c") * 0.15 * cap[:, None, None] * lam[..., None]
-    # the hot rim along the sun's edge and on the cap's top
+    # the rock above a joint shades the bed below it; a ledge's top catches the light
+    dist_j = np.min(np.abs(y[:, None] - joints[None, :]), axis=1)
+    below_j = np.array([y[k] - joints[joints <= y[k]].max() if (joints <= y[k]).any() else 99.0 for k in range(h)])
+    shade_j = np.exp(-np.clip(below_j, 0, None) / 8.0) * 0.32
+    lam = 0.47 + 0.5 * turn - 0.3 * facets + 0.35 * grain - shade_j[:, None]
+    lam += cap_k[:, None] * 0.14 * (turn > -0.35)
+    # the band edges follow the beds: each bed's lit band a little wider or narrower
+    lam += (rng.random(len(joints) + 1)[bed] - 0.5)[:, None] * 0.18
+    lam = 0.1 + 0.8 * cel(np.clip(lam, 0, 1), (0.38, 0.64))
+    rgb = ramp_np(lam, [(0.0, "2e1c30"), (0.3, "5a3040"), (0.52, "a4583a"), (0.76, "dc8a4c"), (1.0, "ffc47e")])
+    # each bed its own stone: redder, paler, greyer; soft patches within it
+    tones = rng.choice([0, 1, 2, 3], len(joints) + 1, p=[0.4, 0.25, 0.2, 0.15])
+    tint = np.array([[1.0, 1.0, 1.0], [1.06, 0.92, 0.86], [1.08, 1.06, 0.96], [0.92, 0.9, 0.98]])[tones[bed]]
+    rgb *= tint[:, None, :]
+    patch = ndimage.gaussian_filter(rng.standard_normal((h, w)), 10.0)
+    rgb *= (1.0 + np.clip(patch / (patch.std() + 1e-6), -2, 2) * 0.04)[..., None]
+    # long vertical fissures down the faces (jointing: rock splits along, not only across)
+    ink = np.zeros((h, w))
+    for _ in range(int(rng.integers(2, 4))):
+        y0 = rng.uniform(cap_h + 10, h * 0.55)
+        y1 = min(y0 + rng.uniform(140, 380), h * 0.8)
+        uu = rng.uniform(0.28, 0.78)
+        rows = np.arange(int(y0), int(y1))
+        walk = np.cumsum(rng.normal(0, 0.8, len(rows)))
+        walk = ndimage.gaussian_filter1d(walk, 3)
+        xs = left[rows] + uu * (right[rows] - left[rows]) + walk
+        for r, x in zip(rows, xs):
+            fade = min(1.0, (r - y0) / 30.0, (y1 - r) / 30.0)
+            d = np.abs(np.arange(w) - x)
+            ink[r] = np.maximum(ink[r], np.clip(1.6 - d, 0, 1) * fade)
+            lip = np.clip(1.0 - np.abs(np.arange(w) - x + 2.5) / 1.2, 0, 1) * fade  # its lit lip on the sun side
+            rgb[r] = rgb[r] + (np.minimum(rgb[r] * 1.35, 1.0) - rgb[r]) * lip[:, None] * 0.7
+    # the bedding joints: a broken ink line across (not ruled), lit just below on the sun side
+    broken = ndimage.gaussian_filter1d(rng.normal(0, 1, w), 6)
+    broken = broken / (broken.std() + 1e-6)
+    for j in joints[1:]:
+        tilt = rng.uniform(-0.12, 0.12)  # the beds lean, each its own way
+        wav = ndimage.gaussian_filter1d(rng.normal(0, 1, w), 10) * 3.0 + (np.arange(w) - w / 2) * tilt
+        d = np.abs(yy - j - wav[None, :])
+        on = (np.roll(broken, int(rng.integers(0, w)))[None, :] + rng.uniform(-1.0, 0.0)) > 0.0
+        ink = np.maximum(ink, np.clip(1.5 - d, 0, 1) * on * (u > 0.02) * (u < 0.98))
+        lit_lip = np.clip(1.0 - np.abs(yy - j - wav[None, :] - 3.0) / 1.5, 0, 1) * (turn > 0.0)
+        rgb = rgb + (np.minimum(rgb * 1.3, 1.0) - rgb) * (lit_lip * 0.6)[..., None]
+    # the hot rim on the sun's edge and on the cap's top
     rim = np.clip(1.0 - (xx - left[:, None]) / 3.0, 0, 1) + np.clip(1.0 - y / 4.0, 0, 1)[:, None]
     rgb = rgb + (hexc("ffd8a0") - rgb) * (np.clip(rim, 0, 1) * inside * 0.7)[..., None]
-    # darker and cooler towards the foot (in the river's shade)
-    rgb = rgb * (1.0 - 0.32 * t ** 1.6)[:, None, None] + np.array([0.12, 0.1, 0.24]) * 0.3 * (t ** 2)[:, None, None]
-    # round 5: ink round the silhouette and in the bedding planes
-    from paint import ink_edge
-    ink = np.maximum(ink_edge(inside, 2.6), np.clip(1.0 - plane / 0.06, 0, 1) * (u < 0.97) * (u > 0.03) * inside)
+    # moss: under the cap and on the lit ledges, in ragged patches
+    moss_n = ndimage.gaussian_filter(rng.standard_normal((h, w)), 9.0)
+    moss_n = moss_n / (moss_n.std() + 1e-6)
+    near_top = smooth_np(cap_h + 60, cap_h + 6, y)[:, None]
+    moss = np.clip((near_top + moss_n * 0.3 - 0.5) * 4.0, 0, 1) * inside * smooth_np(cap_h + 90, cap_h + 40, y)[:, None]  # (under the cap only: spots read as dirt)
+    moss_col = np.where((moss_n > 0.3)[..., None], hexc("6e8c2c"), hexc("3e5a1e"))
+    rgb = rgb + (moss_col * (0.55 + 0.45 * lam[..., None]) - rgb) * (moss * 0.85)[..., None]
+    # darker, cooler and damp towards the foot (in the river's shade)
+    rgb = rgb * (1.0 - 0.34 * smooth_np(0.4, 1.0, t) ** 1.4)[:, None, None] + np.array([0.06, 0.05, 0.12]) * smooth_np(0.6, 1.0, t)[:, None, None]
+    ink = np.maximum(ink_edge(inside, 2.6), ink * inside)
     rgb = rgb * (1 - ink[..., None] * 0.9) + np.array([0.16, 0.08, 0.07]) * ink[..., None] * 0.9
     return np.dstack([np.clip(rgb, 0, 1), inside])
+
+
+def ramp_np(t: np.ndarray, stops: list) -> np.ndarray:
+    """Colour 0..1 of t along stops [(pos, 'hex'), ...]."""
+    pos = np.array([p for p, _ in stops])
+    cols = np.array([hexc(c) for _, c in stops])
+    return np.dstack([np.interp(t, pos, cols[:, k]) for k in range(3)])
 
 
 def smooth_np(e0: float, e1: float, x):

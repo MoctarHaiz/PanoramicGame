@@ -3,24 +3,30 @@ extends Screen
 ## render, assets/art/hero/hero_menu.png), full length on a backlit granite kopje, his shadow on
 ## the rock; the low sun between him and the title, blown out and blooming, shafts of light fanning
 ## from it, long rose-gold clouds, so he is rim-lit from that side (hero.gdshader) and the middle of
-## the screen glows instead of lying empty; on the right the CHAKA ZULU logo (bevelled gold letters
-## over a Zulu shield and an assegai, tools/art/ui_logo.py) with its subtitle on a ribbon, a big
-## framed PLAY, and a row of cream plaques: the best run and the settings. Everything arrives in a
+## the screen glows instead of lying empty; on the right the CHAKA ZULU logo (letters drawn for it,
+## chiselled gold, locked up with a Zulu shield and an assegai, tools/art/ui_logo.py) with its
+## subtitle on a ribbon across the shield's foot, a big green PLAY in a thin brass ring, and a row:
+## the best run on a parchment plaque and the settings on a gold tile. Everything arrives in a
 ## short choreography: the hero rises onto the rock, the logo drops and bounces, the ribbon unrolls,
 ## PLAY pops, the rest fades in. Then the logo catches the light now and then and PLAY breathes.
 
-const LOGO := preload("res://assets/art/ui/logo.png")
+const LOGO := "res://assets/art/ui/logo.png"  ## loaded with the menu (a preload held it, 3 MB, all run long)
 const RIBBON := preload("res://assets/art/ui/ribbon.png")
 const HERO_ART := "res://assets/art/hero/hero_menu.png"  ## the art track's render, when there
 const HERO_STAND := "res://assets/art/ui/hero_stand.png"  ## the fallback crop, loaded only when used
-const ROCK := preload("res://assets/art/ui/menu_rock.png")
-const ROCK_STAND := Vector2(1340, 150)  ## where his feet go on the rock, in its pixels (tools/art/ui_hero.py)
+const ROCK := "res://assets/art/ui/menu_rock.png"  ## loaded with the menu (7 MB: not held during play)
+const ROCK_STAND := Vector2(1390, 152)  ## where his feet go on the rock, in its pixels (tools/art/ui_hero.py)
+const ROCK_LEDGE := 660.0  ## the rock's flat top his stance spans, boot to boot, in its pixels
+const ROCK_TILT := -0.066  ## the rock turned a little (radians) so its ledge is level under both boots
+const STANCE := 0.81  ## his stance, boot to boot, as a share of the render's width (hero_menu.png)
 const HERO_TALL := 0.8  ## his height, as a share of the screen's
 const FEET_AT := 0.9  ## where his feet stand, as a share of the screen's height
 
 var _backdrop: SunsetBackdrop
 var _hero: TextureRect
 var _hero_tex: Texture2D
+var _logo_tex: Texture2D
+var _rock_tex: Texture2D
 var _lit_crop := false  # the fallback crop (no art render): lit here by hero.gdshader
 var _rock: TextureRect
 var _shadow: TextureRect  # his shadow on the rock
@@ -58,7 +64,8 @@ func enter(_data: Dictionary) -> void:
 	_halo_glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_halo_glow.material = Fx.additive()
 	add_child(_halo_glow)
-	_rock = _picture(ROCK)
+	_rock_tex = load(ROCK)
+	_rock = _picture(_rock_tex)
 	add_child(_rock)
 	_shadow = _picture(Fx.glow_texture())
 	_shadow.modulate = Color(0.06, 0.0, 0.04, 0.85)
@@ -83,7 +90,7 @@ func enter(_data: Dictionary) -> void:
 	columns.add_child(_hero_side)
 	_left = VBoxContainer.new()
 	_left.alignment = BoxContainer.ALIGNMENT_CENTER
-	_left.add_theme_constant_override(&"separation", 22)  # air between logo, Play and the plaque
+	_left.add_theme_constant_override(&"separation", 16)  # air between logo, Play and the plaque
 	_left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_left.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	columns.add_child(_left)
@@ -94,7 +101,8 @@ func enter(_data: Dictionary) -> void:
 	_logo_box.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_left.add_child(_logo_box)
 	_logo = TextureRect.new()
-	_logo.texture = LOGO
+	_logo_tex = load(LOGO)
+	_logo.texture = _logo_tex
 	_logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -105,7 +113,7 @@ func enter(_data: Dictionary) -> void:
 		shine.set_shader_parameter(&"offset", 1.2)
 		_logo.material = shine
 	_logo_box.add_child(_logo)
-	_ribbon = ribbon(tr("MENU_SUBTITLE"), 31)
+	_ribbon = ribbon(tr("MENU_SUBTITLE"), 29)
 	_ribbon_fit = Control.new()
 	_ribbon_fit.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ribbon_fit.add_child(_ribbon)
@@ -134,8 +142,8 @@ func enter(_data: Dictionary) -> void:
 	_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if Save.games_played > 0:
 		_row.add_child(_best_plaque())
-	# the gear in the Best plaque's own style and height (one family, not a candy tile beside a plaque)
-	var settings := Ui.plaque_button("gear-chunky", 92.0)
+	# the gear a gold tile of the kit (the pause's tiles), as tall as the Best plaque beside it
+	var settings := Ui.icon_button("gear-chunky", Ui.Tone.GOLD, 92.0, 28.0)
 	if _row.get_child_count() > 0:
 		var plaque := _row.get_child(0) as Control
 		plaque.resized.connect(func() -> void:
@@ -181,7 +189,8 @@ func _picture(texture: Texture2D) -> TextureRect:
 	return r
 
 
-## The best run on a cream plaque framed in gold: the Red Bob, "BEST" over the count, the stars.
+## The best run on a parchment plaque in a brass ring: the Red Bob, "BEST" over the count, the stars
+## (the missing ones dark sockets in gold rims).
 func _best_plaque() -> PanelContainer:
 	var s := Ui.plaque_style(30.0)
 	s.content_margin_left = 18
@@ -204,13 +213,13 @@ func _best_plaque() -> PanelContainer:
 	row.add_child(bob)
 	# one type style: "Best" and the count in the same dark brown Fredoka, the count bigger
 	var words := VBoxContainer.new()
-	words.add_theme_constant_override(&"separation", -8)
+	words.add_theme_constant_override(&"separation", -14)  # the two lines tight: a compact plaque
 	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	words.alignment = BoxContainer.ALIGNMENT_CENTER
-	words.add_child(Ui.label(tr("BEST"), 30, Color("8a3a0c"), Ui.font_display, HORIZONTAL_ALIGNMENT_LEFT))
-	words.add_child(Ui.label(str(Save.best_bobs), 46, Color("4a1e04"), Ui.font_display, HORIZONTAL_ALIGNMENT_LEFT))
+	words.add_child(Ui.label(tr("BEST"), 30, Color("a8300c"), Ui.font_display, HORIZONTAL_ALIGNMENT_LEFT))
+	words.add_child(Ui.label(str(Save.best_bobs), 50, Color("3a1404"), Ui.font_display, HORIZONTAL_ALIGNMENT_LEFT))
 	row.add_child(words)
-	var stars := StarRow.new(Save.best_stars, 40)
+	var stars := StarRow.new(Save.best_stars, 44)
 	stars.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	stars.add_theme_constant_override(&"separation", 4)
 	row.add_child(stars)
@@ -265,16 +274,19 @@ func _layout() -> void:
 	var v := size
 	var insets := Device.insets()
 	var aspect := float(_hero_tex.get_width()) / _hero_tex.get_height()
-	var h := minf(v.y * HERO_TALL, v.x * 0.26 / aspect)
+	var h := minf(v.y * HERO_TALL, v.x * 0.29 / aspect)  # (the lunge and the ring make him wide)
 	var w := h * aspect
-	var feet := Vector2(insets.x + w * 0.5 + 12.0, v.y * FEET_AT)
+	var feet := Vector2(insets.x + w * 0.515 + 12.0, v.y * FEET_AT)  # between his boots
 	_hero.size = Vector2(w, h)
-	# the art track's render stands on its own contact shadow at 0.94 of its height (boots planted
-	# there, the front one mid-stride a little above); the fallback crop's soles are at its foot
-	_hero.position = feet - Vector2(w * 0.5, h * (0.985 if _lit_crop else 0.94))
+	# the art track's render stands on its own contact shadow, both soles at 0.93 of its height; the
+	# fallback crop's soles are at its foot
+	_hero.position = feet - Vector2(w * 0.515, h * (0.985 if _lit_crop else 0.93))
 	_hero.pivot_offset = Vector2(w / 2, h)
-	var k := h * 0.62 / ROCK.get_height()  # the rock's pixels to screen units
-	_rock.size = Vector2(ROCK.get_width(), ROCK.get_height()) * k
+	# the rock's pixels to screen units: its ledge as wide as his stance, turned level, both boots on it
+	var k := w * STANCE / ROCK_LEDGE if not _lit_crop else h * 0.62 / _rock_tex.get_height()
+	_rock.size = Vector2(_rock_tex.get_width(), _rock_tex.get_height()) * k
+	_rock.pivot_offset = ROCK_STAND * k
+	_rock.rotation = 0.0 if _lit_crop else ROCK_TILT
 	_rock.position = feet - ROCK_STAND * k
 	_front.size = Vector2(v.x, v.y * 0.1)
 	_front.position = Vector2(0, v.y * 0.92)
@@ -291,24 +303,24 @@ func _layout() -> void:
 	var column_left := minf(_hero.position.x + w + v.x * 0.06, v.x - insets.z - 18.0 - 470.0)
 	_hero_side.custom_minimum_size.x = maxf(column_left - insets.x - 18.0, 0.0)
 	var free := v.y - insets.y - Device.bottom_with_banner() - Device.ad_gap() - 36.0
-	var logo_h := clampf(free - 124.0 - 92.0 - 66.0 - _ribbon.size.y * 0.55, 170.0, 300.0)  # air above and below
-	var logo_w := logo_h * LOGO.get_width() / LOGO.get_height()
+	var row_h := maxf(_row.get_combined_minimum_size().y, 92.0)  # the Best plaque and the gear
+	var logo_h := clampf(free - 124.0 - row_h - 48.0 - _ribbon.size.y * 0.5, 170.0, 330.0)  # air above and below
+	var logo_w := logo_h * _logo_tex.get_width() / _logo_tex.get_height()
 	var column_w := v.x - insets.z - 18.0 - column_left
 	if logo_w > column_w * 0.96:
 		logo_w = column_w * 0.96
-		logo_h = logo_w * LOGO.get_height() / LOGO.get_width()
+		logo_h = logo_w * _logo_tex.get_height() / _logo_tex.get_width()
 	var rk := minf(1.0, column_w * 0.98 / _ribbon.size.x)
 	_ribbon_fit.scale = Vector2(rk, rk)
 	var ribbon_size := _ribbon.size * rk
 	var box_w := maxf(logo_w, ribbon_size.x)
-	_logo_box.custom_minimum_size = Vector2(box_w, logo_h + ribbon_size.y * 0.55)
+	_logo_box.custom_minimum_size = Vector2(box_w, logo_h + ribbon_size.y * 0.5)
 	_logo.size = Vector2(logo_w, logo_h)
 	_logo.position = Vector2((box_w - logo_w) / 2, 0)
 	_logo.pivot_offset = _logo.size / 2
-	# across the foot of the words
-	# under the words (the emblem takes the logo's left third)
-	var under := clampf(_logo.position.x + logo_w * 0.63 - ribbon_size.x / 2, 0.0, box_w - ribbon_size.x)
-	_ribbon_fit.position = Vector2(under, logo_h - ribbon_size.y * 0.3)
+	# under the words, across the foot of the mark (the shield takes the logo's left quarter)
+	var under := clampf(_logo.position.x + logo_w * 0.57 - ribbon_size.x / 2, 0.0, box_w - ribbon_size.x)
+	_ribbon_fit.position = Vector2(under, logo_h - ribbon_size.y * 0.5)  # across the shield's foot
 
 
 ## The entrance, played as the transition opens.

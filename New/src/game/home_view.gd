@@ -47,7 +47,7 @@ func build() -> void:
 	# round 3: the homestead is alive: a cooking fire in the yard, and people at it who greet him
 	_fire = Fire.new()
 	_fire.position = Vector2(LEFT + 622.0, GROUND - 8.0)  # (round 7: by the hut, in the pushed-in shot)
-	_fire.scale = Vector2(1.5, 1.5)
+	_fire.scale = Vector2(1.8, 1.8)  # (round 9: a little bigger: it reads at phone size)
 	back.add_child(_fire)
 	var fire_smoke := _smoke()
 	fire_smoke.position = _fire.position + Vector2(0, -26)
@@ -208,8 +208,14 @@ func _smoke() -> CPUParticles2D:
 
 
 ## Round 3: a cooking fire in the yard (drawn, no picture): a ring of stones, crossed logs, flames
-## licking up and flickering, its light on the ground (home_glow.png, added).
+## licking up and flickering, its light on the ground (home_glow.png, added). Round 9 ("flat orange
+## triangles"): flame tongues in three layers that curl and sway, each shading from a hot root to a
+## transparent tip, a bed of glowing embers, the logs' bark and the stones lit by the fire from
+## above, sparks rising.
 class Fire extends Node2D:
+	const OUTER := [Color(1.0, 0.36, 0.08, 0.9), Color(0.85, 0.12, 0.04, 0.0)]
+	const MIDDLE := [Color(1.0, 0.62, 0.16, 0.95), Color(1.0, 0.36, 0.08, 0.0)]
+	const CORE := [Color(1.0, 0.97, 0.7, 1.0), Color(1.0, 0.78, 0.3, 0.0)]
 	var _clock := 0.0
 	var _glow: Sprite2D
 
@@ -223,6 +229,7 @@ class Fire extends Node2D:
 		_glow.material = add
 		add_child(_glow)
 		_glow.show_behind_parent = true
+		add_child(_sparks())
 
 	func _process(delta: float) -> void:
 		_clock += delta
@@ -230,26 +237,84 @@ class Fire extends Node2D:
 		queue_redraw()
 
 	func _draw() -> void:
-		# round 6: a campfire (the pot over it read as a black box): hearth stones, two crossed logs,
-		# flame tongues over them
-		for i in 7:  # flat stones, lit on top, in a ring
-			var sx := (i - 3) * 7.5
-			draw_set_transform(Vector2(sx, -2.0), 0.0, Vector2(1.0, 0.55))
-			draw_circle(Vector2.ZERO, 5.0, Color(0.36, 0.3, 0.28))
-			draw_circle(Vector2(-0.8, -1.8), 3.4, Color(0.62, 0.5, 0.42))
+		var flick := 0.85 + 0.1 * sin(_clock * 11.0) + 0.05 * sin(_clock * 27.0)
+		# the embers under the logs, glowing
+		draw_set_transform(Vector2(0, -3.0), 0.0, Vector2(1.0, 0.32))
+		draw_circle(Vector2.ZERO, 17.0, Color(0.55, 0.12, 0.04))
+		draw_circle(Vector2.ZERO, 12.0, Color(0.95, 0.34, 0.08, flick))
+		draw_circle(Vector2(1, -2), 6.0, Color(1.0, 0.72, 0.3, flick))
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-		for side in [-1.0, 1.0]:  # the logs, crossed, their ends glowing
-			var a := Vector2(-16.0 * side, -2.0)
-			var b := Vector2(12.0 * side, -12.0)
-			draw_line(a, b, Color(0.3, 0.17, 0.1), 5.0)
-			draw_line(a + Vector2(0, -1.5), b + Vector2(0, -1.5), Color(0.55, 0.32, 0.18), 1.6)
-			draw_circle(b, 2.6, Color(1.0, 0.55, 0.18))
-		for i in 5:  # the flames: tongues swaying and stretching, a hot core in each
-			var x := (i - 2) * 5.5
-			var h := 24.0 + 8.0 * sin(_clock * (7.0 + i) + i * 1.7) + (8.0 if i == 2 else 0.0) - absf(i - 2) * 3.0
-			var lean := sin(_clock * 3.1 + i) * 3.5 + 2.0
-			var base := 6.0 - absf(i - 2) * 0.8
-			draw_colored_polygon(PackedVector2Array([Vector2(x - base, -6), Vector2(x + base, -6), Vector2(x + lean * 0.5 + base * 0.6, -6 - h * 0.5),
-					Vector2(x + lean, -6 - h), Vector2(x + lean * 0.5 - base * 0.6, -6 - h * 0.5)]), Color(1.0, 0.42, 0.1, 0.92))
-			draw_colored_polygon(PackedVector2Array([Vector2(x - base * 0.5, -6), Vector2(x + base * 0.5, -6), Vector2(x + lean * 0.6, -6 - h * 0.62)]),
-					Color(1.0, 0.86, 0.42, 0.95))
+		for i in 7:  # flat stones in a ring, their tops lit by the fire, their feet dark
+			var sx := (i - 3) * 7.5
+			var near := 1.0 - absf(i - 3) / 4.0
+			draw_set_transform(Vector2(sx, -2.0), 0.0, Vector2(1.0, 0.55))
+			draw_circle(Vector2.ZERO, 5.2, Color(0.2, 0.14, 0.14))
+			draw_circle(Vector2(0, -1.2), 4.2, Color(0.44, 0.32, 0.28))
+			draw_circle(Vector2(signf(-sx) * 0.8, -2.4), 2.8, Color(0.95, 0.56, 0.3).lerp(Color(0.6, 0.46, 0.38), 1.0 - near))
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		for side in [-1.0, 1.0]:  # the logs, crossed: bark dark under, lit by the fire on top, glowing ends
+			var a := Vector2(-17.0 * side, -2.0)
+			var b := Vector2(11.0 * side, -13.0)
+			draw_line(a, b, Color(0.18, 0.1, 0.07), 5.5)
+			draw_line(a + Vector2(0, -1.2), b + Vector2(0, -1.2), Color(0.42, 0.24, 0.14), 2.6)
+			draw_line(a.lerp(b, 0.45) + Vector2(0, -2.0), b + Vector2(0, -2.0), Color(1.0, 0.5, 0.2, 0.8 * flick), 1.2)
+			draw_circle(a, 2.6, Color(0.24, 0.14, 0.1))  # its cut end, charred, an ember in it
+			draw_circle(a + Vector2(0.4, -0.4), 1.1, Color(1.0, 0.5, 0.16, flick))
+		# the flames: three layers of tongues, back to front
+		_tongues(6, 34.0, 6.5, 11.0, OUTER, 0.0)
+		_tongues(4, 26.0, 5.0, 8.0, MIDDLE, 1.7)
+		_tongues(3, 15.0, 3.6, 5.0, CORE, 3.1)
+
+	## n flame tongues across `spread` units, `tall` at most, each `width` wide at its root, shading
+	## from colours[0] at the root to colours[1] at the tip; they sway and stretch, each its own way.
+	func _tongues(n: int, tall: float, width: float, spread: float, colours: Array, phase: float) -> void:
+		for i in n:
+			var u := (i + 0.5) / n * 2.0 - 1.0
+			var x := u * spread
+			var seed := i * 1.37 + phase
+			var h := tall * (1.0 - absf(u) * 0.45) * (0.8 + 0.2 * sin(_clock * (7.0 + i) + seed * 3.0))
+			var lean := sin(_clock * 3.1 + seed) * 3.0 + 1.5 + u * 3.0
+			var pts := PackedVector2Array()
+			var cols := PackedColorArray()
+			var steps := 6
+			var left := PackedVector2Array()
+			var right := PackedVector2Array()
+			for k in steps + 1:  # a centre line that sways and curls, the tongue round it
+				var t := float(k) / steps
+				var centre := Vector2(x + lean * t * t + sin(t * 3.2 + _clock * 6.0 + seed) * 1.6 * t, -5.0 - h * t)
+				var half := width * (1.0 - t) * (1.0 - t * 0.3) + 0.2
+				left.append(centre - Vector2(half, 0))
+				right.append(centre + Vector2(half, 0))
+			for k in steps + 1:
+				pts.append(left[k])
+				cols.append(colours[0].lerp(colours[1], pow(float(k) / steps, 1.3)))
+			for k in range(steps, -1, -1):
+				pts.append(right[k])
+				cols.append(colours[0].lerp(colours[1], pow(float(k) / steps, 1.3)))
+			draw_polygon(pts, cols)
+
+	## Sparks rising from the fire, flickering out.
+	func _sparks() -> CPUParticles2D:
+		var p := CPUParticles2D.new()
+		p.texture = load(DIR + "mote.png")  # (a soft glowing speck, 32 px)
+		p.amount = 14
+		p.lifetime = 1.3
+		p.preprocess = 1.3
+		p.position = Vector2(0, -14)
+		p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+		p.emission_rect_extents = Vector2(9, 3)
+		p.direction = Vector2(0, -1)
+		p.spread = 22.0
+		p.initial_velocity_min = 22.0
+		p.initial_velocity_max = 48.0
+		p.gravity = Vector2(6, -14)
+		p.scale_amount_min = 0.12
+		p.scale_amount_max = 0.24
+		var fade := Gradient.new()
+		fade.offsets = PackedFloat32Array([0.0, 0.5, 1.0])
+		fade.colors = PackedColorArray([Color(1.0, 0.95, 0.6, 1.0), Color(1.0, 0.55, 0.15, 0.9), Color(0.9, 0.25, 0.05, 0.0)])
+		p.color_ramp = fade
+		var add := CanvasItemMaterial.new()
+		add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		p.material = add
+		return p

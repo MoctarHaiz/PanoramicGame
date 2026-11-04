@@ -7,9 +7,10 @@ opaque one (no dark fringe under filtering and mipmaps). assets/art/hero/hero_fr
 for every animation, its frames: the page, the region, where the world's origin falls (on the
 ground under his hips at rest: the anchor of ground frames) and the projected points of the
 hips, head, toes and hands (airborne frames hang from the hips, hanging ones from the hands).
-Also writes the menu and card pictures (portrait.png, stand_front.png, stand_side.png).
+Also writes the interface pictures (hero_menu.png, hero_win.png, hero_defeat.png) and portrait.png (the
+source of the HUD badge, the icons and the store art: tools/art/ui_art.py, icons.py, tools/store_art.py).
 
-    python3 tools/art/hero_atlas.py [RENDER_DIR]   # default ROOT/_agents/AAA/hero3d/render/game
+    python3 tools/art/hero_atlas.py [RENDER_DIR]   # default ROOT/_agents/AAA/hero3d/render/p4/game
 
 (The AAA hero: rendered by hero_render.py from ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend, see
 ROOT/_agents/AAA/hero3d/render/render_all.sh; the interface pictures come from RENDER_DIR/../render_ui.)
@@ -72,9 +73,10 @@ RIM_DAY = (np.array([1.0, 0.6, 0.24]), 0.55)  ## colour, strength (screen blend)
 RIM_SUNSET = (np.array([1.0, 0.48, 0.12]), 0.75)
 
 
-def sun_rim(arr: np.ndarray, px: float = RIM_PX, rim=RIM_DAY) -> np.ndarray:
+def sun_rim(arr: np.ndarray, px: float = RIM_PX, rim=RIM_DAY, dark: float = 0.22) -> np.ndarray:
     """A thick hot band inside the silhouette, only on the edges that face the sun (the shadow side's
-    edges keep the dark of the form: no pale fringe inside the ink). Applied before inked()."""
+    edges keep the dark of the form: no pale fringe inside the ink). Applied before inked(). `dark`: how
+    much of the band the darkest colours take (his black hair: a faint sheen; 1: all, the dark bandit)."""
     a = arr[..., 3]
     inside = a > 0.5
     if not inside.any():
@@ -89,7 +91,7 @@ def sun_rim(arr: np.ndarray, px: float = RIM_PX, rim=RIM_DAY) -> np.ndarray:
     t = np.clip(1.0 - (d - 0.5) / px, 0.0, 1.0)
     band = (t ** 1.6) * f * inside * rim[1]  # strongest at the edge, a soft fall into the form
     lum = arr[..., :3] @ np.array([0.3, 0.59, 0.11])
-    band = band * (0.22 + 0.78 * np.clip(lum / 0.4, 0.0, 1.0))  # the black hair stays black (a faint warm sheen)
+    band = band * (dark + (1.0 - dark) * np.clip(lum / 0.4, 0.0, 1.0))  # the black hair stays black (a faint warm sheen)
     rgb = arr[..., :3]
     # (pass 3) towards the hot colour, not a screen blend: white fur and boot trim turn warm, never paler
     # ("pale whitish edges, halos"); skin and scarf brighten into it
@@ -291,7 +293,7 @@ def pictures() -> None:
     behind, the warm bounce: tools/art/blender/hero_render.py --light sunset): the menu's hero (full
     length, mid-throw, a ring leaving his hand), the portrait (the same, head to hips, the size the
     menu and cards expect), the win card's cheer, the game over's defeat (down on one knee, a hand
-    on the ground), and the turnaround stands."""
+    on the ground). (Round 9: the turnaround stands, drawn nowhere, are gone.)"""
     ui = RENDER.parent / "render_ui"
     hero = trimmed(ui / "menu_hero/000.png", 1100, sunset=True)
     menu = hero
@@ -316,8 +318,6 @@ def pictures() -> None:
     save(full, "portrait.png", pad=0)
     save(grounded(trimmed(ui / "win_front/000.png", 900, sunset=True), airborne=WIN_AIRBORNE), "hero_win.png")
     save(grounded(trimmed(ui / "defeat/000.png", 640, sunset=True)), "hero_defeat.png")
-    save(trimmed(RENDER / "idle_front/000.png", 640), "stand_front.png")
-    save(trimmed(RENDER / "idle/000.png", 560), "stand_side.png")
 
 
 if __name__ == "__main__":

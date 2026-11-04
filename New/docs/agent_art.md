@@ -351,3 +351,40 @@ win and defeat renders; (6) the studio logo; (7) the null texture on the first b
   scarf. Key art re-keyed: the throw with the chakram up in the dark sky, a side-on victory leap (shadow on the
   ground below), the dazed slump with bigger stars, an orbit trail and a swirl. Atlas 9.08 Mpx; tests
   1023/0. Every pass's packed set: `ROOT/_agents/AAA/hero3d/passes/` (README there).
+
+## Round 9: a bandit that reads as a threat, Red Bobs that read as treasure (the hero kept as pass 4)
+
+- **The bandit, rebuilt in the hero's language.** `hero_render.py --character bandit` now renders from the AAA
+  file (`hero3d/Panoramic_AAA.blend`, headless; the user's window untouched): the hero's regions rebuilt by
+  `hero_toon_aaa.py` (bold cel: two bands, a crisp terminator, inner ink lines) in the raider's flat colours
+  (a material may carry `m["flat"]` and its own `m["rim"]`, `m["rim_k"]`: the hero is unchanged); his hair
+  masked off (a Mask modifier on the vertices only the hair uses) under a hooded cowl with a point at the back,
+  a red mask band with two tails streaming back, big slanted glowing eyes, a heavy studded knobkerrie cocked
+  high behind his head in the run (it crossed his cowl before); the user's full-stride sprint, his lowest foot
+  planted each frame. Dark blue-black skin, torn indigo wraps (the fur's strands and stepped edge), dark leather
+  boots with bronze bands: one red accent at the head.
+- **A cold rim.** `bandit_sheet.py` draws the hero's ink weight on screen (2.8 x 0.543 units) round his outline
+  and, inside it on the sun's side, a cold cyan band as thick as the hero's hot one (`hero_atlas.sun_rim()`,
+  new `dark` argument: the dark cowl takes all of it). BanditView's own shader rim is off (as the hero's).
+- **Sharper, same sheet.** The frames are trimmed and shelf-packed into the same 3200 x 780 sheet (round 8: a
+  16 x 3 grid of mostly empty cells): he stands 214 px in it (was 160), about one texel a pixel on an iPhone 15
+  like the hero. `bandit.json` lists each frame's rectangle and its ground point; BanditView draws a region
+  (`_show()`), turning round the hips when knocked out.
+- **No cartwheel.** The knock-out: frozen on the blow (snapped back, head whipped back), then flung back and up in
+  one shape (back first, arms and legs thrown forward), tilting back to 0.55 rad at most, fading out after
+  0.36 s (gone 0.65 s after the blow, was about a second of a 15 rad/s spin). A leap frame (knees tucked, club
+  high) for hopping a wall and for the vault over Panoramic after the blow (was a run frame tilted 0.5 rad).
+- **Red Bobs as rubies.** `bob_sheet.py` paints each as a cut ruby seen from above: crimson (not tomato
+  orange-red), an octagonal table carrying the face, a brilliant's crown of star, kite and girdle facets in crisp
+  flat tones, the facet mirroring the sun a sharp white triangle, a pin-point glint. `bob_render.py` (the glossy
+  ball) is gone. BobView: a rose glow hugging the gem's edge (additive, breathing), the hot pin-point and the
+  star glint on the sheet's highlight.
+- **QA's art bugs.** ART-1: `render()` updates the view layer before projecting the origin (the win's camera lift
+  was missed: his boots 32 units in the ground through the cheer at home); the win's origin in
+  `hero3d/render/p4/game/win/points.json` moved down by the lift (147.34 px; the old file kept as
+  `points.json.before_r9`), the atlas re-packed: every picture pixel-identical, only the win's origins changed.
+  ART-2: `ui_art.py` makes `ui/head.png` (the HUD's way-home badge, 128 px, the HUD draws its ring) from today's
+  portrait. ART-4: `stand_front.png` and `stand_side.png` removed (drawn nowhere); `portrait.png` kept on purpose
+  (the source of the badge, the icons and the store art). ART-3: the knock-out above.
+- Tests: `_test_art_round9()` (the grounded boots, the sheet's size and frames, the leap frame, the knock-out's
+  tilt and length, the Bob's ruby hue and glow).

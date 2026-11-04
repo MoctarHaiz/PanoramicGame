@@ -43,6 +43,14 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
+## Fills a star's points with a vertical gradient from `top` (its top tip) to `bottom` (its feet).
+func _gradient(pts: PackedVector2Array, c: Vector2, r: float, top: Color, bottom: Color) -> void:
+	var cols := PackedColorArray()
+	for p in pts:
+		cols.append(top.lerp(bottom, clampf((p.y - (c.y - r)) / (r * 1.8), 0.0, 1.0)))
+	draw_polygon(pts, cols)
+
+
 ## The ten corners of a star of outer radius `r` around `c` (points rounded off a little by the
 ## caller's outline).
 static func points(c: Vector2, r: float, inner := 0.52) -> PackedVector2Array:
@@ -61,12 +69,14 @@ func _draw() -> void:
 	var o := maxf(side * 0.06, 2.5)  # outline thickness
 	var c := size / 2 + Vector2(0, side * 0.04)
 	var r := side * 0.5 - o
-	if not lit:  # an empty star: its place in dim, desaturated gold (an outline and a pale inlay),
-		# pressed into the panel (a lit lip below it): still a star, never a dark hole
-		draw_colored_polygon(points(c + Vector2(0, o * 0.8), r + o * 0.5), Color(1, 1, 0.96, 0.6))
-		draw_colored_polygon(points(c, r + o * 0.5), Color("9a7e4c"))
-		draw_colored_polygon(points(c, r - o * 0.6), Color("d8c08a"))
-		draw_colored_polygon(points(c + Vector2(0, o * 0.6), r - o * 1.6), Color("e6d3a2"))
+	if not lit:  # the socket: a gold rim (lit at the top, deeper at the foot) around a dark sunken star
+		draw_colored_polygon(points(c + Vector2(0, o * 0.9), r + o * 0.6, 0.55), Color(1, 0.97, 0.88, 0.55))  # lit lip
+		draw_colored_polygon(points(c, r + o * 0.6, 0.55), RIM)
+		_gradient(points(c, r, 0.53), c, r, Color("ffe68a"), Color("d08a1c"))
+		var hole := points(c, r - o * 1.15, 0.5)
+		_gradient(hole, c, r, Color("1e0c06"), Color("4a2412"))  # deep at the top, a little light at its foot
+		draw_colored_polygon(points(c + Vector2(0, o * 0.75), r - o * 1.75, 0.48), Color("2a1208"))  # shade under its top
+		_gradient(points(c + Vector2(0, o * 0.9), r - o * 2.2, 0.46), c, r, Color("2e140a"), Color("5a2e16"))
 		return
 	# the ink outline (a fatter star), the bevel under the face, then the face
 	draw_colored_polygon(points(c + Vector2(0, o * 0.4), r + o * 0.6, 0.55), RIM)  # a fine warm rim

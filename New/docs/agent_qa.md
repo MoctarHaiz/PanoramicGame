@@ -133,3 +133,20 @@ kept alive by test lambdas that capture them).
 - perf: `--hide=` for A/B. Cel soil layer: no measurable cost (A/B twice); 9-20 ms render-CPU spikes in every run
   under load 10-16. Budgets pass (texture 62-63 MB, own work 13.5-14.2 ms). Pause draw calls 435 -> 273.
 - Tests 1022, 0 failed; quick 775, 0 failed.
+
+## Round 9 (audit of the hero merge, fa1545b)
+
+- Worktree = fa1545b file by file. Tests: 1023 checks, 0 failed with --bot (home, 3 lives, 82 Bobs, 3 stars).
+  Audit 228 captures (6 devices x EN/FR, --ads=off), no error.
+- The home "boots in the dirt band" = hero_render.py render(): the camera is lifted (win: 0.2 m) and the origin
+  projected before the depsgraph updates its matrix: win's origin = the unlifted one (501.32, 858.98), the frames
+  147.3 px lower; in play 32 units into the ground through the cheer, then a pop at the walk-in (strip). Art.
+- NEW BEST stamp: sized from get_combined_minimum_size() outside the tree (141 x 57 placed, 318 x 71 drawn; FR
+  213 -> 489): 66-138 units right of centre, over the frame in FR. New check _results_problems (24 fail). UX.
+- Stale hero pictures: HUD head.png (round 1, 815368b) and the share card's ui/hero_stand.png (round 1); new
+  capture shot `share`. Double contact shadow under win/defeat (GamePanel._shadow + grounded()). Menu hero 11 %
+  smaller (width cap 0.26 with the wider lunge), front boot 9.6 units above the rock.
+- perf.gd --textures=N (pictures in memory per phase, MB from the import settings; RenderingServer's
+  texture_debug_usage isn't exposed to scripts). Perf passes: run 49.9 MB, results 52.6, menu again 58.9; own work
+  6.7-9.1 ms; level open 102-110 ms wall. menu_rock + logo (12.6 MB) stay loaded in play.
+- Outputs: AAA/qa/round_9/ (bugs.md, audit, sheets, crops, strips, share, perf_*).

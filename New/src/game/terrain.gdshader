@@ -65,31 +65,62 @@ void fragment() {
 	// was a noise texture: "a noise box with a glued grass strip")
 	float width = from_left + from_right;
 	float to_rock = smoothstep(-1.0, 1.0, depth - 92.0 - (noise(level_pos.x * 0.013) - 0.5) * 44.0);
-	vec3 c = mix(soil_colour, rock_colour, to_rock);
+	vec3 c = vec3(0.0);
 	float ink = 0.0;
-	// rock: beds of blocks, each its own tone, a lit top face and a shaded underside, ink between
-	// (round 8: wavier beds, of very uneven thickness: it read as a crate)
-	float by = level_pos.y + (noise(level_pos.x * 0.023) - 0.5) * 26.0 + (noise(level_pos.x * 0.07 + 3.0) - 0.5) * 6.0;
-	by += sin(by * 0.045 + 1.3) * 17.0;
-	float bed_i = floor(by / 38.0);
-	float f = fract(by / 38.0);
-	float bw = mix(64.0, 150.0, hash(bed_i + 3.1));
-	float slant = (hash(bed_i + 8.7) - 0.5) * 0.9;  // joints lean, each bed its own way
-	float jx = level_pos.x + hash(bed_i) * 200.0 + f * 38.0 * slant;
-	float g = fract(jx / bw);
-	float tone = hash(floor(jx / bw) * 7.3 + bed_i * 1.7);
+	// round 9: rock in boulder blocks (it read as "a chest of drawers": straight beds, ruled light
+	// bands): blocks of uneven size staggered in wavy beds (a Voronoi of jittered points), each its
+	// own stone colour, rounded by the light (lit upper left, shaded lower right), a lit bevel on
+	// its sun side, a dark one and an ink crack on the other; the wall's light bands follow the
+	// blocks, not a ruler
+	float narrow = 1.0 - step(200.0, width);
+	to_rock = max(to_rock, narrow * smoothstep(-1.0, 1.0, depth - 26.0 - (noise(level_pos.x * 0.05) - 0.5) * 10.0));
+	c = mix(soil_colour, rock_colour, to_rock);
 	float rock_k = to_rock * smoothstep(20.0, 30.0, depth);
-	c *= 1.0 + (tone - 0.5) * 0.24 * rock_k;
-	c *= 1.0 + 0.16 * (1.0 - smoothstep(0.1, 0.16, f)) * rock_k;  // the top face of a bed, lit
-	c *= 1.0 - 0.2 * smoothstep(0.82, 0.88, f) * rock_k;  // its underside, in shade
-	c *= 1.0 + 0.1 * (1.0 - smoothstep(0.0, 9.0 / bw, g)) * rock_k;  // a block's side to the sun, lit
-	c *= 1.0 - 0.12 * smoothstep(1.0 - 12.0 / bw, 1.0 - 6.0 / bw, g) * rock_k;  // its far side, shaded
-	// the crack between two beds, broken (not a ruled line); joints in some beds only, jagged
-	float crack_on = smoothstep(0.32, 0.42, noise(level_pos.x * 0.045 + bed_i * 7.1));
-	ink = max(ink, (1.0 - smoothstep(0.0, 0.045, f)) * rock_k * crack_on);
-	float joints_on = step(0.45, hash(bed_i + 11.3));
-	float gj = fract((jx + (noise(level_pos.y * 0.3 + bed_i) - 0.5) * 6.0) / bw);
-	ink = max(ink, (1.0 - smoothstep(0.0, 1.6 / bw, min(gj, 1.0 - gj))) * rock_k * step(0.12, f) * joints_on);
+	vec2 bsize = vec2(70.0, 30.0);  // (blocks longer than tall, their centres kept near the middle
+	// of their bed: the joints between beds run across in wavy strata, the joints in a bed lean)
+	vec2 rq = level_pos + vec2((noise(level_pos.y * 0.021) - 0.5) * 30.0, (noise(level_pos.x * 0.011) - 0.5) * 26.0);
+	vec2 rp = rq / bsize;
+	vec2 ri = floor(rp);
+	vec2 rf = fract(rp);
+	float f1 = 1e5;
+	float f2 = 1e5;
+	vec2 to_c = vec2(0.0);  // units from this point to its block's centre
+	vec2 bid = vec2(0.0);
+	for (int j = -1; j <= 1; j++) {
+		for (int i = -1; i <= 1; i++) {
+			vec2 g = vec2(float(i), float(j));
+			vec2 id = ri + g;
+			vec2 o = vec2(hash(id.x * 1.71 + id.y * 31.3) * 0.9 + 0.05, hash(id.x * 7.13 + id.y * 13.9 + 5.0) * 0.36 + 0.32);
+			vec2 r = (g + o - rf) * bsize;
+			float d = dot(r, r);
+			if (d < f1) {
+				f2 = f1;
+				f1 = d;
+				to_c = r;
+				bid = id;
+			} else if (d < f2) {
+				f2 = d;
+			}
+		}
+	}
+	float joint = (sqrt(f2) - sqrt(f1)) * 0.5;  // units to the block's edge (about)
+	vec2 sun_dir = vec2(-0.6, -0.8);  // towards the sun: upper left
+	float facing = clamp(dot(-to_c, sun_dir) / 24.0, -1.0, 1.0);  // which side of its block
+	float tone = hash(bid.x * 3.7 + bid.y * 17.1);
+	float bed_tone = hash(bid.y * 5.3 + 1.0);
+	vec3 block = rock_colour;
+	block = mix(block, vec3(0.66, 0.34, 0.23), step(0.62, bed_tone) * 0.7);  // redder beds
+	block = mix(block, vec3(0.84, 0.62, 0.40), step(bed_tone, 0.22) * 0.35);  // paler ones
+	block = mix(block, vec3(0.6, 0.5, 0.5), step(0.86, tone) * 0.5);  // a grey stone here and there
+	block *= 0.9 + tone * 0.2;
+	c = mix(c, block, rock_k);
+	c *= 1.0 + 0.14 * facing * rock_k;  // each block rounded by the light
+	float bevel = 1.0 - smoothstep(1.8, 6.0, joint);
+	c = mix(c, c * (facing > 0.0 ? 1.32 : 0.6), bevel * smoothstep(0.05, 0.5, abs(facing)) * rock_k);
+	float crack_on = smoothstep(0.25, 0.4, noise(level_pos.x * 0.06 + level_pos.y * 0.04 + bid.y * 3.1));
+	ink = max(ink, (1.0 - smoothstep(0.7, 1.5, joint)) * rock_k * mix(0.35, 1.0, crack_on) * step(facing, 0.35));
+	// pits and soft patches in the stone
+	c *= 1.0 - 0.08 * smoothstep(0.6, 0.75, noise2(level_pos * 0.09 + bid * 3.0)) * rock_k;
 	// soil: wavy strata, and stones (dark below, lit on top) here and there
 	float soil_k = (1.0 - to_rock) * smoothstep(14.0, 22.0, depth);
 	float sy = level_pos.y + sin(level_pos.x * 0.03) * 4.0 + noise(level_pos.x * 0.05) * 6.0;
@@ -103,23 +134,37 @@ void fragment() {
 	vec3 stone_c = mix(vec3(0.42, 0.34, 0.33), vec3(0.78, 0.66, 0.56), step(sp.y, -0.04));
 	c = mix(c, stone_c, stone);
 	ink = max(ink, (smoothstep(0.17, 0.2, length(sp)) - smoothstep(0.2, 0.24, length(sp))) * has_stone);
+	// round 9: moss creeping down from under the grass in ragged tongues (the grass sat on the rock
+	// "like cake icing"), and on the sunny top of a block here and there
+	float lip = 18.0 + noise(level_pos.x * 0.09) * 8.0;  // (round 6: deeper, the grass overhangs)
+	float tongue = lip + 2.0 + 24.0 * pow(noise(level_pos.x * 0.05 + 7.0), 2.0) + 6.0 * noise(level_pos.x * 0.31)
+			+ 44.0 * pow(noise(level_pos.x * 0.11 + 3.0), 6.0);
+	float moss = (1.0 - smoothstep(tongue - 1.0, tongue + 1.0, depth)) * step(lip - 2.0, depth) * narrow;
+	vec3 moss_c = mix(vec3(0.24, 0.36, 0.13), vec3(0.42, 0.56, 0.18), step(0.55, noise2(level_pos * vec2(0.08, 0.12))));
+	c = mix(c, moss_c, moss * 0.9);
+	ink = max(ink, (smoothstep(tongue - 1.0, tongue + 0.6, depth) - smoothstep(tongue + 0.6, tongue + 2.2, depth))
+			* step(lip + 4.0, tongue) * 0.6 * narrow);
 	// deeper: a little darker and cooler
 	c *= mix(vec3(1.0), deep_tint, smoothstep(40.0, 260.0, depth) * 0.6);
-	// cel light from the low sun on the left: the lit band, the mid tone, the shade band
-	float lit = 1.0 - smoothstep(0.0, min(40.0, width * 0.36), from_left);
-	float away = 1.0 - smoothstep(0.0, min(56.0, width * 0.5), from_right);
+	// cel light from the low sun on the left: the lit band, the mid tone, the shade band; (round 9)
+	// in rock each block takes the light of its centre, so the bands' edges run along its joints
+	float fl = mix(from_left, max(from_left + to_c.x, 0.0), rock_k);
+	float fr = mix(from_right, max(from_right - to_c.x, 0.0), rock_k);
+	float lit = 1.0 - smoothstep(0.0, min(46.0, width * 0.36) * (1.0 + 0.5 * rock_k * narrow), fl);
+	float away = 1.0 - smoothstep(0.0, min(56.0, width * 0.5) * (1.0 + 0.45 * rock_k * narrow), fr);
 	float below_top = smoothstep(4.0, 30.0, depth);
-	float waver = (noise(level_pos.y * 0.035 + float(cell.x)) - 0.5) * 0.3;  // (round 8: band edges follow the rock)
+	float waver = (noise(level_pos.y * 0.035 + float(cell.x)) - 0.5) * 0.3 * (1.0 - rock_k);  // (round 8: band edges follow the rock)
 	float band_lit = smoothstep(0.45, 0.52, lit + waver) * below_top;
 	float band_shade = smoothstep(0.45, 0.52, away - waver) * below_top;
 	c *= mix(vec3(1.0), sun_tint, band_lit);
 	c *= mix(vec3(1.0), shade_tint * 0.8, band_shade);
-	// under the grass lip: a crisp band of shadow; the foot of a wall darker; a ledge's underside
-	float lip = 18.0 + noise(level_pos.x * 0.09) * 8.0;  // (round 6: deeper, the grass overhangs)
+	c *= 1.0 + narrow * 0.14 * (0.5 - clamp(from_left / max(width, 1.0), 0.0, 1.0)) * below_top;  // a round column
+	// under the grass lip: a crisp band of shadow, then a long soft occlusion (round 9); the foot of a
+	// wall darker; a ledge's underside
 	c *= 1.0 - 0.55 * (1.0 - smoothstep(lip - 1.0, lip + 1.0, depth));
-	c *= 1.0 - 0.18 * (1.0 - smoothstep(lip + 1.0, lip + 9.0, depth));  // (and a soft fall-off under it)
-	if (width < 200.0) {  // a dark contact where a wall meets the ground
-		c *= 1.0 - 0.42 * (1.0 - smoothstep(22.0, 30.0, to_foot)) * smoothstep(30.0, 40.0, depth);
+	c *= 1.0 - 0.3 * exp(-max(depth - lip, 0.0) / 16.0) * step(lip, depth);
+	if (width < 200.0) {  // a dark contact where a wall meets the ground (round 9: a soft gradient)
+		c *= 1.0 - 0.4 * (1.0 - smoothstep(0.0, 48.0, to_foot - 6.0)) * smoothstep(30.0, 40.0, depth);
 	}
 	float to_bottom = 32.0 - mod(level_pos.y, 32.0);
 	c *= 1.0 - 0.38 * (1.0 - smoothstep(9.0, 11.0, to_bottom)) * ledge;

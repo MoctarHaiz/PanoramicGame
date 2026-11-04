@@ -15,11 +15,14 @@ action or a pose for every frame and renders it; the edited scene can be saved a
 The hero comes from ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend (the AAA rebuild of the user's model: welded,
 calmer muscles, the fringe off his eyes, rigid armour, joint smoothing, the scarf's tail and hair on their
 own bones, a cleaned base colour, one material per region, its own actions: see hero3d/AUDIT.md and
-hero3d/render/render_all.sh). The user's ROOT/Making/Animation.blend still renders as before (the bandit).
+hero3d/render/render_all.sh). The bandit renders from the same file (--character bandit, round 9: the hero's
+bold cel regions in his own colours); the user's ROOT/Making/Animation.blend still renders as before.
 
 Usage:
   Blender -b ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend --python tools/art/blender/hero_render.py -- \
       --out DIR [--anims run,jump] [--size 768] [--test] [--save ROOT/_agents/AAA/blender/hero.blend]
+  (the bandit: ... -- --character bandit --out ROOT/_agents/AAA/blender/bandit_r9 --size 1024, then
+  python3 tools/art/bandit_sheet.py)
 """
 import json
 import math
@@ -674,11 +677,32 @@ def anims():
 
 
 # ------------------------------------------------------------------ the bandit (--character bandit)
-# The masked raider, built from the hero's own mesh and rig so he sits in the same light: his
-# picture's light and dark turned to near-black skin and crimson wraps (the normal map keeps every
-# muscle), a red mask band with amber eyes, a black crest, a bone-white club in his near hand:
-# dark and saturated, he reads on the yellow-green grass and is never mistaken for Panoramic. Rendered from the other side
-# (he runs left, at Panoramic).
+# The masked raider, built from the hero's own mesh and rig so he sits in the same light. Round 9 ("an indigo
+# blob mid-cartwheel, unreadable as a threat"): rendered from the AAA file in the hero's bold cel language (his
+# regions rebuilt by hero_toon_aaa.py in the raider's flat colours, the same inner ink), his hair taken off
+# under a hooded mask: a round dark cowl, a red band at the eyes with two tails streaming back, slanted
+# glowing eyes, a heavy studded club raised over his shoulder, and a cold cyan rim on the sun's side (the
+# hero's is hot orange): a dark, simple silhouette with one red accent, never mistaken for Panoramic.
+# Rendered from the other side (he runs left, at Panoramic). The user's file still renders the round 8 colours.
+
+
+def _lin(*c):
+    """sRGB -> linear (the toon materials are emissions: their colours are linear)."""
+    return tuple(((x + 0.055) / 1.055) ** 2.4 if x > 0.04045 else x / 12.92 for x in c)
+
+
+BANDIT_ALBEDO = {  # the AAA regions in the raider's colours (sRGB; flat, no texture)
+    "skin": (0.2, 0.17, 0.27), "face": (0.2, 0.17, 0.27), "hand": (0.2, 0.17, 0.27),
+    "hair": (0.1, 0.09, 0.14), "eye": (0.1, 0.09, 0.14),
+    "fur": (0.33, 0.29, 0.62),  # the wraps: torn indigo cloth (the fur's strands and stepped edge kept)
+    "scarf": (0.2, 0.17, 0.27),  # the scarf: as dark as his skin (the red is the mask's alone)
+    "armour_blue": (0.22, 0.18, 0.24), "armour_silver": (0.62, 0.46, 0.27),  # dark leather, dull bronze
+    "belt": (0.32, 0.2, 0.13),
+}
+BANDIT_PROPS_ALBEDO = {"hood": (0.24, 0.21, 0.4), "band": (0.92, 0.12, 0.1), "club": (0.88, 0.8, 0.64)}
+BANDIT_RIM = (0.35, 0.95, 1.0)  ## sRGB: his cold rim on the sun side (the hero's is hot orange)
+BANDIT_RIM_K = 0.35  ## (in 3D a light touch: bandit_sheet.py draws the strong band round his outline)
+
 
 def _material(name, colour, rough=0.7, emit=None, strength=0.0):
     m = bpy.data.materials.new(name)
@@ -690,6 +714,32 @@ def _material(name, colour, rough=0.7, emit=None, strength=0.0):
         b.inputs["Emission Color"].default_value = (*emit, 1.0)
         b.inputs["Emission Strength"].default_value = strength
     return m
+
+
+def _toon_prop(name, region, srgb):
+    """A prop's material for the AAA cel shading (hero_toon_aaa.py builds it): a region's bands, a flat colour."""
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    m["toon"] = region
+    m["flat"] = _lin(*srgb)
+    m["rim"] = _lin(*BANDIT_RIM)
+    m["rim_k"] = BANDIT_RIM_K
+    m["aaa_base"] = "AAA_albedo"  # (no picture: the flat colour)
+    m["aaa_normal"] = ""
+    return m
+
+
+def _basis(x, z, y=None):
+    """A rotation (Euler) whose local z is `z` and local x is as close to `x` as it can be (or local y given)."""
+    z = Vector(z).normalized()
+    if y is not None:
+        y = Vector(y).normalized()
+        x = y.cross(z).normalized()
+        y = z.cross(x)
+    else:
+        x = (Vector(x) - z * Vector(x).dot(z)).normalized()
+        y = z.cross(x)
+    return Matrix((x, y, z)).transposed().to_euler()
 
 
 def _attach(ob, bone):
@@ -710,7 +760,15 @@ def bone_world(name, end="head"):
 BANDIT_PROPS = []
 
 
-def make_bandit():
+def _smooth(ob):
+    bpy.ops.object.select_all(action="DESELECT")
+    ob.select_set(True)
+    bpy.context.view_layer.objects.active = ob
+    bpy.ops.object.shade_smooth()
+
+
+def _bandit_colours_user():
+    """The user's file (round 8): his picture's light and dark mapped to blue-black skin and indigo wraps."""
     for m in MESH.data.materials:
         nodes, links = m.node_tree.nodes, m.node_tree.links
         bsdf = next(n for n in nodes if n.type == "BSDF_PRINCIPLED")
@@ -719,63 +777,140 @@ def make_bandit():
         ramp = nodes.new("ShaderNodeValToRGB")
         el = ramp.color_ramp.elements
         el[0].position, el[0].color = 0.05, (0.03, 0.015, 0.03, 1)
-        el[1].position, el[1].color = 0.72, (0.16, 0.2, 0.75, 1)  # the wraps: deep indigo (round 7: the
-        # UI's beadwork indigo, against the yellow-olive ground; orange-brown blended into it)
+        el[1].position, el[1].color = 0.72, (0.16, 0.2, 0.75, 1)  # the wraps: deep indigo
         mid = el.new(0.3)
         mid.color = (0.05, 0.04, 0.09, 1)  # the skin: blue-black
         links.new(tex.outputs["Color"], bw.inputs["Color"])
         links.new(bw.outputs["Val"], ramp.inputs["Fac"])
         links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
         bsdf.inputs["Roughness"].default_value = 0.62
+
+
+def _bandit_colours_aaa():
+    """The AAA file: every region in the raider's flat colour and cold rim; the hair masked off (the cowl
+    covers his head: only the vertices no other region uses go)."""
+    hair = None
+    for i, m in enumerate(MESH.data.materials):
+        region = m.get("toon")
+        m["flat"] = _lin(*BANDIT_ALBEDO[region])
+        m["rim"] = _lin(*BANDIT_RIM)
+        m["rim_k"] = BANDIT_RIM_K
+        if region == "hair":
+            hair = i
+    me = MESH.data
+    mi = np.empty(len(me.polygons), np.int32)
+    me.polygons.foreach_get("material_index", mi)
+    total = np.empty(len(me.polygons), np.int32)
+    me.polygons.foreach_get("loop_total", total)
+    vi = np.empty(len(me.loops), np.int32)
+    me.loops.foreach_get("vertex_index", vi)
+    of_loop = np.repeat(mi, total)
+    keep = np.zeros(len(me.vertices), bool)
+    keep[vi[of_loop != hair]] = True
+    vg = MESH.vertex_groups.new(name="bandit_keep")
+    vg.add(np.nonzero(keep)[0].tolist(), 1.0, "REPLACE")
+    md = MESH.modifiers.new("BanditNoHair", "MASK")
+    md.vertex_group = vg.name
+    print("BANDIT hair masked:", int((~keep).sum()), "vertices")
+
+
+def make_bandit():
+    if AAA:
+        _bandit_colours_aaa()
+    else:
+        _bandit_colours_user()
     apply(sample("idle", 1))
     head = bone_world("Head")
     top = bone_world("HeadTop_End")
     up = (top - head).normalized()
     size = (top - head).length
-    # a mask: a dark band of cloth round his head at the eyes, amber eyes glowing through it
-    eyes_at = head + up * size * 0.5 + Vector((0.0, -0.01, 0.0))
-    bpy.ops.mesh.primitive_cylinder_add(radius=size * 0.52, depth=size * 0.24, location=eyes_at, vertices=48)
+    fwd = Vector((0.0, -1.0, 0.0))  # he faces -y
+    fwd = (fwd - up * fwd.dot(up)).normalized()  # (the head's own frame: it leans a little at rest)
+    side = up.cross(fwd).normalized()  # his left: towards the other-side camera
+    centre = head + up * size * 0.5 + fwd * size * 0.06
+    rot = _basis(side, up)  # the head's frame: x across, y back, z up
+    hood_m = _toon_prop("BanditHood", "scarf", BANDIT_PROPS_ALBEDO["hood"]) if AAA else _material("Hood", (0.05, 0.04, 0.12), 0.6)
+    band_m = _toon_prop("BanditBand", "scarf", BANDIT_PROPS_ALBEDO["band"]) if AAA else _material("Mask", (0.95, 0.04, 0.03), 0.5)
+    # the cowl: a round hood over his whole head (the hair masked off), a little egg-shaped, a soft peak at the back
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=size * 0.6, location=centre, segments=48, ring_count=24)
+    hood = bpy.context.object
+    hood.rotation_euler = rot
+    hood.scale = (0.9, 1.04, 1.06)
+    hood.data.materials.append(hood_m)
+    back_up = (up * 0.3 - fwd).normalized()  # the cowl's point: back and a little up (a hood, not a ball)
+    bpy.ops.mesh.primitive_cone_add(radius1=size * 0.34, depth=size * 0.75, vertices=32,
+                                    location=centre + back_up * size * 0.58)
+    peak = bpy.context.object
+    peak.rotation_euler = _basis(side, back_up)
+    peak.data.materials.append(hood_m)
+    # the mask: a red band round the cowl at the eyes, knotted at the back with two tails streaming back
+    eyes_at = centre + up * size * 0.06
+    bpy.ops.mesh.primitive_cylinder_add(radius=size * 0.6, depth=size * 0.2, location=eyes_at, vertices=48)
     band = bpy.context.object
-    band.scale = (0.95, 1.12, 1.0)
-    bpy.ops.object.shade_smooth()
-    band.data.materials.append(_material("Mask", (0.95, 0.04, 0.03), 0.5))  # his signature: a red mask band
-    eye_mat = _material("Eyes", (1.0, 0.6, 0.1), 0.3, (1.0, 0.62, 0.12), 16.0)
-    parts = [band]
-    for side in (-1.0, 1.0):
-        bpy.ops.mesh.primitive_uv_sphere_add(radius=size * 0.075, location=eyes_at + Vector((side * size * 0.2, -size * 0.58, 0.0)))
+    band.rotation_euler = rot
+    band.scale = (0.93, 1.07, 1.0)
+    band.data.materials.append(band_m)
+    parts = [hood, peak, band]
+    for k, (length, lift) in enumerate(((size * 1.15, 0.38), (size * 0.9, 0.05))):
+        bpy.ops.mesh.primitive_cone_add(radius1=size * 0.13, radius2=size * 0.03, depth=length, vertices=4)
+        tail = bpy.context.object
+        d = (-fwd + up * lift).normalized()
+        tail.rotation_euler = _basis(side, d)
+        tail.scale = (0.3, 1.0, 1.0)  # a flat ribbon, broad to the camera
+        tail.location = eyes_at - fwd * size * 0.55 + d * length * 0.5 + side * size * (0.04 - 0.08 * k)
+        tail.data.materials.append(band_m)
+        parts.append(tail)
+    # slanted glowing eyes on the band, on its front quarters (he is seen in profile: the near one shows)
+    eye_mat = bpy.data.materials.new("Eyes")
+    eye_mat.use_nodes = True
+    nt = eye_mat.node_tree
+    for n in list(nt.nodes):
+        if n.type != "OUTPUT_MATERIAL":
+            nt.nodes.remove(n)
+    em = _node(nt, "ShaderNodeEmission", Color=(*_lin(1.0, 0.93, 0.45), 1), Strength=1.0)
+    nt.links.new(em.outputs[0], next(n for n in nt.nodes if n.type == "OUTPUT_MATERIAL").inputs["Surface"])
+    for sgn in (-1.0, 1.0):
+        a = math.radians(42)
+        n = (fwd * math.cos(a) + side * sgn * math.sin(a)).normalized()
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=size * 0.11, location=eyes_at + n * size * 0.6)  # (big: they read in play)
         eye = bpy.context.object
-        eye.scale = (1.5, 0.6, 0.65)
+        tangent = up.cross(n).normalized()
+        eye.rotation_euler = (Matrix.Rotation(sgn * math.radians(18), 3, n) @ _basis(tangent, up, n).to_matrix()).to_euler()
+        eye.scale = (1.6, 0.6, 0.55)  # long across the band, thin
         eye.data.materials.append(eye_mat)
         parts.append(eye)
-    # a teal crest standing out of his hair
-    bpy.ops.mesh.primitive_cone_add(radius1=size * 0.14, depth=size * 0.9, location=top + up * size * 0.15 + Vector((0.0, size * 0.1, 0.0)))
-    crest = bpy.context.object
-    crest.rotation_euler = (math.radians(-25), 0, 0)
-    crest.data.materials.append(_material("Crest", (0.02, 0.02, 0.02), 0.5))
-    parts.append(crest)
     for ob in parts:
+        _smooth(ob)
         _attach(ob, "Head")
-    # the club, in the hand nearer the other-side camera (his left), carried on from his forearm
+    # the club, in the hand nearer the other-side camera (his left), carried on from his forearm: a heavy
+    # knobkerrie, the knob studded (a weapon at phone size, not a bone)
     apply(sample("run", 1))
     hand = bone_world("LeftHand")
     shaft = (bone_world("LeftHand", "tail") - bone_world("LeftForeArm")).normalized()
-    length = 0.38
-    bpy.ops.mesh.primitive_cylinder_add(radius=0.02, depth=length, location=hand + shaft * length * 0.5)
+    length = 0.36
+    bpy.ops.mesh.primitive_cone_add(radius1=0.019, radius2=0.03, depth=length, vertices=24, location=hand + shaft * length * 0.45)
     club = bpy.context.object
     club.rotation_euler = shaft.to_track_quat("Z", "Y").to_euler()
-    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.045, location=hand + shaft * length * 0.95)
+    knob_at = hand + shaft * length * 0.95
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.062, location=knob_at, segments=32, ring_count=16)
     knob = bpy.context.object
-    knob.scale = (1.0, 1.0, 1.3)
+    knob.scale = (1.0, 1.0, 1.15)
     knob.rotation_euler = club.rotation_euler
-    wood = _material("Club", (0.85, 0.8, 0.68), 0.45)  # bone-white: it reads against the grass
-    for ob in (club, knob):
-        bpy.ops.object.select_all(action="DESELECT")
-        ob.select_set(True)
-        bpy.context.view_layer.objects.active = ob
-        bpy.ops.object.shade_smooth()
+    pieces = [club, knob]
+    q = shaft.to_track_quat("Z", "Y")
+    for k in range(7):  # studs round the knob and one on its crown
+        a = k * math.tau / 6.0
+        d = (q @ Vector((math.cos(a), math.sin(a), 0.25)).normalized()) if k < 6 else shaft
+        bpy.ops.mesh.primitive_cone_add(radius1=0.02, depth=0.05, vertices=12, location=knob_at + d * 0.064)
+        stud = bpy.context.object
+        stud.rotation_euler = d.to_track_quat("Z", "Y").to_euler()
+        pieces.append(stud)
+    wood = _toon_prop("BanditClub", "belt", BANDIT_PROPS_ALBEDO["club"]) if AAA else _material("Club", (0.85, 0.8, 0.68), 0.45)
+    for ob in pieces:
+        _smooth(ob)
         ob.data.materials.append(wood)
         _attach(ob, "LeftHand")
-    BANDIT_PROPS.extend([club, knob])
+    BANDIT_PROPS.extend(pieces)
 
 
 def club_visible(on):
@@ -783,14 +918,21 @@ def club_visible(on):
         ob.hide_render = not on
 
 
+def bandit_run(frame):
+    """The user's sprint (full stride: the bandits run 291 units/s against the ground), his lowest foot on the
+    ground (its hips' root motion is muted)."""
+    apply(sample("user_run" if AAA else "run", frame))
+    plant(0.0)
+
+
 def run_full(i):
-    """The user's run at full stride (the bandits run 291 units/s against the ground), the club raised
-    over his shoulder (round 6: a bigger, readable threat silhouette)."""
-    apply(sample("run", 1 + i))
+    """The run, the club raised over his shoulder (round 6: a bigger, readable threat silhouette)."""
+    bandit_run(1 + i)
     turn("Spine", -7)  # (round 8: less crouched, a taller silhouette)
     turn("Spine1", -4)
-    aim("LeftArm", 0.35, 0.5, -0.3)
-    aim("LeftForeArm", -0.55, 0.85, -0.1)  # the club over his shoulder, angled back
+    # the club cocked high behind his head, ready to strike (round 9: the arm no longer crosses the cowl)
+    aim("LeftArm", -0.5, 0.55, -0.35)
+    aim("LeftForeArm", -0.62, 0.78, -0.1)  # (the knob up behind his head, inside the sheet's cell)
     club_visible(True)
 
 
@@ -810,8 +952,8 @@ def pose_swing(i):
     if i < 4:
         k = (i + 1) / 4.0
         turn("Spine", -8 * k)
-        aim("LeftArm", 0.2 - 0.7 * k, 0.6 + 0.4 * k, -0.3)
-        aim("LeftForeArm", -0.2 - 0.6 * k, 1.0 - 0.3 * k, -0.1)
+        aim("LeftArm", -0.5 - 0.15 * k, 0.55 + 0.25 * k, -0.35)  # (from the run's cocked club)
+        aim("LeftForeArm", -0.62 - 0.3 * k, 0.78 - 0.35 * k, -0.1)
     elif i < 6:
         k = (i - 3) / 2.0
         turn("Spine", 10 * k)
@@ -824,11 +966,49 @@ def pose_swing(i):
 
 
 def pose_bandit_ko(k):
+    """Knocked out (round 9: no cartwheel; one readable shape): 0 the blow, snapped back, head whipped back;
+    1 flung back through the air, a C opening towards the ring: back first, head back, arms and legs
+    thrown forward."""
     club_visible(False)  # it flies off on its own (club.png)
-    if k == 0:  # the blow: snapped back
-        pose_hurt(0.2)
-    else:  # tumbling, curled
-        apply(sample("jump", 12))
+    if k == 0:
+        bandit_run(3)
+        turn("Spine", -22)
+        turn("Spine1", -12)
+        turn("Neck", -16)
+        turn("Head", -18)
+        aim("RightArm", 0.75, 0.6, 0.3)
+        aim("RightForeArm", 0.55, 0.85)
+        aim("LeftArm", 0.55, 0.75, -0.3)
+        aim("LeftForeArm", 0.4, 0.95)
+        aim("RightUpLeg", 0.55, -0.85)
+        aim("RightLeg", 0.2, -1.0)
+        plant(0.0)
+    else:
+        apply(sample("idle", 1))
+        turn("Spine", -26)
+        turn("Spine1", -16)
+        turn("Neck", -18)
+        turn("Head", -20)
+        aim("RightArm", 0.95, 0.45, 0.35)
+        aim("RightForeArm", 0.9, 0.55)
+        aim("RightHand", 0.9, 0.4)
+        aim("LeftArm", 0.8, 0.75, -0.35)
+        aim("LeftForeArm", 0.65, 0.85)
+        aim("RightUpLeg", 0.95, -0.4, 0.1)
+        aim("RightLeg", 0.85, -0.6)
+        aim("LeftUpLeg", 0.6, -0.8, -0.1)
+        aim("LeftLeg", 0.15, -1.0)
+        aim("LeftFoot", 0.9, -0.3)
+        aim("RightFoot", 1.0, 0.1)
+
+
+def pose_leap():
+    """Leaping (over a wall, over Panoramic once he has struck): knees tucked, the club raised high."""
+    apply(sample("jump", 12))
+    turn("Spine", 8)
+    aim("LeftArm", 0.25, 0.95, -0.3)
+    aim("LeftForeArm", -0.35, 0.95, -0.1)
+    club_visible(True)
 
 
 def pose_wait(k):
@@ -857,6 +1037,7 @@ def bandit_anims():
     out["b_ko"] = ("other_side", [lambda k=k: pose_bandit_ko(k) for k in range(2)])
     out["b_wait"] = ("other_side", [lambda k=k: pose_wait(k) for k in range(2)])
     out["b_swing"] = ("other_side", [lambda i=i: pose_swing(i) for i in range(8)])
+    out["b_leap"] = ("other_side", [lambda: pose_leap()])
     out["b_club"] = ("other_side", [lambda: club_alone()])
     return out
 
@@ -1298,7 +1479,7 @@ def toon_setup():
             # round 8: no ink hull on Panoramic's body: on his carved muscles it drew fine lines over
             # the skin that read as grime at phone size; his outer ink comes from hero_atlas.py's
             # inked(). The bandit (dark skin, the lines don't show) and the props keep theirs.
-            if ob != MESH or arg("--character") == "bandit":
+            if ob != MESH or (arg("--character") == "bandit" and not AAA):
                 ink_hull(ob, INK_WIDTH if ob == MESH else INK_WIDTH * 0.6)
     if AAA:  # the props hidden until their pose (the chakram) get their shading too
         _aaa_toon().build_all(bpy.data.objects, mode)
@@ -1344,6 +1525,9 @@ def render(name, view, frames, lift=0.0, tilt=0.0):
     bpy.data.objects["LightRig"].rotation_euler.z = math.radians({"side": 0.0, "front": 90.0, "other_side": 180.0}[view])
     base_z = 0.471
     SC.camera.location.z = base_z + lift
+    # New (round 9, QA ART-1): the camera's matrix follows its new height and tilt only after an update; the
+    # origin was projected from the unlifted camera (the win's 0.2 m: 147 px, his boots 32 units in the ground)
+    bpy.context.view_layer.update()
     folder = os.path.join(OUT, name)
     os.makedirs(folder, exist_ok=True)
     # where the world's origin (on the ground, under his hips at rest) falls in the picture

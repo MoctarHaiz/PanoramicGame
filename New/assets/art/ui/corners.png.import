@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ih7dti4ud861"
-path="res://.godot/imported/stand_side.png-173bd0911b8e5015115b253024b7fb56.ctex"
+uid="uid://l71tu0tfbb8"
+path="res://.godot/imported/corners.png-30da92218013e88237e06207c83e7d13.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/art/hero/stand_side.png"
-dest_files=["res://.godot/imported/stand_side.png-173bd0911b8e5015115b253024b7fb56.ctex"]
+source_file="res://assets/art/ui/corners.png"
+dest_files=["res://.godot/imported/corners.png-30da92218013e88237e06207c83e7d13.ctex"]
 
 [params]
 
@@ -23,7 +23,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=true
+mipmaps/generate=false
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

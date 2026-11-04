@@ -19,6 +19,8 @@ extends Node
 ## HUD gone), pause, resume (the countdown after Resume),
 ## gameover (caught), fell (game over by a fall), win (these three once the panel's reveal is over:
 ## the stars, the count, the new best), settings, settings_end (scrolled to the bottom).
+## Not in the default list: share (the 1200 x 630 picture a player shares, ShareCard: the same on
+## every device).
 
 ## Screen size (landscape) and safe-area margins (left, top, right, bottom) in device pixels.
 const DEVICES := {
@@ -120,6 +122,7 @@ func _capture(device: String, shot: String) -> void:
 	Nav.custom_viewport = vp
 	Nav.attach(host)
 	var banner: CanvasLayer = _fake_banner(vp, design) if Device.banner_height > 0 else null
+	var picture: Image = null  # a shot that is not the screen (share)
 
 	match shot:
 		"boot":
@@ -211,10 +214,13 @@ func _capture(device: String, shot: String) -> void:
 			for s: ScrollContainer in Nav.current.find_children("*", "ScrollContainer", true, false):
 				s.scroll_vertical = 100000
 			await _wait(0.3)
+		"share":  # the card of a three-star run home, as the share button makes it
+			await get_tree().process_frame  # (not while the tree sets up the first scene: as after a tap)
+			picture = await ShareCard.render(82, 3)
 	if banner:  # only where the game asks for one (not during play: [ads] banner_in_play)
 		banner.visible = Services.ads.get(&"_banner_wanted") != false
 	_draw_now()
-	_save(vp.get_texture().get_image(), device, shot)
+	_save(picture if picture else vp.get_texture().get_image(), device, shot)
 	if Nav.current:
 		Nav.current.queue_free()
 	Nav.reset()

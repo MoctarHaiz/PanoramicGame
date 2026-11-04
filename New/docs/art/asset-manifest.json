@@ -4,7 +4,7 @@
  "assets": [
   {
    "id": "bandit-bandit",
-   "role": "masked raider sheet (run, dazed run, knock-out, waiting, the club's swing) and its club: the hero's 3D mesh and rig retextured and rendered in his light",
+   "role": "masked raider sheet (run, dazed run, knock-out, waiting, the club's swing, the leap) and its studded club: the AAA hero's 3D mesh and rig in his bold cel look, a hooded cowl, a red mask band, a cold cyan rim",
    "path": "assets/art/bandit/bandit.png",
    "status": "approved",
    "technical": {
@@ -21,10 +21,10 @@
    ],
    "source": {
     "kind": "authored-procedural",
-    "url_or_tool": "tools/art/blender/hero_render.py --character bandit + tools/art/bandit_sheet.py (Blender)",
+    "url_or_tool": "tools/art/blender/hero_render.py --character bandit (ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend) + tools/art/bandit_sheet.py (Blender)",
     "creator": "Claude for Haiz Studio",
     "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/blender/hero_render.py --character bandit + tools/art/bandit_sheet.py (Blender)",
+    "prompt_or_source_record": "tools/art/blender/hero_render.py --character bandit (ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend) + tools/art/bandit_sheet.py (Blender)",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -38,11 +38,11 @@
   },
   {
    "id": "bandit-club",
-   "role": "masked raider sheet (run, dazed run, knock-out, waiting, the club's swing) and its club: the hero's 3D mesh and rig retextured and rendered in his light",
+   "role": "masked raider sheet (run, dazed run, knock-out, waiting, the club's swing, the leap) and its studded club: the AAA hero's 3D mesh and rig in his bold cel look, a hooded cowl, a red mask band, a cold cyan rim",
    "path": "assets/art/bandit/club.png",
    "status": "approved",
    "technical": {
-    "dimensions": "59x55",
+    "dimensions": "86x71",
     "alpha": true,
     "anchor": "bottom-centre at the boots",
     "frames": null,
@@ -55,10 +55,10 @@
    ],
    "source": {
     "kind": "authored-procedural",
-    "url_or_tool": "tools/art/blender/hero_render.py --character bandit + tools/art/bandit_sheet.py (Blender)",
+    "url_or_tool": "tools/art/blender/hero_render.py --character bandit (ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend) + tools/art/bandit_sheet.py (Blender)",
     "creator": "Claude for Haiz Studio",
     "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/blender/hero_render.py --character bandit + tools/art/bandit_sheet.py (Blender)",
+    "prompt_or_source_record": "tools/art/blender/hero_render.py --character bandit (ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend) + tools/art/bandit_sheet.py (Blender)",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -72,7 +72,7 @@
   },
   {
    "id": "bob-bob",
-   "role": "Red Bob collectible faces (smile, blink, joy, wink): a 3D glossy ball in the hero's light with the 2017 face drawn on",
+   "role": "Red Bob collectible faces (smile, blink, joy, wink): a translucent ruby painted in crisp cel shapes with the 2017 face drawn on",
    "path": "assets/art/bob/bob.png",
    "status": "approved",
    "technical": {
@@ -88,10 +88,10 @@
    ],
    "source": {
     "kind": "authored-procedural",
-    "url_or_tool": "tools/art/blender/bob_render.py + tools/art/bob_sheet.py (Blender)",
+    "url_or_tool": "tools/art/bob_sheet.py (numpy)",
     "creator": "Claude for Haiz Studio",
     "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/blender/bob_render.py + tools/art/bob_sheet.py (Blender)",
+    "prompt_or_source_record": "tools/art/bob_sheet.py (numpy)",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -174,7 +174,7 @@
    "path": "assets/art/hero/hero_atlas_0.png",
    "status": "approved",
    "technical": {
-    "dimensions": "2048x2048",
+    "dimensions": "2044x2044",
     "alpha": true,
     "anchor": "per hero_frames.json (ground origin / hips / hands)",
     "frames": null,
@@ -189,10 +189,10 @@
    ],
    "source": {
     "kind": "user-generated",
-    "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rendered by tools/art/blender/hero_render.py",
+    "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rebuilt for AAA in ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend (same identity: cleaned mesh, weights, textures, new actions; see hero3d/AUDIT.md), rendered by tools/art/blender/hero_render.py",
     "creator": "Haiz Studio",
     "license": "owned by Haiz Studio",
-    "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx",
+    "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx; ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -210,7 +210,7 @@
    "path": "assets/art/hero/hero_atlas_1.png",
    "status": "approved",
    "technical": {
-    "dimensions": "2048x1964",
+    "dimensions": "2048x2048",
     "alpha": true,
     "anchor": "per hero_frames.json (ground origin / hips / hands)",
     "frames": null,
@@ -225,10 +225,10 @@
    ],
    "source": {
     "kind": "user-generated",
-    "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rendered by tools/art/blender/hero_render.py",
+    "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rebuilt for AAA in ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend (same identity: cleaned mesh, weights, textures, new actions; see hero3d/AUDIT.md), rendered by tools/art/blender/hero_render.py",
     "creator": "Haiz Studio",
     "license": "owned by Haiz Studio",
-    "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx",
+    "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx; ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -246,7 +246,7 @@
    "path": "assets/art/hero/hero_atlas_2.png",
    "status": "approved",
    "technical": {
-    "dimensions": "2004x528",
+    "dimensions": "1864x344",
     "alpha": true,
     "anchor": "per hero_frames.json (ground origin / hips / hands)",
     "frames": null,
@@ -261,10 +261,10 @@
    ],
    "source": {
     "kind": "user-generated",
-    "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rendered by tools/art/blender/hero_render.py",
+    "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rebuilt for AAA in ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend (same identity: cleaned mesh, weights, textures, new actions; see hero3d/AUDIT.md), rendered by tools/art/blender/hero_render.py",
     "creator": "Haiz Studio",
     "license": "owned by Haiz Studio",
-    "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx",
+    "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx; ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -282,7 +282,7 @@
    "path": "assets/art/hero/hero_defeat.png",
    "status": "approved",
    "technical": {
-    "dimensions": "625x696",
+    "dimensions": "728x702",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -294,10 +294,10 @@
    ],
    "source": {
     "kind": "user-generated",
-    "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rendered by tools/art/blender/hero_render.py",
+    "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rebuilt for AAA in ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend (same identity: cleaned mesh, weights, textures, new actions; see hero3d/AUDIT.md), rendered by tools/art/blender/hero_render.py",
     "creator": "Haiz Studio",
     "license": "owned by Haiz Studio",
-    "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx",
+    "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx; ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -315,7 +315,7 @@
    "path": "assets/art/hero/hero_menu.png",
    "status": "approved",
    "technical": {
-    "dimensions": "667x903",
+    "dimensions": "710x856",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -327,10 +327,10 @@
    ],
    "source": {
     "kind": "user-generated",
-    "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rendered by tools/art/blender/hero_render.py",
+    "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rebuilt for AAA in ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend (same identity: cleaned mesh, weights, textures, new actions; see hero3d/AUDIT.md), rendered by tools/art/blender/hero_render.py",
     "creator": "Haiz Studio",
     "license": "owned by Haiz Studio",
-    "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx",
+    "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx; ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -348,7 +348,7 @@
    "path": "assets/art/hero/hero_win.png",
    "status": "approved",
    "technical": {
-    "dimensions": "362x969",
+    "dimensions": "400x1014",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -360,10 +360,10 @@
    ],
    "source": {
     "kind": "user-generated",
-    "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rendered by tools/art/blender/hero_render.py",
+    "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rebuilt for AAA in ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend (same identity: cleaned mesh, weights, textures, new actions; see hero3d/AUDIT.md), rendered by tools/art/blender/hero_render.py",
     "creator": "Haiz Studio",
     "license": "owned by Haiz Studio",
-    "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx",
+    "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx; ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -393,76 +393,10 @@
    ],
    "source": {
     "kind": "user-generated",
-    "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rendered by tools/art/blender/hero_render.py",
+    "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rebuilt for AAA in ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend (same identity: cleaned mesh, weights, textures, new actions; see hero3d/AUDIT.md), rendered by tools/art/blender/hero_render.py",
     "creator": "Haiz Studio",
     "license": "owned by Haiz Studio",
-    "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx",
-    "created_at": "2026-10-30",
-    "attribution": ""
-   },
-   "verification": {
-    "native_scale_reviewed": true,
-    "in_engine_reviewed": true,
-    "technical_checks_passed": true,
-    "approved_by": "",
-    "notes": ""
-   }
-  },
-  {
-   "id": "hero-stand_front",
-   "role": "Panoramic for the interface (portrait, full-length menu hero, win pose, stands): renders of the user's 3D model (tools/art/hero_atlas.py)",
-   "path": "assets/art/hero/stand_front.png",
-   "status": "approved",
-   "technical": {
-    "dimensions": "282x664",
-    "alpha": true,
-    "anchor": "bottom-centre",
-    "frames": null,
-    "filtering": "linear"
-   },
-   "visual_locks": [
-    "identity",
-    "palette"
-   ],
-   "source": {
-    "kind": "user-generated",
-    "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rendered by tools/art/blender/hero_render.py",
-    "creator": "Haiz Studio",
-    "license": "owned by Haiz Studio",
-    "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx",
-    "created_at": "2026-10-30",
-    "attribution": ""
-   },
-   "verification": {
-    "native_scale_reviewed": true,
-    "in_engine_reviewed": true,
-    "technical_checks_passed": true,
-    "approved_by": "",
-    "notes": ""
-   }
-  },
-  {
-   "id": "hero-stand_side",
-   "role": "Panoramic for the interface (portrait, full-length menu hero, win pose, stands): renders of the user's 3D model (tools/art/hero_atlas.py)",
-   "path": "assets/art/hero/stand_side.png",
-   "status": "approved",
-   "technical": {
-    "dimensions": "318x584",
-    "alpha": true,
-    "anchor": "bottom-centre",
-    "frames": null,
-    "filtering": "linear"
-   },
-   "visual_locks": [
-    "identity",
-    "palette"
-   ],
-   "source": {
-    "kind": "user-generated",
-    "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rendered by tools/art/blender/hero_render.py",
-    "creator": "Haiz Studio",
-    "license": "owned by Haiz Studio",
-    "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx",
+    "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx; ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -738,6 +672,39 @@
    }
   },
   {
+   "id": "ui-corners",
+   "role": "the panels' corner brackets (brass with a red bead, iron with a slate one; arms ending in assegai blades)",
+   "path": "assets/art/ui/corners.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "600x600",
+    "alpha": true,
+    "anchor": "a card's corner at (6, 6) units of each cell",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette",
+    "light-direction"
+   ],
+   "source": {
+    "kind": "authored-procedural",
+    "url_or_tool": "tools/art/ui_kit.py",
+    "creator": "Claude for Haiz Studio",
+    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
+    "prompt_or_source_record": "tools/art/ui_kit.py",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
    "id": "ui-head",
    "role": "Panoramic's face in a disc (the HUD's way home), from the user's 3D render",
    "path": "assets/art/ui/head.png",
@@ -838,11 +805,11 @@
   },
   {
    "id": "ui-logo",
-   "role": "CHAKA ZULU logo: bevelled gold letters over a Zulu shield, its stick and an assegai",
+   "role": "CHAKA ZULU logo: letters drawn for it (chiselled polished gold, an assegai-point A) locked up with a Zulu shield, its stick and an assegai",
    "path": "assets/art/ui/logo.png",
    "status": "approved",
    "technical": {
-    "dimensions": "1373x760",
+    "dimensions": "1170x702",
     "alpha": true,
     "anchor": "centre",
     "frames": null,
@@ -1037,39 +1004,6 @@
    "status": "approved",
    "technical": {
     "dimensions": "256x32",
-    "alpha": true,
-    "anchor": "per view",
-    "frames": null,
-    "filtering": "linear"
-   },
-   "visual_locks": [
-    "palette",
-    "light-direction"
-   ],
-   "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/savanna.py / terrain.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
-    "created_at": "2026-10-30",
-    "attribution": ""
-   },
-   "verification": {
-    "native_scale_reviewed": true,
-    "in_engine_reviewed": true,
-    "technical_checks_passed": true,
-    "approved_by": "",
-    "notes": ""
-   }
-  },
-  {
-   "id": "world-canopy",
-   "role": "level world layer or terrain texture",
-   "path": "assets/art/world/canopy.png",
-   "status": "approved",
-   "technical": {
-    "dimensions": "1024x80",
     "alpha": true,
     "anchor": "per view",
     "frames": null,
@@ -1301,6 +1235,39 @@
    "status": "approved",
    "technical": {
     "dimensions": "2048x150",
+    "alpha": true,
+    "anchor": "per view",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette",
+    "light-direction"
+   ],
+   "source": {
+    "kind": "authored-procedural",
+    "url_or_tool": "tools/art/savanna.py / terrain.py",
+    "creator": "Claude for Haiz Studio",
+    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
+    "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "world-fg_props",
+   "role": "level world layer or terrain texture",
+   "path": "assets/art/world/fg_props.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "1040x190",
     "alpha": true,
     "anchor": "per view",
     "frames": null,
@@ -2423,6 +2390,39 @@
    "status": "approved",
    "technical": {
     "dimensions": "512x512",
+    "alpha": true,
+    "anchor": "per view",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette",
+    "light-direction"
+   ],
+   "source": {
+    "kind": "authored-procedural",
+    "url_or_tool": "tools/art/savanna.py / terrain.py",
+    "creator": "Claude for Haiz Studio",
+    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
+    "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "world-sun_halo",
+   "role": "level world layer or terrain texture",
+   "path": "assets/art/world/sun_halo.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "256x256",
     "alpha": true,
     "anchor": "per view",
     "frames": null,

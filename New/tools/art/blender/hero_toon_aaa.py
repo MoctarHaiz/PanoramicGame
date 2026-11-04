@@ -15,6 +15,8 @@ edges", "a white sticker outline", "torn paper", "plastic blue", "a black blob")
 - the boots and gloves: the user's blue, a little warmer and less saturated, matte, scuffed.
 
 build(m, mode) rebuilds the material's nodes (idempotent: the base colour and normal pictures are kept).
+A material may carry its own flat albedo (m["flat"], linear) and rim (m["rim"], m["rim_k"]): the bandit wears
+the hero's regions in his own colours (hero_render.py --character bandit).
 """
 import bpy
 
@@ -188,7 +190,12 @@ def build(m, mode="day"):
     g = G(nt)
     out = g.node("ShaderNodeOutputMaterial")
     uv = g.node("ShaderNodeTexCoord")
-    if BOLD and BOLD_ALBEDO.get(region):
+    flat = m.get("flat")  # (round 9) a flat albedo (linear) set on the material: the bandit's colours
+    if flat:
+        rgb = g.node("ShaderNodeRGB")
+        rgb.outputs[0].default_value = (*flat, 1.0)
+        albedo = rgb.outputs[0]
+    elif BOLD and BOLD_ALBEDO.get(region):
         rgb = g.node("ShaderNodeRGB")
         rgb.outputs[0].default_value = (*BOLD_ALBEDO[region], 1.0)
         albedo = rgb.outputs[0]
@@ -247,7 +254,7 @@ def build(m, mode="day"):
         colour = ramp.outputs["Color"]
     else:
         alb = albedo
-        if region == "armour_blue" and BOLD:  # (pass 4) a deeper, richer blue: armour, not sneakers
+        if region == "armour_blue" and BOLD and not flat:  # (pass 4) a deeper, richer blue: armour, not sneakers
             alb = g.mix("MULTIPLY", 1.0, albedo, (0.62, 0.7, 0.86))
         elif region == "armour_blue":  # the user's blue, a touch warmer and less saturated (matte)
             lum = g.node("ShaderNodeRGBToBW")
@@ -367,6 +374,8 @@ def build(m, mode="day"):
     rk = rim_k * RIM_K.get(region, 1.0)
     if BOLD and RIM_K.get(region, 1.0) > 0:
         bc, bk, sd = BOLD_RIM[mode]
+        if m.get("rim"):  # (round 9) the material's own rim colour and strength (the bandit's cold rim)
+            bc, bk = tuple(m["rim"]), m.get("rim_k", bk)
         toward = g.math("ADD", g.math("MULTIPLY", sep.outputs["X"], sd[0]), g.math("MULTIPLY", sep.outputs["Y"], sd[1]))
         toward = g.math("ADD", g.math("MULTIPLY", g.smooth(toward, -0.1, 0.6), 0.7), 0.3 if mode == "sunset" else 0.0)
         e = g.smooth(edge, 0.5, 0.62)  # a band, crisp-edged (cel), on the silhouette's edges

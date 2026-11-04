@@ -1,15 +1,16 @@
 class_name Hud
 extends Control
 ## The game's heads-up display, inside the safe area, over a soft shade along the top that sets it
-## apart from the vine. Every piece sits on the same plate (dark glazed wood, outlined, bevelled,
-## lit along its top, a fine gold rim, a deep shadow: the candy kit of the buttons), one family:
+## apart from the vine. Every piece sits on the same slim plate (dark smoked glass in a thin bright
+## brass rim, a fine ink line, a soft shadow: the kit of the buttons, without their heavy bevel), one
+## family:
 ## - lives on the left: three glossy hearts; a lost one flashes, cracks in two and its halves fall
 ##   while the plate flashes red, leaving a dark socket; the last one beats when it is all that is
 ##   left;
-## - the way home in the middle: a solid track that fills with gold as the level scrolls, Panoramic's
-##   framed face running along it to the house on a gold disc at its end;
+## - the way home in the middle: a groove cut into the plate that fills with gold as the level
+##   scrolls, Panoramic's face, big in its gold ring, running along it to the house on a gold disc;
 ## - the Red Bobs on the right (counted the moment one is taken, the counter punching and
-##   flashing) and the pause button on its own plate.
+##   flashing) and the pause button, a round gold button of the kit.
 ## The plates stay solid (a HUD held half see-through, or gone for seconds, reads as broken).
 
 signal pause_pressed
@@ -18,9 +19,9 @@ const ROW_HEIGHT := 60.0
 const BOB_ICON := 46.0  ## size of the Red Bob on the counter
 const TRACK_W := 330.0
 const HEART := 39.0
-const PLATE_TOP := Color(0.44, 0.21, 0.11, 0.94)
-const PLATE_BOTTOM := Color(0.25, 0.08, 0.03, 0.94)
-const PLATE_EDGE := Color(0.13, 0.04, 0.02, 0.96)
+const PLATE_TOP := Color(0.24, 0.1, 0.07, 0.88)
+const PLATE_BOTTOM := Color(0.12, 0.04, 0.03, 0.9)
+const PLATE_EDGE := Color(0.08, 0.02, 0.01, 0.92)
 const PLATE_LINE := Color(0.09, 0.02, 0.01, 0.96)
 
 var world: World
@@ -40,16 +41,16 @@ var _track_glass: Control
 var _hero_rect := Rect2()  # where Panoramic is on screen (game_screen sets it every frame)
 
 
-## The HUD's plate: a candy shape in glazed dark wood (see GlossStyle).
+## The HUD's plate: dark smoked glass in a thin bright brass rim (see GlossStyle), a shallow edge.
 static func plate(radius: float, pressed := false) -> GlossStyle:
-	var s := GlossStyle.new(PLATE_TOP, PLATE_BOTTOM, PLATE_EDGE, radius, 7.0, pressed)  # a deep bevel: body
-	s.set_outline(PLATE_LINE, 3.0)
-	s.set_frame(3.0, Color("ffe3a0"), Color("c27a22"), Color(0, 0, 0, 0))  # a gold rim: the kit's ring
-	s.rim = 0.32
-	s.gloss = 0.16
-	s.shadow.shadow_color = Color(0, 0, 0, 0.45)  # it stands off the vine and the sky behind it
+	var s := GlossStyle.new(PLATE_TOP, PLATE_BOTTOM, PLATE_EDGE, radius, 3.0, pressed)
+	s.set_outline(PLATE_LINE, 2.0)
+	s.set_frame(3.5, Ui.BRASS[0], Ui.BRASS[1], Color(PLATE_LINE, 0.8))  # the kit's brass ring, bright
+	s.rim = 0.18
+	s.gloss = 0.12
+	s.shadow.shadow_color = Color(0.05, 0.0, 0.0, 0.42)  # it stands off the vine and the sky behind it
 	s.shadow.shadow_size = 12
-	s.shadow.shadow_offset = Vector2(0, 5)
+	s.shadow.shadow_offset = Vector2(0, 6)
 	return s
 
 
@@ -125,8 +126,8 @@ func _glass(content: Control, side_margin: float) -> PanelContainer:
 	var s := plate(ROW_HEIGHT / 2.0)
 	s.content_margin_left = side_margin
 	s.content_margin_right = side_margin
-	s.content_margin_top = 3.0
-	s.content_margin_bottom = 3.0 + 7.0
+	s.content_margin_top = 4.0
+	s.content_margin_bottom = 4.0 + 3.0
 	var p := PanelContainer.new()
 	p.add_theme_stylebox_override(&"panel", s)
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -152,7 +153,7 @@ func _counter() -> Control:
 	var s := plate(ROW_HEIGHT / 2.0)
 	s.content_margin_left = _bob_icon.size.x * 0.62
 	s.content_margin_right = 16.0
-	s.content_margin_bottom = 7.0
+	s.content_margin_bottom = 3.0
 	var pill := PanelContainer.new()
 	pill.add_theme_stylebox_override(&"panel", s)
 	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -172,23 +173,11 @@ func _counter() -> Control:
 	return box
 
 
-## The pause button: a round plate with a white pause sign, sinking when pressed.
+## The pause button: a round gold button of the kit (the pause's own tiles), a white pause sign,
+## sinking when pressed.
 func _pause_button(side: float) -> JuicyButton:
-	var b := JuicyButton.new()
-	b.custom_minimum_size = Vector2(side, side)
-	for state in [&"normal", &"hover"]:
-		b.add_theme_stylebox_override(state, plate(side / 2.0))
-	b.add_theme_stylebox_override(&"pressed", plate(side / 2.0, true))
-	var icon := Ui.bold_icon("pause-fill", side * 0.42, Ui.WHITE, PLATE_LINE)
-	var holder := Control.new()
-	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	holder.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	holder.offset_top = 3.0
-	holder.offset_bottom = -8.0
-	icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	holder.add_child(icon)
-	b.add_child(holder)
-	b.content = icon
+	var b := Ui.icon_button("pause-fill", Ui.Tone.GOLD, side, side / 2.0)
+	b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	return b
 
 
@@ -317,12 +306,15 @@ func blocks(pos: Vector2) -> bool:
 	return _pause.global_hit_rect().has_point(pos)
 
 
-## The way home: a solid dark groove marked with faint chevrons towards the house, a thick bright
-## gold fill with a lit top edge to where he is,
-## Panoramic's face in a gold ring at its tip, and the house on a glowing gold disc at the end.
+## The way home: a groove cut into the plate (dark, a shade under its upper edge, a little light
+## caught along its foot), a thick bright gold fill with a lit top edge to where he is, Panoramic's
+## face big in a gold ring at its tip (over the plate's edges, as the icons of top games' counters),
+## and the house on a glowing gold disc at the end.
 class _Track extends Control:
 	const HEAD := preload("res://assets/art/ui/head.png")
-	const GROOVE := 26.0
+	const GROOVE := 24.0
+	const X0 := 30.0  ## where the groove starts
+	const FACE := 54.0  ## his portrait's side
 	var progress := 0.0:
 		set(value):
 			if not is_equal_approx(value, progress):
@@ -336,17 +328,21 @@ class _Track extends Control:
 	func _init() -> void:
 		custom_minimum_size = Vector2(Hud.TRACK_W + 50, Hud.ROW_HEIGHT - 8.0)
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_house = Ui.bold_icon("house-fill", 24, Ui.WHITE, Hud.PLATE_LINE)
+		_house = Ui.bold_icon("house-fill", 27, Ui.WHITE, Hud.PLATE_LINE)
 		add_child(_house)
 		_face = TextureRect.new()
 		_face.texture = HEAD
 		_face.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		_face.size = Vector2(42, 42)
+		_face.size = Vector2(FACE, FACE)
 		_face.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var lift := ShaderMaterial.new()
 		lift.shader = preload("res://src/ui/lift.gdshader")
 		_face.material = lift
 		add_child(_face)
+		var groove := Hud._Groove.new()  # still: drawn once, behind the fill (not every frame)
+		groove.show_behind_parent = true
+		groove.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		add_child(groove)
 
 	func _process(delta: float) -> void:
 		_clock += delta
@@ -354,45 +350,32 @@ class _Track extends Control:
 
 	func _draw() -> void:
 		var y := size.y / 2
-		var x0 := 26.0
-		var w := Hud.TRACK_W - 26.0
-		var groove := Rect2(x0, y - GROOVE / 2, w, GROOVE)
-		_rounded(groove.grow(2.0), Hud.PLATE_LINE, GROOVE / 2 + 2.0)
-		# the way still to go: a solid dark groove (a track, not a dotted line)
-		_rounded(groove, Color("54290f"), GROOVE / 2)
+		var x0 := X0
+		var w := Hud.TRACK_W - 34.0
 		var fill_w := maxf(w * progress, 0.0)
-		# the way still to go, marked: faint chevrons towards the house (one draw call for them all)
-		var marks := PackedVector2Array()
-		var mx := x0 + 30.0
-		while mx < x0 + w - 18.0:
-			if mx > x0 + fill_w + 14.0:
-				marks.append_array([Vector2(mx - 4.0, y - 5.0), Vector2(mx + 2.0, y + 1.0),
-						Vector2(mx + 2.0, y + 1.0), Vector2(mx - 4.0, y + 7.0)])
-			mx += 26.0
-		if not marks.is_empty():
-			draw_multiline(marks, Color(1, 0.88, 0.62, 0.3), 3.0, true)
 		if fill_w > 6.0:  # the way done: a thick bright gold fill with a lit top
 			var fill := Rect2(x0 + 2, y - GROOVE / 2 + 2, fill_w - 2, GROOVE - 4)
 			_rounded(fill, Color("e07a0c"), fill.size.y / 2)
 			_rounded(Rect2(fill.position, Vector2(fill.size.x, fill.size.y * 0.6)), Color("ffcf3a"), fill.size.y * 0.3)
 			_rounded(Rect2(fill.position + Vector2(5, 3), Vector2(maxf(fill.size.x - 10, 0), 4)), Color(1, 1, 0.9, 0.8), 2.0)
 		# the house at the end, on a glowing gold disc
-		var hc := Vector2(x0 + w + 8, y)
+		var hc := Vector2(x0 + w + 12, y)
 		var pulse := 0.5 + 0.5 * sin(_clock * 3.0)
-		draw_circle(hc, 30.0 + pulse * 3.0, Color(1, 0.85, 0.4, 0.18 + 0.1 * pulse))
-		draw_circle(hc, 24.0, Hud.PLATE_LINE)
-		draw_circle(hc, 21.0, Color("e08a10"))
-		draw_circle(hc + Vector2(0, -2), 18.5, Color("ffc93c"))
-		draw_circle(hc + Vector2(-6, -9), 5.0, Color(1, 1, 0.9, 0.5))
+		draw_circle(hc, 33.0 + pulse * 3.0, Color(1, 0.85, 0.4, 0.18 + 0.1 * pulse))
+		draw_circle(hc, 27.0, Hud.PLATE_LINE)
+		draw_circle(hc, 24.5, Color("e08a10"))
+		draw_circle(hc + Vector2(0, -2), 22.0, Color("ffc93c"))
+		draw_circle(hc + Vector2(-7, -10), 5.5, Color(1, 1, 0.9, 0.5))
 		_house.position = hc - _house.size / 2 + Vector2(0, 1)
 		# the face in its gold ring, bobbing a little as it runs
-		var hx := x0 + 2 + fill_w
+		var hx := x0 + 4 + fill_w
 		var bob := absf(sin(_clock * 8.0)) * 2.0
 		var c := Vector2(hx, y - bob)
-		draw_circle(c + Vector2(0, 3), 27.0, Color(0, 0, 0, 0.3))
-		draw_circle(c, 27.0, Hud.PLATE_LINE)
-		draw_circle(c, 24.5, Color("e08a10"))
-		draw_circle(c + Vector2(0, -1), 23.0, Color("ffd34a"))
+		var ring := FACE / 2 + 5.0
+		draw_circle(c + Vector2(0, 4), ring, Color(0, 0, 0, 0.32))
+		draw_circle(c, ring, Hud.PLATE_LINE)
+		draw_circle(c, ring - 2.5, Color("e08a10"))
+		draw_circle(c + Vector2(0, -1), ring - 4.0, Color("ffd34a"))
 		_face.position = c - _face.size / 2
 
 	func _rounded(r: Rect2, colour: Color, radius: float, border := Color(0, 0, 0, 0), border_w := 0.0) -> void:
@@ -409,6 +392,25 @@ class _Track extends Control:
 				s.draw_center = colour.a > 0
 			_styles[key] = s
 		draw_style_box(s, r)
+
+
+## The way home's groove (the _Track's, behind its fill): cut into the plate, dark, a shade under its
+## upper edge, the plate's lit lip under it. Drawn once.
+class _Groove extends Control:
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var ci := get_canvas_item()
+		var w := Hud.TRACK_W - 34.0
+		var g := Rect2(_Track.X0, size.y / 2 - _Track.GROOVE / 2, w, _Track.GROOVE)
+		var r := _Track.GROOVE / 2
+		GlossStyle.fill_rounded(ci, Rect2(g.position + Vector2(0, 2.0), g.size).grow(2.0), r + 2.0,
+				Color(1, 0.85, 0.6, 0.22), Color(1, 0.85, 0.6, 0.22))  # the plate's lit lip under it
+		GlossStyle.fill_rounded(ci, g.grow(2.0), r + 2.0, Hud.PLATE_LINE, Hud.PLATE_LINE)
+		GlossStyle.fill_rounded(ci, g, r, Color("1e0a05"), Color("4a2410"))
+		GlossStyle.fill_clipped(ci, g, r, Rect2(g.position, Vector2(w, _Track.GROOVE * 0.45)),
+				Color(0, 0, 0, 0.55), Color(0, 0, 0, 0))
 
 
 ## A heart: full, it is glossy red in an ink outline with a white shine on its left lobe; empty, a

@@ -1,22 +1,25 @@
 class_name Card
 extends PanelContainer
 ## The panel of the interface kit (pause, results, settings, About), as the pop-ups of top mobile
-## games, in his world's materials: a deep shadow cast on the game behind, a dark ink outline, a thick
-## frame of carved wood bevelled (lit along its top and outer edge, shaded at its foot) with gold studs
-## and a Zulu band, a gold trim ring inside it, and a body of tanned hide (paper.png grain) that sinks
-## under the frame (shade along its top, sides and foot, a soft light in its middle: it curves). Text
-## on the body is dark brown. A mood (set_mood) gilds it for a win or darkens and cools it for a loss.
+## games, in his world's materials: a deep shadow cast on the game behind, a dark ink outline, a frame
+## of carved wood bevelled (lit along its top and outer edge, shaded at its foot), a brass bracket over
+## each corner (its arms ending in assegai blades, a red bead in the bend: corners.png), a gold trim
+## ring inside it, and a body of tanned hide (paper.png grain) that sinks under the frame (shade along
+## its top, sides and foot, a soft light in its middle: it curves). Text on the body is dark brown. A
+## mood (set_mood) gilds it for a win, or turns it to cold iron and grey hide for a loss.
 ## The light variant (the start card, tutorial hints) is a see-through dark glass with a gold line.
 ## `well()` is the style of a sunken area inside the body (the results' counts, settings' rows).
 
 const INK := Color("2e0d04")
-const FRAME := 24.0  ## width of the wooden frame (it carries the Zulu band)
+const FRAME := 18.0  ## width of the wooden frame (tools/art/ui_kit.py bakes the corners for it)
 const FRAME_TOP := Color("c8642a")
 const FRAME_BOTTOM := Color("6e240a")
 const TRIM := 4.0  ## the gold ring inside the frame
 const TRIM_TOP := Color("ffe9a0")
 const TRIM_BOTTOM := Color("e0901c")
 const PAPER := preload("res://assets/art/ui/paper.png")
+const CORNERS := preload("res://assets/art/ui/corners.png")  ## brass (row 0) and iron (row 1) brackets
+const CORNER_CELL := 100.0  ## one bracket's cell in units, from 6 units outside the card's corner
 
 var top_colour := Color("f6e4bc")  ## tanned hide, warm at the top
 var bottom_colour := Color("dcb47c")  ## and darker towards its foot
@@ -25,6 +28,7 @@ var frame_bottom := FRAME_BOTTOM
 var trim_top := TRIM_TOP
 var trim_bottom := TRIM_BOTTOM
 var radius := 34.0
+var iron := false  ## a defeat's iron corners and studs instead of brass
 var _framed := true
 var _shadow_box: StyleBoxFlat
 
@@ -45,8 +49,8 @@ func _init(margin := Vector4(34, 40, 34, 34), light := false) -> void:
 	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED  # the hide grain tiles
 
 
-## A mood for the panel: &"win" a gold frame and a bright trim on a warm hide; &"loss" dark, cool
-## wood, a dull bronze trim, a greyer hide (the defeat drained of warmth); anything else the wood.
+## A mood for the panel: &"win" a gold frame and a bright trim on a warm hide; &"loss" slate-dark
+## wood, steel trim, iron corners, a grey hide (the defeat drained of warmth); anything else the wood.
 func set_mood(mood: StringName) -> void:
 	match mood:
 		&"win":
@@ -56,13 +60,14 @@ func set_mood(mood: StringName) -> void:
 			trim_bottom = Color("f2c24a")
 			top_colour = Color("fff0c8")
 			bottom_colour = Color("ecc884")
-		&"loss":
-			frame_top = Color("8a5a40")
-			frame_bottom = Color("3a1c10")
-			trim_top = Color("cdbb98")
-			trim_bottom = Color("7e6a4c")
-			top_colour = Color("ece2cc")
-			bottom_colour = Color("c6b496")
+		&"loss":  # cold: slate-stained wood, steel trim, iron corners, a grey hide
+			frame_top = Color("66708a")
+			frame_bottom = Color("232838")
+			trim_top = Color("e4eaf4")
+			trim_bottom = Color("7c879e")
+			top_colour = Color("e8e6e0")
+			bottom_colour = Color("b6b4ae")
+			iron = true
 	queue_redraw()
 
 
@@ -125,8 +130,8 @@ func _draw() -> void:
 		var foot := Rect2(body.position + Vector2(inner * 0.6, body.size.y - 26.0), Vector2(body.size.x - inner * 1.2, 26.0))
 		_fill(_rounded(foot, 0.0), Color(0.3, 0.1, 0.0, 0.0), Color(0.3, 0.1, 0.0, 0.24))  # and its foot
 		_glow(Rect2(body.position + body.size * Vector2(0.1, 0.12), body.size * Vector2(0.8, 0.6)))
-		_zulu_band(r)
 		_studs(r)
+		_corners(r)
 	else:  # glass: a light top edge and a fine gold line inside
 		_fill(_rounded(Rect2(r.position + Vector2(6, 4), Vector2(r.size.x - 12, minf(40.0, r.size.y * 0.25))), radius - 4),
 				Color(1, 0.85, 0.6, 0.16), Color(1, 0.85, 0.6, 0.0))
@@ -135,89 +140,33 @@ func _draw() -> void:
 		draw_polyline(line, Color(Ui.GOLD, 0.55), 2.0, true)
 
 
-## A Zulu band set into the frame along its top and bottom, between the corner studs: bold diamonds,
-## red and black on cream with a dark edge, big enough to read on a phone (not a string of small beads,
-## which read as dots), mirrored from the middle and clear of a wide card's middle stud.
-func _zulu_band(r: Rect2) -> void:
-	var tiles := _band_tiles()
-	var x0 := r.position.x + radius + 12.0
-	var x1 := r.end.x - radius - 12.0
-	var mid := r.get_center().x
-	var cut := BAND_STEP if r.size.x > 520.0 else 0.0  # the first diamond each side of the middle stud
-	var tile_w := float(tiles[0].get_width())
-	for y: float in [r.position.y + FRAME * 0.5, r.end.y - FRAME * 0.5]:
-		_fill(_rounded(Rect2(Vector2(x0 - 1.5, y - BAND_H / 2 - 1.5), Vector2(x1 - x0 + 3.0, BAND_H + 3.0)), 3.0), INK, INK)
-		var top := y - BAND_H / 2
-		# the right half from a diamond centred on the middle (or past the stud), the left half the
-		# mirror of it: one textured rect each
-		var a := mid + cut - BAND_STEP / 2
-		draw_texture_rect_region(tiles[0], Rect2(a, top, x1 - a, BAND_H),
-				Rect2(0, 0, (x1 - a) * BAND_SCALE, tiles[0].get_height()))
-		var b := mid - cut + BAND_STEP / 2
-		var span := (b - x0) * BAND_SCALE
-		draw_texture_rect_region(tiles[1], Rect2(x0, top, b - x0, BAND_H),
-				Rect2(tile_w - fposmod(span, tile_w), 0, span, tiles[1].get_height()))
+## The brackets over the four corners (corners.png: the top and bottom left ones, mirrored for the
+## right): one picture, four rects.
+func _corners(r: Rect2) -> void:
+	var cell := CORNERS.get_height() / 2.0
+	var row := cell if iron else 0.0
+	for c: Array in [[r.position, 0.0, 1.0], [Vector2(r.end.x, r.position.y), 0.0, -1.0],
+			[Vector2(r.position.x, r.end.y), cell, 1.0], [r.end, cell, -1.0]]:
+		var bottom: bool = c[1] > 0.0
+		draw_set_transform(c[0], 0.0, Vector2(c[2], 1.0))
+		var at := Vector2(-6.0, -(CORNER_CELL - 6.0) if bottom else -6.0)
+		draw_texture_rect_region(CORNERS, Rect2(at, Vector2(CORNER_CELL, CORNER_CELL)), Rect2(c[1], row, cell, cell))
+	draw_set_transform(Vector2.ZERO)
 
 
-const BAND_STEP := 34.0  ## one diamond and its share of the band
-const BAND_H := 22.0  ## the band, top to bottom (nearly the frame's width)
-const BAND_SCALE := 3  ## the tile's pixels per unit (sharp on a phone's screen)
-static var _band: Array[ImageTexture] = []
-
-
-## The band drawn once into a tile of two diamonds (red, black) and its mirror; tiled along the frame
-## it costs one draw call per half band.
-static func _band_tiles() -> Array[ImageTexture]:
-	if not _band.is_empty():
-		return _band
-	var s := float(BAND_SCALE)
-	var w := int(BAND_STEP * 2 * s)
-	var h := int(BAND_H * s)
-	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
-	var cream := Color("f6e7c4")
-	var edge := Color("2a0c04")
-	var fills := [Color("cf2a18"), Color("1e1410")]
-	for py in h:
-		for px in w:
-			var p := Vector2(px + 0.5, py + 0.5) / s
-			var i := int(p.x / BAND_STEP)
-			var c := Vector2((i + 0.5) * BAND_STEP, BAND_H / 2)
-			# a diamond's "distance": 0 on its edge, positive inside (in units, roughly)
-			var hw := BAND_STEP * 0.44
-			var hh := BAND_H * 0.42
-			var d := (1.0 - (absf(p.x - c.x) / hw + absf(p.y - c.y) / hh)) * hh
-			var col := cream.lerp(Color("e8cf9c"), p.y / BAND_H)  # the cream darkens a little downwards
-			col = col.blend(Color(edge, clampf((d + 1.2) * s + 0.5, 0.0, 1.0)))
-			# bevelled: four facets lit from the upper left (a cut bead), a bright point on its top facet
-			var fill: Color = fills[i % 2]
-			var left := p.x < c.x
-			var up := p.y < c.y
-			var facet := fill.lightened(0.38) if left and up else (fill.lightened(0.14) if up else
-					(fill.darkened(0.1) if left else fill.darkened(0.34)))
-			col = col.blend(Color(facet, clampf(d * s + 0.5, 0.0, 1.0)))
-			var glint := p.distance_to(c + Vector2(-hw * 0.32, -hh * 0.42))
-			col = col.blend(Color(1, 1, 0.95, 0.7 * clampf((1.6 - glint) * s * 0.5, 0.0, 1.0)))
-			img.set_pixel(px, py, col)
-	var mirrored := img.duplicate() as Image
-	mirrored.flip_x()
-	_band = [ImageTexture.create_from_image(img), ImageTexture.create_from_image(mirrored)]
-	return _band
-
-
-## Gold studs nailed into the frame: one at each corner, and along the long edges of a wide card.
+## Gold studs nailed into the middle of the frame's long edges on a wide card (the corners carry
+## their brackets); iron-grey on a defeat.
 func _studs(r: Rect2) -> void:
-	var m := FRAME * 0.5 + 1.0
-	var spots := [r.position + Vector2(m + radius * 0.3, m + radius * 0.3), Vector2(r.end.x - m - radius * 0.3, r.position.y + m + radius * 0.3),
-			Vector2(r.position.x + m + radius * 0.3, r.end.y - m - radius * 0.3), r.end - Vector2(m + radius * 0.3, m + radius * 0.3)]
-	if r.size.x > 520.0:
-		spots.append(Vector2(r.get_center().x, r.position.y + m))
-		spots.append(Vector2(r.get_center().x, r.end.y - m))
+	if r.size.x <= 520.0:
+		return
+	var m := FRAME * 0.5
 	var stud := _stud_texture()
-	for c: Vector2 in spots:  # one picture, drawn as rects: they batch into one draw call
-		draw_texture_rect(stud, Rect2(c - Vector2(STUD, STUD) / 2, Vector2(STUD, STUD)), false)
+	var tint := Color(0.72, 0.78, 0.92) if iron else Color.WHITE
+	for c: Vector2 in [Vector2(r.get_center().x, r.position.y + m), Vector2(r.get_center().x, r.end.y - m)]:
+		draw_texture_rect(stud, Rect2(c - Vector2(STUD, STUD) / 2, Vector2(STUD, STUD)), false, tint)
 
 
-const STUD := 20.0  ## a stud's picture, side in units
+const STUD := 18.0  ## a stud's picture, side in units
 static var _stud: ImageTexture
 
 

@@ -38,7 +38,18 @@ THATCH = [(0.0, "5a3a2c"), (0.25, "8a5e36"), (0.5, "b78a4a"), (0.75, "dcb366"), 
 WOOD = [(0.0, "3a2620"), (0.4, "6a4a34"), (0.75, "9c7450"), (1.0, "d0a676")]
 
 
-def dome(R: float, H: float, w: int, h: int, cx: float, base: float, tiers: int = 0, step: float = 0.0):
+def noise_1d(n: int, cells: int, rng) -> np.ndarray:
+    """Smooth 1-D noise 0..1 over n samples, `cells` bumps across."""
+    knots = rng.random(cells + 2)
+    x = np.linspace(0, cells, n)
+    i = np.floor(x).astype(int)
+    f = x - i
+    f = f * f * (3 - 2 * f)
+    return knots[i] * (1 - f) + knots[i + 1] * f
+
+
+def dome(R: float, H: float, w: int, h: int, cx: float, base: float, tiers: int = 0, step: float = 0.0,
+         rings=None):
     """Mask, light and surface coordinates of a beehive dome (units -> px handled by caller).
     Round 2: with `tiers`, each tier of thatch juts out `step` px at its fringe over the one below
     (a stepped, shaggy silhouette, not a smooth egg)."""
@@ -47,6 +58,10 @@ def dome(R: float, H: float, w: int, h: int, cx: float, base: float, tiers: int 
     half = R * np.clip(1 - np.clip(z, 0, 1) ** 1.9, 0, 1) ** 0.55
     if tiers:
         tz = z * (tiers + 0.6)
+        if rings is not None:  # (round 9) tiers of uneven height: rings at these height shares
+            edges = np.concatenate([[0.0], rings, [1.2]])
+            k = np.clip(np.searchsorted(edges, z, side="right") - 1, 0, len(edges) - 2)
+            tz = k + (z - edges[k]) / (edges[k + 1] - edges[k])
         frac = tz - np.floor(tz)
         half = half + step * (1.0 - frac) ** 1.6 * (z < 0.97) * (tz >= 1.0)
     u = np.clip((xx - cx) / np.maximum(half, 1e-3), -1.5, 1.5)
@@ -94,7 +109,9 @@ def hut(R: float, H: float, door: bool, seed: int) -> tuple:
     base = h - 2 * PX
     Rp, Hp = R * PX, H * PX
     tiers = 5  # round 2: fewer, chunkier tiers (8 thin ones read as noise at phone size)
-    inside, lam, u, z = dome(Rp, Hp, w, h, cx, base, tiers, 6.0 * PX)
+    gaps = rng.uniform(0.75, 1.3, tiers)  # (round 9: of uneven height)
+    zks = np.cumsum(gaps) / (gaps.sum() + 0.6 * gaps.mean())
+    inside, lam, u, z = dome(Rp, Hp, w, h, cx, base, tiers, 6.0 * PX, zks)
     cov = inside.astype(float)
     # finial: a knot of bound straw on the apex
     apex_y = base - Hp
@@ -106,17 +123,22 @@ def hut(R: float, H: float, door: bool, seed: int) -> tuple:
     t = np.clip(lam * 0.95 + 0.05 - 0.28 * np.clip(u, -1, 1), 0, 1)  # (round 7: clearly lit from the left)
     t = np.clip(t + 0.22 * (np.clip(z, 0, 1) - 0.45), 0, 1)  # round 2: lit from above, darker low down
     # round 5: the hero's style: the light in flat bands, the straw's strokes only a light texture
-    t = np.clip(0.12 + 0.8 * cel(t, (0.36, 0.6)) + strokes * 0.07, 0, 1)
+    t = np.clip(0.12 + 0.8 * cel(t, (0.36, 0.6)) + strokes * 0.11, 0, 1)  # (round 9: the straw a little more)
     col = ramp(t, THATCH)
     # tiers of thatch: each ends in a jagged fringe of straw over the tier below, with a soft shadow
-    # under it; a thin rope binds some of them
+    # under it; a thin rope binds some of them. Round 9 (it read as "one fringe stroke repeated in
+    # even bands"): tiers of uneven height, each ring bowed round the dome (seen a little from
+    # above: lower in the middle), its fringe in clumps of straw of very different lengths and
+    # tones, a loose straw sticking out here and there
     yy, xx = np.mgrid[0:h, 0:w].astype(float)
     uu = np.clip(u, -1, 1)
     ring_rows = []
+    bow = np.sqrt(np.clip(1 - uu * uu, 0, 1))  # the ring's curve round the dome
     for k in range(1, tiers + 1):
-        zk = k / (tiers + 0.6)
-        jag = (blur(rng.standard_normal(w)[None, :], (0, 0.8))[0] * 5.0 + rng.uniform(-1, 1)) * PX
-        ring_y = base - zk * Hp + jag[None, :]
+        zk = zks[k - 1]
+        jag = (blur(rng.standard_normal(w)[None, :], (0, 0.8))[0] * 4.0 + rng.uniform(-1, 1)
+               + (noise_1d(w, 6, rng) - 0.5) * 9.0) * PX
+        ring_y = base - zk * Hp + jag[None, :] + bow * (1 - zk) * 9.0 * PX
         dist = yy - ring_y
         shade = np.exp(-np.clip(dist, 0, None) / (8.0 * PX)) * (dist > 0) * inside
         fringe = np.exp(-np.clip(-dist, 0, None) / (5.0 * PX)) * (dist <= 0) * inside
@@ -129,20 +151,44 @@ def hut(R: float, H: float, door: bool, seed: int) -> tuple:
             col = mix(col, hexc("3a2418"), rope * 0.85)
             col = mix(col, hexc("a8845a"), twist * (1 - np.clip(uu, 0, 1)) * 0.6)
         ring_rows.append(ring_y)
-    # straw hanging over the edge of each tier: short strokes down from its ring line
+    # straw hanging over the edge of each tier: clumps of strokes down from its ring line, each clump
+    # its own length and tone, gaps between some
     hang = Image.new("L", (w * SS, h * SS), 0)
     dh_ = ImageDraw.Draw(hang)
+    dark = Image.new("L", (w * SS, h * SS), 0)
+    dd_ = ImageDraw.Draw(dark)
     for ring_y in ring_rows:
-        for x in np.arange(cx - Rp, cx + Rp, 1.6):
-            xi = int(np.clip(x, 0, w - 1))
-            y0 = float(ring_y[0, xi]) if ring_y.ndim == 2 else float(ring_y[xi])
-            if not (0 <= y0 < h) or not inside[int(y0), xi]:
-                continue
-            ln = rng.uniform(2.0, 7.0) * PX
-            dh_.line([(x * SS, y0 * SS), ((x + rng.uniform(-1.2, 1.2) * PX) * SS, (y0 + ln) * SS)],
-                     fill=int(rng.uniform(140, 255)), width=max(1, int(0.8 * PX * SS)))
+        x = cx - Rp
+        while x < cx + Rp:
+            clump_w = rng.uniform(4, 14) * PX
+            clump_len = rng.uniform(2.0, 11.0) * PX
+            clump_tone = rng.uniform(150, 255)
+            lean = rng.uniform(-1.6, 1.6) * PX
+            shaded = rng.random() < 0.3
+            xe = min(x + clump_w, cx + Rp)
+            for sx in np.arange(x, xe, rng.uniform(1.2, 2.2)):
+                xi = int(np.clip(sx, 0, w - 1))
+                y0 = float(ring_y[0, xi]) if ring_y.ndim == 2 else float(ring_y[xi])
+                if not (0 <= y0 < h) or not inside[int(y0), xi]:
+                    continue
+                q = (sx - x) / max(clump_w, 1)
+                ln = clump_len * (0.5 + 0.6 * np.sin(np.pi * q)) * rng.uniform(0.7, 1.2)
+                target = dd_ if shaded else dh_
+                target.line([(sx * SS, y0 * SS), ((sx + lean + rng.uniform(-0.6, 0.6) * PX) * SS, (y0 + ln) * SS)],
+                            fill=int(clump_tone * rng.uniform(0.75, 1.0)), width=max(1, int(rng.uniform(0.6, 1.1) * PX * SS)))
+            if rng.random() < 0.12:  # a loose straw sticking out
+                xi = int(np.clip(x, 0, w - 1))
+                y0 = float(ring_y[0, xi])
+                if 0 <= y0 < h and inside[int(y0), xi]:
+                    a = rng.uniform(0.3, 1.2) * (1 if rng.random() < 0.5 else -1)
+                    ln = rng.uniform(8, 16) * PX
+                    dh_.line([(x * SS, y0 * SS), ((x + np.sin(a) * ln) * SS, (y0 + np.cos(a) * ln) * SS)], fill=255,
+                             width=max(1, int(0.8 * PX * SS)))
+            x = xe + (rng.uniform(1, 5) * PX if rng.random() < 0.25 else 0.0)
     hm = np.asarray(hang, float).reshape(h, SS, w, SS).mean(axis=(1, 3)) / 255
+    hd = np.asarray(dark, float).reshape(h, SS, w, SS).mean(axis=(1, 3)) / 255
     col = mix(col, np.minimum(col * 1.28 + 8, 255), hm * inside * 0.8)
+    col = mix(col, col * np.array([0.7, 0.62, 0.62]), hd * inside * 0.7)
     # a net of ropes from the apex down to the foot (meridians), bowing with the dome
     for m in range(7):
         um = -0.8 + 1.6 * m / 6 + rng.uniform(-0.05, 0.05)
@@ -205,8 +251,9 @@ def hut(R: float, H: float, door: bool, seed: int) -> tuple:
         bands = (np.sin((yy + xx * 0.2) * 0.35) > 0.85) * frame
         fr_col = mix(fr_col, hexc("2a1a14"), bands * 0.5)
         # inside: dark, the hearth glowing low and deep inside
-        g = np.clip(1 - np.hypot((xx - dcx - dw * 0.3) / (dw * 1.5), (yy - base + 10 * PX) / (dh * 0.7)), 0, 1)
-        inner = ramp(g ** 1.2, [(0, "160806"), (0.3, "34140a"), (0.62, "8a3412"), (0.85, "d8702a"), (1, "f8b45a")])
+        # (round 9: "a flat dark arch": the firelight fills more of it, warm up to the arch's shadow)
+        g = np.clip(1 - np.hypot((xx - dcx - dw * 0.3) / (dw * 2.1), (yy - base + 10 * PX) / (dh * 0.95)), 0, 1)
+        inner = ramp(g ** 1.1, [(0, "1e0a06"), (0.25, "4a1a0c"), (0.5, "8e3814"), (0.75, "d06a26"), (1, "ffbe62")])
         # the curved inner wall: thatch ribs lit by the fire, darker overhead
         ribs = (np.sin((xx - dcx) * 0.35 + (yy - base) * 0.05) > 0.55) * smooth(base - dh * 0.8, base - 20 * PX, yy)
         inner = mix(inner, inner * 0.72, ribs * 0.6)
@@ -231,6 +278,11 @@ def hut(R: float, H: float, door: bool, seed: int) -> tuple:
         pot_rim = np.clip(pots - np.roll(pots, -3, axis=1), 0, 1)
         inner = mix(inner, hexc("1e0c08"), pots * 0.95)
         inner = mix(inner, hexc("f09040"), pot_rim * 0.7)
+        # round 9: the firelight on the frame's inner edge, stronger low down (light spills out on it)
+        from scipy import ndimage as nd
+        to_op = nd.distance_transform_edt(op < 0.5)
+        fire_edge = (1 - smooth(1 * PX, 10 * PX, to_op)) * (0.35 + 0.65 * smooth(door_top, base - 30 * PX, yy))
+        fr_col = mix(fr_col, mix(hexc("e07a2c"), hexc("ffc070"), np.exp(-to_op / (2.0 * PX))), fire_edge * 0.9)
         col = mix(col, fr_col, frame)
         col = mix(col, inner, op)
         cov = np.clip(np.maximum(cov, np.maximum(frame, op)), 0, 1)

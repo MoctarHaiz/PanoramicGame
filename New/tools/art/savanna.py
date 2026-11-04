@@ -12,11 +12,11 @@
   mid_hills.png   nearer olive-ochre hills with small trees and bushes (tiles in x)
   near_grass.png  a band of tall golden grass in front of the near trees (tiles in x)
   fg_grass.png    dark out-of-focus grass clumps passing in front of the play (tiles in x)
+  fg_props.png    (round 9) big things near the camera passing along the bottom edge now and then
   haze.png        a soft band of warm air laid between layers
   mote.png        a soft speck of glowing dust (pollen in the light)
   bird.png        a bird far away, 4 wing frames in a row
   animals.png     (round 2) giraffes, an elephant, wildebeest: far away among the tree rows
-  canopy.png      (round 3) acacia boughs hanging in along the top of the screen, near the camera
 
 Every strip is 1 pixel per design unit for far layers and 2 for nearer ones; the game scrolls them
 at different speeds (src/game/savanna_view.gd). The trees standing in the savanna are made by
@@ -87,6 +87,18 @@ def sun() -> Image.Image:
     a = np.clip(np.maximum(glow, disc), 0, 1)
     rgb = light / np.maximum(a, 1e-4)[..., None]
     return dither_rgba(np.clip(rgb, 0, 255), a)
+
+
+def sun_halo() -> Image.Image:
+    """Round 9: the sun's golden halo, laid over the sky with normal blending (added, orange on the
+    blue sky gave a grey-white disc): gold near the sun, orange further out, no disc edge (256 px)."""
+    s = 256
+    yy, xx = np.mgrid[0:s, 0:s]
+    r = np.hypot(xx - s / 2, yy - s / 2) / (s / 2)
+    a = np.exp(-(r / 0.3) ** 1.3) * 0.95 + np.exp(-(r / 0.75) ** 2) * 0.12
+    a *= 1 - smooth(0.8, 1.0, r)
+    rgb = ramp(np.clip(r / 0.7, 0, 1), [(0.0, "fff0b8"), (0.12, "ffc25a"), (0.45, "ff8e3c"), (1.0, "f0703a")])
+    return dither_rgba(rgb, np.clip(a, 0, 1))
 
 
 RAYS_ORIGIN = (80, 80)  # px of rays.png where the sun is
@@ -532,6 +544,90 @@ def fg_grass() -> Image.Image:
     return dither_rgba(np.clip(col, 0, 255), np.clip(a * 1.15, 0, 1), rng)
 
 
+FG_PIECE = (260, 190)  # units of one foreground piece in fg_props.png (1 px a unit, 4 side by side)
+
+
+def fg_props() -> Image.Image:
+    """Round 9 ("no foreground parallax layer"): big things right in front of the camera that pass
+    along the bottom edge now and then, faster than the ground: a tall clump of grass in seed, an
+    aloe, a fallen log, a leafy bush. Dark (in the shade near the
+    camera), out of focus, a warm rim where the low sun catches their upper left; each stands on
+    the bottom edge of its 260 x 190 cell. (The boulder is not drawn: a dark dome over the ground
+    line read as a blot.)"""
+    w, h = FG_PIECE
+    rng = np.random.default_rng(59)
+    ss = 3
+    from PIL import ImageDraw
+    cols, alphas = [], []
+    for kind in ("grass", "aloe", "log", "bush"):
+        m = Image.new("L", (w * ss, h * ss), 0)
+        d = ImageDraw.Draw(m)
+        base = h + 6
+
+        def blades(cx, half, tall, n, width=(2.5, 5.5)):
+            for _ in range(n):
+                u = rng.normal(0, 0.45)
+                hgt = tall * rng.uniform(0.5, 1.15) * max(0.25, 1 - abs(u) * 0.7)
+                lean = (u * 0.9 + rng.normal(0.1, 0.25)) * hgt
+                bw = rng.uniform(*width)
+                bx = cx + u * half
+                pts = [(bx - bw, base), (bx + bw, base), (bx + lean * 0.35 + bw * 0.6, base - hgt * 0.55),
+                       (bx + lean, base - hgt), (bx + lean * 0.3 - bw * 0.2, base - hgt * 0.6)]
+                d.polygon([(px * ss, py * ss) for px, py in pts], fill=255)
+
+        if kind == "grass":
+            blades(w / 2, 80, 150, 160)
+            for _ in range(9):  # seed heads above
+                bx = w / 2 + rng.normal(0, 40)
+                hgt = rng.uniform(150, 180)
+                lean = rng.normal(0.15, 0.12) * hgt
+                d.line([(bx * ss, base * ss), ((bx + lean) * ss, (base - hgt) * ss)], fill=255, width=int(2.2 * ss))
+                for k in range(6):
+                    t = 0.7 + k * 0.05
+                    px, py = bx + lean * t, base - hgt * t
+                    d.ellipse([(px - 3) * ss, (py - 7) * ss, (px + 6) * ss, (py + 1) * ss], fill=255)
+        elif kind == "aloe":
+            for _ in range(15):  # thick pointed leaves fanning up and out
+                a = rng.uniform(0.15, np.pi - 0.15)
+                ln = rng.uniform(80, 150) * (0.6 + 0.4 * np.sin(a))
+                bw = rng.uniform(9, 15)
+                cx = w / 2 + rng.normal(0, 10)
+                tip = (cx + np.cos(a) * ln, base - 14 - np.sin(a) * ln)
+                nx, ny = -np.sin(a), -np.cos(a)
+                pts = [(cx + nx * bw, base - 14 + ny * bw), (cx - nx * bw, base - 14 - ny * bw),
+                       ((cx + tip[0]) / 2 - nx * bw * 0.6, (base - 14 + tip[1]) / 2 - ny * bw * 0.6), tip,
+                       ((cx + tip[0]) / 2 + nx * bw * 0.6, (base - 14 + tip[1]) / 2 + ny * bw * 0.6)]
+                d.polygon([(x * ss, y * ss) for x, y in pts], fill=255)
+            blades(w / 2, 70, 30, 50, (1.8, 3.2))
+        elif kind == "log":
+            y0 = base - 52
+            pts = [(10, base), (12, y0 + 6), (30, y0 - 4), (200, y0 - 12), (228, y0 - 26), (236, y0 - 4), (246, y0 + 10),
+                   (240, base)]
+            d.polygon([(x * ss, y * ss) for x, y in pts], fill=255)
+            d.line([(150 * ss, (y0 - 6) * ss), (186 * ss, (y0 - 58) * ss)], fill=255, width=int(9 * ss))  # a broken branch
+            d.line([(178 * ss, (y0 - 46) * ss), (204 * ss, (y0 - 70) * ss)], fill=255, width=int(5 * ss))
+            blades(60, 50, 40, 60, (1.8, 3.4))
+            blades(200, 40, 36, 40, (1.8, 3.4))
+        else:  # bush: round leafy masses
+            for _ in range(60):
+                a = rng.uniform(0.0, np.pi)
+                q = np.sqrt(rng.uniform(0.0, 1.0))
+                cx = w / 2 + np.cos(a) * q * 92
+                cy = base - 8 - np.sin(a) * q * 96
+                r = rng.uniform(10, 22) * (1.2 - 0.5 * q)
+                d.ellipse([(cx - r) * ss, (cy - r * 0.8) * ss, (cx + r) * ss, (cy + r * 0.8) * ss], fill=255)
+            blades(w / 2, 90, 26, 60, (1.8, 3.2))
+        a = np.asarray(m.resize((w, h), Image.LANCZOS), float) / 255
+        a = blur(a, 1.8)  # out of focus
+        yy = np.linspace(0, 1, h)[:, None] * np.ones((1, w))
+        col = mix(hexc("2e2614"), hexc("0c0806"), smooth(0.3, 1.0, yy))
+        rim = np.clip(a - np.roll(np.roll(a, 4, axis=0), 4, axis=1), 0, 1)
+        col = mix(col, hexc("d6964a"), blur(rim, 1.2) * 0.7)
+        cols.append(col)
+        alphas.append(np.clip(a * 1.1, 0, 1))
+    return dither_rgba(np.clip(np.hstack(cols), 0, 255), np.hstack(alphas), rng)
+
+
 def _animal_parts(kind: str, w: float, h: float, rng) -> tuple:
     """Polygons and ellipses (px) of a savanna animal standing on y = h, facing left."""
     polys, ells = [], []
@@ -604,52 +700,6 @@ def animals() -> Image.Image:
 
 
 ANIMALS = [(70, 110), (64, 104), (110, 76), (150, 44)]  # units of each animal in animals.png
-
-
-def canopy() -> Image.Image:
-    """New (env, round 3): the frame along the top of the screen: acacia boughs hanging in from
-    just in front of the camera, dark against the sky (out of focus), a warm rim where the low sun
-    catches their lower edges, gaps of sky between the clumps. 2048 x 160 px at 2 px a screen unit
-    (1024 x 80), tiles in x; clumps reach 22-66 units down (never to the vine, under the HUD)."""
-    w, h = 2048, 160
-    rng = np.random.default_rng(97)
-    polys, ells, lines = [], [], []
-    x = rng.uniform(0, 80)
-    while x < w:
-        span = rng.uniform(150, 420)
-        if rng.random() < 0.3:  # a gap of open sky
-            x += span * 0.6
-            continue
-        depth = rng.uniform(44, 132)  # px: how far this bough hangs down
-        cx = x + span / 2
-        # the bough: a branch from the top edge, forking, pads of leaves on its twigs
-        bx, by = cx + rng.uniform(-span * 0.3, span * 0.3), depth * 0.55
-        lines.append(((cx - span * 0.45, -4, bx, by), rng.uniform(5, 9)))
-        lines.append(((bx, by, cx + span * 0.45, rng.uniform(-4, 20)), rng.uniform(3, 6)))
-        for _ in range(int(span / 20)):  # flat acacia pads, each a cloud of small leaflets
-            px = cx + rng.uniform(-0.5, 0.5) * span
-            py = rng.uniform(0.0, 1.0) ** 1.6 * depth * (1.0 - abs(px - cx) / span * 0.8)
-            rx = rng.uniform(16, 38)
-            ry = rx * rng.uniform(0.28, 0.4)
-            ells.append((px, py, rx * 0.6, ry * 0.6))
-            for _ in range(int(rx * 1.2)):
-                a = rng.uniform(0, 2 * np.pi)
-                rr = np.sqrt(rng.uniform(0, 1))
-                ells.append((px + np.cos(a) * rx * rr, py + np.sin(a) * ry * rr, rng.uniform(2.0, 5.0), rng.uniform(1.4, 3.0)))
-            if rng.random() < 0.6:
-                lines.append(((bx, by, px, py), rng.uniform(1.2, 2.4)))
-        x += span * rng.uniform(0.75, 1.1)
-    cov = poly_mask(w, h, polys, ellipses=ells, lines=lines)
-    cov = np.maximum(cov, np.roll(poly_mask(w, h, polys, ellipses=[(e[0] - w, *e[1:]) for e in ells] + [(e[0] + w, *e[1:]) for e in ells],
-                                            lines=[((a - w, b, c - w, d), lw) for (a, b, c, d), lw in lines] + [((a + w, b, c + w, d), lw) for (a, b, c, d), lw in lines]), 0, axis=1))
-    leaf = blur(rng.standard_normal((h, w)), 1.2, wrap_x=True)  # ragged leafy edges
-    cov = np.clip(cov * (1.0 + 0.35 * leaf) - 0.1 * (leaf < -0.8), 0, 1)
-    cov = np.clip(blur(cov, 1.6, wrap_x=True) * 1.25, 0, 1)  # near the camera: soft
-    yy = np.arange(h)[:, None] * np.ones((1, w))
-    col = mix(hexc("20190f"), hexc("2f2a17"), smooth(0, h, yy))
-    rim = np.clip(cov - np.roll(np.roll(cov, -4, axis=0), 3, axis=1), 0, 1)  # lower left edges, to the sun
-    col = mix(col, hexc("d89448"), blur(rim, 1.2, wrap_x=True) * 0.75)
-    return dither_rgba(col, cov, rng)
 
 
 def haze() -> Image.Image:
@@ -766,6 +816,7 @@ def main() -> None:
         save(sky().resize((512, 320), Image.LANCZOS), "sky.png")
     if want("sun"):
         save(sun(), "sun.png")
+        save(sun_halo(), "sun_halo.png")
         save(rays(), "rays.png")
     if want("clouds"):
         for i in range(4):
@@ -779,10 +830,9 @@ def main() -> None:
         save(near_grass(), "near_grass.png")
     if want("fg"):
         save(fg_grass(), "fg_grass.png")
+        save(fg_props(), "fg_props.png")
     if want("animals"):
         save(animals(), "animals.png")
-    if want("canopy"):
-        save(canopy().resize((1024, 80), Image.LANCZOS), "canopy.png")  # (out of focus: half size is enough)
     if want("sunset"):
         sunset_set()
     if want("small"):

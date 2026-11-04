@@ -21,12 +21,15 @@ void fragment() {
 	vec2 c = UV - 0.5;
 	c.x *= min(aspect, 2.4) / 1.5;  // oval on wide screens, round-ish on tablets
 	float edge = smoothstep(0.42, 1.0, length(c) * 1.3);
+	// round 9: no shade over the sun itself (the violet of the corner made its disc lilac, "a pale
+	// disc with no bloom")
+	float near_sun = 1.0 - smoothstep(0.08, 0.3, distance(p, vec2(sun.x * aspect, sun.y)));
 	// round 3: the play lane (where the runners and the bandits are, ~60-90 % down) keeps its light:
 	// dark threats must not sink into a dark corner; the frame darkens above and below it
 	float lane = smoothstep(0.5, 0.66, UV.y) * (1.0 - smoothstep(0.88, 0.95, UV.y));
 	edge *= 1.0 - 0.75 * lane;
 	float under_ui = top * pow(1.0 - smoothstep(0.0, top_reach, UV.y), 1.5);
 	float low = bottom * smoothstep(0.9, 1.0, UV.y);  // (under the ground line: the soil, the near grass)
-	float a = clamp(vignette * edge + under_ui + low, 0.0, 0.85);
+	float a = clamp(vignette * edge + under_ui + low, 0.0, 0.85) * (1.0 - 0.85 * near_sun);
 	COLOR = vec4(warm.rgb * wash * light * light + cool.rgb * a, a);
 }

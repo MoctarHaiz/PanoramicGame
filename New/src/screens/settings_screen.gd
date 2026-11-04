@@ -1,11 +1,13 @@
 extends Screen
 ## Settings, in the game's own kit, over the sunset behind a light scrim: a framed panel with its
 ## ribbon, its back button in the panels' wood docked inside its top-left corner, under the frame, floating with margins all round; Panoramic stands
-## whole at its left where there is room for him (never behind it). Inside, four titled groups, each
-## a sunken card of rows split by fine lines (not ten identical bars): Sound (music and sounds
-## volumes), Effects (vibration, screen shake, reduced motion), Game (language, replay the tutorial)
-## and Help (rate, privacy, credits, and the ad choices and purchases when they apply). Each row has
-## a chunky icon on an orange candy tile, the same on every row. Every row is a thumb-sized target. Credits
+## whole at its left where there is room for him (never behind it). Inside, titled groups, each a
+## sunken card of rows split by fine lines (not ten identical bars), grouped so the columns end level
+## (no empty band). Three columns on a wide screen: Sound and feel (music and sounds volumes,
+## vibration), Game (language, screen shake, reduced motion), Help (replay the tutorial, rate,
+## privacy, credits); two on a narrower one: Sound and Effects, Game and Help; and More (the ad
+## choices and purchases) where they apply. Each row has a chunky icon on a candy tile in its group's
+## colour. Every row is a thumb-sized target. Credits
 ## (About, the fonts and icons, the studio, the version) open over it.
 
 const ROW_H := 76.0  ## height of a row (the whole row takes the touch)
@@ -57,41 +59,47 @@ func _build() -> void:
 	var columns := HBoxContainer.new()
 	columns.add_theme_constant_override(&"separation", 22)
 	card.add_child(columns)
-	# one tile colour per group (gold sound, red effects, orange game, bone help: all in the game's
-	# warm palette): the eye finds a group by its colour, and inside a group every tile is the same
-	var sound := _group("speaker-high-fill", tr("SOUND_GROUP"), Ui.Tone.GOLD, [
-		_slider_row("music-notes-fill", tr("MUSIC"), &"music_volume", &"music_on"),
-		_slider_row("speaker-high-fill", tr("SOUNDS"), &"sounds_volume", &"sounds_on"),
-	])
-	var effects := _group("sparkle-fill", tr("FEEL"), Ui.Tone.CRIMSON, [
-		_toggle_row("vibrate-fill", tr("VIBRATION"), &"vibration_on"),
-		_toggle_row("screen-shake", tr("SCREEN_SHAKE"), &"screen_shake"),
-		_toggle_row("snail", tr("REDUCE_MOTION"), &"reduce_motion"),
-	])
-	var game := _group("play-fill", tr("GENERAL"), Ui.Tone.SUNSET, [
-		_button_row("translate-fill", tr("LANGUAGE"), tr("LANGUAGE_NAME"), _switch_language),
-		_button_row("hand-pointing-fill", tr("REPLAY_TUTORIAL"), "", _replay_tutorial),
-	])
-	var help: Array = [
-		_button_row("star-fill", tr("RATE"), "", Config.open_store_review),
-		_button_row("shield-check-fill", tr("PRIVACY_POLICY"), "", Config.open_privacy_policy),
-	]
+	# one tile colour per group (gold sound, red effects, orange game, bone help, blue purchases: the
+	# kit's tones): the eye finds a group by its colour, and inside a group every tile is
+	# the same. The rows are grouped so the columns end level (no empty band): on a wide screen three
+	# columns (big text, room to breathe) of three, three and four rows; on a narrower one two of five,
+	# Panoramic beside them where there is room.
+	var view := get_viewport().get_visible_rect().size
+	var wide := view.x >= view.y * 1.7
+	var music := _slider_row("music-notes-fill", tr("MUSIC"), &"music_volume", &"music_on")
+	var sounds := _slider_row("speaker-high-fill", tr("SOUNDS"), &"sounds_volume", &"sounds_on")
+	var vibration := _toggle_row("vibrate-fill", tr("VIBRATION"), &"vibration_on")
+	var shake := _toggle_row("screen-shake", tr("SCREEN_SHAKE"), &"screen_shake")
+	var calm := _toggle_row("snail", tr("REDUCE_MOTION"), &"reduce_motion")
+	var language := _button_row("translate-fill", tr("LANGUAGE"), tr("LANGUAGE_NAME"), _switch_language)
+	var tutorial := _button_row("hand-pointing-fill", tr("REPLAY_TUTORIAL"), "", _replay_tutorial)
+	var help: Array = [_button_row("star-fill", tr("RATE"), "", Config.open_store_review),
+			_button_row("shield-check-fill", tr("PRIVACY_POLICY"), "", Config.open_privacy_policy),
+			_button_row("info-fill", tr("CREDITS_BUTTON"), "", _show_credits)]
+	var layout: Array  # columns of groups
+	var switches := 0  # the column with the switches' long labels
+	if wide:
+		layout = [[_group("speaker-high-fill", tr("SOUND_AND_FEEL"), Ui.Tone.GOLD, [music, sounds, vibration])],
+				[_group("play-fill", tr("GENERAL"), Ui.Tone.SUNSET, [language, shake, calm])],
+				[_group("info-fill", tr("HELP"), Ui.Tone.WHITE, [tutorial] + help)]]
+		switches = 1
+	else:
+		layout = [[_group("speaker-high-fill", tr("SOUND_GROUP"), Ui.Tone.GOLD, [music, sounds]),
+				_group("sparkle-fill", tr("FEEL"), Ui.Tone.CRIMSON, [vibration, shake, calm])],
+				[_group("play-fill", tr("GENERAL"), Ui.Tone.SUNSET, [language, tutorial]),
+				_group("info-fill", tr("HELP"), Ui.Tone.WHITE, help)]]
+	var more: Array = []  # the ad choices and the purchases, where they apply: under the first column
 	if Services.ads.privacy_options_required():
-		help.append(_button_row("megaphone-fill", tr("AD_PRIVACY"), "", Services.ads.show_privacy_options))
+		more.append(_button_row("megaphone-fill", tr("AD_PRIVACY"), "", Services.ads.show_privacy_options))
 	if Services.store.enabled():
 		if not Save.ads_removed:
-			help.append(_button_row("prohibit-fill", tr("REMOVE_ADS"), Services.store.price(), Services.store.buy_remove_ads))
-		help.append(_button_row("arrows-clockwise-bold", tr("RESTORE_PURCHASES"), "", Services.store.restore))
-	help.append(_button_row("info-fill", tr("CREDITS_BUTTON"), "", _show_credits))
-	var help_group := _group("info-fill", tr("HELP"), Ui.Tone.WHITE, help)
-	# a wide screen takes three columns of four rows at most (big text, room to breathe); a narrower
-	# one two columns, Panoramic beside them where there is room
-	var view := get_viewport().get_visible_rect().size
-	var groups_by_column: Array = [[sound, game], [effects], [help_group]] if view.x >= view.y * 1.7 \
-			else [[sound, effects], [game, help_group]]
-	for groups: Array in groups_by_column:
-		var col := _column(COLUMN_W + 50.0 if effects in groups else COLUMN_W)  # the switches' long labels
-		for g: Control in groups:
+			more.append(_button_row("prohibit-fill", tr("REMOVE_ADS"), Services.store.price(), Services.store.buy_remove_ads))
+		more.append(_button_row("arrows-clockwise-bold", tr("RESTORE_PURCHASES"), "", Services.store.restore))
+	if not more.is_empty():
+		layout[0].append(_group("star-four-fill", tr("MORE"), Ui.Tone.BLUE, more))
+	for i in layout.size():
+		var col := _column(COLUMN_W + 50.0 if i == switches else COLUMN_W)
+		for g: Control in layout[i]:
 			col.add_child(g)
 		columns.add_child(col)
 	var banner := Banner.new(tr("SETTINGS"), Ui.Tone.SUNSET, 48)

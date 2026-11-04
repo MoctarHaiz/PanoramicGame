@@ -1,12 +1,13 @@
 class_name ShareCard
 extends Control
 ## The picture shared with friends (1200 x 630, the size social apps preview), in the menu's look:
-## the sunset with the sun behind Panoramic (full length, the 3D render, rim-lit) on the left; on
+## the sunset with the sun behind Panoramic (full length: the menu's render, its own light) on the left; on
 ## the right the logo, the run's Red Bobs as a big number on a cream plaque, its stars, and the
 ## challenge on a red chip.
 
 const SIZE := Vector2i(1200, 630)
-const HERO := "res://assets/art/ui/hero_stand.png"  ## loaded when a card is made (not held in memory)
+const HERO := "res://assets/art/hero/hero_menu.png"  ## the art track's render, loaded when a card is made
+const HERO_STAND := "res://assets/art/ui/hero_stand.png"  ## the fallback crop, lit here
 
 var bobs := 0
 var stars := 0
@@ -37,17 +38,21 @@ func _ready() -> void:
 	var backdrop := SunsetBackdrop.new()
 	backdrop.framing_tree = false
 	add_child(backdrop)
+	var rendered := ResourceLoader.exists(HERO)
 	var h := SIZE.y * 0.92
 	var hero := TextureRect.new()
-	var hero_tex: Texture2D = load(HERO)
+	var hero_tex: Texture2D = load(HERO if rendered else HERO_STAND)
 	hero.texture = hero_tex
 	hero.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	hero.stretch_mode = TextureRect.STRETCH_SCALE
 	hero.size = Vector2(h * hero_tex.get_width() / hero_tex.get_height(), h)
-	hero.position = Vector2(150, SIZE.y - h + 10)
-	var lit := ShaderMaterial.new()
-	lit.shader = preload("res://src/ui/hero.gdshader")
-	hero.material = lit
+	if rendered:  # the render carries its own light; it stands on its contact shadow at 0.94 of its height
+		hero.position = Vector2(maxf(470.0 - hero.size.x, 10.0), SIZE.y - 22.0 - h * 0.94)
+	else:
+		hero.position = Vector2(150, SIZE.y - h + 10)
+		var lit := ShaderMaterial.new()
+		lit.shader = preload("res://src/ui/hero.gdshader")
+		hero.material = lit
 	backdrop.sun_at = (hero.position + hero.size * Vector2(0.52, 0.3)) / Vector2(SIZE)
 	add_child(hero)
 	var col := VBoxContainer.new()

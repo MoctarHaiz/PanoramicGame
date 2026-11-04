@@ -7,6 +7,8 @@ extends Node2D
 signal bob_popped(at: Vector2)  ## where a Red Bob was collected, in this node's units
 
 const HANG_DRAW_DROP := 58.0  ## the rules hang him half above the screen: draw him below its top
+## Round 9: the pictures the pools mirror (their savanna strips and the sky)
+const WATER_MIRRORS := {"grass_tex": "near_grass", "hills_tex": "mid_hills", "sky_tex": "sky"}
 const EXTRA_COLUMNS := 70  ## ground drawn past the end of the map for wide screens
 
 var world: World
@@ -32,6 +34,7 @@ var _hero: HeroView
 ## Effects layer: the Fx kit is sized for a 1280-tall design, so it draws at half scale here.
 var fx: Node2D
 var _dust_clock := 0.0
+var _water: Array[ShaderMaterial] = []  # the pools' (round 9: the scroll for their reflection)
 var _was_climbing := false
 
 
@@ -69,7 +72,6 @@ func setup(w: World) -> void:
 	w.hurt.connect(func(_b: World.Bandit, _l: int) -> void: _hero.hurt())
 	add_child(_home.front)
 	add_child(_background.front)
-	add_child(_background.top)  # (round 3) the boughs framing the top of the screen
 	_add_grade()
 	fx = Node2D.new()
 	fx.scale = Vector2.ONE * 0.5
@@ -179,9 +181,23 @@ func _add_water() -> void:
 			m.set_shader_parameter("rect_size", rect.size)
 			m.set_shader_parameter("x_offset", rect.position.x)
 			m.set_shader_parameter("soil_tex", load("res://assets/art/world/soil.png"))
+			m.set_shader_parameter("level_top", rect.position.y)  # (round 9) the savanna mirrored in it
+			for name: String in ["grass_tex", "hills_tex", "sky_tex"]:
+				m.set_shader_parameter(name, load(SavannaView.DIR + WATER_MIRRORS[name] + ".png"))
+			m.set_shader_parameter("grass_strip", _strip(&"near_grass"))
+			m.set_shader_parameter("hills_strip", _strip(&"mid_hills"))
+			_water.append(m)
 			rect.material = m
 			rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			_level_root.add_child(rect)
+
+
+## Round 9: a strip of the savanna as the water shader reads it: scroll factor, bottom y, units a
+## texture pixel, height in units.
+func _strip(name: StringName) -> Vector4:
+	var s: Array = SavannaView.STRIPS[name]
+	var tex: Texture2D = load(SavannaView.DIR + String(name) + ".png")
+	return Vector4(s[0], s[1], s[2], tex.get_height() * s[2])
 
 
 ## The banks and the poles standing in the pools, seen through the water under its surface, with
@@ -280,6 +296,8 @@ func refresh(delta := 0.0) -> void:
 	var home_k := 1.0 if world.state == World.State.WON else 0.0
 	_background.front.modulate.a = move_toward(_background.front.modulate.a, 1.0 - 0.85 * home_k, delta * 2.0)
 	_place_grade()
+	for m in _water:
+		m.set_shader_parameter(&"scroll", scroll)
 	_watch_splashes(scroll)
 	_place_hero(delta)
 	_place_bandits(scroll, delta)

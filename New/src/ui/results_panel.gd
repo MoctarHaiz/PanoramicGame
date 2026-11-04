@@ -1,16 +1,17 @@
 class_name ResultsPanel
 extends RefCounted
 ## The end of a run, over the game (GamePanel), told in order so the eye can follow it:
-## - Home: a gold ribbon; the three stars slam into their carved sockets one after the other, each
-##   with a burst and its note (the third shakes the card), coins and confetti rain in front of
-##   everything; then the Red Bobs roll up with ticks; a NEW BEST stamp slams in last (in its own row
-##   under the count, so it covers nothing and stays on the card). Panoramic
-##   stands at the left with his arms up, in a pool of gold light, a big burst of rays turning
-##   behind the card.
-## - A lost run: a crimson GAME OVER ribbon and what happened under it; the Red Bobs roll up, then
-##   the bar of the way home fills to where he got (the house at its end in a gold disc: the goal);
-##   the buttons are there at once. Panoramic down on one knee in a cold, dim light.
-## Home, PLAY AGAIN (the big one) and Share sit in one warm row, there from the start.
+## - Home: a red ribbon on the gilded card; the three stars slam into their gold-rimmed sockets one
+##   after the other, each with a burst and its note (the third shakes the card), coins and confetti
+##   rain in front of everything; then the Red Bobs roll up with ticks in a groove cut into the
+##   parchment; a NEW BEST burst badge slams in last beside the count (its place kept in the count's
+##   row from the start: nothing moves, nothing is covered, no empty band). Panoramic stands at the
+##   left with his arms up, in a pool of gold light, a big burst of rays turning behind the card.
+## - A lost run, in another mood: the world behind drained grey and blue, the card in cold iron and
+##   grey hide, a slate GAME OVER ribbon and what happened under it; the Red Bobs roll up, then the
+##   bar of the way home fills to where he got (the house at its end in a gold disc: the goal); the
+##   buttons are there at once. Panoramic dazed on the ground in a cold, dim light.
+## PLAY AGAIN (the big green one) between Home and Share, both in the one quiet blue, from the start.
 
 const HERO_WIN := "res://assets/art/hero/hero_win.png"  ## the art track's render (arms up), when there
 const HERO_LOSE := "res://assets/art/hero/hero_defeat.png"  # the art track's defeat pose
@@ -18,6 +19,7 @@ const HERO_STAND := "res://assets/art/ui/hero_stand.png"  ## fallbacks, loaded o
 const HERO_DOWN := "res://assets/art/ui/hero_down.png"  ## kept them in texture memory all the time)
 const STAR_STEP := 0.32  ## seconds between two stars
 const COUNT_TIME := 0.7  ## seconds the Red Bobs take to roll up
+const BADGE := 60.0  ## the NEW BEST badge's radius (its spikes)
 
 
 ## Opens the results over `game` (the game screen). `news`: what Save.record_run found new.
@@ -33,9 +35,12 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 		# what happened: deep red letters on the parchment, no stroke (a stroke on red closes the letters)
 		var why := Ui.label(TranslationServer.translate("FELL" if world.death_reason == &"fall" else "CAUGHT"),
 				38, Color("a01408"), Ui.font_display)
-		body.add_child(why)
+		var air := MarginContainer.new()  # room for a new best's crown over the groove below
+		air.add_theme_constant_override(&"margin_bottom", 14)
+		air.add_child(why)
+		body.add_child(air)
 	var well := PanelContainer.new()
-	well.add_theme_stylebox_override(&"panel", _dark_well())
+	well.add_theme_stylebox_override(&"panel", _dark_well(won))
 	var lines := VBoxContainer.new()
 	lines.add_theme_constant_override(&"separation", 10)
 	well.add_child(lines)
@@ -55,6 +60,11 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 	bobs.refresh()
 	bobs.custom_minimum_size.x = maxf(bobs.custom_minimum_size.x, 300.0)
 	big.add_child(bobs)
+	var slot := Control.new()  # a new best's badge lands here, beside the count: its place is kept
+	slot.custom_minimum_size = Vector2(BADGE * 1.7, 0)
+	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	slot.visible = news.get("best_bobs", false)
+	big.add_child(slot)
 	lines.add_child(big)
 	var bar: WayBar = null
 	if not won:
@@ -63,19 +73,14 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 		var way := HBoxContainer.new()  # what the bar measures, said beside it (not a second score)
 		way.alignment = BoxContainer.ALIGNMENT_CENTER
 		way.add_theme_constant_override(&"separation", 12)
-		way.add_child(Ui.label(TranslationServer.translate("WAY_HOME"), 28, Color("ffe2a8"), Ui.font_title))
+		way.add_child(Ui.label(TranslationServer.translate("WAY_HOME"), 28, Color("e6ecfa"), Ui.font_title))
 		way.add_child(bar)
 		lines.add_child(way)
 	body.add_child(well)
-	var slot := Control.new()  # a new best's stamp lands here, in its own room: it covers nothing
-	slot.custom_minimum_size = Vector2(0, 74)
-	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	slot.visible = news.get("best_bobs", false)
-	body.add_child(slot)
 	var buttons := HBoxContainer.new()
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	buttons.add_theme_constant_override(&"separation", 22)
-	var home_button := Ui.icon_button("house-fill", Ui.Tone.SUNSET, 96.0, 30.0)
+	var home_button := Ui.icon_button("house-fill", Ui.Tone.BLUE, 96.0, 30.0)
 	home_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	home_button.pressed.connect(home)
 	buttons.add_child(home_button)
@@ -84,40 +89,36 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 	go.pressed.connect(again)
 	go.shine()
 	buttons.add_child(go)
-	var share_button := Ui.icon_button("share-network-fill", Ui.Tone.GOLD, 96.0, 30.0)
+	var share_button := Ui.icon_button("share-network-fill", Ui.Tone.BLUE, 96.0, 30.0)
 	share_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	share_button.pressed.connect(share)
 	buttons.add_child(share_button)
 	var foot := MarginContainer.new()  # air before the buttons: the result above reads as one group
-	foot.add_theme_constant_override(&"margin_top", 18)
+	foot.add_theme_constant_override(&"margin_top", 22)
 	foot.add_child(buttons)
 	body.add_child(foot)
 	var title := TranslationServer.translate("HOME_REACHED" if won else "GAME_OVER")
 	var panel: GamePanel
-	if won:  # warm and radiant
-		panel = GamePanel.open(game, title, Ui.Tone.GOLD, body, _hero(true), Color(0.2, 0.07, 0.02, 0.38),
+	if won:  # warm and radiant: a red ribbon on the gold (gold on gold was lost)
+		panel = GamePanel.open(game, title, Ui.Tone.CRIMSON, body, _hero(true), Color(0.2, 0.07, 0.02, 0.38),
 				Color(1, 0.78, 0.4, 0.75), true, hide, &"win")
-	else:  # cold and dim
-		panel = GamePanel.open(game, title, Ui.Tone.CRIMSON, body, _hero(false), Color(0.04, 0.05, 0.12, 0.55),
+	else:  # cold and dim: slate, iron, a grey world
+		panel = GamePanel.open(game, title, Ui.Tone.SLATE, body, _hero(false), Color(0.03, 0.05, 0.14, 0.5),
 				Color(0.5, 0.6, 1.0, 0.25), false, hide, &"loss")
 	_reveal(game, panel, world, stars, bobs, total, bar, slot, news.get("best_bobs", false), buttons, go)
 	return panel
 
 
-## The well under the run's count: dark leather sunk into the parchment, so the cream numbers stand
-## out on it (a beige well on a cream card left them flat).
-static func _dark_well() -> GlossStyle:
-	var s := GlossStyle.new(Color("4a2210"), Color("6e3818"), Color(0, 0, 0, 0), 20, 0.0)
-	s.set_outline(Color("2e0d04"), 3.0)
-	s.gloss = 0.0
-	s.spark = 0.0
-	s.rim = 0.0
-	s.shadow.shadow_color = Color(1, 0.96, 0.85, 0.8)  # the lit lip of the parchment under it
-	s.shadow.shadow_size = 0
-	s.shadow.shadow_offset = Vector2(0, 3)
-	s.set_content_margin_all(14)
-	s.content_margin_left = 24
-	s.content_margin_right = 24
+## The groove under the run's count: cut into the parchment (InsetStyle: shade under its upper
+## edge, the lit lip of the parchment under it), dark, so the cream numbers stand out on it; warm
+## leather after a win, cold slate after a loss.
+static func _dark_well(won: bool) -> InsetStyle:
+	var s := InsetStyle.new(22.0)
+	s.top = Color("4a2210") if won else Color("262c3e")
+	s.bottom = Color("74401e") if won else Color("465070")
+	s.outline = Card.INK if won else Color("141a2c")
+	s.content_margin_top = 12
+	s.content_margin_bottom = 14
 	return s
 
 
@@ -171,6 +172,8 @@ static func _hero(won: bool) -> TextureRect:
 	art.texture = load(path) if rendered else load(HERO_STAND if won else HERO_DOWN)
 	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
+	if rendered:  # the renders stand on their own contact shadow (hero_atlas.py): the panel adds none
+		art.set_meta(&"ground", 0.946 if won else 0.935)
 	if won:
 		art.set_meta(&"tall", 1.06)  # arms up: he stands a head above the card
 		art.set_meta(&"overlap", 0.0)  # beside it: his raised hand clear of the ribbon
@@ -227,8 +230,8 @@ static func _reveal(game: Control, panel: GamePanel, world: World, stars: Array[
 			panel.move_child(rain, panel.card.get_parent().get_index())
 			Fx.coin_shower(rain, panel.size.x, panel.size.y)
 			var view := panel.size * 2.0  # New (audio): fireworks in the sky behind him and the card
-			Fx.fireworks(back, Vector2(view.x * 0.96, view.y * 1.02), -1.0)  # soft bokeh on the right only (left: him)
-			Fx.card_bursts(back, panel.card))  # New (audio): sharp bursts round the card's top
+			Fx.fireworks(back, Vector2(view.x * 0.96, view.y * 1.02), -1.0)  # shells on the right only (left: him)
+			Fx.card_bursts(back, panel.card))  # New (audio): crisp bursts left of him and right of the card
 	_count_up(tree, bobs, world.bobs, total, t, panel)
 	t += COUNT_TIME + 0.1
 	if bar:
@@ -314,28 +317,23 @@ static func _count_up(tree: SceneTree, value: DisplayText, target: int, suffix: 
 	bump.tween_property(value, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
-## NEW BEST!: a red rubber stamp (a double red border on the parchment, red letters and crown, a
-## little tilted as a stamp lands: not a button) slams into its row under the count, the card shakes,
+## NEW BEST!: a burst badge (a gold starburst, a glossy red medallion, a crown: a seal, not a
+## button) slams into its place beside the count, spinning in a little askew, the card shakes,
 ## light and sparkles burst under it.
 static func _stamp(tree: SceneTree, panel: GamePanel, slot: Control, delay: float) -> void:
 	await tree.create_timer(delay).timeout
 	if not is_instance_valid(panel):
 		return
-	var chip := _rubber_stamp(TranslationServer.translate("NEW_BEST"))
-	var stamp := Control.new()
-	stamp.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stamp.size = chip.get_combined_minimum_size()
-	stamp.add_child(chip)
-	slot.add_child(stamp)  # in its own row of the card, between the count and the buttons
+	var stamp := BurstBadge.new(TranslationServer.translate("NEW_BEST"), BADGE)
+	slot.add_child(stamp)  # in the count's row, its place kept from the start
 	stamp.position = (slot.size - stamp.size) / 2
-	stamp.pivot_offset = stamp.size / 2
-	stamp.rotation = -0.07  # a stamp lands a little askew
-	stamp.scale = Vector2.ONE * 1.6
+	stamp.scale = Vector2.ONE * 1.8
 	stamp.modulate.a = 0.0
 	var t := stamp.create_tween().set_parallel(true)
 	t.tween_property(stamp, "modulate:a", 1.0, 0.06)
-	t.tween_property(stamp, "scale", Vector2.ONE * 0.94, 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	t.chain().tween_property(stamp, "scale", Vector2.ONE, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.tween_property(stamp, "rotation", -0.14, 0.28).from(0.6).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.tween_property(stamp, "scale", Vector2.ONE * 0.92, 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	t.chain().tween_property(stamp, "scale", Vector2.ONE, 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	await tree.create_timer(0.14).timeout
 	if not is_instance_valid(panel):
 		return
@@ -346,55 +344,6 @@ static func _stamp(tree: SceneTree, panel: GamePanel, slot: Control, delay: floa
 	Fx.badge_burst(fx, stamp.get_global_rect().get_center() * 2.0)
 	Audio.play_sfx(&"new_best")
 	Haptics.success()
-
-
-## The rubber stamp: red ink on the parchment, a thick border and a fine one inside it, the crown
-## and the words in the same red (no fill: it is printed on the card, it is not a button).
-static func _rubber_stamp(text: String) -> PanelContainer:
-	var ink := Color("c41e12")
-	var outer := StyleBoxFlat.new()
-	outer.bg_color = Color(1, 0.96, 0.9, 0.3)
-	outer.border_color = ink
-	outer.set_border_width_all(7)
-	outer.set_corner_radius_all(12)
-	outer.set_content_margin_all(6)
-	outer.anti_aliasing = true
-	var inner := StyleBoxFlat.new()
-	inner.draw_center = false
-	inner.border_color = ink
-	inner.set_border_width_all(3)
-	inner.set_corner_radius_all(7)
-	inner.content_margin_left = 18
-	inner.content_margin_right = 20
-	inner.content_margin_top = 0
-	inner.content_margin_bottom = 2
-	inner.anti_aliasing = true
-	var box := PanelContainer.new()
-	box.add_theme_stylebox_override(&"panel", outer)
-	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var texture := ShaderMaterial.new()  # the ink's grain, shared by the border, the crown and the words
-	texture.shader = preload("res://src/ui/stamp.gdshader")
-	box.material = texture
-	var line := PanelContainer.new()
-	line.add_theme_stylebox_override(&"panel", inner)
-	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	line.use_parent_material = true
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override(&"separation", 12)
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.use_parent_material = true
-	var crown := Ui.bold_icon("crown-fill", 46, ink, Color(0, 0, 0, 0))
-	crown.use_parent_material = true
-	row.add_child(crown)
-	var words := Ui.label(text.to_upper(), 40, ink, Ui.font_display)
-	words.add_theme_color_override(&"font_outline_color", ink)  # heavier letters: an outline in the ink
-	words.add_theme_constant_override(&"outline_size", 5)
-	words.use_parent_material = true
-	row.add_child(words)
-	line.add_child(row)
-	box.add_child(line)
-	return box
 
 
 ## A short shake of `c` (a few px, a quarter of a second).
@@ -450,8 +399,10 @@ class WayBar extends Control:
 		var ci := get_canvas_item()
 		var r := Rect2(Vector2(0, 10), Vector2(size.x - 40.0, size.y - 20))
 		var rad := r.size.y / 2
-		GlossStyle.fill_rounded(ci, r.grow(3.0), rad + 3.0, Card.INK, Card.INK)
-		GlossStyle.fill_rounded(ci, r, rad, Color("6a3a1c"), Color("8a5a30"))
+		GlossStyle.fill_rounded(ci, r.grow(3.0), rad + 3.0, Color("141a2c"), Color("141a2c"))
+		GlossStyle.fill_rounded(ci, r, rad, Color("1a1e2c"), Color("343c56"))  # a groove in the slate
+		GlossStyle.fill_clipped(ci, r, rad, Rect2(r.position, Vector2(r.size.x, r.size.y * 0.5)),
+				Color(0, 0, 0, 0.5), Color(0, 0, 0, 0))
 		var w := maxf(r.size.x * _shown, r.size.y)
 		var f := Rect2(r.position, Vector2(w, r.size.y))
 		GlossStyle.fill_rounded(ci, f, rad, Color("ffd34a"), Color("e8860e"))

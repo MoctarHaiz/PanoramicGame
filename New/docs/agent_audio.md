@@ -333,3 +333,52 @@ A lighter pattern never cuts into a heavier one still playing; nothing plays whe
   three spots, the sky left of him (fresh at the `win` capture), right of the card, just left of the card.
 - "+1": PLUS_SCALE 0.8 -> 1.0 (it reads at phone size).
 - Tests: 1023 checks, 0 failed, bot home.
+
+## Round 9 (2026-11-04): ROUND9.md audio (fireworks "soft bokeh blobs", confetti "dust specks", "+1" with no burst)
+- Confetti (`confetti.gd`): every piece and light is a region of one atlas (`Confetti.atlas()`, `region()`;
+  256 x 160 px, PAD 4 so the mipmaps don't bleed; baked in ~0.1 s at boot by Fx.warm_up): a node's pieces
+  draw in one batch and its light (glints, sparkle halos and stars) in another, whatever the mix of shapes
+  (was a batch per shape, two per sparkle kind).
+  PAPER rebaked at 56 x 36 with a visible curl (lit band, far end in shade, crisp lit top edge); new SOFT: a
+  paper square close to the eye, out of focus (a flat rounded rectangle melting into a wide falloff); STRIP_NEAR
+  gone. Big paper never thins to a sliver as it tumbles (30 % at edge-on). PAPER, STRIP and SOFT are two-tone.
+  `avoid` now fades a piece over half its size outside the rectangle (`_clear`): it slides behind the card's
+  edge instead of vanishing.
+- Win (`Fx.coin_shower`): big two-tone paper (size 1.6-2.0, PAPER_COLOURS: + a teal and a rose) falling slowly
+  (terminal ~240 px/s, 2.2 s stagger: in the air for the whole reveal), most of it in `parent` (behind him and
+  the card: they hide what passes behind them), and in front only where nothing is behind (left of him, right
+  of the card; `_hero_rect` finds his picture by its "tall" meta): coins, some paper, 4 SOFT near pieces per
+  strip (size 4.4, faster: closer), motes. No more petals, beads and sequins (the "dust specks").
+- Fireworks (`Fx.FireworkShow`, replaces FireworkShow's bokeh and SharpBurst): one node, one batch (the atlas,
+  added). A burst: a white hot point for 0.1 s, a bloom of its colour, 60 sparks evenly round on a sphere seen
+  from the side (dense rim, the slow middle in a second colour), each a crisp tapered streak (12 px, a 4.5 px
+  white-hot core, its length a share of its path: long radial lines that shorten as they slow) behind a hard
+  white-hot head cooling to its colour; drag 3/s, droop, the last 40 % glitter. `Fx.card_bursts`: 8 bursts
+  every 0.6 s taking turns in the sky left of him and right of the card (one fresh at the `win` capture), kept
+  inside the screen on a tablet; `Fx.fireworks`: 3 shells from the lower right, 0.6 s apart.
+- "+1": pops out of `Fx.pop_burst` at the hit point: a jagged 12-spike comic star in the number's dark stroke,
+  red-orange tips to orange, a gold star in its notches, a pale middle; slams open (0 -> 1.2 -> 1 in 8 frames),
+  turns a little, snaps shut as the number goes (0.66 s). Untextured polygons drawn once (tweens move it).
+  The number rises 26 units (was 70: it stays on its burst); its additive halo is gone (the burst does that).
+- Home: `confetti_burst` in three depths of paper (far 1.8 hazed, mid 2.6, 4 SOFT near ones at 4.6),
+  `rescue_burst` paper instead of petals/beads; both keep clear of his body (`Fx._behind_hero` reads
+  WorldView.hero_screen_rect: what flies out of the doorway behind him passes behind him, none on his face).
+- Removed: `Fx.hit_spark` and `impact_texture()` (unused since round 2; 128 px baked at boot), `PARTY_SHAPES`.
+  `edge_texture()` 256 -> 128 px (a smooth ramp stretched over the screen). Together they pay for the atlas.
+- Perf (perf.tscn, iPhone 15, whole level; before = fa1545b's fx/confetti, after = two runs): draw calls run
+  mean 154.1 -> 153.8, max 337 -> 327 / 322; results mean 255 -> 246 / 245, max 276 -> 263; texture memory
+  run 49.87 -> 49.74 MB, results 52.60 -> 52.47, menu after 58.89 -> 58.77. Results script p99 0.40 -> 0.47 /
+  0.41 ms (each spark drawn in one transform). Frames PASS (worst own work 8.1 / 7.3 ms).
+- Tests: 1030 checks, 0 failed, exit 0 (`_audio_round9`: one atlas, regions apart, SOFT bigger than PAPER, the
+  fade by the card, the "+1"'s burst behind it at the hit point, a burst's sparks reach its radius, the show
+  frees itself); --bot: home, 3 lives, 82 Red Bobs, 3 stars.
+- results_panel.gd (UX's file): my two comment lines only ("shells on the right", "crisp bursts").
+- Stills: `AAA/audio/round_9/captures/` (iPhone 15, --ads=off): game_plus1 (strip film --bandit=260 --hurt=1
+  --act=throw@0, frame 22), win, home. Before: `AAA/audio/round_9/before/`.
+  iPad and 1280 x 720 layouts of win and home: `AAA/audio/round_9/layouts/`.
+
+### Next (round 9)
+- On a tablet the margins beside the card are narrow: the bursts sit at the screen edges, half behind the card.
+- The paper's shading reads at full size; at phone size the pieces are mostly flat colour (a stronger curl or a
+  thin darker edge could help if the judge still calls it flat).
+- The "+1"'s burst hides the bandit's legs for its first frames (he is already tumbling away).

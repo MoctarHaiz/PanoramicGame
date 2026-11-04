@@ -261,3 +261,74 @@ Worktree: `_agents/wt/env/New`. Captures: `_agents/AAA/env/round_<n>/`. Owns `wo
   read as "a flat green strip over a flat brown band"); still under the Red Bobs' rows.
 - Pools: the grassy banks mirrored just under the surface near them.
 - Before/after: AAA/env/round_8/before_after_r7_r8.jpg.
+
+## Round 9 (after the hero phase, fa1545b)
+
+The judges now criticise what surrounds the hero. Each of their words, and what was done:
+
+- **The pillar ("a chest of drawers / cake icing")**. The drawers were a bug: the depth picture's
+  A channel (cells of wall below, to the foot) counted only a wall's side columns, so every cell
+  inside a pillar was shaded as a foot, 22 units dark in each 32 (horizontal stripes, a darker
+  inner rectangle). A now counts the whole width of a narrow wall (NARROW_CELLS = 6; `_test_env`'s
+  cell-by-cell count follows). The rock (terrain.gdshader) is now blocks in wavy beds (a Voronoi of
+  points jittered in rows: longer than tall, the joints between beds wavy, the joints in a bed
+  leaning), each block its own stone (redder, paler, grey beds; patches), rounded by the light, a
+  lit bevel on its sun side and a dark one plus a broken ink crack on the other; the wall's light
+  bands follow the blocks (each block takes the light of its centre, no ruled edge); a round column
+  shading; under the grass lip moss creeps down in ragged tongues (pillars only), then a long soft
+  occlusion; the foot's contact is a soft 50-unit gradient.
+- **Value structure ("the pale haze band washes out the middle")**: the far hills slate blue and
+  darker (their haze material), the far tree row the same cool blue, sparser; the haze bands
+  fainter (one gone), the warm "lane" lower and fainter; the far mesas' feet in cool air (foot
+  haze), their lit faces untouched (round 6's buttes and warm sun kept, no new shapes).
+- **The sun ("a pale disc with no bloom")**: additive orange on the blue sky made it grey-white,
+  and the light grade's violet corner tinted its disc lilac. Now a golden halo laid over the sky
+  (sun_halo.png, normal blending), then the hot disc and bloom added, and no shade from the grade
+  within ~0.3 of the sun.
+- **Water ("a flat cyan rectangle, no reflection or edge foam")**: the savanna behind the pool is
+  mirrored in it (the tall golden grass over the mid hills over the sky, read from SavannaView's
+  own strips at the right scroll; WorldView sets `scroll` each frame), squeezed 2.5x, broken by the
+  ripples, as light and shade in the water's own colour; light shafts slant down from the surface;
+  the foam on top in drifting patches and flecks over a thin bright line (not an even white
+  border); froth bubbling along the banks. (A first version copied the screen: +15.5 MB of texture
+  memory at 2556 x 1179, 77.5 of the 80 MB budget: replaced.)
+- **The island underside ("cardboard")**: hanging.png repainted: a lumpy mass narrowing to a
+  point, built of rock blocks each lit as a rounded stone, its own colour, inked seams, boulders
+  bulging from the outline, sinking into the ledge's violet shade, roots; drawn over the soil now
+  (the `mass` layer after `soil`), its top fading into the ledge: no line where they meet.
+- **The hang pillars ("totem poles / stacked bricks")**: material.py `spire()` rewritten: a natural
+  stack tapering from a broad foot (the river poles' waterline is 0.74 down the picture) to a
+  broken cap, each side its own wandering profile, a few beds of very uneven thickness (notches at
+  some joints, a block jutting out at others, the joints leaning and broken), long vertical
+  fissures, each bed its own stone, moss only under the cap; never mirrored (the sun stays on the
+  left), and neighbours in the river never twins.
+- **The vine ("bunting")**: no orange blossoms; one to four leaf clusters of very different sizes
+  (a span nearly bare), a thinner liana looping under some spans, tendrils of very different
+  lengths (vine.py); in the view the knots are tied off their even places (KNOT_SHIFT: spans of
+  uneven length, the picture stretched), the sag from nearly taut to deep (8-30), and level at the
+  knots (sin²: the V at every knot read as bunting pinned up).
+- **Trees and foreground ("tiny flat repeated silhouettes", "no foreground parallax layer")**:
+  fg_props.png (savanna.py `fg_props()`): tall grass in seed, an aloe, a fallen log, a bush, dark
+  and out of focus with a warm rim, passing along the bottom edge now and then at 1.6x (a third
+  under the edge: they rise at most ~45 units over the ground line; they fade where they pass in
+  front of him). The near tree rows a little lighter (their crowns' lit tops read).
+- **The top edge ("dark acacia branches cut off along the top edge look like dirt smudges")**: the
+  canopy layer, canopy.png and its generator are gone.
+- **Home**: the thatch's tiers of uneven height (the dome's silhouette steps follow them), each
+  ring bowed round the dome, its fringe in clumps of straw of very different lengths and tones with
+  loose straws; the doorway lit by the fire inside (warm up to the arch's shadow, its ribs) and the
+  frame's inner edge orange with its light; the campfire drawn again: three layers of flame
+  tongues shading from a hot root to a transparent tip, swaying and curling (draw_polygon with
+  vertex colours), a bed of embers, logs lit on top, stones lit by the fire, sparks rising.
+- **The boots in the dirt at home**: the win action's renders stand 146 px (of 1024) lower than
+  the others' (its planted toes at ~1005 px, the origin at 859), so in the cheer his soles were
+  drawn ~32 units under the grass line. hero_atlas.py (art's) now takes the win's ground origin
+  from its planted toes; only hero_frames.json changed (the atlas pages are byte-identical).
+
+Numbers: tests 1023 checks, 0 failed (bot home). Perf (iPhone 15, perf.tscn): texture memory
+62.0 MB (budget 80; with the screen copy it was 77.5), worst own work in play 8.9 ms, level open
+114 ms. Before/after crops: `AAA/env/round_9/ba_*.jpg`.
+
+Next: the pools are still a narrow band at the bottom under the dark grade and the foreground
+grass; the far escarpment is still a pale lavender plane; the mid-hill bushes are flat pills;
+the spires are still tall and thin (the rules' single cell).

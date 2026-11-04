@@ -407,3 +407,79 @@ hierarchy); settings slightly lost (small text, crowded rows, the back button fl
   phase (56.0 / 50.4 / 50.4 / 52.9 / 59.4 MB); draw calls max 102 / 336 / 211 / 278 / 102 -> 101 /
   337-340 / 211 / 273 / 101, mean 93.0 / 153.7 / 206.3 / 258.5 / 97.2 -> 92.1 / 153.5 / 206.3 /
   254.6 / 96.2 (the run's maximum moves by a few calls from one run to the next).
+
+## Round 9
+
+After the hero phase (fa1545b). ROUND9.md (ux): the kit's frames heavy and dark, the washed-out Best
+card and its "missing" grey star, the flat score slab, the cheap NEW BEST stamp, the triangle strips
+as noise, no fail mood, gold on gold on the win and three button hues, the progress bar's grey
+chevrons, the stock logo beside its shield, empty bands in the panels. QA's round-9 audit (ux): the
+stamp placed for a third of its size, the share card's old hero, two contact shadows under the
+results pictures, the menu hero 11 % smaller with a boot in the air, the logo and rock held all run.
+
+- The kit's ring (ui.gd): thin bright brass (BRASS; a copper ring on a gold face) 5 % of the
+  button's height instead of 8.5 % of carved wood, a thinner ink outline, a deep soft drop shadow
+  (0.5 alpha, 18 px, 13 down). The saturated green CTA and the faces kept. The main button's shine
+  adds two glints twinkling on its ring between the sweeps (JuicyButton._Shine._glints).
+- HUD (hud.gd): slim plates (dark smoked glass, a 3 px edge instead of 7, a 2 px outline, the brass
+  ring); the pause a round gold kit button (no black circle); the way home a groove cut into the
+  plate (shade under its upper edge, the plate's lit lip under it), no chevrons, the face 54 units in
+  its gold ring over the plate's edges (was 42), a bigger house disc.
+- Empty stars (star_badge.gd): a dark sunken star in a bright gold rim (menu and results sockets).
+- Menu: the Best plaque warmer parchment in the brass ring, a firm ink outline, a deep shadow, the
+  count 50; the gear a gold kit tile; the hero 0.29 of the width at most (was 0.26: the lunge picture
+  had shrunk him 11 %); the rock scaled from his stance (ROCK_LEDGE, STANCE) and turned level
+  (ROCK_TILT) so both boots stand on its ledge; the logo and the rock loaded with the menu (a
+  preload held them, 3 + 7 MB, through the whole run).
+- Logo (tools/art/ui_logo.py): the letters drawn for it as polygons, not set in Fredoka: chiselled
+  (cut corners), blade-cut ends (the C's mouth, the Z's and L's feet run to a point), the A's apex an
+  assegai point above the line; CHAKA over a bigger ZULU on one arch, leaning forward; polished gold
+  (a crisp horizon between a bright upper half and a deeper lower one); each letter drawn 4x and
+  shrunk, the bevel measured on a mask twice as fine (no specular dots along slanted edges). Locked
+  up with the shield: the shield leans behind the C and the Z, taller than both lines, the assegai
+  crossing behind it; the menu's ribbon crosses its foot.
+- Panels (card.gd): no triangle strip; the frame 18 (was 24); a brass bracket over each corner, its
+  arms ending in assegai blades, a red bead in the bend (assets/art/ui/corners.png, baked by
+  tools/art/ui_kit.py: brass and iron rows, the top and bottom left corners lit from above, the
+  right ones mirrored); middle studs only. A loss mood that differs: slate-stained wood, steel trim,
+  iron corners and studs, grey hide; behind it the world drained (soft_blur.gdshader `grey` 0.75) and
+  a colder vignette; a SLATE ribbon (new tone); the count groove and the way-home bar in slate.
+- Results (results_panel.gd): the count in a groove (InsetStyle, src/ui/inset_style.gd: shade under
+  the upper edge, the parchment's lit lip under it); NEW BEST a burst badge (src/ui/burst_badge.gd:
+  a gold starburst, a glossy red medallion, the words on two lines fitted to it, a crown, a glint)
+  slamming into a place kept for it beside the count (no row of its own: no empty band, no stamp
+  pushed right; fixed size, so it is centred where it lands: QA UX-1). The win's ribbon red on the
+  gold card; Home and Share both in the quiet blue beside the green Play again (two hues, not three).
+  The rendered pictures stand on their own baked shadow (meta `ground`: 0.946 for the leap, 0.935
+  for the seated defeat) and GamePanel draws no second one (QA).
+- Settings: rows grouped so the columns end level (no empty band under two of them): on a wide
+  screen three columns of 3, 3 and 4 rows: Sound and feel (music, sounds, vibration), Game (language,
+  screen shake, reduced motion), Help (replay the tutorial, rate, privacy, credits); on a narrower one
+  (iPad) round 8's two columns of 5: Sound and Effects, Game and Help. More (ad choices, purchases,
+  where they apply, in blue) under the first column.
+- Share card: the art track's menu render on its own light (was round 1's crop, QA).
+- tests/: base's run_tests.gd, capture.gd and perf.gd (QA's round 9) copied in; QA's stamp check
+  (`_results_problems`) now finds the BurstBadge (the stamp shader is gone) and checks it centred in
+  the place kept for it and clear of the frame. Removed: src/ui/stamp.gdshader.
+- Found by the tests on the way: the win picture, now standing on its own shadow, hung its clear
+  foot (the shadow's pool) past the bottom of 16:9 screens: GamePanel counts the picture's part under
+  the card's foot in the group it centres and shrinks (`below`). The menu column (a bigger logo) ran a
+  few units past the Pixel's safe area: the logo is sized from the Best row's real height, and the
+  plaque's two lines sit tighter.
+- HUD: the way home's groove is a child drawn once behind the track (`_Groove`), not clipped and
+  redrawn every frame with the moving face.
+- Tests (`run_tests.tscn -- --bot`): 1053 checks, 0 failed, exit 0 (QA's stamp-and-hero check
+  included, 24 cases). Captures `AAA/ux/round_9/{en,fr}/` (iPhone 15 every shot and the share card,
+  iPad and 1280 x 720 the layouts), the round's start in `round_9/before/`.
+- perf.gd, iPhone 15 (AAA/ux/round_9/perf_iphone15.*), against QA's round-9 audit of the same tree
+  before my changes: texture menu 55.5 -> 56.2, play 49.9 -> 38.9, paused 49.9 -> 38.9, results
+  52.6 -> 41.7, menu again 58.9 -> 59.5 MB (the logo and the rock no longer held through the run);
+  draw calls max 101 / 336 / 211 / 271 -> 111 / 344 / 212 / 282 (glints, corners, the badge); worst
+  own work in play 12.5 ms (PASS); the wall-time frames over 16 ms (9) came with a load average of
+  5-6 on the Mac (another builder's Blender, Spotlight), their script and render work under 1.5 ms.
+
+Still short: the way home is still an empty groove at the start of a run (a mini-map of the level
+would give it content); the HUD plates stay dark glass (some may still read as brown wood); the
+French badge's two long words are small; the logo's letters are custom but still a gold bevel; the
+brass corners are new and untested with the judges; the defeat figure sits on a shadow, not on
+ground; head.png is still round 1's crop (art, QA #3).

@@ -2,9 +2,9 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://daebcgl3fd0yy"
-path.s3tc="res://.godot/imported/canopy.png-9e1df239cb596c66973cee35dbb26b6e.s3tc.ctex"
-path.etc2="res://.godot/imported/canopy.png-9e1df239cb596c66973cee35dbb26b6e.etc2.ctex"
+uid="uid://b4eyn66sjmhqh"
+path.s3tc="res://.godot/imported/fg_props.png-c0f27fe5f2e3f18117b8c80000712ceb.s3tc.ctex"
+path.etc2="res://.godot/imported/fg_props.png-c0f27fe5f2e3f18117b8c80000712ceb.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
@@ -12,8 +12,8 @@ metadata={
 
 [deps]
 
-source_file="res://assets/art/world/canopy.png"
-dest_files=["res://.godot/imported/canopy.png-9e1df239cb596c66973cee35dbb26b6e.s3tc.ctex", "res://.godot/imported/canopy.png-9e1df239cb596c66973cee35dbb26b6e.etc2.ctex"]
+source_file="res://assets/art/world/fg_props.png"
+dest_files=["res://.godot/imported/fg_props.png-c0f27fe5f2e3f18117b8c80000712ceb.s3tc.ctex", "res://.godot/imported/fg_props.png-c0f27fe5f2e3f18117b8c80000712ceb.etc2.ctex"]
 
 [params]
 

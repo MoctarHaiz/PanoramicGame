@@ -663,55 +663,84 @@ MASS_VARIANTS = 4
 
 
 def hanging_mass(rng) -> tuple:
-    """Round 2: the earth and rock a floating ledge carries under it, so it reads as a floating
-    island, not a tiled strip: a mass hanging from a flat top (under the ledge's soil), narrowing
-    down in lumps and boulders to an uneven point, soil at the top turning to stone, in the ledge's
-    own shade (lit from above: only its upper left catches a warm rim), roots dangling under it.
+    """The earth and rock a floating ledge carries under it. Round 9 (it read as "cardboard": a flat
+    brown flap with a dark gradient): a lumpy mass narrowing to an uneven point, built of rock
+    blocks (a Voronoi of sites) under a band of the ledge's soil; each block lit as its own rounded
+    stone by the low sun (its upper left warm, a lit bevel, its far side dark), its own colour, the
+    seams inked; boulders bulging out of its outline; deeper, it sinks into the ledge's violet
+    shade; the soil fades in from the ledge (no line where they meet); roots hang from it.
     MASS_W x MASS_H units at 2 px."""
+    from paint import cel, ink_edge
     w, h = MASS_W * PX, MASS_H * PX
     yy, xx = np.mgrid[0:h, 0:w].astype(float)
     u = xx / w
-    # the bottom line: deepest a little off the middle, lumps along it
     mid = rng.uniform(0.4, 0.6)
     reach = np.clip(1.0 - np.abs(u - mid) / np.where(u < mid, mid, 1 - mid), 0, 1) ** 0.8
-    depth = ((0.15 + 0.85 * reach) * (h - 30 * PX) * (0.8 + 0.4 * noise1(w, 5, rng, 2)[None, :])
-             + (noise1(w, 14, rng, 3)[None, :] - 0.5) * 26 * PX * (0.3 + reach[:1]))
+    depth = ((0.18 + 0.82 * reach) * (h - 28 * PX) * (0.8 + 0.4 * noise1(w, 5, rng, 2)[None, :])
+             + (noise1(w, 12, rng, 3)[None, :] - 0.5) * 20 * PX * (0.3 + reach[:1]))
     cov = smooth(1.5, -1.5, yy - depth)
-    for _ in range(int(rng.integers(3, 6))):  # boulders bulging out of the mass
-        bx = rng.uniform(0.2, 0.8) * w
-        by = float(depth[0, int(bx)]) * rng.uniform(0.55, 0.9)
-        br = rng.uniform(9, 17) * PX
-        cov = np.maximum(cov, smooth(br + 1.5, br - 1.5, np.hypot(xx - bx, (yy - by) * 1.1)))
+    for _ in range(int(rng.integers(4, 7))):  # boulders bulging out of its outline
+        bx = rng.uniform(0.15, 0.85) * w
+        by = float(depth[0, int(bx)]) * rng.uniform(0.75, 0.98)
+        br = rng.uniform(8, 15) * PX
+        cov = np.maximum(cov, smooth(br + 1.5, br - 1.5, np.hypot(xx - bx, (yy - by) * 1.15)))
     cov *= smooth(0, 4 * PX, xx) * smooth(w, w - 4 * PX, xx)  # (the ends melt under the ledge's)
-    height = blur(cov, 5.0) * 26
-    lam = normals_light(height, 1.0)
-    rel = np.clip(yy / (h - 30 * PX), 0, 1)
-    col = ramp(rel, [(0, "7e4228"), (0.3, "5e3024"), (0.65, "45262e"), (1.0, "2c1a2c")])
+    band = (3 + (noise1(w, 8, rng, 2) - 0.5) * 4)[None, :] * PX  # (the ledge's own soil is over it)
+    # rock blocks: sites jittered in rows, wider than tall near the top, smaller deeper down
+    sites = []
+    for row in range(6):
+        yc = (18 + row * 17 + rng.uniform(-3, 3)) * PX
+        step = rng.uniform(26, 38) * PX * (1 - row * 0.08)
+        x = rng.uniform(0, step)
+        while x < w:
+            sites.append((x + rng.uniform(-6, 6) * PX, yc + rng.uniform(-5, 5) * PX))
+            x += step * rng.uniform(0.8, 1.2)
+    sites = np.array(sites)
+    d = np.hypot(xx[..., None] - sites[None, None, :, 0], (yy[..., None] - sites[None, None, :, 1]) * 1.3)
+    order = np.argsort(d, axis=2)
+    near = order[..., 0]
+    f1 = np.take_along_axis(d, order[..., :1], axis=2)[..., 0]
+    f2 = np.take_along_axis(d, order[..., 1:2], axis=2)[..., 0]
+    joint = (f2 - f1) * 0.5
+    to_c = np.dstack([sites[near, 0] - xx, sites[near, 1] - yy])
+    facing = np.clip((to_c[..., 0] * 0.6 + to_c[..., 1] * 0.8) / (14 * PX), -1, 1)  # >0: its upper left
+    tone = rng.uniform(0.86, 1.12, len(sites))[near]
+    hue = rng.choice([0, 1, 2], len(sites), p=[0.55, 0.3, 0.15])[near]
+    base = np.array([hexc("9a5634"), hexc("b06a40") * np.array([1.0, 0.9, 0.84]), hexc("86605a")])[hue]
+    lam = 0.5 + 0.35 * facing
+    bevel = 1 - smooth(1.5 * PX, 4.5 * PX, joint)
+    lam += bevel * np.sign(facing) * smooth(0.05, 0.5, np.abs(facing)) * 0.35
+    rock = base * tone[..., None] * (0.62 + 0.55 * cel(np.clip(lam, 0, 1), (0.36, 0.64))[..., None])
+    rel = np.clip(yy / (h - 28 * PX), 0, 1)
+    rock = mix(rock, rock * np.array([0.5, 0.44, 0.68]), smooth(0.1, 0.85, rel) * 0.8)  # the ledge's shade below
+    soil = ramp(np.clip(yy / band, 0, 1), [(0, "7e3e26"), (1, "5e2e22")])
+    to_rock = smooth(band - 2 * PX, band + 3 * PX, yy)
+    col = mix(soil, rock, to_rock)
+    col *= (1 - 0.3 * np.exp(-np.clip(yy - band, 0, None) / (9 * PX)) * to_rock)[..., None]  # under the soil
     grain = fbm(h, w, 18, 30, 4, rng, wrap_x=False)
-    chunks = blur(rng.standard_normal((h, w)), 6.0)
-    chunks = np.gradient(chunks / chunks.std(), axis=0) + np.gradient(chunks / chunks.std(), axis=1)
-    grain = grain + chunks * 0.6
-    from paint import cel, ink_edge  # (round 5: flat light bands and ink, the hero's style)
-    col = col * (0.68 + 0.5 * cel(lam, (0.4, 0.62))[..., None]) * (0.95 + 0.1 * grain[..., None])
-    rim = np.clip(cov - np.roll(np.roll(cov, 3, axis=0), 3, axis=1), 0, 1) * (1 - rel) ** 1.5
-    col = mix(col, hexc("d08a52"), blur(rim, 1.0) * 0.7)
-    ink = np.clip(cov - np.roll(cov, -2, axis=0), 0, 1)  # its lower edge, an ink line
-    col = mix(col, hexc("22101a"), ink * 0.7)
+    col = col * (0.94 + 0.12 * grain[..., None])
+    seam = (1 - smooth(0.6 * PX, 1.3 * PX, joint)) * to_rock
+    col = mix(col, hexc("24121a"), seam * 0.85)
+    # the warm rim on its sun side (upper left), fading deeper
+    rim = np.clip(cov - np.roll(np.roll(cov, 3, axis=0), 3, axis=1), 0, 1) * (1 - rel) ** 1.2
+    col = mix(col, hexc("e09a5a"), blur(rim, 0.8) * 0.75)
     roots = Image.new("L", (w * 3, h * 3), 0)
     dr = ImageDraw.Draw(roots)
-    for _ in range(int(rng.integers(5, 9))):
-        x = rng.uniform(0.15, 0.85) * w
+    for _ in range(int(rng.integers(6, 10))):
+        x = rng.uniform(0.12, 0.88) * w
         y = float(depth[0, int(x)]) - 3
-        length = rng.uniform(10, 26) * PX
+        length = rng.uniform(10, 30) * PX
         sway = rng.uniform(-1, 1)
         pts = [((x + np.sin(t * 3 + x) * 2 + sway * t * t * 8) * 3, (y + length * t) * 3) for t in np.linspace(0, 1, 8)]
         for k in range(7):
-            dr.line([pts[k], pts[k + 1]], fill=255, width=max(1, int(rng.uniform(1.0, 2.0) * (1 - k / 9) * 3)))
+            dr.line([pts[k], pts[k + 1]], fill=255, width=max(1, int(rng.uniform(1.0, 2.2) * (1 - k / 9) * 3)))
     rm = np.asarray(roots.resize((w, h), Image.LANCZOS), float) / 255 * (1 - cov)
     col = mix(col, mix(ROOT, ROOT_HI, 0.25), rm)
     alpha = np.clip(np.maximum(cov, rm), 0, 1)
-    ink = ink_edge(cov, 2.4) * (yy > 6 * PX)  # (not along its top: the ledge's soil sits on it)
+    ink = ink_edge(cov, 2.4) * (yy > 8 * PX)  # (not along its top: the ledge's soil sits on it)
     col = mix(col, hexc("2a120e"), ink * 0.9)
+    # its top fades in from the ledge's soil (drawn over the ledge's underside: no seam)
+    alpha *= smooth(1 * PX, 8 * PX, yy)
     return col, alpha
 
 

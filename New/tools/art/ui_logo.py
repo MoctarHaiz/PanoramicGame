@@ -1,28 +1,32 @@
 #!/usr/bin/env python3
-"""The CHAKA ZULU logo, rendered (numpy + Pillow): letters and emblem with real bevels, lit from the
-upper left like the 3D hero, so the title belongs with him.
+"""The CHAKA ZULU logo, rendered (numpy + Pillow): custom letters locked up with a Zulu shield, lit
+from the upper left like the 3D hero, so the title belongs with him.
 
-    python3 tools/art/ui_logo.py      # assets/art/ui/logo.png (replaces the flat SVG one of logo.py)
+    python3 tools/art/ui_logo.py      # assets/art/ui/logo.png
 
-- An isihlangu shield of cowhide (cream, dark brown patches, dark leather laces threaded down its
-  middle, its stick through it with a tuft of fur at the top) stands whole at the left of the words,
-  one long assegai leaning behind it; the shield's rim is bevelled and catches the light.
-- CHAKA over ZULU in Fredoka (assets/fonts, SIL OFL) at its boldest and a little wide: a gold face
-  (pale yellow at the top to deep orange at the foot) with a rounded bevel (normals from the letters'
-  distance field: lit top-left edges, shaded bottom-right ones, a hot specular), a thin light line
-  inside a thick dark brown outline, an extruded depth, and a soft drop shadow under the whole.
+- The letters are drawn here, not set in a font: heavy, chiselled (cut corners instead of round
+  ones), their ends cut like blades (the C's mouth, the Z's and L's feet run out to a point), the A's
+  apex an assegai's point rising above the line; CHAKA over a bigger ZULU, both on one gentle arch,
+  leaning forward a little (he runs).
+- Behind the middle of the words an isihlangu shield of cowhide (cream, dark brown patches, dark
+  leather laces threaded down its middle, its stick through it with a tuft of fur at the top) stands
+  taller than both lines, an assegai crossing behind it; its tips show above CHAKA and under ZULU
+  (the menu's ribbon crosses its foot): one mark, not a picture beside a title.
+- The letters: polished gold (a bright upper half, a crisp horizon to a deeper lower half, as metal
+  reflecting the sky and the ground) with a rounded bevel (normals from the letters' distance field: lit top-left edges, shaded bottom-right
+  ones, a hot specular), a thin light line inside a thick dark brown outline, an extruded depth, and
+  a soft drop shadow under the whole, cast on the shield.
 """
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 from scipy import ndimage
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "assets/art/ui/logo.png"
-FONT = ROOT / "assets/fonts/Fredoka.ttf"
 SS = 2  # drawn at twice the size, then halved (smooth edges)
-W, H = 1560, 760  # final size in px: the emblem beside the words, one mark
+W, H = 1400, 1000  # final size in px (cropped to the mark): the words over the shield, one mark
 LIGHT = np.array([-0.5, -0.7, 0.55])
 LIGHT = LIGHT / np.linalg.norm(LIGHT)
 INK = np.array([46, 13, 4], float)
@@ -53,11 +57,18 @@ def grow(mask: np.ndarray, r: float) -> np.ndarray:
     return np.clip(r + 0.5 - d, 0, 1)
 
 
-def shade(mask: np.ndarray, bevel: float, strength: float = 1.0) -> tuple:
-    """Lighting of a rounded bevel `bevel` px wide: (diffuse 0..1, specular 0..1)."""
-    d = np.minimum(dist_in(mask), bevel) / bevel
+def shade(mask: np.ndarray, bevel: float, strength: float = 1.0, smooth: float = 1.0) -> tuple:
+    """Lighting of a rounded bevel `bevel` px wide: (diffuse 0..1, specular 0..1). `smooth`: px of blur
+    on its height (more for straight cut edges, whose distance field steps)."""
+    if smooth > 1.0:  # the distance measured on a mask twice as fine: no steps along slanted edges
+        fine = ndimage.zoom(mask, 2, order=1)
+        dist = ndimage.zoom(ndimage.distance_transform_edt(fine > 0.5), 0.5, order=1) / 2.0
+        dist = dist[:mask.shape[0], :mask.shape[1]]
+    else:
+        dist = dist_in(mask)
+    d = np.minimum(dist, bevel) / bevel
     h = np.sqrt(1 - (1 - d) ** 2) * bevel * strength
-    h = ndimage.gaussian_filter(h, 1.0)
+    h = ndimage.gaussian_filter(h, smooth)
     gy, gx = np.gradient(h)
     n = np.dstack([-gx, -gy, np.ones_like(h)])
     n /= np.linalg.norm(n, axis=2, keepdims=True)
@@ -66,21 +77,6 @@ def shade(mask: np.ndarray, bevel: float, strength: float = 1.0) -> tuple:
     half /= np.linalg.norm(half)
     spec = np.clip(n @ half, 0, 1) ** 40
     return diffuse, spec
-
-
-def text_mask(text: str, size: int, width_axis: float = 112) -> np.ndarray:
-    font = ImageFont.truetype(str(FONT), size)
-    font.set_variation_by_axes([700, width_axis])
-    box = font.getbbox(text)
-    img = Image.new("L", (box[2] - box[0] + 40, box[3] - box[1] + 40), 0)
-    ImageDraw.Draw(img).text((20 - box[0], 20 - box[1]), text, font=font, fill=255)
-    return np.asarray(img, float) / 255.0
-
-
-def paste(canvas: np.ndarray, mask: np.ndarray, cx: float, cy: float) -> None:
-    h, w = mask.shape
-    x0, y0 = int(cx - w / 2), int(cy - h / 2)
-    canvas[y0:y0 + h, x0:x0 + w] = np.maximum(canvas[y0:y0 + h, x0:x0 + w], mask)
 
 
 def poly(points, w, h) -> np.ndarray:
@@ -96,13 +92,75 @@ def over(dst_rgb, dst_a, src_rgb, src_a):
     return rgb, out_a
 
 
-def shield_layers(w: int, h: int, cx: float, cy: float, sh: float):
-    """The shield, its stick and an assegai behind it: [(rgb, alpha), ...] back to front."""
+def cham(x0, y0, x1, y1, tl=0.0, tr=0.0, br=0.0, bl=0.0):
+    """A rectangle with its corners cut (tl, tr, br, bl units), as a polygon."""
+    return [(x0 + tl, y0), (x1 - tr, y0), (x1, y0 + tr), (x1, y1 - br), (x1 - br, y1), (x0 + bl, y1),
+            (x0, y1 - bl), (x0, y0 + tl)]
+
+
+# The letters, in units: the capital height 100, y down from the cap line, x from the letter's left.
+# Each: (advance, [(+1 add | -1 cut, polygon), ...]). Strokes about 30 units; corners cut, not round.
+GLYPHS = {
+    "C": (88, [(1, cham(0, 0, 88, 100, 30, 24, 24, 30)), (-1, cham(30, 30, 60, 70, 10, 0, 0, 10)),
+               (-1, [(54, 33), (96, 16), (96, 84), (54, 67)])]),
+    "H": (96, [(1, cham(0, 0, 31, 100, 5, 5, 0, 0)), (1, cham(65, 0, 96, 100, 5, 5, 0, 0)),
+               (1, [(26, 40), (70, 35), (70, 61), (26, 66)])]),
+    "A": (112, [(1, [(0, 100), (56, -16), (112, 100), (79, 100), (72, 84), (40, 84), (33, 100)]),
+                (-1, [(56, 50), (63.6, 68), (48.4, 68)])]),
+    "K": (98, [(1, cham(0, 0, 31, 100, 5, 0, 0, 0)), (1, [(28, 38), (62, 0), (98, 0), (28, 80)]),
+               (1, [(44, 54), (66, 36), (100, 100), (64, 100)])]),
+    "Z": (90, [(1, [(0, 0), (90, 0), (90, 28), (8, 28)]), (1, [(56, 28), (90, 28), (34, 72), (0, 72)]),
+               (1, [(0, 72), (80, 72), (94, 100), (0, 100)])]),
+    "U": (94, [(1, cham(0, 0, 94, 100, 0, 0, 30, 30)), (-1, cham(31, -5, 63, 70, 0, 0, 10, 10))]),
+    "L": (82, [(1, cham(0, 0, 31, 100, 5, 0, 0, 0)), (1, [(0, 70), (64, 70), (84, 100), (0, 100)])]),
+}
+TRACK = 7  # units between two letters
+SLANT = 0.11  # the lean: x moves this much per unit up
+ARCH = 16  # units the middle of each line rises above its ends
+
+
+def word_width(word: str) -> float:
+    return sum(GLYPHS[ch][0] for ch in word) + TRACK * (len(word) - 1)
+
+
+def word_mask(w: int, h: int, word: str, cx: float, top: float, unit: float, span: float) -> np.ndarray:
+    """One line of letters (px), its cap line at `top`, centred on cx, `unit` px per unit; the arch
+    is measured over `span` px (both lines share it). Each letter is drawn 4x over its own box and
+    shrunk (smooth edges: a stepped edge would light up in dots along its bevel)."""
+    m = np.zeros((h, w))
+    x = cx - word_width(word) * unit / 2
+    up = 4
+    for ch in word:
+        adv, ops = GLYPHS[ch]
+        polys = []
+        for sign, pts in ops:
+            pp = []
+            for gx, gy in pts:
+                px = x + (gx + (100 - gy) * SLANT) * unit
+                u = (px - cx) / (span / 2)
+                pp.append((px, top + gy * unit - ARCH * unit * (1 - min(u * u, 1.0))))
+            polys.append((sign, pp))
+        xs = [p[0] for _, pp in polys for p in pp]
+        ys = [p[1] for _, pp in polys for p in pp]
+        x0, y0 = int(min(xs)) - 4, int(min(ys)) - 4
+        bw, bh = int(max(xs)) + 4 - x0, int(max(ys)) + 4 - y0
+        layer = Image.new("L", (bw * up, bh * up), 0)
+        draw = ImageDraw.Draw(layer)
+        for sign, pp in polys:
+            draw.polygon([((px - x0) * up, (py - y0) * up) for px, py in pp], fill=255 if sign > 0 else 0)
+        small = np.asarray(layer.resize((bw, bh), Image.BOX), float) / 255.0
+        m[y0:y0 + bh, x0:x0 + bw] = np.maximum(m[y0:y0 + bh, x0:x0 + bw], small)
+        x += (adv + TRACK) * unit
+    return m
+
+
+def shield_layers(w: int, h: int, cx: float, cy: float, sh: float, ang: float = -0.42, tilt: float = 0.0):
+    """The shield, its stick and an assegai behind it: [(rgb, alpha), ...] back to front. `ang`: the
+    assegai's lean, `tilt`: the shield's (radians, positive leans its top to the left)."""
     layers = []
     yy, xx = np.mgrid[0:h, 0:w].astype(float)
     # one long assegai behind, leaning right: a wooden shaft, a bound grip, a long iron leaf blade
     # with a ridge down its middle (one, not two: two blades either side read as ears)
-    ang = -0.42  # leaning left, away from the words
     d = np.array([np.sin(ang), -np.cos(ang)])
     n = np.array([d[1], -d[0]])
     u = (xx - cx) * d[0] + (yy - cy) * d[1]
@@ -120,6 +178,9 @@ def shield_layers(w: int, h: int, cx: float, cy: float, sh: float):
     rgb = np.where(grip[..., None], hexc("e8d8b0") * (0.6 + 0.5 * diff[..., None]), rgb)
     layers.append((np.broadcast_to(INK, rgb.shape).copy(), grow(m, sh * 0.014)))
     layers.append((rgb, m))
+    # the shield and its stick, leaning: sample them on a turned grid
+    ct, st = np.cos(tilt), np.sin(tilt)
+    xx, yy = (xx - cx) * ct + (yy - cy) * st + cx, -(xx - cx) * st + (yy - cy) * ct + cy
     # the shield's stick, through it from top to bottom, a tuft of fur at its top
     stick = (np.abs(xx - cx) < sh * 0.022) & (yy > cy - sh * 0.62) & (yy < cy + sh * 0.58)
     tuft_r = np.hypot((xx - cx) / (sh * 0.05), (yy - (cy - sh * 0.64)) / (sh * 0.07))
@@ -165,54 +226,67 @@ def shield_layers(w: int, h: int, cx: float, cy: float, sh: float):
     return layers
 
 
-def text_layers(w: int, h: int, lines: list, cx: float) -> tuple:
-    """CHAKA over ZULU, centred on x = cx: (layers back to front, the letters' mask)."""
+def text_layers(w: int, h: int, lines: list, unit: float, cx: float, span: float) -> tuple:
+    """The letters, lit: `lines` = [(mask, cap line px, cap height px), ...] on an arch centred on cx,
+    `span` px wide. (layers back to front, the letters' mask)."""
     m = np.zeros((h, w))
-    tops = []
-    for text, size, cy in lines:
-        tm = text_mask(text, size)
-        paste(m, tm, cx, cy)
-        tops.append((cy, size))
+    for lm, _, _ in lines:
+        m = np.maximum(m, lm)
     m = ndimage.gaussian_filter(m, 0.7)
-    ow = h * 0.022  # the outline's width
-    depth = h * 0.034
+    ow = unit * 9.0  # the outline's width
+    depth = unit * 13.0
     outline = grow(m, ow)
     layers = []
     # the drop shadow and the extruded depth under the outline
-    shadow = ndimage.gaussian_filter(ndimage.shift(outline, (depth + h * 0.02, h * 0.006)), h * 0.012)
-    layers.append((np.zeros((h, w, 3)), shadow * 0.45))
+    shadow = ndimage.gaussian_filter(ndimage.shift(outline, (depth + unit * 8, unit * 3)), unit * 5)
+    layers.append((np.zeros((h, w, 3)), shadow * 0.55))
     steps = int(depth)
-    for s in range(steps, 0, -1):
-        sm = ndimage.shift(outline, (s, 0), order=1)
-        k = s / steps
+    for st in range(steps, 0, -1):
+        sm = ndimage.shift(outline, (st, 0), order=1)
+        k = st / steps
         layers.append((np.broadcast_to(INK * (0.9 + 0.5 * (1 - k)) + np.array([30, 6, 0]) * (1 - k), (h, w, 3)).copy(), sm))
     layers.append((np.broadcast_to(INK, (h, w, 3)).copy(), outline))
     # a thin warm light line just inside the outline
     layers.append((np.broadcast_to(hexc("ffe9b0"), (h, w, 3)).copy(), grow(m, ow * 0.28)))
-    # the gold face: each line its own gradient, a bevel, a hot specular, a gloss band on top
-    yy = np.mgrid[0:h, 0:w][0].astype(float)
+    # the gold face: each line its own gradient along its arch, a bevel, a hot specular, a gloss band
+    yy, xx = np.mgrid[0:h, 0:w].astype(float)
     grad = np.zeros((h, w))
-    for cy, size in tops:
-        top, bottom = cy - size * 0.36, cy + size * 0.36
-        band = (yy > top - size * 0.2) & (yy < bottom + size * 0.2)
-        grad = np.where(band, (yy - top) / (bottom - top), grad)
-    face = ramp(grad, [(0.0, "fff7b0"), (0.35, "ffd84a"), (0.62, "ffab1c"), (1.0, "e8600c")])
-    diff, spec = shade(m, h * 0.022, 1.6)
+    for lm, top, cap in lines:
+        u = np.clip((xx - cx) / (span / 2), -1, 1)
+        line_top = top - ARCH * unit * (1 - u * u)
+        near = ndimage.binary_dilation(lm > 0.05, iterations=int(unit * 14))
+        grad = np.where(near, (yy - line_top) / cap, grad)
+    # polished metal: a bright upper half and a crisp horizon to a deeper, warmer lower half (the sky
+    # and the ground reflected), not one soft gradient
+    face = ramp(grad, [(0.0, "fffbd0"), (0.25, "ffe36a"), (0.5, "ffc83a"), (0.505, "f08a14"), (0.7, "ffa82a"),
+                       (1.0, "d8560a")])
+    diff, spec = shade(m, unit * 8.0, 1.6, 2.2)
     rgb = face * (0.62 + 0.5 * diff[..., None]) + spec[..., None] * 230
-    gloss = (grad < 0.36) & (dist_in(m) > h * 0.009)
-    rgb = np.where(gloss[..., None], rgb * 0.88 + 255 * 0.12, rgb)
+
     layers.append((rgb, m))
     return layers, m
 
 
 def main() -> None:
     w, h = W * SS, H * SS
+    unit = (w * 0.7) / word_width("CHAKA")  # px per letter unit
+    zulu = 1.22  # ZULU's letters are bigger
+    words_x = w * 0.6  # the words' middle
+    top1 = h * 0.22
+    top2 = top1 + 100 * unit + 16 * unit
+    block = (top2 + 100 * unit * zulu) - top1
     rgb = np.zeros((h, w, 3))
     a = np.zeros((h, w))
-    cx, cy = w * 0.21, h * 0.54  # the emblem stands whole at the left of the words
-    for lr, la in shield_layers(w, h, cx, cy, h * 0.78):
+    # the shield, taller than both lines, its right half behind the C and the Z, leaning; the assegai
+    # crossing behind it
+    sh = block * 1.2
+    left = words_x - word_width("CHAKA") * unit / 2
+    for lr, la in shield_layers(w, h, left + 30 * unit, top1 + block * 0.5, sh, -0.5, -0.22):
         rgb, a = over(rgb, a, lr, la)
-    layers, _ = text_layers(w, h, [("CHAKA", int(h * 0.31), h * 0.33), ("ZULU", int(h * 0.38), h * 0.71)], w * 0.63)
+    span = word_width("CHAKA") * unit * 1.06
+    lines = [(word_mask(w, h, "CHAKA", words_x, top1, unit, span), top1, 100 * unit),
+             (word_mask(w, h, "ZULU", words_x, top2, unit * zulu, span), top2, 100 * unit * zulu)]
+    layers, _ = text_layers(w, h, lines, unit, words_x, span)
     for lr, la in layers:
         rgb, a = over(rgb, a, lr, la)
     img = Image.fromarray(np.dstack([np.clip(rgb, 0, 255), np.clip(a, 0, 1) * 255]).astype(np.uint8), "RGBA")

@@ -19,13 +19,16 @@ extends Node
 ##
 ## Godot --path . --fixed-fps 60 --resolution 200x200 --always-on-top res://tests/perf.tscn -- \
 ##     [--device=iphone15_2556x1179 | --size=2556x1179] [--seconds=40] [--pause-at=20] [--ads=on]
-##     [--jump-mb=4] [--hide=soil,FrontGrass] [--out=build/perf/perf.json]
+##     [--jump-mb=4] [--hide=soil,FrontGrass] [--textures=12] [--out=build/perf/perf.json]
 ## --device takes a size and notches from tests/capture.gd (default iphone15_2556x1179); --seconds
 ## plays that much of the run (default: the whole level, about 2 minutes); --pause-at pauses the
 ## run that many seconds in (default 20); --ads=on keeps room for the ad banner; --jump-mb lists every
 ## frame whose texture memory grew by more than that (default 4 MB), with the nodes added then;
 ## --hide hides the game screen's nodes with those names (wildcards: as tests/strip.gd), for an A/B
-## of what one layer costs (run both on a quiet machine: the frame times move with its load).
+## of what one layer costs (run both on a quiet machine: the frame times move with its load);
+## --textures lists, at the end of each phase, that many of the biggest pictures in memory (size,
+## MB from the import settings) and what the menu holds after a run that it didn't before (all of
+## them in the JSON).
 ## macOS skips drawing a covered window: such frames are drawn on demand (force_draw), so the
 ## numbers hold, but keep --always-on-top. The first run records the bot (about 5 minutes, then
 ## kept in build/qa/). Frame times are only meaningful on a quiet machine (others' renders and
@@ -61,6 +64,8 @@ var _added := {}  # what entered the tree since the last frame: script or class 
 var _added_before := {}  # ... and in the frame before (the one just drawn)
 var _last_texture := 0.0
 var _jump_mb := 4.0  # texture memory growth in one frame worth listing (--jump-mb)
+var _list_textures := 0  # how many of the biggest textures to print per phase (--textures; 0: none)
+var _textures := {}  # phase -> every texture in memory at its end: [MB, path or "", "w x h"], biggest first
 
 
 ## The first node to process each frame: notes the time.
@@ -93,6 +98,7 @@ func _ready() -> void:
 	Device.banner_height = 50.0 * px.y / 411.0 * k if a.get("ads", "off") == "on" else 0.0
 	var replay := BotReplay.recorded(1)  # before measuring: the first time it takes minutes
 	_jump_mb = float(a.get("jump-mb", "4"))
+	_list_textures = int(a.get("textures", "0"))
 	process_priority = 1000000  # last: _process measures the frame's scripts since _first
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(_first)
@@ -261,7 +267,35 @@ func _sample(phase: String, seconds: float) -> void:
 	_phase = phase
 	await _wait(seconds)
 	_nodes[phase] = Performance.get_monitor(Performance.OBJECT_NODE_COUNT)
+	if _list_textures > 0:
+		_textures[phase] = _texture_list()
 	_phase = ""
+
+
+## Every picture of res://assets held in memory now, biggest first: [MB, path, "w x h"]. The size is
+## worked out from its import (VRAM compressed: 1 byte a pixel, else 4; a third more with mipmaps):
+## Godot doesn't tell scripts the memory of one texture. The rest of the monitor's total (glyphs,
+## render targets, pictures drawn in code) is listed as "(other)".
+func _texture_list() -> Array:
+	var out := []
+	var listed := 0.0
+	for path in _all_pictures:
+		if not ResourceLoader.has_cached(path):
+			continue
+		var tex := load(path) as Texture2D  # (from the cache: no load)
+		if tex == null:
+			continue
+		var import := ConfigFile.new()
+		import.load(path + ".import")
+		var per_px := 1.0 if int(import.get_value("params", "compress/mode", 0)) == 2 else 4.0
+		var mips := 4.0 / 3.0 if import.get_value("params", "mipmaps/generate", false) else 1.0
+		var bytes := tex.get_width() * tex.get_height() * per_px * mips
+		listed += bytes
+		out.append([snappedf(bytes / MB, 0.01), path.trim_prefix("res://assets/"), "%dx%d" % [tex.get_width(), tex.get_height()]])
+	var total := Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED) - _own_target
+	out.append([snappedf((total - listed) / MB, 0.01), "(other)", ""])
+	out.sort_custom(func(x: Array, y: Array) -> bool: return x[0] > y[0])
+	return out
 
 
 func _wait(seconds: float) -> void:
@@ -319,12 +353,32 @@ func _report(device: String, px: Vector2i, out: String) -> bool:
 		print("  ", j)
 	if _undrawn > 0:
 		print("(%d frames drawn on demand: the window was covered)" % _undrawn)
+	for phase: String in _textures:
+		var all: Array = _textures[phase]
+		var sum := 0.0
+		for t: Array in all:
+			sum += t[0]
+		print("biggest textures at the end of %s (%d pictures, %.1f MB in all):" % [phase, all.size() - 1, sum])
+		for t: Array in all.slice(0, _list_textures):
+			print("  %6.2f MB  %-11s %s" % [t[0], t[2], t[1]])
+	if _textures.has("menu") and _textures.has("menu_again"):
+		var before := {}
+		for t: Array in _textures.menu:
+			before[t[1] + " " + t[2]] = before.get(t[1] + " " + t[2], 0) + 1
+		var kept := []
+		for t: Array in _textures.menu_again:
+			var key: String = t[1] + " " + t[2]
+			if before.get(key, 0) > 0:
+				before[key] -= 1
+			else:
+				kept.append(t)
+		print("on the menu after the run, not before it: ", kept)
 	var path := ProjectSettings.globalize_path(out)
 	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	if f:
 		f.store_string(JSON.stringify({"device": device, "size": [px.x, px.y], "own_target_mb": snappedf(_own_target / MB, 0.01),
-				"engine_mb": snappedf(_engine_base / MB, 0.01), "undrawn_frames": _undrawn, "phases": table, "timeline": _timeline, "late_loads": _late_loads, "spikes": _spikes, "texture_jumps": _jumps,
+				"engine_mb": snappedf(_engine_base / MB, 0.01), "undrawn_frames": _undrawn, "phases": table, "timeline": _timeline, "late_loads": _late_loads, "spikes": _spikes, "texture_jumps": _jumps, "textures": _textures,
 				"checks": checks.map(func(c: Array) -> Dictionary: return {"what": c[0], "pass": c[1]}), "pass": ok}, "  "))
 		print("saved ", path)
 	return ok

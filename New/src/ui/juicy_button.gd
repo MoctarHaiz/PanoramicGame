@@ -1,8 +1,8 @@
 class_name JuicyButton
 extends Button
 ## A tactile button: its face sinks into its edge when pressed, then springs back with a click
-## and a light buzz. The main button of a screen can also breathe (idle()) and catch a sweep of
-## light now and then (shine()).
+## and a light buzz. The main button of a screen can also breathe (idle()) and shine (shine()): a
+## sweep of light now and then, glints twinkling on its ring between two sweeps.
 
 const PRESS_DEPTH := 6.0
 
@@ -125,10 +125,11 @@ class _Shine extends Control:
 		var style := button.get_theme_stylebox(&"pressed" if button.button_pressed else &"normal") as GlossStyle
 		if not style:
 			return
+		var rect := Rect2(Vector2.ZERO, size)
+		_glints(style, rect)
 		var k := fposmod(_t, every) / 0.7  # the sweep takes 0.7 s
 		if _t < 0.0 or k >= 1.0:
 			return
-		var rect := Rect2(Vector2.ZERO, size)
 		var face := style.face_rect(rect)
 		var w := face.size.y * 1.1
 		var x := lerpf(face.position.x - w * 2, face.end.x + w, k)
@@ -147,3 +148,27 @@ class _Shine extends Control:
 					var u := (p.x - x - slant * (face.end.y - p.y) / face.size.y) / w
 					colours.append(Color(1, 1, 1, sin(clampf(u, 0.0, 1.0) * PI) * PEAK))
 				draw_polygon(poly, colours)
+
+	## Two glints on the brass ring (its top left and bottom right corners) twinkling out of step: the
+	## sparkle of top games' main buttons, there between two sweeps.
+	func _glints(style: GlossStyle, rect: Rect2) -> void:
+		var ring := style.top_rect(rect)
+		var rr := minf(style.radius - style.outline_width, minf(ring.size.x, ring.size.y) / 2)
+		var arm := ring.size.y * 0.24
+		for g: Array in [[Vector2(-1, -1), 0.0, 1.0], [Vector2(1, 1), 2.1, 0.7]]:
+			var dir: Vector2 = g[0]
+			var corner := ring.get_center() + Vector2(ring.size.x / 2 - rr, ring.size.y / 2 - rr) * dir
+			var at := corner + dir.normalized() * (rr - style.frame_width * 0.5)
+			var beat := 0.5 + 0.5 * sin(_t * 2.4 + float(g[1]))
+			_star(at, arm * float(g[2]) * (0.6 + 0.4 * beat), 0.35 + 0.65 * beat)
+
+	## A four-point glint: thin bright arms fading to their tips around a white core.
+	func _star(at: Vector2, arm: float, alpha: float) -> void:
+		var pts := PackedVector2Array()
+		var cols := PackedColorArray()
+		for i in 8:
+			var r := arm if i % 2 == 0 else arm * 0.16
+			pts.append(at + Vector2.from_angle(i * PI / 4 - PI / 2) * r)
+			cols.append(Color(1, 1, 0.92, 0.0 if i % 2 == 0 else alpha))
+		draw_polygon(pts, cols)
+		draw_circle(at, arm * 0.14, Color(1, 1, 0.95, alpha), true, -1, true)

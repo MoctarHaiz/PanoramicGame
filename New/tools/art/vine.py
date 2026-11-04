@@ -3,8 +3,11 @@
 assets/art/world/vine.png holds 5 variants of one span (160 x 72 units at 2 px, stacked), each a
 thick twisted liana (round 2: ~10 units, a sunlit top edge) sagging a little between two hooks at
 its ends, a long tendril or two hanging from it, with knots at the hooks, clusters of
-heart-shaped leaves of several sizes hanging down, a few orange blossoms and curled tendrils. Lit
-from the upper left.
+heart-shaped leaves of several sizes hanging down and curled tendrils. Round 9 (it read as
+"bunting": even swags of rope with the same little leaf flags and orange blossoms on each): no
+blossoms, leaves in one to four clusters of very different sizes at uneven places (a span or two
+nearly bare), a thinner liana looping lower under some spans, tendrils of very different lengths.
+Lit from the upper left.
 Drawn span after span by src/game/vine_view.gd (the rope's ends meet at y = 4 units), bent down
 where Panoramic hangs.
 
@@ -65,13 +68,12 @@ def span(seed: int) -> tuple:
     lit = Image.new("L", (w * 3, h * 3), 0)
     dl, dli = ImageDraw.Draw(leaves), ImageDraw.Draw(lit)
     blossoms = []
-    for _ in range(int(rng.integers(3, 6))):
-        tx = rng.uniform(0.06, 0.94)
+    bare = seed in (14,)  # (round 9) a span nearly bare
+    for _ in range(int(rng.integers(0, 2) if bare else rng.integers(1, 5))):
+        tx = rng.uniform(0.12, 0.88)  # (inside the span: a leaf cut at its end would show)
         ax, ay = tx * w, rope_y(tx) * PX + 1.5 * PX
-        big = rng.uniform(0.8, 1.45)
-        if rng.random() < 0.3:
-            blossoms.append((ax + rng.uniform(-3, 3) * PX, ay + rng.uniform(2, 5) * PX))
-        for j in range(int(rng.integers(2, 5))):
+        big = rng.uniform(0.9, 1.9)
+        for j in range(int(rng.integers(1, 6))):
             ang = np.pi / 2 + rng.uniform(-1.0, 1.0)
             ln = rng.uniform(9, 15) * PX * big
             wd = ln * rng.uniform(0.32, 0.42)
@@ -92,10 +94,25 @@ def span(seed: int) -> tuple:
             mid = [(bx + np.cos(ang) * ln * k / 12, by + np.sin(ang) * ln * k / 12) for k in range(13)]
             dli.polygon([(x * 3, y * 3) for x, y in lit_side + mid[::-1]], fill=255)
             dl.line([(ax * 3, ay * 3), (bx * 3, by * 3)], fill=255, width=3)
-    for _ in range(int(rng.integers(1, 3))):  # round 2: a long tendril hanging, leaves along it
-        tx = rng.uniform(0.15, 0.85)
+    if not bare and rng.random() < 0.75:  # round 9: a thinner liana looping lower under the rope
+        t0, t1 = sorted(rng.uniform(0.06, 0.94, 2))
+        if t1 - t0 < 0.35:
+            t0, t1 = max(0.06, t0 - 0.2), min(0.94, t1 + 0.2)
+        dip = rng.uniform(10, 24) * PX
+        q = np.linspace(0, 1, 40)
+        pts = [((t0 + (t1 - t0) * k) * w, rope_y(t0) * PX + 1.5 * PX + np.sin(np.pi * k) * dip) for k in q]
+        dl.line([(x * 3, y * 3) for x, y in pts], fill=255, width=int(1.5 * PX * 3))
+        dli.line([(x * 3, (y - 0.5 * PX) * 3) for x, y in pts], fill=255, width=int(0.6 * PX * 3))
+        for k in rng.choice(len(pts), int(rng.integers(1, 4)), replace=False):  # a leaf or two on it
+            lx, ly = pts[k]
+            side = 1 if rng.random() < 0.5 else -1
+            leaf = [(lx, ly), (lx + side * 7 * PX, ly + 3 * PX), (lx + side * 10 * PX, ly + 7 * PX), (lx + side * 4 * PX, ly + 7 * PX)]
+            dl.polygon([(x * 3, y * 3) for x, y in leaf], fill=255)
+            dli.polygon([(x * 3, y * 3) for x, y in leaf[:3]], fill=255)
+    for _ in range(int(rng.integers(0, 3))):  # round 2: a long tendril hanging, leaves along it
+        tx = rng.uniform(0.1, 0.9)
         x0, y0 = tx * w, rope_y(tx) * PX + 3 * PX
-        length = rng.uniform(26, 44) * PX
+        length = rng.uniform(14, 60) * PX
         sway = rng.uniform(-6, 6) * PX
         pts = [(x0 + sway * q * q + np.sin(q * 5 + tx * 9) * 1.5 * PX, y0 + length * q) for q in np.linspace(0, 1, 16)]
         dl.line([(x * 3, y * 3) for x, y in pts], fill=255, width=int(1.6 * PX * 3))

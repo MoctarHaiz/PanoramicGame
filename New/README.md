@@ -35,7 +35,7 @@ arrows or WASD to move, space to throw, P or Esc to pause.
 - `Godot --path . --fixed-fps 60 --resolution 200x200 --always-on-top res://tests/capture.tscn -- --out=DIR [--devices=…] [--shots=…] [--lang=fr|en,fr] [--ads=off]`
   renders screens at exact phone and tablet sizes, with simulated notches (`DEVICES` in `tests/capture.gd`):
   every screen and level moment a store release needs (shots listed in its header). `--lang=en,fr`
-  takes both languages in one run (`DIR/en`, `DIR/fr`).
+  takes both languages in one run (`DIR/en`, `DIR/fr`); `--shots=share` saves the card a player shares.
 - `… res://tests/strip.tscn -- --out=FILE.png [--moment="…"] [--act=jump@2] …` saves a contact sheet of
   frames (a motion strip). `--film=DIR` saves every frame instead (`DIR/0001.png…`) and makes `DIR.mp4`
   with ffmpeg (`--frames=900 --every=2 --size=2868x1320 --bot`: a 30 s store preview at 30 fps);
@@ -44,7 +44,8 @@ arrows or WASD to move, space to throw, P or Esc to pause.
   recorded run and reports, for the menu, the run, pause and the results: texture and video memory, draw
   calls, frame times (the game's own work and the wall time), nodes, pictures loaded mid-run, against
   the budgets (texture memory under 80 MB, no frame of play over 16 ms, nothing left behind). Exit code 1
-  if one fails; JSON in `build/perf/`.
+  if one fails; JSON in `build/perf/`. `--textures=12` lists the biggest pictures in memory per phase;
+  `--hide=name,…` hides layers for an A/B of their cost.
 
 ## Controls (as in 2017)
 

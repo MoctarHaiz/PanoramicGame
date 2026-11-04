@@ -9,7 +9,9 @@ extends Node2D
 ## same tree is always in the same place. Everything is drawn from baked textures (cheap on phones):
 ## each layer is one canvas item redrawn every frame with a handful of rectangles.
 ## `front` (added by WorldView above the actors): dark out-of-focus grass passing in front of the
-## play along the bottom edge, faster than the ground (it is nearer).
+## play along the bottom edge, faster than the ground (it is nearer). Round 9: no boughs along the
+## top edge any more (round 3's canopy: "dark branches cut off along the top edge look like dirt
+## smudges on the screen").
 
 const DIR := "res://assets/art/world/"
 ## sun centre: share of the visible width, y (the upper left, where the light on every painted thing
@@ -32,18 +34,24 @@ const STRIPS := {
 ## cool blue of distance, the near one into the warm air at the horizon).
 ## Round 4: haze only far away; the nearer rows darker and richer (TREE_TINT), so the play stands off
 ## the backdrop at a glance.
+## Round 9: the far rows in a cool, darker slate blue ("the pale haze band across the middle
+## washes everything out"): a cool, quiet background behind a warm, saturated playfield.
 const TREE_ROWS := [
-	[0.11, 170.0, 70.0, 488.0, 0.55, 0.3, 0.35, Color(0.62, 0.68, 0.82)],
-	[0.2, 300.0, 104.0, 540.0, 0.12, 0.12, 0.45, Color(0.68, 0.72, 0.8)],  # (round 7: crowns under the jump band:
+	[0.11, 190.0, 70.0, 488.0, 0.5, 0.25, 0.45, Color(0.44, 0.48, 0.64)],  # (round 9: sparser: a dotted line of stamps)
+	[0.2, 300.0, 104.0, 540.0, 0.16, 0.1, 0.45, Color(0.5, 0.54, 0.68)],  # (round 7: crowns under the jump band:
 	[0.31, 520.0, 130.0, 604.0, 0.0, 0.05, 0.4, Color(0.96, 0.78, 0.5)],  # they read as platforms there)
 ]
-const TREE_TINT := [Color(1, 1, 1), Color(0.7, 0.64, 0.54), Color(0.6, 0.54, 0.44)]  # (round 6: darker, warmer)
+## (round 6: the near rows darker, warmer; round 9: a little lighter again, so their crowns' lit tops
+## and shaded undersides read, not flat discs)
+const TREE_TINT := [Color(1, 1, 1), Color(0.76, 0.7, 0.6), Color(0.72, 0.66, 0.54)]
 ## animals.png (tools/art/savanna.py): two giraffes, an elephant, a herd of wildebeest (px regions)
 const ANIMALS := [Rect2(0, 0, 140, 220), Rect2(140, 12, 128, 208), Rect2(268, 68, 220, 152), Rect2(488, 132, 300, 88)]
 const CLOUD_SCALE := 2.0  ## cloud_N.png are stored at half size (soft, no detail to lose)
 const FRONT_SCROLL := 1.35  ## the foreground grass moves faster than the ground
-const TOP_SCROLL := 1.25  ## the boughs along the top of the screen (round 3), near the camera too
-const CANOPY_H := 72.0  ## screen units they hang down at most (under the HUD band, over the vine)
+const FRONT_PROP_SCROLL := 1.6  ## round 9: the big things in front, nearer still
+const FRONT_PROP := Vector2(260, 190)  ## one piece of fg_props.png (units, 1 px a unit)
+const FRONT_PIECES := 4  ## tall grass, an aloe, a fallen log, a bush
+const FRONT_PROP_GAP := 760.0  ## units of the foreground between two of them (some left open)
 const FRONT_DROP := 12.0  ## units its picture reaches below the bottom of the screen
 
 ## Play units visible left of the play window and the visible width (set by WorldView).
@@ -57,7 +65,6 @@ var _trees: Array[Texture2D] = []
 var _tree_anchor: Array[float] = []
 var _painters: Array[Node2D] = []
 var front: Node2D  ## the foreground grass (WorldView adds it above the actors)
-var top: Node2D  ## round 3: acacia boughs framing the top of the screen (WorldView, above the actors)
 var hero_x := -999.0  ## round 7: his play x (WorldView): the near trees fade where they pass behind him
 
 
@@ -69,7 +76,7 @@ class Painter extends Node2D:
 
 
 func _ready() -> void:
-	for name in ["sky", "sun", "rays", "far_mesas", "far_hills", "mid_hills", "near_grass", "haze",
+	for name in ["sky", "sun", "sun_halo", "rays", "far_mesas", "far_hills", "mid_hills", "near_grass", "haze",
 			"mote", "bird", "cloud_1", "cloud_2", "cloud_3", "cloud_4"]:
 		_tex[StringName(name)] = load(DIR + name + ".png")
 	var info: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(DIR + "tree_info.json"))
@@ -81,13 +88,15 @@ func _ready() -> void:
 	var add := CanvasItemMaterial.new()
 	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	_painter(_draw_sky)
-	_painter(_draw_sun).material = add
+	_painter(_draw_sun.bind(false))  # (round 9: its halo laid over the blue, warm, not added to it:
+	_painter(_draw_sun.bind(true)).material = add  # added, orange on blue made it a grey-white disc)
 	_painter(_draw_clouds)
-	_painter(_draw_strip.bind(&"far_mesas"), true)
-	_painter(_draw_band.bind(470.0, 110.0, 0.06))  # (round 4: haze only around the far layers)
-	_painter(_draw_strip.bind(&"far_hills"), true).material = _haze([0, 0, 0, 0, 0.22, 0.0, 0, Color(0.64, 0.7, 0.84)])
+	# (round 9: the mesas' feet in cool air, not pale milk: the middle of the screen read washed out)
+	_painter(_draw_strip.bind(&"far_mesas"), true).material = _haze([0, 0, 0, 0, 0.0, 0.42, 0, Color(0.5, 0.5, 0.68)])
+	_painter(_draw_band.bind(470.0, 110.0, 0.035))  # (round 4: haze only around the far layers; round 9: fainter)
+	# (round 9: the far hills slate blue and darker: they were the pale milky band)
+	_painter(_draw_strip.bind(&"far_hills"), true).material = _haze([0, 0, 0, 0, 0.42, 0.0, 0, Color(0.42, 0.46, 0.64)], Color(0.78, 0.8, 0.92))
 	_painter(_draw_trees.bind(0)).material = _haze(TREE_ROWS[0], TREE_TINT[0])
-	_painter(_draw_band.bind(528.0, 80.0, 0.04))
 	_painter(_draw_rays).material = add
 	_painter(_draw_strip.bind(&"mid_hills"), true).material = _haze([0, 0, 0, 0, 0.0, 0.0, 0, Color(0.96, 0.76, 0.52)], Color(0.66, 0.56, 0.42))  # (round 6: the darker, warmer mid-ground)
 	_painter(_draw_trees.bind(1)).material = _haze(TREE_ROWS[1], TREE_TINT[1])
@@ -97,15 +106,11 @@ func _ready() -> void:
 	_painter(_draw_motes).material = add
 	_painter(_draw_birds)
 	_tex[&"fg_grass"] = load(DIR + "fg_grass.png")
+	_tex[&"fg_props"] = load(DIR + "fg_props.png")
 	front = Painter.new()
 	front.paint = _draw_front
 	front.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	_painters.append(front)
-	_tex[&"canopy"] = load(DIR + "canopy.png")
-	top = Painter.new()
-	top.paint = _draw_top
-	top.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-	_painters.append(top)
 
 
 func _painter(fn: Callable, repeat := false) -> Painter:
@@ -159,9 +164,13 @@ func _draw_sky(ci: CanvasItem) -> void:
 	ci.draw_texture_rect(sky, Rect2(_x0(), 0, _x1() - _x0(), World.VIEW_H + 4.0), false)
 
 
-func _draw_sun(ci: CanvasItem) -> void:
+## The sun: its golden halo laid over the sky (`bloom` false), then its hot disc and bloom added.
+func _draw_sun(ci: CanvasItem, bloom: bool) -> void:
 	var s := SUN_SIZE * (1.0 + sin(_clock * 0.7) * 0.012)
-	ci.draw_texture_rect(_tex[&"sun"], Rect2(_sun() - Vector2(s, s) / 2, Vector2(s, s)), false, Color(1, 1, 1, 0.85))
+	if bloom:
+		ci.draw_texture_rect(_tex[&"sun"], Rect2(_sun() - Vector2(s, s) * 0.3, Vector2(s, s) * 0.6), false, Color(1, 1, 1, 0.9))
+	else:
+		ci.draw_texture_rect(_tex[&"sun_halo"], Rect2(_sun() - Vector2(s, s) * 0.36, Vector2(s, s) * 0.72), false, Color(1, 1, 1, 0.75))
 
 
 ## God rays fanning from the sun to the lower right, breathing slowly.
@@ -208,7 +217,9 @@ func _draw_strip(ci: CanvasItem, name: StringName) -> void:
 			Rect2(src_x, 0, (x1 - x0) / k, tex.get_height()))
 
 
-## The foreground grass along the bottom edge.
+## The foreground grass along the bottom edge; round 9: and now and then a big thing near the camera
+## passing (fg_props.png: tall grass, an aloe, a log, a bush), faster still, never over him (it
+## fades where it passes in front of him).
 func _draw_front(ci: CanvasItem) -> void:
 	var tex: Texture2D = _tex[&"fg_grass"]
 	var x0 := _x0()
@@ -217,25 +228,30 @@ func _draw_front(ci: CanvasItem) -> void:
 	var src_x := fposmod(scroll * FRONT_SCROLL + x0, tex.get_width())
 	ci.draw_texture_rect_region(tex, Rect2(x0, World.VIEW_H + FRONT_DROP - h, x1 - x0, h),
 			Rect2(src_x, 0, x1 - x0, h))
-
-
-## Round 3: the boughs along the top of the screen, the same size on screen whatever the zoom
-## (canopy.png is 2 px a screen unit), passing a little faster than the ground.
-func _draw_top(ci: CanvasItem) -> void:
-	var tex: Texture2D = _tex[&"canopy"]
-	var k := view_width / maxf(get_viewport_rect().size.x, 1.0)  # play units per screen unit
-	var x0 := _x0()
-	var x1 := _x1()
-	var px_per_unit := tex.get_height() / CANOPY_H  # (drawn a little smaller than its 80 units)
-	var src_x := fposmod((scroll * TOP_SCROLL + x0) / k * px_per_unit, tex.get_width())
-	ci.draw_texture_rect_region(tex, Rect2(x0, view_top - k, x1 - x0, CANOPY_H * k),
-			Rect2(src_x, 0, (x1 - x0) / k * px_per_unit, tex.get_height()))
+	var props: Texture2D = _tex[&"fg_props"]
+	var offset := scroll * FRONT_PROP_SCROLL
+	var first := floori((x0 + offset) / FRONT_PROP_GAP) - 1
+	for i in range(first, first + int((x1 - x0) / FRONT_PROP_GAP) + 3):
+		if _hash(i * 13 + 7) < 0.4:  # open stretches between them
+			continue
+		var k := 0.7 + _hash(i * 7 + 3) * 0.3
+		var size := FRONT_PROP * k
+		var cx := i * FRONT_PROP_GAP + _hash(i * 5 + 1) * FRONT_PROP_GAP * 0.5 - offset
+		# (a third of it under the bottom edge: it rises at most ~45 units over the ground line)
+		var rect := Rect2(cx - size.x / 2, World.VIEW_H + FRONT_DROP + 6.0 - size.y * 0.65, size.x, size.y)
+		if rect.end.x < x0 or rect.position.x > x1:
+			continue
+		var fade := 0.3 + 0.7 * smoothstep(size.x * 0.3, size.x * 0.3 + 120.0, absf(cx - hero_x))
+		if _hash(i * 11 + 4) < 0.5:
+			rect.size.x = -rect.size.x  # mirrored in place
+		var piece := posmod(int(_hash(i * 3 + 9) * FRONT_PIECES), FRONT_PIECES)
+		ci.draw_texture_rect_region(props, rect, Rect2(piece * FRONT_PROP.x, 0, FRONT_PROP.x, FRONT_PROP.y), Color(1, 1, 1, fade))
 
 
 ## Round 3: the low sun warming the grass behind the runners: the play lane is the brightest band,
 ## dark bandits and the hero stand out against it.
-func _draw_lane(ci: CanvasItem) -> void:
-	ci.draw_texture_rect(_tex[&"haze"], Rect2(_x0(), 470.0, _x1() - _x0(), 130.0), false, Color(1.0, 0.72, 0.4, 0.2))
+func _draw_lane(ci: CanvasItem) -> void:  # (round 9: lower and fainter: it whitened the far plain)
+	ci.draw_texture_rect(_tex[&"haze"], Rect2(_x0(), 540.0, _x1() - _x0(), 90.0), false, Color(1.0, 0.7, 0.36, 0.13))
 
 
 ## A soft band of warm air across the view.

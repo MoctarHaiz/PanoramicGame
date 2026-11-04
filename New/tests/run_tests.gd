@@ -578,6 +578,7 @@ func _test_debug_silent() -> void:
 
 const Capture := preload("res://tests/capture.gd")
 const RAW_KEY := "^[A-Z][A-Z0-9]*(_[A-Z0-9]+)+$"  ## a translation key shown as is (TAP_TO_START)
+const CARD_FRAME := 12.0  ## units of a card's frame a stamp may not cover
 var _layout_checked := 0  # buttons, texts and lists checked by _layout_problems
 const FAST := 20.0  ## Engine.time_scale while screens are tested (tweens, timers and the world)
 
@@ -773,6 +774,9 @@ func _test_screens() -> void:
 				_check(errors.is_empty(), "%s: no error or warning %s" % [where, errors])
 				var problems := _layout_problems(Capture.DEVICES[device])
 				_check(problems.is_empty(), "%s: buttons and texts in the safe area, whole, translated %s" % [where, problems])
+				if shot in ["gameover", "win"]:
+					var results := _results_problems(Capture.DEVICES[device])
+					_check(results.is_empty(), "%s: the new best's stamp centred in its row, clear of the card's frame; the hero on screen %s" % [where, results])
 				shown += 1
 			await _close(vp)
 	Engine.time_scale = 1.0
@@ -1033,6 +1037,42 @@ func _layout_problems(device: Dictionary) -> Array:
 	return problems
 
 
+## What's wrong with an end panel (a new best forced): its badge (BurstBadge) off the middle of the
+## place kept for it or over the card's frame (a stamp was once centred from its size before it
+## entered the tree), the hero's picture off the screen.
+func _results_problems(device: Dictionary) -> Array:
+	var px: Vector2i = device.size
+	var screen := Rect2(Vector2.ZERO, Vector2(640.0 * px.x / px.y, 640.0))
+	var panel: GamePanel = null
+	for c: Control in Nav.current.find_children("*", "Control", true, false):
+		if c is GamePanel:
+			panel = c
+	if panel == null:
+		return ["no end panel"]
+	var problems := []
+	var card: Rect2 = panel.card.get_global_transform() * Rect2(Vector2.ZERO, panel.card.size)
+	var stamps := 0
+	for badge: Control in panel.find_children("*", "Control", true, false):
+		if not badge is BurstBadge:
+			continue
+		stamps += 1
+		var slot := badge.get_parent() as Control
+		var r: Rect2 = badge.get_global_transform() * Rect2(Vector2.ZERO, badge.size)  # as drawn, tilted
+		var middle: float = (slot.get_global_transform() * Rect2(Vector2.ZERO, slot.size)).get_center().x
+		if absf(r.get_center().x - middle) > 4.0:
+			problems.append("stamp centred at x %.0f, its place at %.0f (placed for %s)" % [r.get_center().x, middle,
+					badge.size.round()])
+		if not card.grow(-CARD_FRAME).encloses(r):
+			problems.append("stamp %s over the card's frame (card %s)" % [r, card])
+	if stamps == 0:
+		problems.append("no new best stamp")
+	if panel.art:
+		var a: Rect2 = panel.art.get_global_transform() * Rect2(Vector2.ZERO, panel.art.size)
+		if not screen.grow(1.0).encloses(a):
+			problems.append("the hero's picture %s off the screen %s" % [a, screen])
+	return problems
+
+
 static func _in_scroll(c: Control, top: Node) -> bool:
 	var p := c.get_parent()
 	while p and p != top:
@@ -1245,8 +1285,60 @@ func _test_audio() -> void:
 		n.free()
 	# round 3: fireworks have a sound; the confetti has streamers
 	_check(Audio.has_sfx(&"firework") and Confetti.SIZES.has(Confetti.Shape.STREAMER), "fireworks sound; the confetti has streamers")
+	_audio_round9()
 	for p: AudioStreamPlayer in Audio._sfx + Audio._ui + [Audio._music, Audio._music_out, Audio._drive, Audio._ambience]:
 		p.stop()
+
+
+## Round 9: one atlas for the confetti and its light, out-of-focus near pieces, the "+1"'s burst,
+## crisp fireworks.
+func _audio_round9() -> void:
+	var atlas := Confetti.atlas()
+	var keys: Array = Confetti.Shape.values() + [&"flare", &"glow", &"streak", &"dot"]
+	var apart := true
+	for i in keys.size():
+		for j in range(i + 1, keys.size()):
+			apart = apart and not Confetti.region(keys[i]).grow(Confetti.PAD / 2.0 - 0.5).intersects(Confetti.region(keys[j]))
+	var inside := keys.all(func(k: Variant) -> bool: return Rect2(Vector2.ZERO, atlas.get_size()).encloses(Confetti.region(k)))
+	_check(apart and inside, "every confetti piece and light is its own region of one atlas (one batch a node)")
+	_check(atlas.get_width() * atlas.get_height() <= 256 * 256, "the confetti atlas stays small (%s px)" % atlas.get_size())
+	_check(Confetti.SIZES[Confetti.Shape.SOFT].x > Confetti.SIZES[Confetti.Shape.PAPER].x, "near pieces are big and soft")
+	var c := Confetti.new()
+	c.avoid = Rect2(0, 0, 100, 100)
+	var piece := Confetti.Piece.new()
+	piece.size = Vector2(40, 24)
+	piece.pos = Vector2(50, 50)
+	var hidden := c._clear(piece)
+	piece.pos = Vector2(110, 50)
+	var edge := c._clear(piece)
+	piece.pos = Vector2(200, 50)
+	_check(hidden == 0.0 and edge > 0.0 and edge < 1.0 and c._clear(piece) == 1.0,
+			"a piece fades behind the card's edge (no pop): %.2f %.2f" % [hidden, edge])
+	c.free()
+	# the "+1" pops out of a burst that stays where the ring struck, drawn behind it
+	var fx := Node2D.new()
+	add_child(fx)
+	Fx.plus_one(fx, Vector2(300, 200))
+	var kids := fx.get_children()
+	_check(kids.size() == 2 and kids[0].position.distance_to(Vector2(300, 200)) < 12.0 and kids[1].material == Fx.badge_material(),
+			"the \"+1\" pops out of a burst at the hit point, behind it")
+	# the fireworks: crisp sparks flung out evenly, then gone
+	var show := Fx.FireworkShow.new()
+	fx.add_child(show)
+	show.burst(Vector2(500, 300), 0.0, 0)
+	show._process(1.0 / 60.0)
+	var count := show._sparks.size()
+	for i in 23:
+		show._process(1.0 / 60.0)
+	var reach := 0.0
+	for s: Vector4 in show._sparks:
+		reach = maxf(reach, Vector2(s.x, s.y).distance_to(Vector2(500, 300)))
+	_check(count == Fx.FireworkShow.SPARKS and reach > show.radius * 0.6 and reach < show.radius * 1.3,
+			"a burst flings its sparks out to about its radius (%d sparks, %.0f of %.0f px)" % [count, reach, show.radius])
+	for i in 140:
+		show._process(1.0 / 60.0)
+	_check(show.is_queued_for_deletion(), "a firework show frees itself once its sparks are gone")
+	fx.free()
 
 
 # ------------------------------------------------------------------ gameplay track
@@ -1944,6 +2036,67 @@ func _test_art() -> void:
 			river += 1 if span % 100 == Level.ROWS else 0
 	_check(stacks >= 5 and river >= 5, "the poles are drawn as stacks (%d, %d standing in the river)" % [stacks, river])
 	terrain.free()
+	_test_art_round9()
+
+
+## Round 9: the hero's boots on the ground in every grounded frame; the bandit reads in every moment (its sheet
+## keeps its size, a leap frame, a knock-out with no cartwheel); a Red Bob is a ruby that glows, not a tomato.
+func _test_art_round9() -> void:
+	# QA ART-1: no grounded frame's boot sinks into the ground (the win was 32 units in: a stale camera origin)
+	var anims: Dictionary = HeroView.frames_data().anims
+	var sunk := ""
+	for name: String in ["idle", "run", "win", "jump"]:
+		var frames: Array = anims[name].frames
+		for i in frames.size():
+			if name == "jump" and (i < HeroView.JUMP_LAND[0] or i > HeroView.JUMP_LAND[1]):
+				continue
+			var f: Dictionary = frames[i]
+			if maxf(f.toe_r[1], f.toe_l[1]) - f.origin[1] > 2.0:
+				sunk += " %s %d" % [name, i]
+	_check(sunk.is_empty(), "no grounded hero frame's boot sinks into the ground (idle, run, win, the landing)%s" % sunk)
+	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(BanditView.DIR + "bandit.json"))
+	var sheet := Image.load_from_file(ProjectSettings.globalize_path(BanditView.DIR + "bandit.png"))
+	_check(sheet.get_size() == Vector2i(3200, 780), "the bandit's sheet keeps its size (%s)" % sheet.get_size())
+	var inside := true
+	for f: Array in data.frames:
+		inside = inside and f[0] >= 0 and f[1] >= 0 and f[0] + f[2] <= sheet.get_width() and f[1] + f[3] <= sheet.get_height()
+	_check(inside and (data.frames as Array).size() == int(data.leap) + 1, "every bandit frame lies inside its sheet, the leap last (%d frames)" % (data.frames as Array).size())
+	var leap: Array = data.frames[int(data.leap)]
+	var drawn := 0
+	for y in range(0, int(leap[3]), 4):
+		for x in range(0, int(leap[2]), 4):
+			drawn += 1 if sheet.get_pixel(int(leap[0]) + x, int(leap[1]) + y).a > 0.5 else 0
+	_check(drawn > 100, "the bandit's leap frame is drawn (%d samples)" % drawn)
+	# knocked out: flung back tilting, never past KO_TILT (no cartwheel), and gone within a second
+	var holder := Node2D.new()
+	add_child(holder)
+	var w := _standing_world()
+	var b := World.Bandit.new()
+	b.active = true
+	var v := BanditView.new(w, b)
+	holder.add_child(v)
+	v.hit(true)
+	var widest := 0.0
+	var t := 0.0
+	while is_instance_valid(v) and not v.is_queued_for_deletion() and t < 2.0:
+		v._process(1.0 / 60.0)
+		widest = maxf(widest, absf(v.rotation))
+		t += 1.0 / 60.0
+	_check(widest <= BanditView.KO_TILT + 0.01, "a knocked-out bandit tilts back, no cartwheel (%.2f rad at most)" % widest)
+	_check(t < 1.0, "it is gone %.2f s after the blow" % t)
+	holder.queue_free()
+	# a Red Bob: ruby crimson (its blue over its green, not a tomato's orange-red) with a glow round its edge
+	var bob := Image.load_from_file(ProjectSettings.globalize_path(BobView.DIR + "bob.png"))
+	var sum := Color(0, 0, 0, 0)
+	for y in range(44, 100, 2):
+		for x in range(60, 100, 2):
+			sum += bob.get_pixel(x, y)
+	_check(sum.r > sum.b * 2.0 and sum.b > sum.g, "a Red Bob is ruby crimson, not tomato orange (%.2f %.2f %.2f)" % [sum.r, sum.g, sum.b])
+	var glow := BobView._make_glow().get_image()
+	var n := glow.get_width()
+	var edge := glow.get_pixel(int(n * (0.5 + BobView.GLOW_EDGE * 0.5)), n / 2).a
+	var out := glow.get_pixel(int(n * 0.97), n / 2).a
+	_check(edge > 0.6 and out < 0.05, "its glow hugs its edge and falls away (%.2f at the edge, %.2f outside)" % [edge, out])
 
 
 ## The staging hooks for the views (the rules unchanged): a bandit's blow is seen coming (its swing
@@ -2071,8 +2224,9 @@ func _test_env() -> void:
 			var right := 0
 			while right < 15 and terrain.solid(c + right + 1, r):
 				right += 1
-			var foot := 0
-			while foot < 15 and terrain.solid(c, r + foot + 1) and (not terrain.solid(c - 1, r + foot + 1) or not terrain.solid(c + 1, r + foot + 1)):
+			var foot := 0  # (round 9: inside a pillar too, as on its sides)
+			while foot < 15 and terrain.solid(c, r + foot + 1) and (not terrain.solid(c - 1, r + foot + 1) \
+					or not terrain.solid(c + 1, r + foot + 1) or _row_run(terrain, c, r + foot + 1) <= TerrainView.NARROW_CELLS):
 				foot += 1
 			var open_below := r < Level.ROWS - 1 and not terrain.solid(c, r + 1)
 			var px := img.get_pixel(c + 12, r)
@@ -2151,7 +2305,7 @@ func _test_env() -> void:
 	wv.end_time = World.HOME_CHEER + 0.1
 	view.refresh(0.0)
 	_check(view._home.front.visible, "it is from his walk in (World.HOME_CHEER)")
-	_check(view._background.top != null and view._background.top.is_inside_tree(), "boughs frame the top of the screen")
+	_check(not FileAccess.file_exists(SavannaView.DIR + "canopy.png"), "no boughs smudge the top edge (round 9)")
 	view.queue_free()
 	# the world's shaders are compiled before the level opens, then the drawing that did it goes
 	WorldView.warm_up()
@@ -2168,6 +2322,17 @@ func _test_env() -> void:
 	# no timer outlives the level screen (QA ENV-2)
 	_check(not FileAccess.get_file_as_string("res://src/game/world_view.gd").contains("create_timer("),
 			"the world view's delayed calls are tied to its nodes")
+
+
+## Round 9: the run of solid cells across row r through column c (each side counted up to 15).
+func _row_run(terrain: TerrainView, c: int, r: int) -> int:
+	var left := 0
+	while left < 15 and terrain.solid(c - left - 1, mini(r, Level.ROWS - 1)):
+		left += 1
+	var right := 0
+	while right < 15 and terrain.solid(c + right + 1, mini(r, Level.ROWS - 1)):
+		right += 1
+	return left + right + 1
 
 
 ## A canvas item's z as drawn: its z_index plus its parents' while relative.

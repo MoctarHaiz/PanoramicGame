@@ -34,11 +34,12 @@ const SAND := Color("f3d9ac")
 const SAND_DEEP := Color("dcb47c")
 
 ## The colours of the interface kit (buttons, chips, banners, panels): clean, saturated faces (the
-## colour that reads over warm art) in the materials of his world: a matte face with a soft light
-## across its top (no glaze, no sticker highlight) in a carved-wood ring. GREEN is the go colour (one
-## main action per screen: Play, Resume, Play again; also "on"), GOLD rewards and the pause's tiles,
-## SUNSET the brand, BLUE and CRIMSON the others, WHITE (bone) the quiet choice.
-enum Tone { GREEN, GOLD, SUNSET, BLUE, CRIMSON, WHITE }
+## colour that reads over warm art) with a soft light across their top (no glaze, no sticker
+## highlight) in a thin bright brass ring (the panels' gold trim) over a deep drop shadow. GREEN is the
+## go colour (one main action per screen: Play, Resume, Play again; also "on"), GOLD rewards and the
+## pause's tiles, SUNSET the brand, BLUE the quiet buttons beside the main one, CRIMSON warnings,
+## WHITE (bone) the quietest choice, SLATE the defeat's cool title.
+enum Tone { GREEN, GOLD, SUNSET, BLUE, CRIMSON, WHITE, SLATE }
 ## Per tone: face top, face bottom, edge (the bevel under the face), outline (and text outline).
 const TONES := {
 	Tone.GREEN: [Color("d2e874"), Color("68aa30"), Color("467c1e"), Color("1f3c0e")],  # warm leaf, not neon
@@ -47,17 +48,20 @@ const TONES := {
 	Tone.BLUE: [Color("7cd0ff"), Color("2f86e0"), Color("1c5cb2"), Color("0e2a5e")],
 	Tone.CRIMSON: [Color("ff7a5c"), Color("e82808"), Color("a8180a"), Color("4e0804")],
 	Tone.WHITE: [Color("fffaf0"), Color("f1e2c4"), Color("d2b48a"), Color("4a1e04")],
+	Tone.SLATE: [Color("9aaccc"), Color("4e5f86"), Color("34415e"), Color("141a2c")],  # dusk blue-grey
 }
-## The ring around a button's face: carved wood (lit along its top, dark at its foot), per tone: ring
-## top, ring bottom, the thickness under it (edge), the outline around it all.
-const WOOD := [Color("cf8e4e"), Color("6e3412"), Color("40180a"), Color("2a0c04")]
+## The ring around a button's face: thin bright brass (lit along its top, deeper at its foot), per
+## tone: ring top, ring bottom, the thickness under it (edge), the outline around it all. A gold face
+## gets a copper ring (brass on gold would melt into it).
+const BRASS := [Color("fff0a8"), Color("e8a030"), Color("9a5210"), Color("3a1606")]
 const FRAMES := {
-	Tone.GREEN: WOOD,
-	Tone.GOLD: WOOD,
-	Tone.SUNSET: WOOD,
-	Tone.BLUE: WOOD,
-	Tone.CRIMSON: WOOD,
-	Tone.WHITE: [Color("e0b47a"), Color("8a4a1e"), Color("52240c"), Color("2e0d04")],
+	Tone.GREEN: BRASS,
+	Tone.GOLD: [Color("ffc27a"), Color("d8641c"), Color("8a340a"), Color("3a1404")],
+	Tone.SUNSET: BRASS,
+	Tone.BLUE: BRASS,
+	Tone.CRIMSON: BRASS,
+	Tone.WHITE: BRASS,
+	Tone.SLATE: [Color("dfe6f2"), Color("8c98ae"), Color("4a5468"), Color("141a2c")],
 }
 
 var font_title: FontVariation  ## Fredoka Bold: titles, buttons, numbers
@@ -186,17 +190,21 @@ func _candy(c: Dictionary, radius: float, pressed: bool, depth: float) -> GlossS
 	return s
 
 
-## A button's candy: the tone's face inside a lit gold ring (FRAMES) `ring` px wide, all of it on
-## its edge (`depth`) and outlined, a darker lip along the bottom of the face.
+## A button's candy: the tone's face inside a thin bright brass ring (FRAMES) `ring` px wide, all of
+## it on its edge (`depth`) and outlined, a darker lip along the bottom of the face, a deep soft drop
+## shadow under it (it stands off the panel or the scene).
 func _framed(c: Dictionary, radius: float, pressed: bool, depth: float, ring: float) -> GlossStyle:
 	var s := _candy(c, radius, pressed, depth)
 	var f: Array = c.get("frame", FRAMES[Tone.GREEN])
 	s.edge = f[2]
 	s.outline = f[3]
-	s.outline_width = clampf(roundf(depth * 0.4), 3.0, 5.0)
+	s.outline_width = clampf(roundf(depth * 0.3), 2.5, 4.0)
 	s.set_frame(ring, f[0], f[1], Color(c.outline, 0.85))
 	s.rim = 0.25
 	s.lip = 0.35
+	s.shadow.shadow_color = Color(0.1, 0.02, 0.0, 0.5)
+	s.shadow.shadow_size = 8 if pressed else 18
+	s.shadow.shadow_offset = Vector2(0, 5 if pressed else 13)
 	return s
 
 
@@ -316,7 +324,7 @@ func _candy_button(text: String, icon_name: String, c: Dictionary, height: int, 
 	b.custom_minimum_size = Vector2(0, height)
 	var radius := height * 0.36  # a rounded slab, not a pill: chunkier, like top games' buttons
 	var depth := roundf(height * 0.09)
-	var ring := roundf(height * 0.085)
+	var ring := maxf(roundf(height * 0.05), 3.0)  # a thin bright rim: the face's colour carries the button
 	var white := (c.top as Color).get_luminance() > 0.95
 	b.add_theme_stylebox_override(&"normal", _framed(c, radius, false, depth, ring))
 	b.add_theme_stylebox_override(&"hover", _framed(c, radius, false, depth, ring))
@@ -398,7 +406,7 @@ func _icon_button(icon_name: String, c: Dictionary, button_size: Vector2, radius
 	var b := JuicyButton.new()
 	b.custom_minimum_size = button_size
 	var depth := roundf(button_size.y * 0.09)
-	var ring := roundf(button_size.y * 0.07)
+	var ring := maxf(roundf(button_size.y * 0.05), 3.0)
 	for state in [&"normal", &"hover"]:
 		b.add_theme_stylebox_override(state, _framed(c, radius, false, depth, ring))
 	b.add_theme_stylebox_override(&"pressed", _framed(c, radius, true, depth, ring))
@@ -450,17 +458,18 @@ func counter(icon_control: Control, text: String, font_size := 42) -> Control:
 	return box
 
 
-## A cream plaque framed in gold (the counters and records of the menus, as the resource pills of
-## top games): dark brown text on it reads on any background.
+## A warm parchment plaque in a thin bright brass ring (the counters and records of the menus, as the
+## resource pills of top games): a golden face, darker at its foot, a firm ink outline and a deep
+## shadow, so it holds its own on the dark ground; dark brown text on it.
 func plaque_style(radius := 30.0, pressed := false) -> GlossStyle:
-	var s := GlossStyle.new(CREAM, SAND, Color("c98a3c"), radius, 6.0, pressed)
-	s.set_outline(Color("4a1e04"), 3.5)
-	s.set_frame(4.0, Color("fff3a6"), Color("e0961e"), Color("8a4a12"))
-	s.rim = 0.6
-	s.lip = 0.25
-	s.shadow.shadow_color = Color(NIGHT, 0.35)
-	s.shadow.shadow_size = 10
-	s.shadow.shadow_offset = Vector2(0, 6)
+	var s := GlossStyle.new(Color("fff1cc"), Color("f0c272"), Color("a8601c"), radius, 7.0, pressed)
+	s.set_outline(Color("3a1606"), 4.0)
+	s.set_frame(4.0, BRASS[0], BRASS[1], Color("7a3c0c"))
+	s.rim = 0.55
+	s.lip = 0.3
+	s.shadow.shadow_color = Color(0.1, 0.02, 0.0, 0.55)
+	s.shadow.shadow_size = 18
+	s.shadow.shadow_offset = Vector2(0, 12)
 	return s
 
 

@@ -50,6 +50,7 @@ const SPIRE := Vector2(96, 560)  ## spires.png: three spires side by side, each 
 const MASS := Vector2(160, 120)  ## hanging.png: masses of earth hanging under a ledge, each this size
 const MASS_VARIANTS := 4
 const MASS_INSET := 44.0  ## units the masses stay in from a ledge's ends (its taper cuts up to ~34)
+const NARROW_CELLS := 6  ## a wall at most this many cells wide is a pillar (shaded as a column to its foot)
 const DIR := "res://assets/art/world/"
 
 var level: Level
@@ -118,7 +119,8 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 	soil.shader = preload("res://src/game/terrain.gdshader")
 	var sway := ShaderMaterial.new()
 	sway.shader = preload("res://src/game/sway.gdshader")
-	for name: StringName in [&"mass", &"soil", &"spires", &"roots", &"caps", &"ends", &"tufts", &"drape", &"foot", &"cast"]:
+	# (round 9: the masses over the soil: their top fades into the ledge, its underside line hidden)
+	for name: StringName in [&"soil", &"mass", &"spires", &"roots", &"caps", &"ends", &"tufts", &"drape", &"foot", &"cast"]:
 		var layer := Node2D.new()
 		layer.name = name
 		add_child(layer)
@@ -206,14 +208,13 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 	var pole := _in_pole(c, r)
 	if pole and open_n and (span / 10000 == 1 or span / 10000 == 2):  # the stack, from its top into the
 		# ground it stands on (or under the screen); two cells wide: drawn wider from the left one
-		var v := _hash(c, 13, 3)
+		var v := posmod(c + roundi(c / 9.0), 3)  # (round 9: neighbours in the river never twins)
 		var end := span % 100
 		var w := float(span / 10000)
 		var h := (end - r) * T + (40.0 if end >= Level.ROWS else 22.0)
 		var width := SPIRE.x * (1.0 if w == 1.0 else 1.7) * (0.86 + 0.34 * _hash(c, 21, 100) / 100.0)  # (round 6: each its own width)
 		var rect := Rect2(x + T * w / 2 - width / 2, y - 6.0, width, h + 4.0)
-		if _hash(c, 17, 2) == 0:  # mirrored now and then (a negative width flips in place): no twins
-			rect.size.x = -rect.size.x
+		# (round 9: never mirrored: the sun stays on their left; three pictures, each its own width)
 		b[&"spires"].items.append([rect, Rect2(v * SPIRE.x * PX, 0, SPIRE.x * PX, minf(h + 4.0, SPIRE.y) * PX), Color.WHITE])
 	if not pole:
 		b[&"soil"].items.append([Rect2(x, y, T, T),
@@ -313,7 +314,7 @@ func _hang_masses(c: int, r: int, batch: Batch, batch_shadow: Batch) -> void:
 		width = minf(width, x1 - x0)
 		var cx := clampf(c * T + u * length, x0 + width / 2, x1 - width / 2)
 		var v := _hash(c + i, r, MASS_VARIANTS)
-		var rect := Rect2(cx - width / 2, (r + 1) * T - 10.0, width, deepest * k)
+		var rect := Rect2(cx - width / 2, (r + 1) * T - 16.0, width, deepest * k + 6.0)
 		if _hash(c + i, r + 3, 2) == 0:
 			rect.size.x = -rect.size.x  # mirrored in place
 		batch.items.append([rect, Rect2(v * MASS.x * PX, 0, MASS.x * PX, MASS.y * PX), Color.WHITE])
@@ -418,8 +419,9 @@ static func soft_disc() -> GradientTexture2D:
 
 
 ## Per cell: R how many solid cells stand above it, G how many solid cells lie between it and the
-## open air on its left, B the same on its right, A how many cells of open wall lie below it
-## before the foot (each up to 15), plus 128 when the cell is open below (a ledge). The soil shader darkens and turns
+## open air on its left, B the same on its right, A how many cells of wall lie below it before
+## the foot (open on a side, or inside a pillar; each up to 15), plus 128 when the cell is open
+## below (a ledge). The soil shader darkens and turns
 ## to rock with depth, and lights each wall from the sun's side (G) and shades its far side (B),
 ## continuously from cell to cell.
 func _depth_texture(first_col: int, end_col: int) -> ImageTexture:
@@ -450,13 +452,6 @@ func _depth_texture(first_col: int, end_col: int) -> ImageTexture:
 				run = 0
 			px[(r * n + i) * 4] = run
 			run = mini(run + 1, 15) if soil[at + r + 1] == 1 else 0
-		run = 0  # A: cells of open wall below (rows r + 1, r + 2, ...) before the foot, from under the screen up
-		for r in range(span - 3, -1, -1):
-			var wall := s[at + r + 2] == 1 and (s[at - span + r + 2] == 0 or s[at + span + r + 2] == 0)
-			run = mini(run + 1, 15) if wall else 0
-			if r < rows:
-				var open_below := r < rows - 1 and s[at + r + 2] == 0
-				px[(r * n + i) * 4 + 3] = run + (128 if open_below else 0)
 	for r in rows:
 		var run := 15 if s[r + 1] == 1 else 0  # (left of the map the edge column repeats)
 		for i in n:  # G: solid cells to the left
@@ -466,6 +461,20 @@ func _depth_texture(first_col: int, end_col: int) -> ImageTexture:
 		for i in range(n - 1, -1, -1):  # B: and to the right
 			px[(r * n + i) * 4 + 2] = run
 			run = mini(run + 1, 15) if s[(i + 1) * span + r + 1] == 1 else 0
+	for i in n:
+		var at := (i + 1) * span
+		var run := 0  # A: cells of wall below (rows r + 1, r + 2, ...) before the foot, from under the screen up
+		for r in range(span - 3, -1, -1):
+			# a wall cell: open on a side, or (round 9) inside a narrow wall (its row's run of solid
+			# cells NARROW_CELLS at most): the whole width of a pillar knows where its foot is (only
+			# its sides did: its middle was shaded as a foot in every cell, in stripes: "drawers")
+			var below := (mini(r + 1, rows - 1) * n + i) * 4
+			var narrow := px[below + 1] + px[below + 2] + 1 <= NARROW_CELLS
+			var wall := s[at + r + 2] == 1 and (s[at - span + r + 2] == 0 or s[at + span + r + 2] == 0 or narrow)
+			run = mini(run + 1, 15) if wall else 0
+			if r < rows:
+				var open_below := r < rows - 1 and s[at + r + 2] == 0
+				px[(r * n + i) * 4 + 3] = run + (128 if open_below else 0)
 	return ImageTexture.create_from_image(Image.create_from_data(n, rows, false, Image.FORMAT_RGBA8, px))
 
 
