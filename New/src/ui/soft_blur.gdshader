@@ -1,8 +1,9 @@
 shader_type canvas_item;
-// The game behind a panel: a small picture of it (Ui.blurred_snapshot, 1/16 of the screen) drawn
-// stretched over the screen. Plain bilinear stretching of so few pixels shows blocks and stair-stepped
-// edges; here every pixel is a cubic B-spline sample of it (four bilinear taps, Sigg & Hadwiger): a
-// smooth Gaussian-like blur with no block, at the cost of four texture reads, in one draw call.
+// The game behind a panel: a small, soft picture of it (Ui.blurred_snapshot: 1/16 of the screen, grown
+// back 4x) drawn stretched over the screen. Plain bilinear stretching of so few pixels shows blocks
+// and stair-stepped edges; here every pixel is a cubic B-spline sample of it (four bilinear taps,
+// Sigg & Hadwiger): a smooth Gaussian-like blur with no block, at the cost of four texture reads, in
+// one draw call.
 // `grey` drains its colour (a defeat: the world goes cold and grey behind the panel).
 
 uniform float grey : hint_range(0.0, 1.0) = 0.0;

@@ -323,12 +323,9 @@ func _hang_masses(c: int, r: int, batch: Batch, batch_shadow: Batch) -> void:
 		batch_shadow.items.append([Rect2(sx - sw / 2, ground_r * T - 14.0, sw, 30.0), Rect2(0, 0, 64, 64),
 				Color(0.14, 0.08, 0.18, clampf(0.55 - drop / 900.0, 0.2, 0.5))])
 	for i in count:
-		# round 10 ("the scalloped bottom edge has evenly spaced bumps: mechanical"): each mass its own
-		# depth, width and place, one deep under the middle
-		var u := (i + 0.5 + (_hash(c + i, r + 5, 100) / 100.0 - 0.5) * 0.7) / count
-		var k := 0.5 + 0.5 * pow(sin(PI * clampf(u, 0.0, 1.0)), 0.7) if count > 1 else 1.0
-		k *= 0.45 + 0.55 * _hash(c + i, r + 9, 100) / 100.0 if i != count / 2 else 1.0
-		var width := minf(length / count * 1.45 + 24.0, 260.0) * (0.75 + 0.55 * _hash(c + i, r + 11, 100) / 100.0)
+		var u := (i + 0.5) / count
+		var k := 0.5 + 0.5 * pow(sin(PI * u), 0.7) if count > 1 else 1.0
+		var width := minf(length / count * 1.45 + 24.0, 260.0) * (0.85 + 0.15 * k)
 		width = minf(width, x1 - x0)
 		var cx := clampf(c * T + u * length, x0 + width / 2, x1 - width / 2)
 		var v := _hash(c + i, r, MASS_VARIANTS)

@@ -7,7 +7,7 @@ render_mode blend_premul_alpha;
 
 uniform vec4 warm : source_color = vec4(1.0, 0.78, 0.50, 1.0);
 uniform vec4 cool : source_color = vec4(0.17, 0.09, 0.27, 1.0);
-uniform float wash = 0.2;  // (round 10: the sun's light reaches further)
+uniform float wash = 0.16;
 uniform float vignette = 0.4;  // round 3: deeper darks at the edges (value structure)
 uniform float top = 0.22;  // behind the hearts, the progress and the counter
 uniform float top_reach = 0.14;  // share of the height
@@ -17,7 +17,7 @@ uniform float aspect = 2.2;  // width / height of the view
 
 void fragment() {
 	vec2 p = vec2(UV.x * aspect, UV.y);
-	float light = 1.0 - smoothstep(0.0, 1.8, distance(p, vec2(sun.x * aspect, sun.y)));
+	float light = 1.0 - smoothstep(0.0, 1.4, distance(p, vec2(sun.x * aspect, sun.y)));
 	vec2 c = UV - 0.5;
 	c.x *= min(aspect, 2.4) / 1.5;  // oval on wide screens, round-ish on tablets
 	float edge = smoothstep(0.42, 1.0, length(c) * 1.3);

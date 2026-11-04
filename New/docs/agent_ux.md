@@ -541,3 +541,33 @@ tooltip-like "Tap to start", the HUD's dark empty trough, small portrait, stray 
 - After these: 1067 checks, 0 failed (one script fewer: soft_shadow.gd). perf.gd with the boot's
   warm-up (QA's): texture memory peaks at 61.1 MB on iPhone 15, iPhone 17 Pro Max and iPad 13 (QA's
   audit: 77.7, 81.7 FAIL, 91.3 FAIL); worst own work in play 8.1-8.7 ms (PASS everywhere).
+
+## Round 11
+
+Round 10 merged (9fa30cf). The blind A/B kept round 10's settings, menu and start; pause, game over
+and win lost to round 9. ROUND11.md (ux): the pause's straddling ON badges, its weak dim, the sparkle
+noise and a dot grid in the blurred background; the defeat's muddy taupe well, cream side buttons
+that read as disabled, an edge-to-edge headline, heavy rivets, sepia; the win's lost radiance,
+small pale side stars, marquee bulbs; the HUD's sand track reading as filled.
+
+- The dot grid: the blur is a 1/16 picture of the game stretched over the screen; at 16 px texels the
+  GPU's bilinear steps showed as a faint grid (FFT of the judged pause: peaks at a 14-16 px period),
+  visible once round 10 lightened the dim. Ui.blurred_snapshot now grows the shrunk picture back 4x
+  with bicubic interpolation (once, native), so the stretched texels are 4 px. The pause capture's
+  energy at that period halved; what is left is 8-bit quantisation.
+- Pause: the dim 0.5 with a 0.6 vignette (round 10: 0.2 / 0.45); ON/OFF badges 24 px, pinned inside
+  their own tile's top right corner (5 units in), tiles 136; Resume one small glint (JuicyButton.shine
+  takes a glint count and size: the menu's Play keeps its two).
+- Game over: the count's well dark (241814 to 443226) so the bright numbers stand out, the way-home
+  groove darker in it; Home and Share saturated orange (SUNSET), 92; the headline 38 with 34 units of
+  air each side; the world behind drained by half (0.5, was 0.75: no sepia).
+- Win: a radiance again: soft shafts of light turning slowly behind the card (Rays `soft`: each ray
+  fades to its sides and along its length, wide and narrower in turn, neighbours overlapping: no dark
+  stripes) in the breathing warm halo; side stars 172 (were 134), the middle 214, raised; their glow
+  and flares warmer and brighter; the frame's twinkling dots (marquee bulbs) gone, the sweep kept;
+  Home and Share orange as on game over; Play again one small glint.
+- Panels: the corner bosses 40 (were 56), the middle studs 16.
+- HUD: the way home's empty part dark again (sand read as already filled), the footprints faint on it.
+- Tests: 1076 checks, 0 failed. Captures AAA/ux/round_11/{en,fr}/ (iPhone 15, iPad: game, pause, game
+  over, win), the round's start in round_11/before/. perf.gd (load average 5-6): texture peak 61.2 MB
+  on iPhone 15 and iPad 13; worst own work in play 12.1 / 10.1 ms (PASS); results draw calls 267.

@@ -7,7 +7,7 @@ extends RefCounted
 ## opens the five moves in the panel, each with its gesture played by a hand (the tutorial's
 ## pictures), so every control can be found again without crowding the pause.
 
-const TILE := 128.0  ## side of a tile (the panel holds the screen, not lost in its margins)
+const TILE := 136.0  ## side of a tile (the panel holds the screen, not lost in its margins)
 const GAP := 34.0  ## between two tiles
 
 
@@ -25,7 +25,7 @@ static func open(host: Control, resume: Callable, home: Callable, hide: Array = 
 	go.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	go.pressed.connect(resume)
 	go.idle(0.04)
-	go.shine()
+	go.shine(3.2, 1, 0.3)  # one small glint: more would be noise
 	body.add_child(go)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -42,7 +42,7 @@ static func open(host: Control, resume: Callable, home: Callable, hide: Array = 
 	(home_tile.get_child(0).get_child(0) as JuicyButton).pressed.connect(home)
 	row.add_child(home_tile)
 	body.add_child(row)
-	return GamePanel.open(host, tr_key("PAUSED"), Ui.Tone.SUNSET, body, null, Color(0.05, 0.02, 0.06, 0.2),
+	return GamePanel.open(host, tr_key("PAUSED"), Ui.Tone.SUNSET, body, null, Color(0.05, 0.02, 0.06, 0.5),
 			Color(0, 0, 0, 0), false, hide)
 
 
@@ -151,19 +151,19 @@ class SoundSwitch extends VBoxContainer:
 				slash.end_cap_mode = Line2D.LINE_CAP_ROUND
 				b.content.add_child(slash)
 
-	## The state's badge on the tile's top right corner (clear of the icon and the label under the tile):
+	## The state's badge inside the tile's top right corner (clear of the label under the tile):
 	## a green pill "ON" or a red pill "OFF".
 	static func _badge(on: bool) -> Control:
 		var pill := PanelContainer.new()
 		var st := StyleBoxFlat.new()
 		st.bg_color = Color("4fae22") if on else Color("d8261a")
 		st.border_color = Color("1e3a0c") if on else Color("4a0804")
-		st.set_border_width_all(5)
-		st.set_corner_radius_all(24)
-		st.content_margin_left = 16
-		st.content_margin_right = 16
-		st.content_margin_top = 1
-		st.content_margin_bottom = 3
+		st.set_border_width_all(3)
+		st.set_corner_radius_all(18)
+		st.content_margin_left = 9
+		st.content_margin_right = 9
+		st.content_margin_top = 0
+		st.content_margin_bottom = 2
 		st.shadow_color = Color(0, 0, 0, 0.35)
 		st.shadow_size = 4
 		st.shadow_offset = Vector2(0, 3)
@@ -171,8 +171,8 @@ class SoundSwitch extends VBoxContainer:
 		pill.add_theme_stylebox_override(&"panel", st)
 		pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var word := TranslationServer.translate("SWITCH_ON" if on else "SWITCH_OFF").to_upper()
-		pill.add_child(Ui.label(word, 36, Color.WHITE, Ui.font_display))  # big enough to read at a glance
+		pill.add_child(Ui.label(word, 24, Color.WHITE, Ui.font_display))
 		pill.size = pill.get_combined_minimum_size()
-		pill.position = Vector2(TILE - pill.size.x * 0.82, -pill.size.y * 0.36)  # on the tile's top right corner
-		pill.z_index = 1  # over the next tile, should it reach it
+		# pinned inside its own tile's top right corner (one hanging over the gap read as the next tile's)
+		pill.position = Vector2(TILE - pill.size.x - 5.0, 5.0)
 		return pill

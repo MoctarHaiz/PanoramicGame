@@ -686,37 +686,24 @@ def hanging_mass(rng) -> tuple:
         cov = np.maximum(cov, smooth(br + 1.5, br - 1.5, np.hypot(xx - bx, (yy - by) * 1.15)))
     cov *= smooth(0, 4 * PX, xx) * smooth(w, w - 4 * PX, xx)  # (the ends melt under the ledge's)
     band = (3 + (noise1(w, 8, rng, 2) - 0.5) * 4)[None, :] * PX  # (the ledge's own soil is over it)
-    # rock blocks: round 10 ("a Voronoi grid of same-size polygons tiled evenly, like paving"): a few
-    # big feature rocks (weighted sites: their cells are large, their edges bow) among small fill
-    # stones, smaller deeper down
-    sites, weight = [], []
-    for _ in range(int(rng.integers(2, 5))):
-        sites.append((rng.uniform(0.15, 0.85) * w, rng.uniform(16, 52) * PX))
-        weight.append(rng.uniform(2.0, 3.0))
-    for row in range(7):
-        yc = (12 + row * 14 + rng.uniform(-3, 3)) * PX
-        step = rng.uniform(18, 30) * PX * (1 - row * 0.07)
+    # rock blocks: sites jittered in rows, wider than tall near the top, smaller deeper down
+    sites = []
+    for row in range(6):
+        yc = (18 + row * 17 + rng.uniform(-3, 3)) * PX
+        step = rng.uniform(26, 38) * PX * (1 - row * 0.08)
         x = rng.uniform(0, step)
         while x < w:
             sites.append((x + rng.uniform(-6, 6) * PX, yc + rng.uniform(-5, 5) * PX))
-            weight.append(rng.uniform(0.8, 1.25))
-            x += step * rng.uniform(0.7, 1.4)
+            x += step * rng.uniform(0.8, 1.2)
     sites = np.array(sites)
-    weight = np.array(weight)
-    # (a power diagram: a big rock's site carries a radius, its edges stay straight, no bubbles)
-    rad = (weight - 1.0).clip(0, None) * 16 * PX
-    dx = xx[..., None] - sites[None, None, :, 0]
-    dy = (yy[..., None] - sites[None, None, :, 1]) * 1.3
-    d = dx * dx + dy * dy - rad[None, None, :] ** 2
+    d = np.hypot(xx[..., None] - sites[None, None, :, 0], (yy[..., None] - sites[None, None, :, 1]) * 1.3)
     order = np.argsort(d, axis=2)
     near = order[..., 0]
-    second = order[..., 1]
     f1 = np.take_along_axis(d, order[..., :1], axis=2)[..., 0]
     f2 = np.take_along_axis(d, order[..., 1:2], axis=2)[..., 0]
-    apart = np.hypot(sites[near, 0] - sites[second, 0], (sites[near, 1] - sites[second, 1]) * 1.3)
-    joint = (f2 - f1) / (2.0 * np.maximum(apart, 1.0))  # px to the edge between the two nearest
+    joint = (f2 - f1) * 0.5
     to_c = np.dstack([sites[near, 0] - xx, sites[near, 1] - yy])
-    facing = np.clip((to_c[..., 0] * 0.6 + to_c[..., 1] * 0.8) / (14 * PX * weight[near]), -1, 1)  # >0: its upper left
+    facing = np.clip((to_c[..., 0] * 0.6 + to_c[..., 1] * 0.8) / (14 * PX), -1, 1)  # >0: its upper left
     tone = rng.uniform(0.86, 1.12, len(sites))[near]
     hue = rng.choice([0, 1, 2], len(sites), p=[0.55, 0.3, 0.15])[near]
     base = np.array([hexc("9a5634"), hexc("b06a40") * np.array([1.0, 0.9, 0.84]), hexc("86605a")])[hue]
@@ -725,8 +712,7 @@ def hanging_mass(rng) -> tuple:
     lam += bevel * np.sign(facing) * smooth(0.05, 0.5, np.abs(facing)) * 0.35
     rock = base * tone[..., None] * (0.62 + 0.55 * cel(np.clip(lam, 0, 1), (0.36, 0.64))[..., None])
     rel = np.clip(yy / (h - 28 * PX), 0, 1)
-    tip = np.clip(yy / np.maximum(depth, 1.0), 0, 1)  # (round 10) down to its own lower edge: darker to the tip
-    rock = mix(rock, rock * np.array([0.42, 0.36, 0.6]), np.clip(smooth(0.1, 0.85, rel) * 0.6 + smooth(0.35, 1.0, tip) * 0.6, 0, 0.92))
+    rock = mix(rock, rock * np.array([0.5, 0.44, 0.68]), smooth(0.1, 0.85, rel) * 0.8)  # the ledge's shade below
     soil = ramp(np.clip(yy / band, 0, 1), [(0, "7e3e26"), (1, "5e2e22")])
     to_rock = smooth(band - 2 * PX, band + 3 * PX, yy)
     col = mix(soil, rock, to_rock)

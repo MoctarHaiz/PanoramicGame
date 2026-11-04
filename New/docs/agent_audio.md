@@ -419,3 +419,30 @@ A lighter pattern never cuts into a heavier one still playing; nothing plays whe
 - Tests: 1071 checks, 0 failed (--bot: home, 3 lives, 82 Red Bobs, 3 stars).
 - Stills: `AAA/audio/round_10/captures/` (iPhone 15, --ads=off): game (the judged moment: the "+1" on its burst),
   game_plus1 (strip film, frame 22), win, home. Perf JSONs in `round_10/before/` and `round_10/after/`.
+
+## Round 11 (2026-11-04): ROUND11.md audio (round 10 merged as 9fa30cf; the A/B gave game and win to round 9)
+- "+1": the comic star ("an orange spiky explosion badge, clip-art; its hard orange clashes with the red gems") is
+  gone. `Fx.pop_light`: a soft burst of light behind the number, added onto the scene from the Confetti atlas
+  (one batch): a warm glow round a hotter middle, ten soft tapered rays (long and short in turn), three small
+  glints. Same clock as the number (PLUS_POP .. PLUS_OUT): it flashes open with the pop, settles to 70 % during
+  the hold, shrinks and fades with the number. The number a little smaller (PLUS_SCALE 1.0 -> 0.85), same fill
+  (white top, gold, amber foot, cream rim, dark stroke).
+- Win fireworks ("scratchy purple and white streaks that overlap the panel edge"): FIREWORK_HUES warm only (gold,
+  red-orange, amber, white-gold, peach; no violet, no teal); softer streaks (a softer, narrower core at 60 %,
+  the streak at 85 %, white-hot only for a moment, chrysanthemum trails 0.55 of the path, fewer sparks: 48 / 40
+  / 36 / 36); every burst stays off the card and off him: `FireworkShow.keep_off` (the card grown 24, his
+  picture grown 16; `Fx._keep_off`), a burst shrinks to its gap to them and doesn't go off below 0.35 of its
+  size (the shells of `Fx.fireworks` too: they find the panel's card). The shells: a red-orange peony, a gold
+  chrysanthemum, an amber ring.
+- Tests: the light is additive and behind the number on its clock (never a frame of the number alone), the
+  fireworks' colours are warm, a burst beside the card never reaches it and one on it doesn't go off.
+- Perf (QA's real-boot perf.tscn, iPhone 15; before = 9fa30cf's fx/confetti; 3 runs before, 4 after): texture
+  equal (play 40.7, results 43.6, menu after 61.2 MB); draw calls play mean 210.41-210.47 -> 210.44-210.48,
+  max 365-371 -> 367-372; results mean 258.97-260.61 -> 259.51-260.38, max 273-275 -> 273-275 (the same within
+  run-to-run noise). Warm-up 3.8 -> 3.9 ms. Frames: worst own work 8.25 ms before, 8.25 / 8.29 after on a quiet
+  machine; two later runs failed the wall p99 by 0.1-0.3 ms while another builder's Blender render took 236 %
+  CPU (72-78 long frames, almost all outside the game's own work; the one heavy frame of each, at different
+  moments, did not repeat).
+- Tests: 1078 checks, 0 failed (--bot: home, 3 lives, 82 Red Bobs, 3 stars).
+- Stills: `AAA/audio/round_11/captures/` (iPhone 15, --ads=off): game, game_plus1 (strip film frame 22), win,
+  home. Perf JSONs in `round_11/before/` and `round_11/after/`.

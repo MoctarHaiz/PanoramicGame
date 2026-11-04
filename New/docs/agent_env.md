@@ -388,3 +388,26 @@ Kept everything; the judges' words and what was done:
   only makes the layers (~6 ms). The ~17 ms before the start card is not in env's files.
 
 Before/after crops: `AAA/env/round_10/ba_*.jpg`.
+
+## Round 11 (round 10's game and climb lost their A/B to round 9: reverts)
+
+- **Pillar**: terrain.gdshader is round 9's again (452aa0e: the stacked stones in wavy beds), its
+  round 10 rock (`blocks()`, two sizes of stones, stepped sides) gone: "crazy-paving cracks all the
+  same size, like a Voronoi filter; at phone size it turns into noise". Added only what round 9's
+  critique asked: a slight taper (the sides eaten in up to 14 units, more higher up, within each
+  side's own cell: past it the edge went straight) and a crisp highlight along each stone's edge
+  on its sun side.
+- **Island underside**: hanging.png, terrain.py `hanging_mass()` and `_hang_masses` are round 9's
+  ("muddy grey-brown cobble, three lumpy lobes like blobs").
+- **Sun shafts and the warm wash**: the god rays back under the midground at round 9's size and
+  strength, the grade's wash back to 0.16 within 1.4; also the mid hills' far-crest haze and the
+  hazier middle tree row (round 10's "falloff between rows") gone: "a sun shaft and haze through the
+  middle washes the savanna out to beige; the whole frame milky". The plain's colours now measure
+  the same as round 9's. Kept: the softer disc, the cloud shadows (they only darken), the more
+  unequal tree sizes.
+- **The mesas**: round 9's again (far_mesas.png and its generator): with round 8's butte at 760
+  removed, a bright notch of sky opened between the buttes behind the game shot, which lost.
+- Taper detail: the sides are eaten in at most to 31 units (past a side's own cell the edge went
+  straight); round 9's bulges and notches stay as they were.
+- Kept from round 10 (they won): the hang pillars, the home firelight (the doorway, the campfire's
+  light), the start card's bandit fix, the vine's two lianas, the water, the threaded ground data.

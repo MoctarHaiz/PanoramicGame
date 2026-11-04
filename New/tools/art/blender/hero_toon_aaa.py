@@ -68,6 +68,11 @@ BOLD_BANDS = {  # shade, lit (albedo multipliers; hair: absolute)
                "belt": ((0.5, 0.36, 0.4), (1.05, 0.9, 0.8)), "eye": ((0.88, 0.86, 0.9), (1.02, 1.0, 1.0)),
                "chakram": ((0.36, 0.38, 0.52), (1.1, 1.05, 1.0))},
 }
+## (round 11, "in play his dark orange skin shares the value of the rock and the haze: a brown smudge") the lit band
+## of his skin lighter and warmer in the level's light (linear multipliers on top of BOLD_BANDS; the shade kept, so
+## the light-shade split widens); the interface pictures and the bandit (flat colours) unchanged
+_LIFT = float(_os.environ.get("HERO_LIT_LIFT", "1.3"))
+DAY_LIT = {r: (_LIFT * 1.04, _LIFT, _LIFT * 0.9) for r in ("skin", "face", "hand")}
 BOLD_STOPS = (0.0, 0.155, 0.185, 1.0)  ## the terminator: a crisp step (a pixel or two of softening)
 BOLD_RIM = {"day": ((1.0, 0.62, 0.26), 0.6, (-0.6, 0.8)), "sunset": ((1.0, 0.5, 0.12), 1.0, (0.62, 0.78))}
 ## (sunset: the key lights him from the front-left, the sun's hot rim takes the other edges, upper right)
@@ -241,6 +246,8 @@ def build(m, mode="day"):
     el = ramp.color_ramp.elements
     if BOLD:
         sh, li = BOLD_BANDS[mode][region]
+        if mode == "day" and not flat and region in DAY_LIT:  # (round 11) his lit skin lighter in play
+            li = tuple(x * k for x, k in zip(li, DAY_LIT[region]))
         stops, cols = BOLD_STOPS, (sh, sh, li, li)
     else:
         stops, cols = STOPS, (deep, deep, shade, shade, mid, mid, lit, lit)

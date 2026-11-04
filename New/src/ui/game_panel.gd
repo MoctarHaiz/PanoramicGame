@@ -20,13 +20,14 @@ var _pop: Control
 var _ground: TextureRect
 var _shadow: TextureRect
 var _halo: TextureRect  # a win's warm light behind the card
+var _rays: Rays  # and its soft shafts of light
 var _back: Control  # the picture behind, its scrim and vignette
 var _picture: TextureRect
 var _hidden: Array[CanvasItem] = []  # what it hid behind it, shown again when it goes
 var _to_cover: Array = []  # what its picture stands for (the world): hidden once the picture covers it
 var _covered: Array[CanvasItem] = []
 var _mood := &""  # &"win", &"loss" or none (Card.set_mood)
-var _gild: _Gilding  # a win's shine and sparkles over the card
+var _gild: _Gilding  # a win's shine over the card
 var _top := 0.0
 var _min_w := 560.0
 var _k := 1.0  # shrink to fit a small screen
@@ -63,7 +64,7 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 	_picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var soft := ShaderMaterial.new()  # a cubic B-spline stretch of the small picture: no blocks
 	soft.shader = SOFT_BLUR
-	soft.set_shader_parameter(&"grey", 0.75 if _mood == &"loss" else 0.0)  # a defeat drains the world
+	soft.set_shader_parameter(&"grey", 0.5 if _mood == &"loss" else 0.0)  # a defeat drains the world (not to sepia)
 	_picture.material = soft
 	back.add_child(_picture)
 	var veil := ColorRect.new()
@@ -76,11 +77,17 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 	vignette.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	vignette.stretch_mode = TextureRect.STRETCH_SCALE
 	vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	# a defeat's colder, darker corners; the pause's light (the scene keeps its colour)
-	vignette.modulate = Color(0.02, 0.01, 0.03, {&"loss": 0.85, &"win": 0.7}.get(_mood, 0.45))
+	# a defeat's colder, darker corners; the pause's lighter (the scene stays readable, dimmed by half)
+	vignette.modulate = Color(0.02, 0.01, 0.03, {&"loss": 0.85, &"win": 0.7}.get(_mood, 0.6))
 	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	back.add_child(vignette)
-	if rays:  # a warm light blooming behind the card (hard rays on the dark read as wallpaper stripes)
+	if rays:  # a radiance behind the card: soft shafts of light turning (hard-edged rays read as
+		# wallpaper stripes) in a warm light blooming
+		_rays = Rays.new(1600, Color(1, 0.8, 0.38, 0.26), 22, true)
+		_rays.material = Fx.additive()
+		add_child(_rays)
+		if Prefs.motion():
+			_rays.create_tween().set_loops().tween_property(_rays, "rotation", TAU, 60.0).from(0.0)
 		_halo = TextureRect.new()
 		_halo.texture = Fx.glow_texture()
 		_halo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -252,6 +259,11 @@ func _place() -> void:
 		var at := centre + (Vector2(art_w + card_size.x / 2, _top + lift + card_size.y / 2) - whole / 2) * _k
 		_halo.size = card_size * _k * Vector2(1.9, 2.1)
 		_halo.position = at - _halo.size / 2
+		var d := maxf(card_size.x, card_size.y) * _k * 2.0
+		_rays.size = Vector2(d, d)
+		_rays.pivot_offset = _rays.size / 2
+		_rays.position = at - _rays.size / 2
+		_rays.queue_redraw()
 	card.position = Vector2(art_w, _top + lift)
 	if _gild:
 		_gild.position = card.position
@@ -270,17 +282,14 @@ func _place() -> void:
 
 
 ## A win's gilding over its card (added light): a soft band of light sweeping across the panel now and
-## then, and sparkles twinkling along the gold frame. Still, without motion: the sparkles only.
+## then (the twinkling dots along its frame read as tiny marquee bulbs: gone).
 class _Gilding extends Control:
-	const SPARKLES := 22
 	var radius := 34.0
 	var _t := 0.0
-	var _star: Texture2D
 
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 		material = Fx.additive()
-		_star = Fx.glow_texture()  # soft glints from the glow the panel already holds (no new texture)
 
 	func _process(delta: float) -> void:
 		if Prefs.motion():
@@ -308,22 +317,3 @@ class _Gilding extends Control:
 						var u := (p.x - x - slant * (r.size.y - p.y) / r.size.y) / w
 						cols.append(Color(1, 0.92, 0.7, sin(clampf(u, 0.0, 1.0) * PI) * 0.22))
 					draw_polygon(poly, cols)
-		# the sparkles: along the middle of the frame, each twinkling on its own beat
-		var inset := Card.FRAME * 0.5
-		var path := r.grow(-inset)
-		var perimeter := 2.0 * (path.size.x + path.size.y)
-		for i in SPARKLES:
-			var d := fposmod(i * perimeter / SPARKLES + 37.0, perimeter)
-			var p: Vector2
-			if d < path.size.x:
-				p = path.position + Vector2(d, 0)
-			elif d < path.size.x + path.size.y:
-				p = path.position + Vector2(path.size.x, d - path.size.x)
-			elif d < 2.0 * path.size.x + path.size.y:
-				p = path.end - Vector2(d - path.size.x - path.size.y, 0)
-			else:
-				p = path.position + Vector2(0, path.size.y - (d - 2.0 * path.size.x - path.size.y))
-			var beat := 0.5 + 0.5 * sin(_t * 2.6 + i * 2.3)
-			var side := 18.0 + 22.0 * beat * float((i * 7) % 3 + 1) / 3.0
-			draw_texture_rect(_star, Rect2(p - Vector2(side, side) / 2, Vector2(side, side)), false,
-					Color(1, 0.95, 0.75, 0.35 + 0.6 * beat))

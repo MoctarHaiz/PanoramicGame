@@ -12,7 +12,8 @@ extends RefCounted
 ##   and dusty hide, a red GAME OVER ribbon and what happened under it; the Red Bobs roll up, then the
 ##   bar of the way home fills to where he got (the house at its end in a gold disc: the goal); the
 ##   buttons are there at once. Panoramic dazed on the ground in a cold, dim light.
-## PLAY AGAIN (the big green one) between Home and Share, two quiet bone buttons, from the start.
+## PLAY AGAIN (the big green one) between Home and Share, two saturated orange ones (bone read as
+## disabled, blue fought the green), from the start.
 
 const HERO_WIN := "res://assets/art/hero/hero_win.png"  ## the art track's render (arms up), when there
 const HERO_LOSE := "res://assets/art/hero/hero_defeat.png"  # the art track's defeat pose
@@ -36,13 +37,15 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 		# what happened: bold red display letters on the parchment, a fine dark outline and a little
 		# depth (heavy enough to read as the headline; a thick stroke on red would close the letters)
 		var why := Ui.display_text(TranslationServer.translate("FELL" if world.death_reason == &"fall" else "CAUGHT"),
-				42, Color("f0401e"), Color("4e0804"), Color("b01408"))
+				38, Color("f0401e"), Color("4e0804"), Color("b01408"))
 		why.outline_width = 3.5
 		why.depth = 3.0
 		why.shadow = Color(0, 0, 0, 0)
 		why.refresh()
-		var air := MarginContainer.new()  # room for a new best's crown over the groove below
+		var air := MarginContainer.new()  # air round it (not edge to edge), room for a crown under it
 		air.add_theme_constant_override(&"margin_bottom", 14)
+		air.add_theme_constant_override(&"margin_left", 34)
+		air.add_theme_constant_override(&"margin_right", 34)
 		air.add_child(why)
 		body.add_child(air)
 	var well := PanelContainer.new()
@@ -86,17 +89,17 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 	body.add_child(well)
 	var buttons := HBoxContainer.new()
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
-	buttons.add_theme_constant_override(&"separation", 34)  # air between them: one main button, two quiet ones
-	var home_button := Ui.icon_button("house-fill", Ui.Tone.WHITE, 88.0, 28.0)
+	buttons.add_theme_constant_override(&"separation", 34)  # air between them: the main button, two warm ones
+	var home_button := Ui.icon_button("house-fill", Ui.Tone.SUNSET, 92.0, 28.0)
 	home_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	home_button.pressed.connect(home)
 	buttons.add_child(home_button)
 	var go := Ui.candy_button(TranslationServer.translate("PLAY_AGAIN"), "arrow-counter-clockwise-bold", Ui.Tone.GREEN, 100, 42)
 	go.custom_minimum_size.x = 340
 	go.pressed.connect(again)
-	go.shine()
+	go.shine(3.2, 1, 0.3)  # one small glint
 	buttons.add_child(go)
-	var share_button := Ui.icon_button("share-network-fill", Ui.Tone.WHITE, 88.0, 28.0)
+	var share_button := Ui.icon_button("share-network-fill", Ui.Tone.SUNSET, 92.0, 28.0)
 	share_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	share_button.pressed.connect(share)
 	buttons.add_child(share_button)
@@ -118,12 +121,12 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 
 ## The groove under the run's count: cut into the parchment (InsetStyle: shade under its upper
 ## edge, the lit lip of the parchment under it), dark, so the cream numbers stand out on it; warm
-## leather after a win, a lighter dusty brown after a loss (not a dark hole in the card).
+## leather after a win, a darker, colder brown after a loss: the bright numbers stand out on both.
 static func _dark_well(won: bool) -> InsetStyle:
 	var s := InsetStyle.new(22.0)
-	s.top = Color("4a2210") if won else Color("5e4c40")
-	s.bottom = Color("74401e") if won else Color("86725f")
-	s.outline = Card.INK if won else Color("2e1c14")
+	s.top = Color("4a2210") if won else Color("241814")
+	s.bottom = Color("74401e") if won else Color("443226")
+	s.outline = Card.INK if won else Color("1a0e08")
 	s.content_margin_top = 12
 	s.content_margin_bottom = 14
 	return s
@@ -132,7 +135,7 @@ static func _dark_well(won: bool) -> InsetStyle:
 ## The three stars, placed by hand: the middle one bigger and higher, over a turning sunburst.
 static func _stars_stage(stars: Array[Control]) -> Control:
 	var stage := Control.new()
-	stage.custom_minimum_size = Vector2(0, 204)
+	stage.custom_minimum_size = Vector2(0, 214)
 	# the one sunburst of the win: a deep warm orange, soft, so the gold stars stand out on it (a white
 	# glow behind them washed them out)
 	var burst := Rays.new(820, Color(1, 0.5, 0.08, 0.2), 18)
@@ -146,7 +149,7 @@ static func _stars_stage(stars: Array[Control]) -> Control:
 	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(row)
 	for i in 3:
-		var side := 204.0 if i == 1 else 134.0  # the middle one clearly the biggest, raised
+		var side := 214.0 if i == 1 else 172.0  # the middle one the biggest, raised; the sides big too
 		var slot := Control.new()
 		slot.custom_minimum_size = Vector2(side, side)
 		slot.size_flags_vertical = Control.SIZE_SHRINK_END if i != 1 else Control.SIZE_SHRINK_BEGIN
@@ -282,14 +285,14 @@ static func _slam_star(tree: SceneTree, star: Control, i: int, delay: float, pan
 	flare.size = star.size * 2.4
 	flare.position = star.size / 2 - flare.size / 2
 	flare.pivot_offset = flare.size / 2
-	flare.modulate = Color(1, 0.78, 0.3, 0.6)
+	flare.modulate = Color(1, 0.8, 0.34, 0.75)
 	flare.show_behind_parent = true
 	star.add_child(flare)
 	var bloom := flare.create_tween()
-	bloom.tween_property(flare, "modulate:a", 0.22, 0.5).from(0.6)
+	bloom.tween_property(flare, "modulate:a", 0.3, 0.5).from(0.75)
 	if Prefs.motion():
-		bloom.tween_property(flare, "modulate:a", 0.34, 1.0).set_trans(Tween.TRANS_SINE)
-		bloom.tween_property(flare, "modulate:a", 0.22, 1.0).set_trans(Tween.TRANS_SINE)
+		bloom.tween_property(flare, "modulate:a", 0.42, 1.0).set_trans(Tween.TRANS_SINE)
+		bloom.tween_property(flare, "modulate:a", 0.3, 1.0).set_trans(Tween.TRANS_SINE)
 		bloom.set_loops()
 		var shine := star.create_tween().set_loops()
 		shine.tween_interval(1.4 + i * 0.35)
@@ -401,7 +404,7 @@ class WayBar extends Control:
 		var r := Rect2(Vector2(0, 10), Vector2(size.x - 40.0, size.y - 20))
 		var rad := r.size.y / 2
 		GlossStyle.fill_rounded(ci, r.grow(3.0), rad + 3.0, Color("1e1208"), Color("1e1208"))
-		GlossStyle.fill_rounded(ci, r, rad, Color("2a1c14"), Color("4a3a30"))  # a groove in the dusty well
+		GlossStyle.fill_rounded(ci, r, rad, Color("120a06"), Color("2e2018"))  # a groove in the dark well
 		GlossStyle.fill_clipped(ci, r, rad, Rect2(r.position, Vector2(r.size.x, r.size.y * 0.5)),
 				Color(0, 0, 0, 0.5), Color(0, 0, 0, 0))
 		var w := maxf(r.size.x * _shown, r.size.y)

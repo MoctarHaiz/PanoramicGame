@@ -418,3 +418,22 @@ win and defeat renders; (6) the studio logo; (7) the null texture on the first b
   pixel-identical to round 9.
 - Tests: `_test_art_round10()` (the vine ink, the home back rim, the menu's trail) and the Bob checks (a bright rim
   on the sun's side, no glow sprite).
+
+## Round 11 (round 10's rubies, trail, stars and home rim kept)
+
+- **The outline** ("a jagged, uneven dark-brown stroke with a lighter halo", menu): `hero_atlas.py inked()` draws
+  the line at 4x on a calmed contour of the silhouette and reduces it (an even width, a smooth anti-aliased edge;
+  half as wide round a strand too thin for the calmed contour, never missing). `trimmed()` leaves room for the
+  whole line (a 4 px border had cut it flat at his boots). The menu picture is inked at its final size (it was
+  reduced 0.7x after inking: a soft, uneven line). The interface pictures' hot rim inside the line narrower
+  (`RIM_PX_UI` 3.4 -> 2.4).
+- **Win**: round 10's opened leg lost the A/B: `pose_win_leap()` removed, the win picture is pass 4's again
+  (`r11/render_ui/win_front` -> p4), with the smoother line.
+- **In play** ("his dark orange skin shares the value of the rock and the haze: a brown smudge"): every level
+  animation re-rendered (`hero3d/render/render_r11.sh` -> `r11/game`) with his skin's lit band lighter and warmer in
+  the level's light (`hero_toon_aaa.py DAY_LIT`, x1.3 linear; the shade band kept, so the split widens; the
+  interface pictures and the bandit unchanged); a lighter, stronger hot rim on his sun side (`RIM_DAY`
+  (1.0, 0.72, 0.36) at 0.75, `RIM_PX` 4.2) and a heavier outline in play (`INK_PX` 2.8 -> 3.2; HeroView's
+  `VINE_INK_PX` 0.9 to match).
+- `portrait.png` is no longer rewritten unless `PORTRAIT=1` (UX's HUD badge is cut from it).
+- Tests: `_test_art_round11()` (the pictures' line never cut at their edge, the win is the upright leap).

@@ -38,7 +38,7 @@ const STRIPS := {
 ## washes everything out"): a cool, quiet background behind a warm, saturated playfield.
 const TREE_ROWS := [
 	[0.11, 190.0, 70.0, 488.0, 0.5, 0.25, 0.45, Color(0.44, 0.48, 0.64)],  # (round 9: sparser: a dotted line of stamps)
-	[0.2, 300.0, 104.0, 540.0, 0.3, 0.1, 0.45, Color(0.56, 0.58, 0.7)],  # (round 7: crowns under the jump band:
+	[0.2, 300.0, 104.0, 540.0, 0.16, 0.1, 0.45, Color(0.5, 0.54, 0.68)],  # (round 7: crowns under the jump band:
 	[0.31, 520.0, 130.0, 604.0, 0.0, 0.05, 0.4, Color(0.96, 0.78, 0.5)],  # they read as platforms there)
 ]
 ## (round 6: the near rows darker, warmer; round 9: a little lighter again, so their crowns' lit tops
@@ -98,14 +98,12 @@ func _ready() -> void:
 	# (round 9: the far hills slate blue and darker: they were the pale milky band)
 	_painter(_draw_strip.bind(&"far_hills"), true).material = _haze([0, 0, 0, 0, 0.42, 0.0, 0, Color(0.42, 0.46, 0.64)], Color(0.78, 0.8, 0.92))
 	_painter(_draw_trees.bind(0)).material = _haze(TREE_ROWS[0], TREE_TINT[0])
-	var mid := _haze([0, 0, 0, 0, 0.0, 0.0, 0, Color(0.66, 0.66, 0.74)], Color(0.66, 0.56, 0.42))  # (round 6: the darker, warmer mid-ground)
-	mid.set_shader_parameter(&"far_top", 0.42)  # (round 10: its far crests in the air: depth between the rows)
-	_painter(_draw_strip.bind(&"mid_hills"), true).material = mid
+	_painter(_draw_rays).material = add  # (round 11: under the midground again: over it they washed it to beige)
+	_painter(_draw_strip.bind(&"mid_hills"), true).material = _haze([0, 0, 0, 0, 0.0, 0.0, 0, Color(0.96, 0.76, 0.52)], Color(0.66, 0.56, 0.42))  # (round 6: the darker, warmer mid-ground)
 	_painter(_draw_trees.bind(1)).material = _haze(TREE_ROWS[1], TREE_TINT[1])
 	_painter(_draw_trees.bind(2)).material = _haze(TREE_ROWS[2], TREE_TINT[2])
 	_painter(_draw_strip.bind(&"near_grass"), true).material = _haze([0, 0, 0, 0, 0.0, 0.0, 0, Color(1, 1, 1)], Color(0.84, 0.74, 0.58))
 	_painter(_draw_cloud_shadows)  # (round 10) shadows of the clouds sliding over the plain
-	_painter(_draw_rays).material = add  # (round 10: over the midground: the sun's light reaches the scene)
 	_painter(_draw_lane).material = add  # (round 3) the low sun on the grass behind the play
 	_painter(_draw_motes).material = add
 	_painter(_draw_birds)
@@ -180,8 +178,8 @@ func _draw_sun(ci: CanvasItem, bloom: bool) -> void:
 ## God rays fanning from the sun to the lower right, breathing slowly.
 func _draw_rays(ci: CanvasItem) -> void:
 	var tex: Texture2D = _tex[&"rays"]
-	var k := 1.7  # (round 10: longer and stronger: they reach the midground)
-	var a := 0.2 + 0.05 * sin(_clock * 0.45) + 0.02 * sin(_clock * 1.13)
+	var k := 1.2
+	var a := 0.12 + 0.04 * sin(_clock * 0.45) + 0.02 * sin(_clock * 1.13)
 	ci.draw_texture_rect(tex, Rect2(_sun() - RAYS_ORIGIN * k, RAYS_SIZE * k), false, Color(1, 1, 1, a))
 
 

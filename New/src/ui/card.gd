@@ -19,7 +19,7 @@ const TRIM_TOP := Color("ffe9a0")
 const TRIM_BOTTOM := Color("e0901c")
 const PAPER := preload("res://assets/art/ui/paper.png")
 const CORNERS := preload("res://assets/art/ui/corners.png")  ## the corner bosses: brass, then bronze (tools/art/ui_kit.py)
-const BOSS := 56.0  ## a corner boss, side in units
+const BOSS := 40.0  ## a corner boss, side in units (bigger ones read as heavy rivets)
 
 var top_colour := Color("f6e4bc")  ## tanned hide, warm at the top
 var bottom_colour := Color("dcb47c")  ## and darker towards its foot
@@ -164,7 +164,7 @@ func _studs(r: Rect2) -> void:
 		draw_texture_rect(stud, Rect2(c - Vector2(STUD, STUD) / 2, Vector2(STUD, STUD)), false, tint)
 
 
-const STUD := 22.0  ## a stud's picture, side in units
+const STUD := 16.0  ## a stud's picture, side in units
 static var _stud: ImageTexture
 
 

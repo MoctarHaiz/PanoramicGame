@@ -565,15 +565,6 @@ def pose_authored(name, chakram=False, stars=False):
     bpy.context.view_layer.update()
 
 
-def pose_win_leap():
-    """The win picture (the authored AAA_key_win) with its bent leg opened (round 10: "the leaping hero's bent leg
-    folds in oddly": the shin was folded back under the thigh, across the other leg): the thigh kept up, the
-    shin hanging down and a little forward from the knee, the toes pointed."""
-    pose_authored("key_win")
-    aim("RightLeg", float(os.environ.get("WIN_SHIN_X", "0.1")), -1.0, float(os.environ.get("WIN_SHIN_D", "-0.28")))
-    aim("RightFoot", 0.25, -0.9, -0.3)
-
-
 STAR_GOLD = (1.0, 0.8, 0.16)  ## sRGB: the dizzy stars, the game's own gold (the results' stars)
 
 
@@ -718,7 +709,7 @@ def anims():
     out["win_front"] = ("front", [lambda: pose_celebrate()], 0.15, 7.0)
     if "key_menu" in ACTIONS:  # (hero pass 2: the poses authored by hand on the timeline)
         out["menu_hero"] = ("front", [lambda: pose_authored("key_menu", chakram=True)], -0.06, 6.0)
-        out["win_front"] = ("front", [lambda: pose_win_leap()], -0.03, 7.0)
+        out["win_front"] = ("front", [lambda: pose_authored("key_win")], -0.03, 7.0)  # (round 11: round 10's opened leg lost the A/B)
         out["defeat"] = ("front", [lambda: (pose_authored("key_defeat", stars=True), chunky_stars())], 0.03, -9.0)  # (looking down a little: he sits on the ground)
     if arg("--turn"):  # the turnaround, for reviews (--anims turn --turn)
         out["turn"] = ("front", [lambda k=k: pose_turn(k) for k in range(4)], 0.0)

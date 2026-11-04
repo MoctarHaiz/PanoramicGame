@@ -330,8 +330,8 @@ def mesas() -> Image.Image:
     near_h = np.maximum(near_h, _butte(x, 1960, 40, 182, w, 10, 60))  # a lone butte
     # round 8: more buttes, each its own width, height and stepped top (the butte family only: the
     # boulders, the slanted ramp and the needle of round 7 read as primitives)
-    # (round 10: round 8's butte at 760 gone: three evenly spaced under the floating island of the
-    # climb read as table legs)
+    near_h = np.maximum(near_h, _butte(x, 760, 54, 150, w, 11, 70))
+    near_h = np.maximum(near_h, _butte(x, 728, 22, 168, w, 7, 20))
     near_h = np.maximum(near_h, _butte(x, 1260, 96, 112, w, 12, 80))
     near_h = np.maximum(near_h, _butte(x, 1296, 34, 128, w, 8, 24))
     for _ in range(9):  # kopjes: heaps of rounded boulders

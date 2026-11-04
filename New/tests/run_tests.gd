@@ -1335,8 +1335,8 @@ func _audio_round9() -> void:
 	add_child(fx)
 	Fx.plus_one(fx, Vector2(300, 200))
 	var kids := fx.get_children()
-	_check(kids.size() == 2 and kids[0].position.distance_to(Vector2(300, 200)) < 12.0 and kids[1].material == Fx.badge_material(),
-			"the \"+1\" pops out of a burst at the hit point, behind it")
+	_check(kids.size() == 2 and kids[0].position.distance_to(Vector2(300, 200)) < 16.0 and kids[0].material == Fx.additive()
+			and kids[1].material == Fx.badge_material(), "the \"+1\" pops out of a soft burst of light at the hit point, behind it")
 	var pop: Node2D = kids[0]
 	var number: Node2D = kids[1]
 	var alone := 0
@@ -1364,6 +1364,22 @@ func _audio_round9() -> void:
 	for i in 140:
 		show._process(1.0 / 60.0)
 	_check(show.is_queued_for_deletion(), "a firework show frees itself once its sparks are gone")
+	var hues := true
+	for col: Color in Fx.FIREWORK_HUES:
+		hues = hues and (col.h < 0.17 or col.h > 0.95)
+	_check(hues, "the fireworks are the sunset's warm colours (no purple or teal)")
+	var near := Fx.FireworkShow.new()  # a burst beside the card shrinks to stay off it; one on it doesn't go off
+	fx.add_child(near)
+	near.keep_off.append(Rect2(600, 0, 400, 600))
+	near.burst(Vector2(450, 300), 0.0, 0)
+	near.burst(Vector2(700, 300), 0.0, 1)
+	var on_card := 0
+	for i in 60:
+		near._process(1.0 / 60.0)
+		for sp: Vector4 in near._sparks:
+			if near.keep_off[0].has_point(Vector2(sp.x, sp.y)):
+				on_card += 1
+	_check(on_card == 0, "a burst beside the card never reaches it, one on it doesn't go off (%d sparks on it)" % on_card)
 	Fx.fireworks(fx, Vector2(900, 1200), -1.0)
 	var shells: Fx.FireworkShow = fx.get_child(fx.get_child_count() - 1)
 	var kinds := {}
@@ -2070,6 +2086,7 @@ func _test_art() -> void:
 	terrain.free()
 	_test_art_round9()
 	_test_art_round10()
+	_test_art_round11()
 
 
 ## Round 9: the hero's boots on the ground in every grounded frame; the bandit reads in every moment (its sheet
@@ -2167,6 +2184,28 @@ func _test_art_round10() -> void:
 			var c := menu.get_pixel(x, y)
 			trail += 1 if c.a > 0.15 and c.a < 0.9 and c.b > c.r else 0  # the cold, half-clear streak
 	_check(trail > 150, "the menu's ring leaves a trail from his hand (%d samples)" % trail)
+
+
+## Round 11: the interface pictures' ink line is whole (it was cut flat where he touched the trimmed edge), and the
+## win is pass 4's upright leap again (round 10's opened leg lost the A/B).
+func _test_art_round11() -> void:
+	var cut := ""
+	for name in ["hero_menu", "hero_win", "hero_defeat"]:
+		var img := Image.load_from_file(ProjectSettings.globalize_path(HeroView.DIR + name + ".png"))
+		var w := img.get_width()
+		var h := img.get_height()
+		var edge := 0
+		for y in range(0, h, 2):
+			for x in [0, 1, w - 2, w - 1]:
+				edge += 1 if img.get_pixel(x, y).a > 0.5 else 0
+		for x in range(0, w, 2):
+			for y in [0, 1, h - 2, h - 1]:
+				edge += 1 if img.get_pixel(x, y).a > 0.5 else 0
+		if edge > 0:
+			cut += " %s (%d)" % [name, edge]
+	_check(cut.is_empty(), "the interface pictures' ink line stays inside them, never cut at their edge%s" % cut)
+	var win := Image.load_from_file(ProjectSettings.globalize_path(HeroView.DIR + "hero_win.png"))
+	_check(float(win.get_width()) / win.get_height() < 0.45, "the win is pass 4's upright leap (%d x %d)" % [win.get_width(), win.get_height()])
 
 
 ## The staging hooks for the views (the rules unchanged): a bandit's blow is seen coming (its swing

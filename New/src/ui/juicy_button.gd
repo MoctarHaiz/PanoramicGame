@@ -53,12 +53,15 @@ func idle(strength := 0.035) -> void:
 	set_process(is_inside_tree())
 
 
-## A band of light sweeps across the face every `every` seconds (the face's shape clips it).
-func shine(every := 3.2) -> void:
+## A band of light sweeps across the face every `every` seconds (the face's shape clips it), and
+## `glints` (0 to 2) twinkle on its ring, `glint_size` of its height long.
+func shine(every := 3.2, glints := 2, glint_size := 0.5) -> void:
 	if not Prefs.motion():
 		return
 	var band := _Shine.new()
 	band.every = every
+	band.glints = glints
+	band.glint_size = glint_size
 	band.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(band)
 	move_child(band, 0)  # under the label
@@ -111,6 +114,8 @@ func _on_pressed() -> void:
 class _Shine extends Control:
 	const PEAK := 0.3  ## the light in the middle of the band
 	var every := 3.2
+	var glints := 2
+	var glint_size := 0.5
 	var _t := -1.8  # the first sweep once the screen has settled (not while it pops in)
 
 	func _init() -> void:
@@ -149,13 +154,13 @@ class _Shine extends Control:
 					colours.append(Color(1, 1, 1, sin(clampf(u, 0.0, 1.0) * PI) * PEAK))
 				draw_polygon(poly, colours)
 
-	## Two glints on the brass ring (its top left and bottom right corners) twinkling out of step: the
+	## Glints on the brass ring (its top left corner, then its bottom right) twinkling out of step: the
 	## sparkle of top games' main buttons, there between two sweeps.
 	func _glints(style: GlossStyle, rect: Rect2) -> void:
 		var ring := style.top_rect(rect)
 		var rr := minf(style.radius - style.outline_width, minf(ring.size.x, ring.size.y) / 2)
-		var arm := ring.size.y * 0.5  # big enough to read on a phone (round 9's read as a faint cross)
-		for g: Array in [[Vector2(-1, -1), 0.0, 1.0], [Vector2(1, 1), 2.1, 0.75]]:
+		var arm := ring.size.y * glint_size
+		for g: Array in [[Vector2(-1, -1), 0.0, 1.0], [Vector2(1, 1), 2.1, 0.75]].slice(0, glints):
 			var dir: Vector2 = g[0]
 			var corner := ring.get_center() + Vector2(ring.size.x / 2 - rr, ring.size.y / 2 - rr) * dir
 			var at := corner + dir.normalized() * (rr - style.frame_width * 0.5)

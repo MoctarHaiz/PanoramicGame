@@ -10,12 +10,13 @@ hips, head, toes and hands (airborne frames hang from the hips, hanging ones fro
 Also writes the interface pictures (hero_menu.png, hero_win.png, hero_defeat.png) and portrait.png (the
 source of the HUD badge, the icons and the store art: tools/art/ui_art.py, icons.py, tools/store_art.py).
 
-    python3 tools/art/hero_atlas.py [RENDER_DIR]   # default ROOT/_agents/AAA/hero3d/render/r10/game
+    python3 tools/art/hero_atlas.py [RENDER_DIR]   # default ROOT/_agents/AAA/hero3d/render/r11/game
 
 (The AAA hero: rendered by hero_render.py from ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend, see
 ROOT/_agents/AAA/hero3d/render/render_all.sh; the interface pictures come from RENDER_DIR/../render_ui.)
 """
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -25,7 +26,7 @@ from scipy import ndimage
 
 NEW = Path(__file__).resolve().parents[2]
 ROOT = next(p for p in NEW.parents if (p / "Making").is_dir())  # the folder with the user's Blender files
-RENDER = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "_agents/AAA/hero3d/render/r10/game"  # (round 10: pass 4's, the hang, the catch, the win and the defeat re-rendered: hero3d/render/render_r10.sh)
+RENDER = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "_agents/AAA/hero3d/render/r11/game"  # (round 11: the level's animations with his lit skin lighter, hero3d/render/render_r11.sh; the interface pictures in r11/render_ui)
 GROUND_SPEED = 8.0 * 960.0 / 1320.0 * 40.0  ## units a second the ground scrolls (World.SCROLL_SPEED)
 OUT = NEW / "assets/art/hero"
 SCALE = 0.40  ## render px -> atlas px (1024 renders: he stands ~690 px, ~276 px in the atlas; the ink line costs a little room)
@@ -63,13 +64,14 @@ def premultiplied_resize(img: Image.Image, k: float) -> np.ndarray:
 
 
 INK = np.array([0.1, 0.045, 0.035])  ## the ink of the outline: a warm near-black brown (pass 3: darker, for the pale sky)
-INK_PX = 2.8  ## atlas px of ink round his outer silhouette (pass 3: 1.6 -> 2.2, "almost no value contrast against the sky")
+INK_PX = 3.2  ## atlas px of ink round his outer silhouette (pass 3: 1.6 -> 2.2, "almost no value contrast against the sky"; round 11: 2.8 -> 3.2, "a brown smudge on the rock")
 INK_PX_UI = 2.8  ## the same, scaled to the interface pictures (as before)
 
 
 SUN = np.array([-0.6, -0.8])  ## towards the sun on screen (x right, y down): upper left, as in the world
-RIM_PX = 3.4  ## atlas px of the hot rim on the sun side (hero pass 2: "a thick hot band, not a thin line")
-RIM_DAY = (np.array([1.0, 0.6, 0.24]), 0.55)  ## colour, strength (screen blend)
+RIM_PX = 4.2  ## atlas px of the hot rim on the sun side (hero pass 2: "a thick hot band, not a thin line"; round 11: 3.4 -> 4.2)
+RIM_PX_UI = 2.4  ## the same, scaled to the interface pictures (round 11: 3.4 -> 2.4, "a lighter halo" inside the line)
+RIM_DAY = (np.array([1.0, 0.72, 0.36]), 0.75)  ## colour, strength (round 11: lighter and stronger, to part him from the rock)
 RIM_SUNSET = (np.array([1.0, 0.48, 0.12]), 0.75)
 
 
@@ -101,12 +103,23 @@ def sun_rim(arr: np.ndarray, px: float = RIM_PX, rim=RIM_DAY, dark: float = 0.22
     return out
 
 
+INK_SS = 4  ## the outline is drawn at 4x and reduced: a smooth anti-aliased edge (round 11: "a jagged, uneven stroke")
+INK_CALM = 0.35  ## its contour calmed over this share of its width (no bumps where a strand of fur pokes out)
+
+
 def inked(arr: np.ndarray, px: float = INK_PX) -> np.ndarray:
     """A frame with a thicker ink line round its outer silhouette (anti-aliased), under the figure:
-    the cel look's outline reads against the pale sky at phone size, inside lines stay thin."""
-    a = arr[..., 3]
-    d = ndimage.distance_transform_edt(a < 0.5)
-    ring = np.clip(px + 0.5 - d, 0.0, 1.0)
+    the cel look's outline reads against the pale sky at phone size, inside lines stay thin. The line follows
+    a calmed contour of the silhouette, so it keeps an even width, drawn at INK_SS x and reduced (smooth, no
+    stair steps); round a strand too thin for the calmed contour it is half as wide, never missing."""
+    a = arr[..., 3].astype(np.float32)
+    h, w = a.shape
+    ss = INK_SS
+    big = np.asarray(Image.fromarray(a, "F").resize((w * ss, h * ss), Image.BILINEAR))
+    calm = ndimage.gaussian_filter(big, px * INK_CALM * ss)
+    cover = ndimage.distance_transform_edt(calm < 0.5) <= px * ss
+    cover |= ndimage.distance_transform_edt(big < 0.5) <= px * 0.5 * ss
+    ring = cover.astype(np.float32).reshape(h, ss, w, ss).mean((1, 3))
     out = np.zeros_like(arr)
     out[..., :3] = INK
     out[..., 3] = ring
@@ -239,14 +252,16 @@ def trimmed(path: Path, height: int, sunset: bool = False, under: np.ndarray | N
     img = img.crop(box)
     k = height / img.height
     arr = premultiplied_resize(img, k)
-    pad = np.zeros((arr.shape[0] + 8, arr.shape[1] + 8, 4), np.float32)
-    pad[4:-4, 4:-4] = arr
-    pad = sun_rim(pad, RIM_PX * height / 300.0, RIM_SUNSET if sunset else RIM_DAY)
-    out = inked(pad, INK_PX_UI * height / 300.0)  # (as thick, for its size, as in the game before pass 3)
+    ink = INK_PX_UI * height / 300.0  # (as thick, for its size, as in the game before pass 3)
+    m = int(np.ceil(ink)) + 3  # (round 11: room for the whole line; a 4 px border cut it flat at his boots)
+    pad = np.zeros((arr.shape[0] + 2 * m, arr.shape[1] + 2 * m, 4), np.float32)
+    pad[m:-m, m:-m] = arr
+    pad = sun_rim(pad, RIM_PX_UI * height / 300.0, RIM_SUNSET if sunset else RIM_DAY)
+    out = inked(pad, ink)
     if under is not None:
         u = premultiplied_resize(Image.fromarray((under * 255 + 0.5).astype(np.uint8), "RGBA").crop(box), k)
         low = np.zeros_like(out)
-        low[4:4 + u.shape[0], 4:4 + u.shape[1]] = u[:out.shape[0] - 4, :out.shape[1] - 4]
+        low[m:m + u.shape[0], m:m + u.shape[1]] = u[:out.shape[0] - m, :out.shape[1] - m]
         a, b = out[..., 3:4], low[..., 3:4]
         al = a + b * (1.0 - a)
         out = np.concatenate([(out[..., :3] * a + low[..., :3] * b * (1.0 - a)) / np.maximum(al, 1e-4), al], -1)
@@ -361,11 +376,10 @@ def pictures() -> None:
     on the ground). (Round 9: the turnaround stands, drawn nowhere, are gone.)"""
     ui = RENDER.parent / "render_ui"
     hero = trimmed(ui / "menu_hero/000.png", 1100, sunset=True)
-    menu = trimmed(ui / "menu_hero/000.png", 1100, sunset=True, under=throw_trail(ui / "menu_hero"))  # (the portrait: none)
-    if menu.shape[0] * menu.shape[1] > MENU_PIXELS:  # a wide pose: as many pixels as an upright one
-        k = (MENU_PIXELS / (menu.shape[0] * menu.shape[1])) ** 0.5
-        img = Image.fromarray((np.clip(menu, 0, 1) * 255 + 0.5).astype(np.uint8), "RGBA")
-        menu = premultiplied_resize(img, k)
+    # a wide pose: as many pixels as an upright one, its ink drawn at that size (round 11: reduced after inking,
+    # the line went soft and uneven)
+    k = min((MENU_PIXELS / (hero.shape[0] * hero.shape[1])) ** 0.5, 1.0)
+    menu = trimmed(ui / "menu_hero/000.png", int(round(1100 * k)), sunset=True, under=throw_trail(ui / "menu_hero"))
     save(grounded(menu), "hero_menu.png")
     # the portrait: 660 x 752 from his hair to his hips
     h, w = hero.shape[:2]
@@ -380,7 +394,8 @@ def pictures() -> None:
     arr = premultiplied_resize(img, 752 / crop_h)
     full = np.zeros((752, 660, 4), np.float32)
     full[:min(752, arr.shape[0]), :min(660, arr.shape[1])] = arr[:752, :660]
-    save(full, "portrait.png", pad=0)
+    if os.environ.get("PORTRAIT") == "1":  # (round 11: kept as it was unless asked: UX's badge is cut from it)
+        save(full, "portrait.png", pad=0)
     save(grounded(trimmed(ui / "win_front/000.png", 900, sunset=True), airborne=WIN_AIRBORNE), "hero_win.png")
     save(grounded(trimmed(ui / "defeat/000.png", 640, sunset=True)), "hero_defeat.png")
 
