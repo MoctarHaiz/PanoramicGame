@@ -7,8 +7,8 @@ extends RefCounted
 ## opens the five moves in the panel, each with its gesture played by a hand (the tutorial's
 ## pictures), so every control can be found again without crowding the pause.
 
-const TILE := 136.0  ## side of a tile (the panel holds the screen, not lost in its margins)
-const GAP := 34.0  ## between two tiles
+const TILE := 112.0  ## side of a tile (a compact panel: four toggles, not a wall)
+const GAP := 26.0  ## between two tiles
 
 
 ## Opens the pause panel over `host`. `resume` and `home` are the two ways out; `hide`: what to
@@ -20,7 +20,7 @@ static func open(host: Control, resume: Callable, home: Callable, hide: Array = 
 	var help := CenterContainer.new()  # where the moves open (Controls)
 	help.visible = false
 	body.add_child(help)
-	var go := Ui.candy_button(tr_key("RESUME"), "play-fill", Ui.Tone.GREEN, 122, 54)
+	var go := Ui.candy_button(tr_key("RESUME"), "play-fill", Ui.Tone.GREEN, 104, 46)
 	go.custom_minimum_size.x = 4 * TILE + 3 * GAP  # as wide as the row of tiles under it (no dead margins)
 	go.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	go.pressed.connect(resume)
@@ -32,7 +32,7 @@ static func open(host: Control, resume: Callable, home: Callable, hide: Array = 
 	row.add_theme_constant_override(&"separation", GAP)
 	row.add_child(SoundSwitch.new("music-notes-fill", "", &"music_on", tr_key("MUSIC")))
 	row.add_child(SoundSwitch.new("speaker-high-fill", "speaker-x-fill", &"sounds_on", tr_key("SOUNDS")))
-	var controls := _tile("arrows-cardinal", Ui.Tone.GOLD, tr_key("CONTROLS"))  # the moves: swipes every way
+	var controls := _tile("hand-swipe", Ui.Tone.GOLD, tr_key("CONTROLS"))  # the moves: a finger and its swipe
 	(controls.get_child(0).get_child(0) as JuicyButton).pressed.connect(func() -> void:
 		if help.get_child_count() == 0:
 			help.add_child(controls_well())
@@ -42,7 +42,7 @@ static func open(host: Control, resume: Callable, home: Callable, hide: Array = 
 	(home_tile.get_child(0).get_child(0) as JuicyButton).pressed.connect(home)
 	row.add_child(home_tile)
 	body.add_child(row)
-	return GamePanel.open(host, tr_key("PAUSED"), Ui.Tone.SUNSET, body, null, Color(0.05, 0.02, 0.06, 0.5),
+	return GamePanel.open(host, tr_key("PAUSED"), Ui.Tone.SUNSET, body, null, Color(0.05, 0.02, 0.06, 0.35),
 			Color(0, 0, 0, 0), false, hide)
 
 
@@ -67,7 +67,7 @@ static func _tile(icon_name: String, tone: Ui.Tone, caption: String) -> VBoxCont
 
 ## The name of a tile, under it.
 static func _caption(caption: String) -> Label:
-	return Ui.label(caption, 34, Color("3a1404"), Ui.font_display)
+	return Ui.label(caption, 28, Color("3a1404"), Ui.font_display)
 
 
 ## The five moves, each on a dark tile where a hand plays its gesture, its name under it.
@@ -171,7 +171,7 @@ class SoundSwitch extends VBoxContainer:
 		pill.add_theme_stylebox_override(&"panel", st)
 		pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var word := TranslationServer.translate("SWITCH_ON" if on else "SWITCH_OFF").to_upper()
-		pill.add_child(Ui.label(word, 24, Color.WHITE, Ui.font_display))
+		pill.add_child(Ui.label(word, 21, Color.WHITE, Ui.font_display))
 		pill.size = pill.get_combined_minimum_size()
 		# pinned inside its own tile's top right corner (one hanging over the gap read as the next tile's)
 		pill.position = Vector2(TILE - pill.size.x - 5.0, 5.0)

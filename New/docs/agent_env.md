@@ -411,3 +411,26 @@ Before/after crops: `AAA/env/round_10/ba_*.jpg`.
   straight); round 9's bulges and notches stay as they were.
 - Kept from round 10 (they won): the hang pillars, the home firelight (the doorway, the campfire's
   light), the start card's bandit fix, the vine's two lianas, the water, the threaded ground data.
+
+## Round 12 (round 11 the best so far, 6.58; game and climb toss-ups against round 9)
+
+Kept round 11; added only what reads crisper (round 10's extra haze and shafts lost):
+
+- **Pillar** (terrain.gdshader, round 9's stones): the far face of a pillar clearly in shade (its
+  shade band reaches about twice as far in, darker), the sun's side warm a few units further in
+  from its lit rim; the grass cap's occlusion on a pillar deeper and longer; the stones from about
+  half to one and a half times their size along each bed (a smooth, seamless warp of the Voronoi:
+  a first try warped bed by bed and cut seams across) and each its own brightness.
+- **Island underside** (hanging.png, round 9's generator): stones very uneven along their rows,
+  each rounder in the light; the mass one rounded form: a core of shadow across its lower middle,
+  the plain's warm bounce light on its lowest rim.
+- **Vine** (vine.py, vine_view.gd): 8 spans (were 5: "cloned leaves"), two thick with leaves, two
+  nearly bare, each cluster its own green (some yellowing), a third of the leaves lying over the
+  rope in front of it; the sag deeper (10-46), but pulled nearly taut about his hands while he hangs
+  (`_slack_k`, eased): he stays at the rules' height and the rest of the vine hangs deep.
+- **Sun**: a crisp disc in its bloom and a thin streak of light across it (a lens catching a low
+  sun), its halo tighter ("a blurry blob with no bloom structure").
+- **Midground**: the mesas' feet half as hazed (0.42 -> 0.22); the ground band's earth in layers
+  (a darker humus band under the grass, red earth, an ochre layer with a lit top edge and shade
+  under it, wavering), bigger and more stones in it, the grade's dark band along the bottom lighter
+  (0.42 -> 0.3) ("an empty dark-brown dirt band"); each tree its own shade ("tiny clones").

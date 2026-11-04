@@ -43,6 +43,17 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
+## A four-point glint: long arms fading to their tips around a white core.
+func _glint(at: Vector2, arm: float, alpha: float) -> void:
+	var pts := PackedVector2Array()
+	var cols := PackedColorArray()
+	for i in 8:
+		pts.append(at + Vector2.from_angle(i * PI / 4 - PI / 2) * (arm if i % 2 == 0 else arm * 0.2))
+		cols.append(Color(1, 1, 0.9, 0.0 if i % 2 == 0 else alpha))
+	draw_polygon(pts, cols)
+	draw_circle(at, arm * 0.16, Color(1, 1, 0.95, alpha), true, -1, true)
+
+
 ## Fills a star's points with a vertical gradient from `top` (its top tip) to `bottom` (its feet).
 func _gradient(pts: PackedVector2Array, c: Vector2, r: float, top: Color, bottom: Color) -> void:
 	var cols := PackedColorArray()
@@ -91,6 +102,10 @@ func _draw() -> void:
 		var a := i * TAU / 16
 		gloss.append(c + Vector2(-r * 0.22, -r * 0.3) + Vector2(cos(a) * r * 0.2, sin(a) * r * 0.1).rotated(-0.6))
 	draw_colored_polygon(gloss, Color(1, 1, 1, 0.7))
+	# sparkles round it, each twinkling on its own beat (never quite out: it reads as alive in a still)
+	for g: Array in [[Vector2(0.62, -0.55), 0.0, 0.26], [Vector2(-0.7, -0.2), 1.9, 0.2], [Vector2(0.55, 0.62), 3.7, 0.16]]:
+		var beat := 0.5 + 0.5 * sin(_clock * 3.1 + float(g[1]))
+		_glint(c + (g[0] as Vector2) * r * 1.1, r * float(g[2]) * (0.7 + 0.3 * beat), 0.45 + 0.55 * beat)
 	# a twinkle that moves from tip to tip
 	var t := _clock * 0.6 + c.x * 0.01
 	var phase := fposmod(t, 2.5)

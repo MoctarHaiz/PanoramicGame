@@ -10,15 +10,17 @@ extends Node2D
 const Y := -4.0  ## top of the spans (the rope's centre at its knots is 4 units below)
 const SPAN := 160.0  ## level units between two knots
 const TEXTURE := preload("res://assets/art/world/vine.png")
-const VARIANTS := 5
+const VARIANTS := 8  ## (round 12: 8: "cloned leaves")
 const SLICES := 8  ## per span: the rope bends between them
 const HOLD_DIP := 5.0  ## units the vine sags where he hangs, once it has settled
 const CATCH_KICK := 170.0  ## units/s down when he catches it (it gives ~11 units, then bounces)
 const STIFF := 230.0  ## the spring (1/s²): about 2.4 bounces a second
 const DAMP := 7.0  ## (1/s): 2-3 bounces before it settles
 const REACH := 95.0  ## units either side of his hands over which the vine bends
-const SAG_MIN := 8.0  ## units a span hangs down between its knots (round 7: it still read straight), from ..
-const SAG_MAX := 30.0  ## .. to (round 9: some spans nearly taut, some deep: even swags read as bunting)
+const SAG_MIN := 10.0  ## units a span hangs down between its knots (round 7: it still read straight), from ..
+const SAG_MAX := 46.0  ## .. to (round 9: some spans nearly taut, some deep: even swags read as bunting;
+## round 12: deeper: "a straight taut line across the full width")
+const TAUT_REACH := 120.0  ## round 12: units either side of his hands where his weight pulls it taut
 const KNOT_RANGE := 6.0  ## units a knot is tied above or below the line
 const KNOT_SHIFT := 0.28  ## round 9: share of SPAN a knot is tied off its even place (spans of uneven length)
 const BACK_SPAN := 1.47  ## round 10: the liana behind: its spans this many SPANs long, ..
@@ -32,6 +34,7 @@ var dip := 0.0
 var _dip_speed := 0.0
 var _holding := false
 var _hold_x := 0.0  # play x of his hands
+var _taut := 0.0  # round 12: 0..1, how taut his weight pulls it about his hands (eased)
 var _clock := 0.0
 
 
@@ -41,6 +44,7 @@ func hold(hanging: bool, x: float, delta: float) -> void:
 	if hanging:
 		_hold_x = x
 	_clock += delta
+	_taut = move_toward(_taut, 1.0 if hanging else 0.0, delta * 3.0)
 	var target := HOLD_DIP if hanging else 0.0
 	_dip_speed += ((target - dip) * STIFF - _dip_speed * DAMP) * delta
 	dip += _dip_speed * delta
@@ -70,7 +74,23 @@ func sag_at(x: float) -> float:
 	var slack := 0.2 + 0.8 * smoothstep(0.25, 0.75, _rand(floori(i / 3.0) * 29 + 7))
 	var hang := pow(sin(PI * t), 2.0) * (SAG_MIN + (SAG_MAX - SAG_MIN) * _rand(i * 7 + 3)) * slack * (b - a) / SPAN
 	var weight := dip * exp(-pow((x - _hold_x) / REACH, 2.0))
-	return knots + hang + weight + sin(_clock * 1.3 + lx * 0.021) * 0.8
+	return knots + hang * _slack_k(x) + weight + sin(_clock * 1.3 + lx * 0.021) * 0.8
+
+
+## Round 12: how much of a span's sag is left at play x: his weight pulls the vine nearly taut about
+## his hands while he hangs (he stays at the rules' height), the rest of it hangs deep.
+func _slack_k(x: float) -> float:
+	return 1.0 - _taut * 0.85 * exp(-pow((x - _hold_x) / TAUT_REACH, 2.0))
+
+
+## Round 12: units the vine sags at play x below the line between its knots (tests).
+func slack_at(x: float) -> float:
+	var lx := x + scroll
+	var i := _span_at(lx)
+	var t := (lx - _knot_x(i)) / (_knot_x(i + 1) - _knot_x(i))
+	var slack := 0.2 + 0.8 * smoothstep(0.25, 0.75, _rand(floori(i / 3.0) * 29 + 7))
+	return pow(sin(PI * t), 2.0) * (SAG_MIN + (SAG_MAX - SAG_MIN) * _rand(i * 7 + 3)) * slack \
+			* (_knot_x(i + 1) - _knot_x(i)) / SPAN * _slack_k(x)
 
 
 ## Round 9: a knot's level x by its index: tied every SPAN units, each off its even place.

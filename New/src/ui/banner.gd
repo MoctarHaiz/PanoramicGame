@@ -13,13 +13,20 @@ var _band_h := 0.0
 var _tail := 0.0
 
 
-func _init(text: String, banner_tone := Ui.Tone.CRIMSON, font_size := 56, arch_px := -1.0) -> void:
+## `font`: another face than the display one (the menu's subtitle), `spacing` px between its letters.
+func _init(text: String, banner_tone := Ui.Tone.CRIMSON, font_size := 56, arch_px := -1.0, font: Font = null,
+		spacing := -1.0) -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	tone = banner_tone
 	var c := Ui.tone_colours(tone)
 	title = Ui.display_text(text, font_size, Color.WHITE, c.outline)
 	title.depth = roundf(font_size * 0.06)
 	title.shadow = Color(0, 0, 0, 0)
+	if font:
+		title.font = font
+	if spacing >= 0.0:
+		title.tracking = spacing
+	title.refresh()
 	_band_h = roundf(font_size * 1.32)
 	_tail = roundf(font_size * 1.0)
 	var band_w := title.text_width() + font_size * 2.2  # room at both ends, clear of the folds
@@ -122,13 +129,13 @@ func _draw() -> void:
 	_strip(line, line_colours)
 
 
-## Fills a band made by _band() (top points, then bottom points backwards) as a triangle strip.
+## Fills a band made by _band() (top points, then bottom points backwards) as a triangle strip, in
+## one triangle array (a polygon per segment cost a draw call each: about a hundred per banner).
 func _strip(pts: PackedVector2Array, colours: PackedColorArray) -> void:
 	var n := pts.size() / 2
+	var indices := PackedInt32Array()
 	for i in n - 1:
-		var a := i
-		var b := i + 1
 		var bb := pts.size() - 1 - (i + 1)
 		var ab := pts.size() - 1 - i
-		draw_polygon(PackedVector2Array([pts[a], pts[b], pts[bb], pts[ab]]),
-				PackedColorArray([colours[a], colours[b], colours[bb], colours[ab]]))
+		indices.append_array([i, i + 1, bb, i, bb, ab])
+	RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), indices, pts, colours)

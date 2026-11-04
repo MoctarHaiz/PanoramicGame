@@ -518,11 +518,11 @@ func chip(text: String, tone := Tone.CRIMSON, font_size := 38, icon_name := "", 
 	return p
 
 
-## The last frame of `vp` as a small, soft picture: shrunk to 1/16 of its size (each step a 2x2
-## average: the blur), then grown back 4x with bicubic interpolation, so the picture drawn stretched
-## over the screen has texels of 4 screen px, not 16 (the GPU's bilinear steps between 16 px texels
-## showed as a faint dot grid on the dimmed game). For the panels over the game; taken once, so
-## nothing is copied every frame. Null where nothing is drawn (headless runs).
+## The last frame of `vp` as a small, soft picture: shrunk `halvings` times (each a 2x2 average: the
+## blur; 4 is 1/16 of the screen, 6 is 1/64), then grown back with bicubic interpolation to a quarter
+## of the screen, so the picture drawn stretched over it has texels of 4 screen px (the GPU's bilinear
+## steps between 16 px texels showed as a faint dot grid on the dimmed game). For the panels over the
+## game; taken once, so nothing is copied every frame. Null where nothing is drawn (headless runs).
 func blurred_snapshot(vp: Viewport, halvings := 4) -> Texture2D:
 	if DisplayServer.get_name() == "headless" or not vp:
 		return null
@@ -530,10 +530,11 @@ func blurred_snapshot(vp: Viewport, halvings := 4) -> Texture2D:
 	var img := tex.get_image() if tex else null
 	if not img or img.is_empty():
 		return null
+	var quarter := Vector2i(img.get_width() / 4, img.get_height() / 4)
 	for i in halvings:
 		if img.get_width() > 8 and img.get_height() > 8:
 			img.shrink_x2()
-	img.resize(img.get_width() * 4, img.get_height() * 4, Image.INTERPOLATE_CUBIC)
+	img.resize(quarter.x, quarter.y, Image.INTERPOLATE_CUBIC)
 	return ImageTexture.create_from_image(img)
 
 

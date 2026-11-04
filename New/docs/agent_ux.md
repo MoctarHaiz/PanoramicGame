@@ -571,3 +571,44 @@ small pale side stars, marquee bulbs; the HUD's sand track reading as filled.
 - Tests: 1076 checks, 0 failed. Captures AAA/ux/round_11/{en,fr}/ (iPhone 15, iPad: game, pause, game
   over, win), the round's start in round_11/before/. perf.gd (load average 5-6): texture peak 61.2 MB
   on iPhone 15 and iPad 13; worst own work in play 12.1 / 10.1 ms (PASS); results draw calls 267.
+
+## Round 12
+
+Round 11 merged (c6c8a39): 6.58 against the references (best), preferred to round 9 on 6/10 (the
+pause and settings among them); game over and win still lost to round 9 (slight). ROUND12.md (ux).
+
+- Game over: round 9's preferred well back in spirit: deep cool navy (161c30 to 323e60) with gold
+  numbers (fff0a0 to ffb21e) in the warm bronze frame; the way-home bar thick (64, its groove 48, the
+  house disc 29) in the navy; the headline cream letters in a red outline, spaced (tracking 3).
+- Win and game over: Home and Share gold (apart from the red ribbon and the brown wood); the NEW BEST
+  seal's words fitted with air (1.42 of the medallion, not 1.62), lines further apart, a little tilt
+  (-0.06, was -0.14).
+- Win: a thicker polished gold frame (36, radius 44) with an engraved line round its middle and a
+  polish along its top (Card `ornate`); the lit stars carry three sparkles each, twinkling, and rock
+  gently about their tilt.
+- Pause: compact (tiles 112, gap 26, Resume 104/46, captions 28); the dim 35 % with a 0.5 vignette;
+  the blur's highlights tamed (soft_blur.gdshader `tame`: the sun's bloom no longer glares); Controls a
+  finger and its swipe (assets/icons/hand-swipe.svg, from Phosphor's hand; arrows-cardinal.svg
+  removed); no corner bosses on the pause or settings (Card `bosses`: the jewels are the results').
+- Settings: the back and info buttons set on the frame's top edge at its two ends, the groups right
+  under the ribbon (top margin 98, was 140: no dead band); group titles section heads (capitals,
+  spaced, rust, 26) over 32 px rows; every tile orange; the volume's value 25 px in a taller groove.
+- Menu: the logo's gold without its deep-orange lower half and with a gentler bevel (no dark streaks);
+  the subtitle on a drawn red ribbon (Banner, no baked stitch) in spaced capitals of Quicksand Bold
+  (Banner takes a font and spacing); Play's sweep without the glints; Best a small spaced label over
+  the big count, one brown family.
+- HUD: the gem on an ink disc, its pickup flash under the plates (over them it washed the gem to a
+  pink blob); the icon is assets/art/bob/icon.png when art adds it, else the Red Bob's own picture.
+
+### Round 12, QA's audit (qa/round_12/bugs.md)
+- The "bright blocky shapes" behind the game over were the world kept with its outlines by a light
+  blur (1/16): the end panels now take their picture at 1/64 (6 halvings), the pause keeps 1/16; every
+  snapshot is grown back to a quarter of the screen (texels of 4 px: no grid at any depth).
+- The gem's "pink blob": its pickup glows washed it; they are under the plates now, dimmer (above).
+- Found on the way: Banner filled each strip of its band as 24 separate polygons (about a hundred
+  draw calls per title ribbon); it is one triangle array per strip now. The menu's new subtitle
+  (a Banner) had taken the menu from 117 to 214 draw calls; now 122; the pause 220 -> 128.
+- Tests: 1080 checks, 0 failed. Captures AAA/ux/round_12/{en,fr}/ (iPhone 15 and iPad: every UI
+  screen), the round's start in round_12/before/. perf.gd (load average 3-4): texture peak 61.3 MB on
+  iPhone 15 and iPad 13; draw calls menu 122, paused 128 (round 11: 117 / 215), results 210 (301);
+  worst own work in play 8.1 / 10.8 ms (PASS).

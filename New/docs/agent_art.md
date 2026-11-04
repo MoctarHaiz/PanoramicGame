@@ -437,3 +437,29 @@ win and defeat renders; (6) the studio logo; (7) the null texture on the first b
   `VINE_INK_PX` 0.9 to match).
 - `portrait.png` is no longer rewritten unless `PORTRAIT=1` (UX's HUD badge is cut from it).
 - Tests: `_test_art_round11()` (the pictures' line never cut at their edge, the win is the upright leap).
+
+## Round 12 (the key art "clearly below the UI and logo in finish")
+
+- **The interface pictures' finish** (`hero_toon_aaa.py`, sunset only; the level and the bandit unchanged): his skin
+  and hands one clean colour (the albedo picture's mean, in linear: `UI_FLAT`; "blotchy orange-to-brown patches"),
+  a warm shade and a slightly softer step (`UI_BANDS`, `UI_STOPS`; "hard muddy transitions"), the face lit (its
+  bands lifted, `FACE_W` 0.9 -> 2.2; "small, dark, blank"); no inner ink hull in these pictures (`HERO_HULL` 0 for
+  sunset; QA: "the chest's thin inner lines break into dots"); the steel ring polished: two bright lobes across its
+  flat face and dark steel between, a bigger glint ("a flat grey donut").
+- **Key art pose** (`pose_key_lunge()`): the authored throw in a deeper lunge, the hips 4 cm lower with both boots
+  where they stood (`ik_leg()`, a two-bone IK), the throwing forearm turned across the picture ("back leg locked,
+  fist foreshortened into a blob"). `hero_atlas.py`: a four-point glint on the ring (`ring_glint()`, drawn over the
+  figure), and a soft warm-dark glow just outside his line (`backed()`; QA: the low sun right behind him against
+  his ink read as "a white rim").
+- **The ink** (`inked()`): `INK_CALM` 0.35 -> 0.2 (concavities no longer filled: "blobby on the fist"), thin strands
+  three quarters of the width (was half: "jagged on the hair").
+- **Defeat** (`pose_defeat_turned()`): the slump turned 32° so his legs go across the picture (not at us), his face
+  kept to us; the camera looks down less (-4°).
+- **Win** (`pose_win_tuck()`, `WIN_LEAP` "kick"): the front knee up as authored, the other foot kicked up behind (a
+  leap of joy): the boots no longer cross ("a tangle"). hero_win.png is wider (753 px).
+- **In play** ("a mid-brown figure against mesas of the same value"): `actor.gdshader light_gain`: his lit colours
+  x1.28 (the shade less, the ink not at all), HeroView `LIGHT_GAIN`.
+- Renders: `hero3d/render/render_r12.sh` -> `r12/render_ui` (the level's animations are round 11's, `r12/game` ->
+  `r11/game`). The HUD ruby icon was not needed (UX's counter already shows the ruby; QA: its coral comes from a
+  pickup glow).
+- Tests: `_test_art_round12()` (the light gain in play).

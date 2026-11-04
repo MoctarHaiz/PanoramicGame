@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """The vine along the top of the screen (where Panoramic hooks his staff), painted in numpy:
-assets/art/world/vine.png holds 5 variants of one span (160 x 72 units at 2 px, stacked), each a
+assets/art/world/vine.png holds 8 variants of one span (160 x 72 units at 2 px, stacked), each a
 thick twisted liana (round 2: ~10 units, a sunlit top edge) sagging a little between two hooks at
 its ends, a long tendril or two hanging from it, with knots at the hooks, clusters of
 heart-shaped leaves of several sizes hanging down and curled tendrils. Round 9 (it read as
@@ -68,17 +68,28 @@ def span(seed: int) -> tuple:
     lit = Image.new("L", (w * 3, h * 3), 0)
     dl, dli = ImageDraw.Draw(leaves), ImageDraw.Draw(lit)
     blossoms = []
-    bare = seed in (14,)  # (round 9) a span nearly bare
-    for _ in range(int(rng.integers(0, 2) if bare else rng.integers(1, 5))):
+    bare = seed in (14, 38)  # (round 9) a span nearly bare
+    dense = seed in (9, 33)  # (round 12) and spans thick with leaves ("cloned leaves")
+    tones = Image.new("L", (w * 3, h * 3), 128)  # each cluster its own green
+    dto = ImageDraw.Draw(tones)
+    for _ in range(int(rng.integers(0, 2) if bare else (rng.integers(4, 7) if dense else rng.integers(1, 5)))):
         tx = rng.uniform(0.12, 0.88)  # (inside the span: a leaf cut at its end would show)
         ax, ay = tx * w, rope_y(tx) * PX + 1.5 * PX
-        big = rng.uniform(0.9, 1.9)
-        for j in range(int(rng.integers(1, 6))):
+        big = rng.uniform(0.7, 2.0)
+        tone = int(rng.uniform(70, 200))
+        for j in range(int(rng.integers(1, 8 if dense else 6))):
             ang = np.pi / 2 + rng.uniform(-1.0, 1.0)
-            ln = rng.uniform(9, 15) * PX * big
+            over = rng.random() < 0.3  # (round 12) a leaf lying over the rope, in front of it, drooping
+            if over:  # to one side along the rope, drooping a little
+                ang = rng.uniform(0.15, 0.55) if rng.random() < 0.5 else np.pi - rng.uniform(0.15, 0.55)
+            ln = rng.uniform(9, 15) * PX * big * (0.55 if over else 1.0)
             wd = ln * rng.uniform(0.32, 0.42)
             stem = rng.uniform(1, 3) * PX
-            bx, by = ax + np.cos(ang) * stem, ay + np.sin(ang) * stem
+            if over:
+                ay_leaf = rope_y(tx) * PX  # (from the rope's middle)
+                bx, by = ax + np.cos(ang) * stem, ay_leaf + np.sin(ang) * stem
+            else:
+                bx, by = ax + np.cos(ang) * stem, ay + np.sin(ang) * stem
             ex, ey = bx + np.cos(ang) * ln, by + np.sin(ang) * ln
             nx, ny = -np.sin(ang), np.cos(ang)
             left, right = [], []
@@ -90,6 +101,7 @@ def span(seed: int) -> tuple:
                 right.append((px_ - nx * half, py_ - ny * half))
             pts = left + right[::-1]
             dl.polygon([(x * 3, y * 3) for x, y in pts], fill=255)
+            dto.polygon([(x * 3, y * 3) for x, y in pts], fill=tone)
             lit_side = left if (nx * -0.6 + ny * -0.8) > 0 else right
             mid = [(bx + np.cos(ang) * ln * k / 12, by + np.sin(ang) * ln * k / 12) for k in range(13)]
             dli.polygon([(x * 3, y * 3) for x, y in lit_side + mid[::-1]], fill=255)
@@ -136,6 +148,9 @@ def span(seed: int) -> tuple:
     li = np.asarray(lit, float).reshape(h, 3, w, 3).mean(axis=(1, 3)) / 255
     leaf_col = mix(hexc("2f5a26"), hexc("8ab83e"), li * 0.9)
     leaf_col = mix(leaf_col, hexc("cfe07a"), np.clip(li - blur(li, 1.5), 0, 1) * 0.0 + li * smooth(0, 1, 1 - yy / h) * 0.25)
+    tm = np.asarray(tones, float).reshape(h, 3, w, 3).mean(axis=(1, 3)) / 255
+    leaf_col = leaf_col * (0.74 + 0.52 * tm)[..., None]  # (round 12: lighter and darker clusters)
+    leaf_col = mix(leaf_col, leaf_col * np.array([1.15, 1.02, 0.7]), smooth(0.62, 0.78, tm) * 0.5)  # some yellowing
     col = mix(col, leaf_col, lm)
     alpha = np.maximum(alpha, lm)
     # blossoms: five round petals, lit, a dark centre
@@ -153,7 +168,7 @@ def span(seed: int) -> tuple:
 
 def main() -> None:
     cols, alphas = [], []
-    for seed in (5, 9, 14, 21, 27):
+    for seed in (5, 9, 14, 21, 27, 33, 38, 44):  # (round 12: 8 spans, no two alike in a row)
         c, a = span(seed)
         cols.append(c)
         alphas.append(a)

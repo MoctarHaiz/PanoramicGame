@@ -565,6 +565,90 @@ def pose_authored(name, chakram=False, stars=False):
     bpy.context.view_layer.update()
 
 
+def _aim_world(bone, d):
+    """aim() with a world direction (the side view's frame: x right = -y, y up = z, depth = -x)."""
+    aim(bone, -d.y, d.z, -d.x)
+
+
+def ik_leg(side, ankle, pole):
+    """Two-bone IK: his thigh and shin reach `ankle` (world), the knee bending towards `pole` (a direction)."""
+    hip = bone_world(side + "UpLeg")
+    l1 = (bone_world(side + "Leg") - hip).length
+    l2 = (bone_world(side + "Foot") - bone_world(side + "Leg")).length
+    d = ankle - hip
+    dist = min(d.length, (l1 + l2) * 0.999)
+    u = d.normalized()
+    x = (l1 * l1 - l2 * l2 + dist * dist) / (2.0 * dist)
+    y = math.sqrt(max(l1 * l1 - x * x, 0.0))
+    perp = (pole - u * pole.dot(u)).normalized()
+    knee = hip + u * x + perp * y
+    _aim_world(side + "UpLeg", knee - hip)
+    _aim_world(side + "Leg", hip + u * dist - knee)
+
+
+LUNGE_DROP = float(os.environ.get("LUNGE_DROP", "0.04"))  ## metres the key art's hips sink (round 12: "back leg locked")
+
+
+def pose_key_lunge():
+    """The title screen's throw (the authored AAA_key_menu) in a deeper lunge (round 12: "stiff pose: back leg locked,
+    fist foreshortened into a blob"): the hips lower with the boots where they stood (both knees bend), the throwing
+    forearm turned across the picture instead of at us."""
+    pose_authored("key_menu", chakram=True)
+    feet = {}
+    for side in ("Left", "Right"):
+        feet[side] = (bone_world(side + "Foot"), bone_world(side + "Foot", "tail") - bone_world(side + "Foot"),
+                      bone_world(side + "ToeBase", "tail") - bone_world(side + "ToeBase"))
+    shift_hips(0.0, -LUNGE_DROP)
+    for side, (ankle, foot, toe) in feet.items():
+        hip, knee = bone_world(side + "UpLeg"), bone_world(side + "Leg")
+        u = (ankle - hip).normalized()
+        ik_leg(side, ankle, (knee - hip) - u * (knee - hip).dot(u))
+        _aim_world(side + "Foot", foot)
+        _aim_world(side + "ToeBase", toe)
+    fore = bone_world("RightForeArm", "tail") - bone_world("RightForeArm")
+    _aim_world("RightForeArm", Vector((fore.x * 1.25, fore.y * 0.45, fore.z)))
+
+
+DEFEAT_TURN = float(os.environ.get("DEFEAT_TURN", "32"))  ## degrees (round 12: "legs splay towards the camera")
+
+
+def pose_defeat_turned():
+    """The game over's dazed slump (the authored AAA_key_defeat, its chunky stars) turned so his legs go across the
+    picture instead of at us (round 12: "huge foreshortened boots, the torso looks small"), his face kept to us."""
+    pose_authored("key_defeat", stars=True)
+    chunky_stars()
+    ARM.rotation_euler.z = math.radians(DEFEAT_TURN)
+    bpy.context.view_layer.update()
+    turn("Neck", -DEFEAT_TURN * 0.35, (0.0, 0.0, 1.0))
+    turn("Head", -DEFEAT_TURN * 0.35, (0.0, 0.0, 1.0))
+
+
+WIN_LEAP = os.environ.get("WIN_LEAP", "kick")  ## "pass4": as authored; "tuck"; "trail"; "kick"
+
+
+def pose_win_tuck():
+    """The win's leap (the authored AAA_key_win); round 12 ("the tucked leg and boot read as a tangle"): the legs
+    apart, so neither boot crosses the other: the front knee up with its shin hanging under it, the other leg
+    trailing behind, its toes pointed."""
+    pose_authored("key_win")
+    down = Vector((0.0, 0.0, -1.0))
+    if WIN_LEAP == "tuck":
+        thigh = (bone_world("RightLeg") - bone_world("RightUpLeg")).normalized()
+        shin = (-thigh * 0.55 + down * 0.75 + Vector((0.0, 0.12, 0.0))).normalized()
+        _aim_world("RightLeg", shin)
+        _aim_world("RightFoot", (shin * 0.6 + down * 0.4).normalized())
+    elif WIN_LEAP == "trail":
+        _aim_world("RightLeg", Vector((-0.12, 0.05, -1.0)).normalized())  # the front shin under its knee
+        _aim_world("RightFoot", Vector((0.15, -0.05, -1.0)).normalized())
+        _aim_world("LeftUpLeg", Vector((-0.45, 0.12, -0.88)).normalized())  # the other leg trailing behind
+        _aim_world("LeftLeg", Vector((-0.62, 0.16, -0.77)).normalized())
+        _aim_world("LeftFoot", Vector((-0.55, 0.12, -0.83)).normalized())
+    elif WIN_LEAP == "kick":  # the front knee up as authored, the other foot kicked up behind him (a leap of joy)
+        _aim_world("LeftUpLeg", Vector((-0.32, 0.1, -0.94)).normalized())
+        _aim_world("LeftLeg", Vector((-0.86, 0.14, 0.48)).normalized())
+        _aim_world("LeftFoot", Vector((-0.72, 0.1, 0.68)).normalized())
+
+
 STAR_GOLD = (1.0, 0.8, 0.16)  ## sRGB: the dizzy stars, the game's own gold (the results' stars)
 
 
@@ -708,9 +792,9 @@ def anims():
     out["defeat"] = ("front", [lambda: pose_seated()], -0.15, 3.0)
     out["win_front"] = ("front", [lambda: pose_celebrate()], 0.15, 7.0)
     if "key_menu" in ACTIONS:  # (hero pass 2: the poses authored by hand on the timeline)
-        out["menu_hero"] = ("front", [lambda: pose_authored("key_menu", chakram=True)], -0.06, 6.0)
-        out["win_front"] = ("front", [lambda: pose_authored("key_win")], -0.03, 7.0)  # (round 11: round 10's opened leg lost the A/B)
-        out["defeat"] = ("front", [lambda: (pose_authored("key_defeat", stars=True), chunky_stars())], 0.03, -9.0)  # (looking down a little: he sits on the ground)
+        out["menu_hero"] = ("front", [lambda: pose_key_lunge()], -0.06, 6.0)
+        out["win_front"] = ("front", [lambda: pose_win_tuck()], -0.03, 7.0)
+        out["defeat"] = ("front", [lambda: pose_defeat_turned()], 0.03, float(os.environ.get("DEFEAT_TILT", "-4")))  # (looking down a little: he sits on the ground)
     if arg("--turn"):  # the turnaround, for reviews (--anims turn --turn)
         out["turn"] = ("front", [lambda k=k: pose_turn(k) for k in range(4)], 0.0)
     return out
@@ -1502,7 +1586,7 @@ def toon_setup():
     if mode == "sunset":  # and a small light on his face, placed for each pose (face_light())
         data = bpy.data.lights.new("FaceLight", "POINT")
         data.color = (1.0, 0.78, 0.6)
-        data.energy = float(os.environ.get("FACE_W", "0.9" if AAA else "1.6"))  # (AAA: a small warm face fill)
+        data.energy = float(os.environ.get("FACE_W", "2.2" if AAA else "1.6"))  # (AAA: a warm face fill; round 12: "the face small, dark, blank")
         data.shadow_soft_size = 0.05
         data.use_custom_distance = True
         data.cutoff_distance = 0.32
@@ -1524,7 +1608,8 @@ def toon_setup():
                 ink_hull(ob, INK_WIDTH if ob == MESH else INK_WIDTH * 0.6)
     if AAA:  # the props hidden until their pose (the chakram) get their shading too
         _aaa_toon().build_all(bpy.data.objects, mode)
-        hull = float(os.environ.get("HERO_HULL", "0.0026"))
+        # (round 12: none in the interface pictures, "abs scribbled ink lines"; the outer line is hero_atlas.py's)
+        hull = float(os.environ.get("HERO_HULL", "0.0" if mode == "sunset" else "0.0026"))
         if hull > 0:  # (pass 4) inner ink lines (limb over body), the same weight everywhere: the calmed
             ink_hull(MESH, hull)  # muscles no longer catch it (round 8 removed it for "grime")
 

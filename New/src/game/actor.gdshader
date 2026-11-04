@@ -27,6 +27,9 @@ uniform vec2 bounce_dir = vec2(-1.0, 0.0);
 uniform float bounce_scale = 0.01;  // 1 / (half the frame's width, in local px): the sprite is an atlas region
 // A warm back rim (round 10, home: the lit hut behind him): a band just inside the ink on the edges that face
 // up and to the sides, the light from behind wrapping his silhouette; the ink line itself stays dark.
+// (round 12) the level's light on him: his lit colours raised by up to `light_gain` (the shade less, the ink not at
+// all), so he is the brightest figure on screen ("a mid-brown figure against mesas of the same value")
+uniform float light_gain = 1.0;
 uniform float back_rim = 0.0;  // 0..1
 uniform vec4 back_rim_colour : source_color = vec4(1.0, 0.6, 0.22, 1.0);
 uniform float back_rim_ink_px = 3.0;  // the ink round the outline, in texture pixels (no light on it)
@@ -64,6 +67,10 @@ void fragment() {
 		float out_a = c.a + o * (1.0 - c.a);
 		vec3 rgb = (c.rgb * c.a + outline_colour.rgb * o * (1.0 - c.a)) / max(out_a, 0.001);
 		c = vec4(rgb, out_a);
+	}
+	if (light_gain != 1.0) {
+		float lum = dot(c.rgb, vec3(0.3, 0.59, 0.11));
+		c.rgb = min(c.rgb * mix(1.0, light_gain, smoothstep(0.1, 0.42, lum)), vec3(1.0));
 	}
 	if (back_rim > 0.0 && c.a > 0.5) {
 		float lit = 0.0;

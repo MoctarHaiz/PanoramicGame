@@ -446,3 +446,27 @@ A lighter pattern never cuts into a heavier one still playing; nothing plays whe
 - Tests: 1078 checks, 0 failed (--bot: home, 3 lives, 82 Red Bobs, 3 stars).
 - Stills: `AAA/audio/round_11/captures/` (iPhone 15, --ads=off): game, game_plus1 (strip film frame 22), win,
   home. Perf JSONs in `round_11/before/` and `round_11/after/`.
+
+## Round 12 (2026-11-04): ROUND12.md audio (round 11 merged as c6c8a39: the best round, 6.58)
+- Home confetti ("desaturated maroon, olive and brown: falling dead leaves"): PAPER_COLOURS bright gold, light gold,
+  cream, coral, warm red; TWO_TONE backs are lighter tints of them (and a colour not in TWO_TONE, like the far
+  pieces' paler copies, gets a paler back: its `darkened(0.4)` back was the brown piece). Confetti.BRIGHT (paper,
+  strips, sequins, coins, stars) is shaded by at most 18 % and warmer, not greyer (red holds, green and blue go:
+  shaded gold turns amber, never olive); the paper, strip and sequin pictures' own greys narrowed (0.8-1.0);
+  glints wider (exponent 10 for the party's pieces); motion blur fades a piece less (smear^0.2). Far pieces a
+  little paler with the air, never duller.
+- Win confetti ("flat uniform rectangles"): WIN_SHAPES squares, long strips, round sequins, a few stars, sizes
+  ±25 % (curled streamers tried: squiggles at this size). PAPER_SHAPES (home) gained sequins.
+- Win fireworks ("thin gold lines on a muddy brown background, no punch"): each burst's warm bloom lights the sky
+  round it (0.42, then a tighter 0.5 one, 0.9 s), a bigger white hot point (70 px, 0.12 s), brighter cores (the
+  hot core at full strength, 70 % of the streak), white-hot longer, each head larger with a soft glow of its colour;
+  still warm, still kept off the card and him.
+- Tests: the confetti's colours warm and bright front and back, a piece stays bright edge-on, a piece's back is
+  never darker.
+- Perf (QA's real-boot perf.tscn, iPhone 15; before = c6c8a39's fx/confetti, 2 runs each): texture equal (play
+  41.6, results 44.1, menu after 61.1 MB); draw calls play mean 210.40-210.44 -> 210.43-210.44, max 365 -> 360-366;
+  results mean 253.8-254.7 -> 254.1-255.2 (run-to-run noise), max 269 -> 267-268. Warm-up 3.9-4.1 ms both.
+  Frames: the first run of each side passes (worst own 11.4 before, 11.9 after); the second of each failed with
+  two other builders' test runs at 100 % CPU (before: one 51 ms frame; after: wall p99 27.6 ms).
+- Tests: 1082 checks, 0 failed (--bot: home, 3 lives, 82 Red Bobs, 3 stars).
+- Stills: `AAA/audio/round_12/captures/` (iPhone 15, --ads=off): game, win, home. Perf in `round_12/before|after/`.

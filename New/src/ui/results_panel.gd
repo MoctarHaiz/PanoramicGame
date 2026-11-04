@@ -12,8 +12,8 @@ extends RefCounted
 ##   and dusty hide, a red GAME OVER ribbon and what happened under it; the Red Bobs roll up, then the
 ##   bar of the way home fills to where he got (the house at its end in a gold disc: the goal); the
 ##   buttons are there at once. Panoramic dazed on the ground in a cold, dim light.
-## PLAY AGAIN (the big green one) between Home and Share, two saturated orange ones (bone read as
-## disabled, blue fought the green), from the start.
+## PLAY AGAIN (the big green one) between Home and Share, two gold ones (apart from the red ribbon
+## and the brown wood: orange was too close to them, bone read as disabled, blue fought the green).
 
 const HERO_WIN := "res://assets/art/hero/hero_win.png"  ## the art track's render (arms up), when there
 const HERO_LOSE := "res://assets/art/hero/hero_defeat.png"  # the art track's defeat pose
@@ -34,12 +34,13 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 	if won:
 		body.add_child(_stars_stage(stars))
 	else:
-		# what happened: bold red display letters on the parchment, a fine dark outline and a little
-		# depth (heavy enough to read as the headline; a thick stroke on red would close the letters)
+		# what happened: cream display letters in a red outline, spaced (heavy red letters ran together)
 		var why := Ui.display_text(TranslationServer.translate("FELL" if world.death_reason == &"fall" else "CAUGHT"),
-				38, Color("f0401e"), Color("4e0804"), Color("b01408"))
-		why.outline_width = 3.5
+				38, Color("fff6e2"), Color("b81c0c"), Color("ffdcae"))
+		why.outline_width = 5.0
 		why.depth = 3.0
+		why.depth_colour = Color("5a0a04")
+		why.tracking = 3.0
 		why.shadow = Color(0, 0, 0, 0)
 		why.refresh()
 		var air := MarginContainer.new()  # air round it (not edge to edge), room for a crown under it
@@ -64,7 +65,8 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 	big.add_child(bob)
 	# out of the Red Bobs the stars count (the ones he can reach), so the count and the stars agree
 	var total := " / %d" % mini(World.BOBS_REACHABLE, world.level.bobs_total)
-	var bobs := Ui.display_text("0" + total, 68, Ui.WHITE, Card.INK, Color("ffd36b"))
+	# the count: white to gold after a win, all gold on a loss's deep cool well
+	var bobs := Ui.display_text("0" + total, 68, Ui.WHITE if won else Color("fff0a0"), Card.INK, Color("ffd36b") if won else Color("ffb21e"))
 	bobs.depth = 6.0
 	bobs.refresh()
 	bobs.custom_minimum_size.x = maxf(bobs.custom_minimum_size.x, 300.0)
@@ -83,14 +85,14 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 		var way := HBoxContainer.new()  # what the bar measures, said beside it (not a second score)
 		way.alignment = BoxContainer.ALIGNMENT_CENTER
 		way.add_theme_constant_override(&"separation", 12)
-		way.add_child(Ui.label(TranslationServer.translate("WAY_HOME"), 28, Color("fff0d8"), Ui.font_title))
+		way.add_child(Ui.label(TranslationServer.translate("WAY_HOME"), 28, Color("e2e8f8"), Ui.font_title))
 		way.add_child(bar)
 		lines.add_child(way)
 	body.add_child(well)
 	var buttons := HBoxContainer.new()
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
-	buttons.add_theme_constant_override(&"separation", 34)  # air between them: the main button, two warm ones
-	var home_button := Ui.icon_button("house-fill", Ui.Tone.SUNSET, 92.0, 28.0)
+	buttons.add_theme_constant_override(&"separation", 34)  # air between them: the main button, two gold ones
+	var home_button := Ui.icon_button("house-fill", Ui.Tone.GOLD, 92.0, 28.0)
 	home_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	home_button.pressed.connect(home)
 	buttons.add_child(home_button)
@@ -99,7 +101,7 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 	go.pressed.connect(again)
 	go.shine(3.2, 1, 0.3)  # one small glint
 	buttons.add_child(go)
-	var share_button := Ui.icon_button("share-network-fill", Ui.Tone.SUNSET, 92.0, 28.0)
+	var share_button := Ui.icon_button("share-network-fill", Ui.Tone.GOLD, 92.0, 28.0)
 	share_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	share_button.pressed.connect(share)
 	buttons.add_child(share_button)
@@ -121,12 +123,12 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 
 ## The groove under the run's count: cut into the parchment (InsetStyle: shade under its upper
 ## edge, the lit lip of the parchment under it), dark, so the cream numbers stand out on it; warm
-## leather after a win, a darker, colder brown after a loss: the bright numbers stand out on both.
+## leather after a win, a deep cool navy after a loss (its gold numbers stand out on it).
 static func _dark_well(won: bool) -> InsetStyle:
 	var s := InsetStyle.new(22.0)
-	s.top = Color("4a2210") if won else Color("241814")
-	s.bottom = Color("74401e") if won else Color("443226")
-	s.outline = Card.INK if won else Color("1a0e08")
+	s.top = Color("4a2210") if won else Color("161c30")
+	s.bottom = Color("74401e") if won else Color("323e60")
+	s.outline = Card.INK if won else Color("0c1022")
 	s.content_margin_top = 12
 	s.content_margin_bottom = 14
 	return s
@@ -298,6 +300,10 @@ static func _slam_star(tree: SceneTree, star: Control, i: int, delay: float, pan
 		shine.tween_interval(1.4 + i * 0.35)
 		shine.tween_property(star, "scale", Vector2.ONE * 1.08, 0.12).set_trans(Tween.TRANS_SINE)
 		shine.tween_property(star, "scale", Vector2.ONE, 0.2).set_trans(Tween.TRANS_SINE)
+		var rock := star.create_tween().set_loops()  # a gentle rock about its tilt: alive, not stuck on
+		rock.tween_interval(0.4)
+		rock.tween_property(star, "rotation", tilt + 0.07, 1.3).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		rock.tween_property(star, "rotation", tilt - 0.07, 1.3).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
 ## The Red Bobs roll up from 0 to `target` in COUNT_TIME, ticking, then punch.
@@ -335,7 +341,7 @@ static func _stamp(tree: SceneTree, panel: GamePanel, slot: Control, delay: floa
 	stamp.modulate.a = 0.0
 	var t := stamp.create_tween().set_parallel(true)
 	t.tween_property(stamp, "modulate:a", 1.0, 0.06)
-	t.tween_property(stamp, "rotation", -0.14, 0.28).from(0.6).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.tween_property(stamp, "rotation", -0.06, 0.28).from(0.5).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	t.tween_property(stamp, "scale", Vector2.ONE * 0.92, 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	t.chain().tween_property(stamp, "scale", Vector2.ONE, 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	await tree.create_timer(0.14).timeout
@@ -371,9 +377,9 @@ class WayBar extends Control:
 
 	func _init(p: float) -> void:
 		progress = clampf(p, 0.0, 1.0)
-		custom_minimum_size = Vector2(330, 54)
+		custom_minimum_size = Vector2(340, 64)  # a thick bar
 		var french := TranslationServer.get_locale().begins_with("fr")  # "21 %" in French, "21%" in English
-		_label = Ui.display_text(("%d %%" if french else "%d%%") % roundi(progress * 100.0), 30, Ui.WHITE, Card.INK)
+		_label = Ui.display_text(("%d %%" if french else "%d%%") % roundi(progress * 100.0), 32, Ui.WHITE, Card.INK)
 		_label.depth = 2.0
 		_label.shadow = Color(0, 0, 0, 0)
 		_label.refresh()
@@ -385,7 +391,7 @@ class WayBar extends Control:
 	func _place_label() -> void:
 		var need := _label.get_combined_minimum_size()
 		_label.size = need
-		var r := Rect2(Vector2(0, 10), Vector2(size.x - 40.0, size.y - 20))
+		var r := Rect2(Vector2(0, 8), Vector2(size.x - 44.0, size.y - 16))
 		var tip := r.position.x + maxf(r.size.x * _shown, r.size.y)
 		var x := tip - need.x - 8.0 if tip - r.position.x >= need.x + 16.0 else tip + 6.0
 		_label.position = Vector2(x, (size.y - need.y) / 2)
@@ -401,10 +407,10 @@ class WayBar extends Control:
 
 	func _draw() -> void:
 		var ci := get_canvas_item()
-		var r := Rect2(Vector2(0, 10), Vector2(size.x - 40.0, size.y - 20))
+		var r := Rect2(Vector2(0, 8), Vector2(size.x - 44.0, size.y - 16))
 		var rad := r.size.y / 2
-		GlossStyle.fill_rounded(ci, r.grow(3.0), rad + 3.0, Color("1e1208"), Color("1e1208"))
-		GlossStyle.fill_rounded(ci, r, rad, Color("120a06"), Color("2e2018"))  # a groove in the dark well
+		GlossStyle.fill_rounded(ci, r.grow(3.0), rad + 3.0, Color("080a16"), Color("080a16"))
+		GlossStyle.fill_rounded(ci, r, rad, Color("0a0e1c"), Color("1e2640"))  # a groove in the navy well
 		GlossStyle.fill_clipped(ci, r, rad, Rect2(r.position, Vector2(r.size.x, r.size.y * 0.5)),
 				Color(0, 0, 0, 0.5), Color(0, 0, 0, 0))
 		var w := maxf(r.size.x * _shown, r.size.y)
@@ -413,9 +419,9 @@ class WayBar extends Control:
 		GlossStyle.fill_rounded(ci, Rect2(f.position + Vector2(6, 3), Vector2(maxf(w - 12, 0), 5)), 2.5,
 				Color(1, 1, 0.9, 0.7), Color(1, 1, 0.9, 0.4))
 		# the goal: the house on a gold disc, part of the bar
-		var hc := Vector2(size.x - 24.0, size.y / 2)
-		draw_circle(hc, 25.0, Card.INK, true, -1, true)
-		draw_circle(hc, 22.0, Color("e08a10"), true, -1, true)
-		draw_circle(hc + Vector2(0, -2), 19.5, Color("ffc93c"), true, -1, true)
+		var hc := Vector2(size.x - 28.0, size.y / 2)
+		draw_circle(hc, 29.0, Card.INK, true, -1, true)
+		draw_circle(hc, 26.0, Color("e08a10"), true, -1, true)
+		draw_circle(hc + Vector2(0, -2), 23.0, Color("ffc93c"), true, -1, true)
 		var house := Ui.icon_texture("house-fill")
-		draw_texture_rect(house, Rect2(hc - Vector2(13, 14), Vector2(26, 26)), false, Color("6a2408"))
+		draw_texture_rect(house, Rect2(hc - Vector2(15, 16), Vector2(30, 30)), false, Color("6a2408"))

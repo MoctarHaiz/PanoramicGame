@@ -23,10 +23,14 @@ const SHUTTER := 0.03  ## s of its path a moving piece is stretched over (a came
 ## stars, leaves or stone: they keep their shapes).
 const BLURRED := [Shape.PAPER, Shape.STRIP, Shape.COIN, Shape.PETAL, Shape.RIBBON, Shape.STREAMER,
 		Shape.SEQUIN, Shape.BEAD]
-## Two-tone paper (PAPER, STRIP): the colour of a piece's back for each front colour (others:
-## darker): warm, a shade deeper, so a tumbling piece flashes light and dark in the sunset's colours.
-const TWO_TONE := {"ffd84a": Color("e0901a"), "ffe27a": Color("e8b030"), "ffc12a": Color("c87010"),
-		"e8452e": Color("a82a18"), "c8341f": Color("ff7a4a"), "ff6a2a": Color("b83a10")}
+## Two-tone paper (PAPER, STRIP): the colour of a piece's back for each front colour (others: a paler
+## version of their own): a lighter warm tint, so a tumbling piece flashes between two bright colours, never into
+## a muddy dark (deeper backs read as "maroon, olive and brown: dead leaves").
+const TWO_TONE := {"ffd23a": Color("fff0b0"), "ffe680": Color("ffc840"), "fff4dc": Color("ffd88a"),
+		"ff7a5a": Color("ffb59a"), "ff4d3d": Color("ff8a6a"), "ffb07a": Color("ffe0c4")}
+## The party's paper, bits and coins: lit brightly whichever way they face (shading by at most 18 %,
+## and warmer, not greyer: shaded gold turns amber, never olive), so they stay bright as they tumble.
+const BRIGHT := [Shape.PAPER, Shape.STRIP, Shape.STREAMER, Shape.SEQUIN, Shape.COIN, Shape.STAR]
 const ATLAS_WIDTH := 256  ## px: every picture of the confetti and of its light, side by side
 const PAD := 4  ## px of clear between two pictures of the atlas (its mipmaps don't bleed)
 
@@ -166,8 +170,8 @@ func sparkle(count: int, colours: Array, speed: Vector2, size := 1.0, life := Ve
 func _setup(p: Piece, shapes: Array, colours: Array, size: float, life: Vector2) -> void:
 	p.shape = shapes[randi() % shapes.size()]
 	p.colour = colours[randi() % colours.size()]
-	p.back = TWO_TONE.get(p.colour.to_html(false), p.colour.darkened(0.4))
-	p.size = SIZES[p.shape] * size * randf_range(0.8, 1.2)
+	p.back = TWO_TONE.get(p.colour.to_html(false), p.colour.lerp(Color(1, 0.97, 0.9), 0.4))  # (else a lighter tint too)
+	p.size = SIZES[p.shape] * size * randf_range(0.75, 1.25)
 	p.turn = randf() * TAU
 	p.turn_speed = randf_range(-9.0, 9.0)
 	p.flip = randf() * TAU
@@ -250,7 +254,7 @@ func _draw() -> void:
 			twist = Vector2(maxf(w, 0.3), 1.0)
 		var smear := _smear(p)  # motion blur: stretched along its path, a touch fainter
 		var c := _shade(p)
-		c.a *= clear / pow(smear, 0.35)
+		c.a *= clear / pow(smear, 0.2)
 		draw_set_transform_matrix(_placed(p, twist * grow, smear))
 		draw_texture_rect_region(_atlas, Rect2(-p.size / 2, p.size), _regions[p.shape], c)
 	draw_set_transform(Vector2.ZERO)
@@ -318,24 +322,28 @@ func _clear(p: Piece) -> float:
 ## Colour of a piece: its own colour lit by how squarely it faces the light, its back darker.
 func _shade(p: Piece) -> Color:
 	var face := cos(p.flip)
-	var lit := 0.6 + 0.4 * absf(face)
+	var lit := (0.82 + 0.18 * absf(face)) if p.shape in BRIGHT else (0.6 + 0.4 * absf(face))
 	var base := p.colour
 	if face < 0.0:
 		if p.shape in [Shape.STRIP, Shape.PAPER]:  # two-tone paper: its other side shows as it turns over
 			base = p.back
 		else:
-			lit *= 0.8
+			lit *= 0.9 if p.shape in BRIGHT else 0.8
 	var c := Color(base.r * lit, base.g * lit, base.b * lit, _fade(p.age, p.life))
+	if p.shape in BRIGHT:  # its shade warmer, not greyer: red holds, green and blue go
+		c = Color(base.r * (0.9 + 0.1 * lit), base.g * lit, base.b * lit * lit, c.a)
 	if glints:
 		c = c.lerp(Color(1, 1, 1, c.a), 0.55 * _glint(p))
 	return c
 
 
-## How much a piece catches the light (0 to 1): for an instant as it turns full face.
+## How much a piece catches the light (0 to 1): for a moment as it turns full face (paper a little
+## longer: its glints are part of the party).
 func _glint(p: Piece) -> float:
 	if p.shape in [Shape.LEAF, Shape.CHIP, Shape.PETAL, Shape.STREAMER, Shape.RIBBON]:  # satin and leaves: no flash
 		return 0.0
-	return pow(maxf(cos(p.flip + p.glint_phase), 0.0), 24.0) * maxf(cos(p.flip), 0.0)
+	var sharp := 10.0 if p.shape in BRIGHT else 24.0
+	return pow(maxf(cos(p.flip + p.glint_phase), 0.0), sharp) * maxf(cos(p.flip), 0.0)
 
 
 func _fade(age: float, life: float) -> float:
@@ -353,9 +361,9 @@ static func _bake_sheet() -> void:
 	# turning into shade) and a crisp lit top edge: it reads as paper even at its size on a phone.
 	images[Shape.PAPER] = _bake(Vector2i(56, 36), func(u: Vector2) -> Vector2:
 		var d := _box(u, Vector2(0.94, 0.9), 0.18) * 1.4
-		var band := 0.2 * exp(-pow((u.x + 0.35) * 2.2, 2.0))
-		var edge := 0.1 * (1.0 - smoothstep(-0.9, -0.7, u.y))
-		return Vector2(0.8 + band + edge - 0.24 * smoothstep(0.1, 1.0, u.x) - 0.06 * u.y, d))
+		var band := 0.1 * exp(-pow((u.x + 0.35) * 2.2, 2.0))
+		var edge := 0.06 * (1.0 - smoothstep(-0.9, -0.7, u.y))
+		return Vector2(0.9 + band + edge - 0.12 * smoothstep(0.1, 1.0, u.x) - 0.03 * u.y, d))
 	images[Shape.RIBBON] = _bake(Vector2i(60, 20), func(u: Vector2) -> Vector2:
 		var wave := sin(u.x * PI * 1.5) * 0.45
 		var d := 1.0 - absf(u.y - wave) / 0.42
@@ -364,7 +372,7 @@ static func _bake_sheet() -> void:
 		var r := u.length()
 		var light := clampf(u.dot(Vector2(-0.6, -0.8)) * 0.5 + 0.5, 0.0, 1.0)
 		var shine := 1.0 - smoothstep(0.0, 0.35, (u - Vector2(-0.35, -0.35)).length())
-		return Vector2(0.62 + 0.3 * light + 0.08 * shine - 0.15 * smoothstep(0.75, 0.95, r), (0.95 - r) * 12.0))
+		return Vector2(0.8 + 0.16 * light + 0.08 * shine - 0.1 * smoothstep(0.75, 0.95, r), (0.95 - r) * 12.0))
 	images[Shape.STAR] = _bake(Vector2i(32, 32), func(u: Vector2) -> Vector2:
 		var a := atan2(u.y, u.x) + PI / 2
 		var arm := absf(fposmod(a, TAU / 5) - TAU / 10) / (TAU / 10)  # 0 on an arm, 1 between
@@ -409,7 +417,7 @@ static func _bake_sheet() -> void:
 	# A paper strip: a small rectangle, a slight curl lit along its length (brighter at one end).
 	images[Shape.STRIP] = _bake(Vector2i(44, 16), func(u: Vector2) -> Vector2:
 		var d := _box(u, Vector2(0.95, 0.85), 0.2)
-		return Vector2(0.78 + 0.18 * (1.0 - absf(u.x + 0.3)) - 0.08 * u.y, d))
+		return Vector2(0.88 + 0.1 * (1.0 - absf(u.x + 0.3)) - 0.04 * u.y, d))
 	# A streamer: a wide satin ribbon in a gentle double curl, shaded across its width (lit edge on
 	# top, a glossy band, its underside darker) and darker where the curl turns away from the light.
 	images[Shape.STREAMER] = _bake(Vector2i(96, 30), func(u: Vector2) -> Vector2:

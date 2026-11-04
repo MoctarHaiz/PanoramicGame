@@ -10,7 +10,7 @@ hips, head, toes and hands (airborne frames hang from the hips, hanging ones fro
 Also writes the interface pictures (hero_menu.png, hero_win.png, hero_defeat.png) and portrait.png (the
 source of the HUD badge, the icons and the store art: tools/art/ui_art.py, icons.py, tools/store_art.py).
 
-    python3 tools/art/hero_atlas.py [RENDER_DIR]   # default ROOT/_agents/AAA/hero3d/render/r11/game
+    python3 tools/art/hero_atlas.py [RENDER_DIR]   # default ROOT/_agents/AAA/hero3d/render/r12/game
 
 (The AAA hero: rendered by hero_render.py from ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend, see
 ROOT/_agents/AAA/hero3d/render/render_all.sh; the interface pictures come from RENDER_DIR/../render_ui.)
@@ -26,7 +26,7 @@ from scipy import ndimage
 
 NEW = Path(__file__).resolve().parents[2]
 ROOT = next(p for p in NEW.parents if (p / "Making").is_dir())  # the folder with the user's Blender files
-RENDER = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "_agents/AAA/hero3d/render/r11/game"  # (round 11: the level's animations with his lit skin lighter, hero3d/render/render_r11.sh; the interface pictures in r11/render_ui)
+RENDER = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "_agents/AAA/hero3d/render/r12/game"  # (round 12: the level's animations round 11's, the interface pictures new: hero3d/render/render_r12.sh)
 GROUND_SPEED = 8.0 * 960.0 / 1320.0 * 40.0  ## units a second the ground scrolls (World.SCROLL_SPEED)
 OUT = NEW / "assets/art/hero"
 SCALE = 0.40  ## render px -> atlas px (1024 renders: he stands ~690 px, ~276 px in the atlas; the ink line costs a little room)
@@ -104,21 +104,21 @@ def sun_rim(arr: np.ndarray, px: float = RIM_PX, rim=RIM_DAY, dark: float = 0.22
 
 
 INK_SS = 4  ## the outline is drawn at 4x and reduced: a smooth anti-aliased edge (round 11: "a jagged, uneven stroke")
-INK_CALM = 0.35  ## its contour calmed over this share of its width (no bumps where a strand of fur pokes out)
+INK_CALM = 0.2  ## its contour calmed over this share of its width (no bumps where a strand of fur pokes out)
 
 
 def inked(arr: np.ndarray, px: float = INK_PX) -> np.ndarray:
     """A frame with a thicker ink line round its outer silhouette (anti-aliased), under the figure:
     the cel look's outline reads against the pale sky at phone size, inside lines stay thin. The line follows
     a calmed contour of the silhouette, so it keeps an even width, drawn at INK_SS x and reduced (smooth, no
-    stair steps); round a strand too thin for the calmed contour it is half as wide, never missing."""
+    stair steps); round a strand too thin for the calmed contour it is three quarters as wide, never missing."""
     a = arr[..., 3].astype(np.float32)
     h, w = a.shape
     ss = INK_SS
     big = np.asarray(Image.fromarray(a, "F").resize((w * ss, h * ss), Image.BILINEAR))
     calm = ndimage.gaussian_filter(big, px * INK_CALM * ss)
     cover = ndimage.distance_transform_edt(calm < 0.5) <= px * ss
-    cover |= ndimage.distance_transform_edt(big < 0.5) <= px * 0.5 * ss
+    cover |= ndimage.distance_transform_edt(big < 0.5) <= px * 0.75 * ss
     ring = cover.astype(np.float32).reshape(h, ss, w, ss).mean((1, 3))
     out = np.zeros_like(arr)
     out[..., :3] = INK
@@ -244,9 +244,11 @@ def main() -> None:
     print(f"{len(frames)} frames, {len(names)} pages, {total / 1e6:.2f} Mpx")
 
 
-def trimmed(path: Path, height: int, sunset: bool = False, under: np.ndarray | None = None) -> np.ndarray:
-    """A render cut to what it shows and reduced to `height` px; `under` (RGBA 0..1, the render's size): a
-    layer drawn behind the figure, cut and reduced with it, with no ink round it (the menu's throw trail)."""
+def trimmed(path: Path, height: int, sunset: bool = False, under: np.ndarray | None = None,
+            over: np.ndarray | None = None) -> np.ndarray:
+    """A render cut to what it shows and reduced to `height` px; `under` and `over` (RGBA 0..1, the render's size):
+    layers drawn behind and in front of the figure, cut and reduced with it, with no ink round them (the menu's
+    throw trail, the glint on its ring)."""
     img = Image.open(path).convert("RGBA")
     box = img.getchannel("A").point(lambda v: 255 if v > 2 else 0).getbbox()
     img = img.crop(box)
@@ -265,6 +267,51 @@ def trimmed(path: Path, height: int, sunset: bool = False, under: np.ndarray | N
         a, b = out[..., 3:4], low[..., 3:4]
         al = a + b * (1.0 - a)
         out = np.concatenate([(out[..., :3] * a + low[..., :3] * b * (1.0 - a)) / np.maximum(al, 1e-4), al], -1)
+    if over is not None:
+        u = premultiplied_resize(Image.fromarray((over * 255 + 0.5).astype(np.uint8), "RGBA").crop(box), k)
+        top = np.zeros_like(out)
+        top[m:m + u.shape[0], m:m + u.shape[1]] = u[:out.shape[0] - m, :out.shape[1] - m]
+        a, b = top[..., 3:4], out[..., 3:4]
+        al = a + b * (1.0 - a)
+        out = np.concatenate([(top[..., :3] * a + out[..., :3] * b * (1.0 - a)) / np.maximum(al, 1e-4), al], -1)
+    return out
+
+
+def _ring(folder: Path):
+    """The flying ring in a render: the second piece of the picture (centre, radius, in render px)."""
+    src = np.asarray(Image.open(folder / "000.png"))
+    lab, n = ndimage.label(src[..., 3] > 128)
+    sizes = ndimage.sum(np.ones_like(lab), lab, range(1, n + 1))
+    ys, xs = np.nonzero(lab == np.argsort(-sizes)[1] + 1)
+    return np.array([xs.mean(), ys.mean()]), (xs.max() - xs.min()) / 2.0, src.shape[:2]
+
+
+def ring_glint(folder: Path) -> np.ndarray:
+    """Round 12 ("the ring a flat grey donut, not a weapon"): a four-point star of light on its polished edge, towards
+    the sun, at the render's size."""
+    centre, radius, (h, w) = _ring(folder)
+    at = centre + np.array([-0.62, -0.62]) * radius
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    u, v = (xx - at[0]) / radius, (yy - at[1]) / radius
+    arm = lambda a, b: np.clip(1.0 - np.abs(a) / 0.55, 0, 1) ** 2 * np.clip(1.0 - np.abs(b) / (0.035 + 0.05 * np.clip(1.0 - np.abs(a) / 0.55, 0, 1)), 0, 1)  # noqa: E731
+    star = np.maximum(arm(u, v), arm(v, u) * 0.85)
+    core = np.exp(-(u * u + v * v) / 0.012)
+    out = np.zeros((h, w, 4), np.float32)
+    out[..., :3] = 1.0
+    out[..., 3] = np.clip(np.maximum(star, core), 0, 1)
+    return out
+
+
+def backed(arr: np.ndarray, k: float = 0.45) -> np.ndarray:
+    """A soft warm-dark glow just outside his line (round 12, QA: on the title screen the low sun sits right behind
+    him, and its bright disc against his ink read as "a white rim"): it parts him from the sun, under the figure."""
+    a = arr[..., 3]
+    r = arr.shape[0] * 0.012
+    glow = np.clip(ndimage.gaussian_filter(ndimage.grey_dilation(a, size=(3, 3)), r) * 1.6, 0.0, 1.0) * k
+    out = arr.copy()
+    al = a + glow * (1.0 - a)
+    out[..., :3] = (arr[..., :3] * a[..., None] + np.array([0.16, 0.05, 0.04]) * (glow * (1.0 - a))[..., None]) / np.maximum(al, 1e-4)[..., None]
+    out[..., 3] = al
     return out
 
 
@@ -379,8 +426,9 @@ def pictures() -> None:
     # a wide pose: as many pixels as an upright one, its ink drawn at that size (round 11: reduced after inking,
     # the line went soft and uneven)
     k = min((MENU_PIXELS / (hero.shape[0] * hero.shape[1])) ** 0.5, 1.0)
-    menu = trimmed(ui / "menu_hero/000.png", int(round(1100 * k)), sunset=True, under=throw_trail(ui / "menu_hero"))
-    save(grounded(menu), "hero_menu.png")
+    menu = trimmed(ui / "menu_hero/000.png", int(round(1100 * k)), sunset=True, under=throw_trail(ui / "menu_hero"),
+                   over=ring_glint(ui / "menu_hero"))
+    save(grounded(backed(menu)), "hero_menu.png")
     # the portrait: 660 x 752 from his hair to his hips
     h, w = hero.shape[:2]
     crop_h = int(h * 0.56)

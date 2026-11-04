@@ -18,6 +18,7 @@ signal pause_pressed
 
 const ROW_HEIGHT := 60.0
 const BOB_ICON := 46.0  ## size of the Red Bob on the counter
+const GEM_ICON := "res://assets/art/bob/icon.png"  ## art's ruby icon for the counter, when it is there
 const TRACK_W := 300.0
 const HEART := 39.0
 const PLATE_TOP := Color(0.24, 0.1, 0.07, 0.88)
@@ -140,7 +141,8 @@ func _glass(content: Control, side_margin: float) -> PanelContainer:
 ## The Red Bob counter: the count on a plate, the Bob overlapping its left end.
 func _counter() -> Control:
 	_bob_icon = TextureRect.new()
-	_bob_icon.texture = BobView.texture()
+	# art's ruby icon when there is one, else the Red Bob's own picture (the faceted ruby)
+	_bob_icon.texture = load(GEM_ICON) if ResourceLoader.exists(GEM_ICON) else BobView.texture()
 	_bob_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_bob_icon.custom_minimum_size = Vector2(BOB_ICON, BOB_ICON) * 1.2
 	_bob_icon.size = _bob_icon.custom_minimum_size
@@ -166,10 +168,20 @@ func _counter() -> Control:
 	var box := Control.new()
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(pill)
+	var back := Panel.new()  # an ink disc behind the gem: it holds its shape over the sky
+	var bs := StyleBoxFlat.new()
+	bs.bg_color = PLATE_LINE
+	bs.set_corner_radius_all(int(_bob_icon.size.x / 2 + 3))
+	bs.anti_aliasing = true
+	back.add_theme_stylebox_override(&"panel", bs)
+	back.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	back.size = _bob_icon.size * 0.86 + Vector2(6, 6)
+	box.add_child(back)
 	box.add_child(_bob_icon)
 	pill.position = Vector2(_bob_icon.size.x * 0.4, 0)
 	pill.size = Vector2(pill.get_combined_minimum_size().x, ROW_HEIGHT)
 	_bob_icon.position = Vector2(0, (ROW_HEIGHT - 5.0 - _bob_icon.size.y) / 2)
+	back.position = _bob_icon.position + _bob_icon.size / 2 - back.size / 2
 	box.custom_minimum_size = Vector2(pill.position.x + pill.size.x, ROW_HEIGHT)
 	return box
 
@@ -215,7 +227,7 @@ func refresh() -> void:
 		if bumped:
 			_bump(_bob_icon, 1.4)
 			_bump(_number, 1.3)
-			_glow_at(_count_box.get_global_rect(), Color(1, 0.85, 0.45, 0.8), 1.3)
+			_glow_at(_count_box.get_global_rect(), Color(1, 0.85, 0.45, 0.6), 1.3, true)  # behind: the gem stays crisp
 	if world.lives != _shown_lives:
 		if _shown_lives > world.lives:
 			for i in range(maxi(world.lives, 0), mini(_shown_lives, _hearts.size())):
@@ -256,8 +268,9 @@ func _lose_heart(h: Control) -> void:
 			f.chain().tween_callback(half.queue_free))
 
 
-## A burst of added light over `r` (screen units): a flash on the counter, a lost heart.
-func _glow_at(r: Rect2, colour: Color, grow: float) -> void:
+## A burst of added light over `r` (screen units): a flash on the counter, a lost heart; `behind`: under
+## the plates.
+func _glow_at(r: Rect2, colour: Color, grow: float, behind := false) -> void:
 	var g := TextureRect.new()
 	g.texture = Fx.glow_texture()
 	g.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -269,6 +282,8 @@ func _glow_at(r: Rect2, colour: Color, grow: float) -> void:
 	g.pivot_offset = g.size / 2
 	g.modulate = colour
 	add_child(g)
+	if behind:  # under the plates (over them it washed the gem to a pink blob)
+		move_child(g, 1)
 	var t := g.create_tween().set_parallel(true)
 	t.tween_property(g, "scale", Vector2.ONE * 1.25, 0.3).from(Vector2.ONE * 0.6)
 	t.tween_property(g, "modulate:a", 0.0, 0.3).set_delay(0.06)

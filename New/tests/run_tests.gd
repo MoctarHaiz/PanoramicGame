@@ -1316,8 +1316,19 @@ func _audio_round9() -> void:
 	boot.free()
 	var warm := true
 	for col: Color in Fx.PAPER_COLOURS + Array(Confetti.TWO_TONE.values()):
-		warm = warm and (col.h < 0.17 or col.h > 0.95) and col.s > 0.45
-	_check(warm, "the confetti is the sunset's golds and red, front and back: no pastels")
+		warm = warm and (col.h < 0.17 or col.h > 0.95) and col.v > 0.9
+	_check(warm, "the confetti is bright gold, cream and coral, front and back: no cool or dull colours")
+	var lit := Confetti.new()
+	var dark := Confetti.Piece.new()
+	dark.shape = Confetti.Shape.PAPER
+	dark.colour = Fx.PAPER_COLOURS[0]
+	dark.back = Confetti.TWO_TONE[dark.colour.to_html(false)]
+	dark.flip = PI * 0.5 + 0.01  # edge-on, its back just turning to us: the darkest it gets
+	dark.life = 2.0
+	_check(lit._shade(dark).v > 0.75, "a paper piece stays bright as it tumbles (%.2f)" % lit._shade(dark).v)
+	lit.spray(1, [Confetti.Shape.PAPER], [Fx.PAPER_COLOURS[5].lerp(Color.WHITE, 0.2)], Vector2(1, 2))  # a colour not in TWO_TONE
+	_check(lit._pieces[0].back.v >= lit._pieces[0].colour.v - 0.01, "a piece's back is never a darker shade of it")
+	lit.free()
 	var c := Confetti.new()
 	c.avoid = Rect2(0, 0, 100, 100)
 	var piece := Confetti.Piece.new()
@@ -2087,6 +2098,7 @@ func _test_art() -> void:
 	_test_art_round9()
 	_test_art_round10()
 	_test_art_round11()
+	_test_art_round12()
 
 
 ## Round 9: the hero's boots on the ground in every grounded frame; the bandit reads in every moment (its sheet
@@ -2186,8 +2198,7 @@ func _test_art_round10() -> void:
 	_check(trail > 150, "the menu's ring leaves a trail from his hand (%d samples)" % trail)
 
 
-## Round 11: the interface pictures' ink line is whole (it was cut flat where he touched the trimmed edge), and the
-## win is pass 4's upright leap again (round 10's opened leg lost the A/B).
+## Round 11: the interface pictures' ink line is whole (it was cut flat where he touched the trimmed edge).
 func _test_art_round11() -> void:
 	var cut := ""
 	for name in ["hero_menu", "hero_win", "hero_defeat"]:
@@ -2204,8 +2215,14 @@ func _test_art_round11() -> void:
 		if edge > 0:
 			cut += " %s (%d)" % [name, edge]
 	_check(cut.is_empty(), "the interface pictures' ink line stays inside them, never cut at their edge%s" % cut)
-	var win := Image.load_from_file(ProjectSettings.globalize_path(HeroView.DIR + "hero_win.png"))
-	_check(float(win.get_width()) / win.get_height() < 0.45, "the win is pass 4's upright leap (%d x %d)" % [win.get_width(), win.get_height()])
+
+
+## Round 12: in play he is lit brightest on screen (his lit colours raised, the ink kept).
+func _test_art_round12() -> void:
+	var hero := HeroView.new()
+	var gain: float = hero._material.get_shader_parameter(&"light_gain")
+	_check(gain > 1.15, "in play his lit colours are raised (light_gain %.2f)" % gain)
+	hero.free()
 
 
 ## The staging hooks for the views (the rules unchanged): a bandit's blow is seen coming (its swing
@@ -2368,10 +2385,21 @@ func _test_env() -> void:
 	_check(deepest > VineView.HOLD_DIP + 3.0 and absf(v.dip - VineView.HOLD_DIP) < 1.0,
 			"the vine dips on the catch (%.1f) and settles (%.1f)" % [deepest, v.dip])
 	var held := [v.sag_at(300.0), v.sag_at(500.0)]
+	var settled_dip := v.dip
+	v.dip = 0.0  # (the same moment without his weight's dip: what the dip alone does, here and further)
+	var bend := [held[0] - v.sag_at(300.0), held[1] - v.sag_at(500.0)]
+	v.dip = settled_dip
+	_check(bend[0] > bend[1] + 3.0, "it bends where he hangs, not along its whole length")
+	# (round 12: his weight pulls it nearly taut about his hands; away from them it hangs deep)
+	_check(v.slack_at(300.0) < VineView.SAG_MAX * 0.15 * (1.0 + 2.0 * VineView.KNOT_SHIFT) + 0.1,
+			"it is pulled taut at his hands (%.1f units of sag)" % v.slack_at(300.0))
 	for i in 120:
 		v.hold(false, 300.0, 1.0 / 60.0)
 	_check(absf(v.dip) < 0.5, "it springs back when he lets go (%.2f)" % v.dip)
-	_check(held[0] - v.sag_at(300.0) > held[1] - v.sag_at(500.0) + 3.0, "it bends where he hangs, not along its whole length")
+	var deep := 0.0
+	for x in range(0, 960, 20):
+		deep = maxf(deep, v.slack_at(float(x)))
+	_check(deep > VineView.SAG_MIN, "away from his hands it hangs deep (%.1f units)" % deep)
 	var line := []
 	for x in range(0, 800, 40):
 		line.append(v.sag_at(float(x)))

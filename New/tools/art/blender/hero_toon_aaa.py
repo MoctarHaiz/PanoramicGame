@@ -73,7 +73,15 @@ BOLD_BANDS = {  # shade, lit (albedo multipliers; hair: absolute)
 ## the light-shade split widens); the interface pictures and the bandit (flat colours) unchanged
 _LIFT = float(_os.environ.get("HERO_LIT_LIFT", "1.3"))
 DAY_LIT = {r: (_LIFT * 1.04, _LIFT, _LIFT * 0.9) for r in ("skin", "face", "hand")}
-BOLD_STOPS = (0.0, 0.155, 0.185, 1.0)  ## the terminator: a crisp step (a pixel or two of softening)
+BOLD_STOPS = (0.0, 0.155, 0.185, 1.0)
+## (round 12, "the key art below the UI in finish: skin blotchy, orange-to-brown patches with hard muddy transitions;
+## the face small, dark, blank; the ring a flat grey donut") the interface pictures (sunset): the skin and hands one
+## clean colour (the albedo's mean; the face keeps its painted features), a warm shade (not a muddy purple-brown) and
+## a slightly softer step, the face lit, the steel ring dark at its core and bright on its polish
+UI_FLAT = {"skin": (0.305, 0.0864, 0.0298), "hand": (0.305, 0.0864, 0.0298)}  ## (linear: the albedo picture's mean skin, sRGB (0.588, 0.325, 0.189))
+UI_BANDS = {"skin": ((0.62, 0.4, 0.33), (1.12, 0.93, 0.78)), "hand": ((0.64, 0.42, 0.35), (1.12, 0.93, 0.78)),
+            "face": ((0.84, 0.66, 0.58), (1.16, 0.98, 0.85)), "chakram": ((0.16, 0.2, 0.36), (1.2, 1.2, 1.28))}
+UI_STOPS = (0.0, 0.14, 0.2, 1.0)  ## the terminator: a crisp step (a pixel or two of softening)
 BOLD_RIM = {"day": ((1.0, 0.62, 0.26), 0.6, (-0.6, 0.8)), "sunset": ((1.0, 0.5, 0.12), 1.0, (0.62, 0.78))}
 ## (sunset: the key lights him from the front-left, the sun's hot rim takes the other edges, upper right)
 BOLD_ALBEDO = {"scarf": (0.5, 0.02, 0.015), "armour_blue": None}  ## flat linear colours (scarf: no blotches)
@@ -204,6 +212,10 @@ def build(m, mode="day"):
         rgb = g.node("ShaderNodeRGB")
         rgb.outputs[0].default_value = (*BOLD_ALBEDO[region], 1.0)
         albedo = rgb.outputs[0]
+    elif BOLD and mode == "sunset" and region in UI_FLAT:  # (round 12) the interface pictures' skin: one clean colour
+        rgb = g.node("ShaderNodeRGB")
+        rgb.outputs[0].default_value = (*UI_FLAT[region], 1.0)
+        albedo = rgb.outputs[0]
     elif region == "chakram":
         rgb = g.node("ShaderNodeRGB")
         rgb.outputs[0].default_value = (0.42, 0.55, 0.78, 1.0)  # blue steel (the game's ring)
@@ -248,7 +260,11 @@ def build(m, mode="day"):
         sh, li = BOLD_BANDS[mode][region]
         if mode == "day" and not flat and region in DAY_LIT:  # (round 11) his lit skin lighter in play
             li = tuple(x * k for x, k in zip(li, DAY_LIT[region]))
-        stops, cols = BOLD_STOPS, (sh, sh, li, li)
+        stops = BOLD_STOPS
+        if mode == "sunset" and not flat and region in UI_BANDS:  # (round 12) the interface pictures
+            sh, li = UI_BANDS[region]
+            stops = UI_STOPS
+        cols = (sh, sh, li, li)
     else:
         stops, cols = STOPS, (deep, deep, shade, shade, mid, mid, lit, lit)
     el[0].position, el[0].color = stops[0], (*cols[0], 1)
@@ -335,6 +351,11 @@ def build(m, mode="day"):
         marks = g.math("MULTIPLY", g.smooth(g.math("ABSOLUTE", g.math("SINE", g.math("MULTIPLY", ang, 12.0))), 0.86, 0.95),
                        g.math("MULTIPLY", g.smooth(r, 0.056, 0.0575), g.smooth(r, 0.0625, 0.061)))
         eng = g.math("MAXIMUM", groove, marks)
+        if mode == "sunset":  # (round 12, "a flat grey donut, not a weapon") polished steel: its flat face mirrors the
+            # sky in two bright lobes across it (upper left, lower right) and dark steel between, crisp like cel bands
+            lobe = g.math("COSINE", g.math("MULTIPLY", g.math("SUBTRACT", ang, 2.36), 2.0))
+            chrome = g.smooth(lobe, -0.05, 0.25)
+            colour = g.mix("MIX", chrome, (0.07, 0.09, 0.17), colour)
         colour = g.mix("MULTIPLY", g.math("MULTIPLY", eng, 0.75), colour, (0.18, 0.2, 0.3))
         edge_band = g.smooth(r, 0.063, 0.068)
         gl = g.node("ShaderNodeBsdfGlossy", Roughness=0.08)
@@ -343,7 +364,7 @@ def build(m, mode="day"):
         g.link(gl.outputs[0], s2g.inputs[0])
         gbw = g.node("ShaderNodeRGBToBW")
         g.link(s2g.outputs["Color"], gbw.inputs[0])
-        glint = g.smooth(gbw.outputs[0], 0.6, 1.4)
+        glint = g.smooth(gbw.outputs[0], *((0.3, 0.85) if mode == "sunset" else (0.6, 1.4)))  # (round 12: a steel glint, "a flat grey donut")
         colour = g.mix("ADD", g.math("MULTIPLY", glint, 0.9), colour, (1.0, 0.97, 0.9))
         colour = g.mix("ADD", g.math("MULTIPLY", g.math("MULTIPLY", edge_band, lit_k), 0.6), colour, (1.0, 0.95, 0.85))
     if region in ("armour_blue", "armour_silver"):

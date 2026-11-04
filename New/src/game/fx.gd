@@ -25,12 +25,17 @@ const STREAMERS := [Confetti.Shape.STREAMER, Confetti.Shape.STREAMER, Confetti.S
 ## Their colours, curated: gold, the sunset's red and coral, cream, his indigo.
 const STREAMER_COLOURS: Array[Color] = [Color("ffcf3a"), Color("f5b81c"), Color("e8452e"), Color("ff7a52"),
 		Color("fff1d0"), Color("4a43a8")]
-## Paper confetti, two-tone (Confetti.TWO_TONE gives each its deeper back): the sunset's warm golds,
-## with red for accent (no pastels: they fight the sunset).
-const PAPER_COLOURS: Array[Color] = [Color("ffd84a"), Color("ffd84a"), Color("ffe27a"), Color("ffc12a"),
-		Color("e8452e"), Color("e8452e"), Color("c8341f"), Color("ff6a2a")]
-## The paper of a celebration: mostly squares, some strips.
-const PAPER_SHAPES := [Confetti.Shape.PAPER, Confetti.Shape.PAPER, Confetti.Shape.PAPER, Confetti.Shape.STRIP]
+## Paper confetti, two-tone (Confetti.TWO_TONE gives each its lighter back): bright gold, cream and
+## coral, a warm red for accent (warm and bright: deeper shades read as dead leaves; no pastel blues).
+const PAPER_COLOURS: Array[Color] = [Color("ffd23a"), Color("ffd23a"), Color("ffe680"), Color("fff4dc"),
+		Color("fff4dc"), Color("ff7a5a"), Color("ff7a5a"), Color("ff4d3d")]
+## The paper of a celebration: mostly squares, some strips, a few round sequins.
+const PAPER_SHAPES := [Confetti.Shape.PAPER, Confetti.Shape.PAPER, Confetti.Shape.PAPER, Confetti.Shape.STRIP,
+		Confetti.Shape.SEQUIN]
+## The win's mix, shapes of several kinds (not "flat uniform rectangles"): squares, long strips, round
+## sequins, a few stars (curled streamers read as squiggles at this size).
+const WIN_SHAPES := [Confetti.Shape.PAPER, Confetti.Shape.PAPER, Confetti.Shape.STRIP, Confetti.Shape.STRIP,
+		Confetti.Shape.SEQUIN, Confetti.Shape.SEQUIN, Confetti.Shape.STAR]
 ## A firework's sparks: white-hot to gold to the sunset's orange and red.
 const FIREWORK: Array[Color] = [Color("fff6d8"), Color("ffd36b"), Color("ffab3a"), Color("ff6a3a")]
 ## A burst's colour, the sunset's: gold, red-orange, amber, white-gold, peach (no cool purples or teals:
@@ -245,11 +250,11 @@ static func confetti_burst(parent: Node, at: Vector2) -> void:
 	c.drag = 1.6
 	c.flutter = 520.0
 	_behind_hero(c, parent)
-	# paper squares and strips (their backs a deeper shade: they flash light and dark as they
-	# tumble): far ones small, in the warm haze of the horizon, mid ones crisp and shaded
+	# paper squares, strips and sequins (their backs a lighter tint: they flash between two bright
+	# colours as they tumble, and glint): far ones small and a little paler, mid ones crisp and shaded
 	var far: Array[Color] = []
 	for col in PAPER_COLOURS:
-		far.append(col.lerp(Color("ffd9a8"), 0.25))
+		far.append(col.lerp(Color("fff6e0"), 0.2))  # a little paler with the air, never duller
 	c.spray(12, PAPER_SHAPES, far, Vector2(600, 1400), Vector2.UP, 60.0, 1.2, Vector2(2.6, 3.4), 30.0)
 	c.spray(24, PAPER_SHAPES, PAPER_COLOURS, Vector2(750, 1700), Vector2.UP, 65.0, 2.1, Vector2(2.4, 3.2), 30.0)
 	c.sparkle(24, GOLD, Vector2(200, 650), 1.0, Vector2(0.6, 1.2))
@@ -327,10 +332,10 @@ static func _keep_off(show: FireworkShow, card: Control) -> void:
 
 ## Fireworks, all one node and one batch (light added onto the scene, the Confetti atlas): shells
 ## that rise and burst at their top, and bursts set off at a point, each of a Kind, sized to stay off
-## keep_off. A burst is a white flash for a few frames, a faint bloom of its colour, and sparks flung
-## out over a sphere (seen from the side: dense at its rim), each a soft tapered streak with a softer
-## core behind a white-hot head that cools to its warm colour, the streaks shortening as they slow,
-## droop and dim.
+## keep_off. A burst is a white flash for a few frames, a warm bloom that lights the sky round it, and
+## sparks flung out over a sphere (seen from the side: dense at its rim), each a tapered streak with a
+## bright white-hot core behind a glowing head that cools to its warm colour, the streaks shortening as
+## they slow, droop and dim.
 class FireworkShow extends Node2D:
 	## A chrysanthemum: long soft streaks, its slow middle in white-gold, glittering out; a peony:
 	## fat glowing stars on short stubs, a gold middle; a willow: gold glitter drooping into long
@@ -349,7 +354,7 @@ class FireworkShow extends Node2D:
 				"width": 11.0, "head": 7.0},
 	}
 	const GRAVITY := 900.0  ## pulls a rising shell (px/s²)
-	const BLOOM := 0.7  ## seconds the bloom of its colour lights the sky
+	const BLOOM := 0.9  ## seconds the bloom of its colour lights the sky
 	var radius := 300.0  ## how far a burst of size 1 flings its sparks (px)
 	var keep_off: Array[Rect2] = []  ## what the bursts stay clear of (the results card, him): they shrink to fit
 	const SMALLEST := 0.35  ## a burst that would have to shrink below this share of its size doesn't go off
@@ -459,16 +464,18 @@ class FireworkShow extends Node2D:
 		var streak := Confetti.region(&"streak")
 		var dot := Confetti.region(&"dot")
 		var flare := Confetti.region(&"flare")
-		for i in _bursts.size():  # the heart: a white flash, then a faint bloom of its colour
+		for i in _bursts.size():  # the heart: a white flash, then a warm bloom that lights the sky round it
 			var b := _bursts[i]
 			if b.z < 0.0:
 				continue
 			var at := Vector2(b.x, b.y)
 			var k := b.z / BLOOM
 			var r := radius * _burst_kind[i].y
-			_light(tex, glow, at, Vector2.ONE * r * (0.6 + 0.4 * k), 0.0, Color(Fx.FIREWORK_HUES[int(b.w)], 0.18 * (1.0 - k) * (1.0 - k)))
-			if b.z < 0.1:  # a hot point, not a white smudge
-				_light(tex, glow, at, Vector2.ONE * 60.0 * (1.0 + b.z * 6.0), 0.0, Color(1, 0.97, 0.9, 1.0 - b.z / 0.1))
+			var warm: Color = Fx.FIREWORK_HUES[int(b.w)].lerp(Color.WHITE, 0.25)
+			_light(tex, glow, at, Vector2.ONE * r * (0.8 + 0.35 * k), 0.0, Color(warm, 0.42 * (1.0 - k) * (1.0 - k)))
+			_light(tex, glow, at, Vector2.ONE * r * 0.4, 0.0, Color(warm, 0.5 * (1.0 - k) * (1.0 - k) * (1.0 - k)))
+			if b.z < 0.12:  # a hot point, not a white smudge
+				_light(tex, glow, at, Vector2.ONE * 70.0 * (1.0 + b.z * 6.0), 0.0, Color(1, 0.97, 0.9, 1.0 - b.z / 0.12))
 		for i in _shells.size():  # a rising shell: a short gold streak and its hot head
 			var s := _shells[i]
 			if s.z > 0.0:
@@ -484,17 +491,18 @@ class FireworkShow extends Node2D:
 			var k := s.z / s.w
 			var fade := 1.0 - k * k
 			var hue := _spark_col[i]
-			var hot := Color(1, 0.98, 0.92).lerp(hue, minf(k * 3.5, 1.0))  # white-hot for a moment, cooling to its colour
+			var hot := Color(1, 0.98, 0.92).lerp(hue, minf(k * 1.8, 1.0))  # white-hot, cooling to its colour
 			var head := Vector2(s.x, s.y)
 			var length := minf(head.distance_to(_spark_from[i]) * lerpf(kind.trail.x, kind.trail.y, k), radius * 0.7)
 			draw_set_transform(head, _spark_vel[i].angle())  # its head at 0, its path along -x
 			if length > 3.0:
 				var w: float = kind.width * 0.5 * (1.0 - 0.35 * k)
-				draw_texture_rect_region(tex, Rect2(-length, -w, length, w * 2.0), streak, Color(hue, 0.85 * fade))
-				draw_texture_rect_region(tex, Rect2(-length * 0.6, -w * 0.25, length * 0.6, w * 0.5), streak, Color(hot, 0.6 * fade))  # a soft core
+				draw_texture_rect_region(tex, Rect2(-length, -w, length, w * 2.0), streak, Color(hue, fade))
+				draw_texture_rect_region(tex, Rect2(-length * 0.7, -w * 0.35, length * 0.7, w * 0.7), streak, Color(hot, fade))  # a bright core
 			var glitter := 0.3 if willow else 0.6  # from when it glitters (a willow almost at once)
 			if k < glitter or fmod(s.z * 22.0 + i * 0.37, 1.0) < 0.55:
-				var r: float = kind.head * (1.0 - 0.35 * k)
+				var r: float = kind.head * 1.2 * (1.0 - 0.35 * k)
+				draw_texture_rect_region(tex, Rect2(-r, -r, r * 2.0, r * 2.0).grow(r * 1.4), glow, Color(hue, 0.35 * fade))  # its glow
 				draw_texture_rect_region(tex, Rect2(-r, -r, r * 2.0, r * 2.0), dot, Color(hot, fade))
 				if k > 0.65 and i % 3 == 0:
 					draw_texture_rect_region(tex, Rect2(-13, -13, 26, 26), flare, Color(hot, fade))
@@ -928,7 +936,7 @@ static func coin_shower(parent: Node, width: float, height: float) -> void:
 		paper.gravity = 520.0
 		paper.drag = 2.2
 		paper.flutter = 420.0
-		paper.rain(int(44 * side.y / width) + 6, side.y, PAPER_SHAPES, PAPER_COLOURS, 1.15, Vector2(3.4, 4.2), 2.2)
+		paper.rain(int(44 * side.y / width) + 6, side.y, WIN_SHAPES, PAPER_COLOURS, 1.15, Vector2(3.4, 4.2), 2.2)
 	var left := (hero.position.x if hero.has_area() else card.position.x) - 8.0  # the sky left of him
 	var clear := [Vector3(0.0, left, 0.0), Vector3(card.end.x, width - card.end.x, 1.0)]
 	for strip: Vector3 in clear:  # in front: x, width, 1 right of the card
@@ -947,7 +955,7 @@ static func coin_shower(parent: Node, width: float, height: float) -> void:
 		paper.drag = 2.1
 		paper.flutter = 420.0
 		paper.avoid = coins.avoid
-		paper.rain(int(26 * share) + 3, strip.y, PAPER_SHAPES, PAPER_COLOURS, 1.3, Vector2(3.2, 4.0), 2.2)
+		paper.rain(int(26 * share) + 3, strip.y, WIN_SHAPES, PAPER_COLOURS, 1.3, Vector2(3.2, 4.0), 2.2)
 		var motes := Confetti.make(holder, Vector2(strip.x + strip.y / 2.0, height * 0.35))
 		motes.avoid = Rect2(avoid.position - motes.position, avoid.size)
 		motes.sparkle(8, GOLD, Vector2(120, 420), 0.8, Vector2(0.6, 1.1), strip.y * 0.4)

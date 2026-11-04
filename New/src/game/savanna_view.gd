@@ -19,6 +19,8 @@ const DIR := "res://assets/art/world/"
 ## the picture, everything rimmed and casting long shadows away from it
 const SUN_AT := Vector2(0.1, 255.0)  # (round 3: lower, its glow off the HUD, half behind the far cliffs)
 const SUN_SIZE := 640.0
+const SUN_DISC := 15.0  ## round 12: units, the radius of its crisp disc
+const SUN_STREAK := Vector2(420, 7)  ## round 12: units, the streak of light across it
 const RAYS_ORIGIN := Vector2(80, 80)  ## where the sun is in the rays, in units (tools/art/savanna.py)
 const RAYS_SIZE := Vector2(1280, 820)  ## drawn size of rays.png in units (stored at half that)
 
@@ -93,7 +95,7 @@ func _ready() -> void:
 	_painter(_draw_sun.bind(true)).material = add  # added, orange on blue made it a grey-white disc)
 	_painter(_draw_clouds)
 	# (round 9: the mesas' feet in cool air, not pale milk: the middle of the screen read washed out)
-	_painter(_draw_strip.bind(&"far_mesas"), true).material = _haze([0, 0, 0, 0, 0.0, 0.42, 0, Color(0.5, 0.5, 0.68)])
+	_painter(_draw_strip.bind(&"far_mesas"), true).material = _haze([0, 0, 0, 0, 0.0, 0.22, 0, Color(0.5, 0.5, 0.68)])  # (round 12: lighter: "washed by haze")
 	_painter(_draw_band.bind(470.0, 110.0, 0.035))  # (round 4: haze only around the far layers; round 9: fainter)
 	# (round 9: the far hills slate blue and darker: they were the pale milky band)
 	_painter(_draw_strip.bind(&"far_hills"), true).material = _haze([0, 0, 0, 0, 0.42, 0.0, 0, Color(0.42, 0.46, 0.64)], Color(0.78, 0.8, 0.92))
@@ -171,8 +173,17 @@ func _draw_sun(ci: CanvasItem, bloom: bool) -> void:
 	var s := SUN_SIZE * (1.0 + sin(_clock * 0.7) * 0.012)
 	if bloom:  # (round 10: softer, warmer: "a hard white disc")
 		ci.draw_texture_rect(_tex[&"sun"], Rect2(_sun() - Vector2(s, s) * 0.32, Vector2(s, s) * 0.64), false, Color(1, 0.9, 0.7, 0.62))
-	else:
-		ci.draw_texture_rect(_tex[&"sun_halo"], Rect2(_sun() - Vector2(s, s) * 0.36, Vector2(s, s) * 0.72), false, Color(1, 1, 1, 0.75))
+		# round 12 ("a blurry blob with no bloom structure"): a crisp disc in its bloom, and a thin
+		# streak of light across it, as a lens catches a low sun
+		var c := _sun()
+		var mote: Texture2D = _tex[&"mote"]
+		ci.draw_texture_rect(mote, Rect2(c - Vector2(SUN_STREAK.x / 2, SUN_STREAK.y / 2), SUN_STREAK), false, Color(1, 0.78, 0.48, 0.34))
+		ci.draw_texture_rect(mote, Rect2(c - Vector2(SUN_STREAK.x * 0.17, SUN_STREAK.y * 0.9), Vector2(SUN_STREAK.x * 0.34, SUN_STREAK.y * 1.8)), false,
+				Color(1, 0.86, 0.62, 0.3))
+		ci.draw_circle(c, SUN_DISC, Color(1.0, 0.86, 0.6, 0.55))
+		ci.draw_circle(c, SUN_DISC * 0.82, Color(1.0, 0.92, 0.76, 0.5))
+	else:  # (round 12: tighter: the blur round it read as a blob)
+		ci.draw_texture_rect(_tex[&"sun_halo"], Rect2(_sun() - Vector2(s, s) * 0.3, Vector2(s, s) * 0.6), false, Color(1, 1, 1, 0.7))
 
 
 ## God rays fanning from the sun to the lower right, breathing slowly.
@@ -331,7 +342,10 @@ func _draw_trees(ci: CanvasItem, row_index: int) -> void:
 		var foot := Vector2(x, row[3])
 		ci.draw_set_transform_matrix(Transform2D(0.0, Vector2.ONE, (_hash(seed + 14) - 0.5) * 0.36, foot))
 		var behind := 1.0 - 0.7 * (1.0 - smoothstep(40.0, 110.0, absf(x - hero_x))) if row_index == 2 else 1.0
-		ci.draw_texture_rect(tex, Rect2(rect.position - foot, rect.size), false, Color(1, 1, 1, behind))
+		# (round 12, "tree clones": each its own shade, a little greener, yellower or darker)
+		var v := 0.86 + _hash(seed + 15) * 0.26
+		var warm := (_hash(seed + 16) - 0.5) * 0.16
+		ci.draw_texture_rect(tex, Rect2(rect.position - foot, rect.size), false, Color(v + warm, v, v - warm, behind))
 		ci.draw_set_transform_matrix(Transform2D.IDENTITY)
 
 

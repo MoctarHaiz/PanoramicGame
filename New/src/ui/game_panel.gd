@@ -65,6 +65,7 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 	var soft := ShaderMaterial.new()  # a cubic B-spline stretch of the small picture: no blocks
 	soft.shader = SOFT_BLUR
 	soft.set_shader_parameter(&"grey", 0.5 if _mood == &"loss" else 0.0)  # a defeat drains the world (not to sepia)
+	soft.set_shader_parameter(&"tame", 1.0 if _mood == &"" else 0.0)  # the pause: the sun's bloom softened
 	_picture.material = soft
 	back.add_child(_picture)
 	var veil := ColorRect.new()
@@ -77,8 +78,8 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 	vignette.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	vignette.stretch_mode = TextureRect.STRETCH_SCALE
 	vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	# a defeat's colder, darker corners; the pause's lighter (the scene stays readable, dimmed by half)
-	vignette.modulate = Color(0.02, 0.01, 0.03, {&"loss": 0.85, &"win": 0.7}.get(_mood, 0.6))
+	# a defeat's colder, darker corners; the pause's lighter (the frozen scene stays visible and colourful)
+	vignette.modulate = Color(0.02, 0.01, 0.03, {&"loss": 0.85, &"win": 0.7}.get(_mood, 0.5))
 	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	back.add_child(vignette)
 	if rays:  # a radiance behind the card: soft shafts of light turning (hard-edged rays read as
@@ -104,6 +105,7 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 	add_child(_pop)
 	card = Card.new(Vector4(54, 68, 54, 46))  # inside the thick frame and its trim
 	card.set_mood(_mood)
+	card.bosses = _mood != &""  # the jewelled corners for the results only (the pause: plain)
 	card.add_child(body)
 	banner = Banner.new(title, tone, 54)
 	banner.size = banner.custom_minimum_size
@@ -156,7 +158,9 @@ func _snapshot_then_enter(hide: Array) -> void:
 	await RenderingServer.frame_post_draw
 	if not is_inside_tree():
 		return
-	_picture.texture = Ui.blurred_snapshot(get_viewport(), 4)
+	# the end panels blurred deeper (1/64: at 1/16 the sun's haze and a pale mesa kept their outlines
+	# and turned to flat grey blocks under the dim); the pause lighter (1/16: the scene stays readable)
+	_picture.texture = Ui.blurred_snapshot(get_viewport(), 4 if _mood == &"" else 6)
 	visible = true
 	_enter()
 

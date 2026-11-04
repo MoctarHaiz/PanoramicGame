@@ -174,7 +174,7 @@
    "path": "assets/art/hero/hero_atlas_0.png",
    "status": "approved",
    "technical": {
-    "dimensions": "2044x2048",
+    "dimensions": "2048x2048",
     "alpha": true,
     "anchor": "per hero_frames.json (ground origin / hips / hands)",
     "frames": null,
@@ -210,7 +210,7 @@
    "path": "assets/art/hero/hero_atlas_1.png",
    "status": "approved",
    "technical": {
-    "dimensions": "2028x2048",
+    "dimensions": "2032x2044",
     "alpha": true,
     "anchor": "per hero_frames.json (ground origin / hips / hands)",
     "frames": null,
@@ -246,7 +246,7 @@
    "path": "assets/art/hero/hero_atlas_2.png",
    "status": "approved",
    "technical": {
-    "dimensions": "1864x344",
+    "dimensions": "1860x344",
     "alpha": true,
     "anchor": "per hero_frames.json (ground origin / hips / hands)",
     "frames": null,
@@ -282,7 +282,7 @@
    "path": "assets/art/hero/hero_defeat.png",
    "status": "approved",
    "technical": {
-    "dimensions": "740x713",
+    "dimensions": "735x713",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -315,7 +315,7 @@
    "path": "assets/art/hero/hero_menu.png",
    "status": "approved",
    "technical": {
-    "dimensions": "713x857",
+    "dimensions": "757x804",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -348,7 +348,7 @@
    "path": "assets/art/hero/hero_win.png",
    "status": "approved",
    "technical": {
-    "dimensions": "416x1032",
+    "dimensions": "753x1032",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -3045,7 +3045,7 @@
    "path": "assets/art/world/vine.png",
    "status": "approved",
    "technical": {
-    "dimensions": "320x720",
+    "dimensions": "320x1152",
     "alpha": true,
     "anchor": "top",
     "frames": null,

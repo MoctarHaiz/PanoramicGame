@@ -1,17 +1,19 @@
 extends Screen
 ## Settings, in the game's own kit, over the sunset behind a light scrim: a framed panel with its
-## ribbon, its back button in the panels' wood docked inside its top-left corner, under the frame, floating with margins all round; Panoramic stands
-## whole at its left where there is room for him (never behind it). Inside, titled groups, each a
-## sunken card of rows split by fine lines (not ten identical bars), grouped so the columns end level
-## (no empty band). Three columns on a wide screen: Sound and feel (music and sounds volumes,
-## vibration), Game (language, screen shake, reduced motion), Help (replay the tutorial, rate,
-## privacy, credits); two on a narrower one: Sound and Effects, Game and Help; and More (the ad
-## choices and purchases) where they apply. Each row has a chunky icon on a candy tile in its group's
-## colour. Every row is a thumb-sized target. Credits
-## (About, the fonts and icons, the studio, the version) open over it.
+## ribbon in the middle of its top edge, its back button (and on a wide screen the credits' info
+## button) set on that edge at its two ends; Panoramic stands whole at its left where there is room
+## for him (never behind it). Inside, right under the ribbon, titled groups (their titles section
+## heads: capitals, spaced, rust), each a sunken card of rows split by fine lines, grouped so the
+## columns end level. Three columns on a wide screen: Sound and feel (music and sounds volumes,
+## vibration), Game (language, screen shake, reduced motion), Help (the tutorial, rate, privacy); two
+## on a narrower one: Sound and Effects, Game and Help (with the credits); and More (the ad choices
+## and purchases) where they apply. Each row has a chunky icon on an orange candy tile, the same on
+## every row. Every row is a thumb-sized target. Credits (About, the fonts and icons, the studio, the
+## version) open over it.
 
 const ROW_H := 82.0  ## height of a row (the whole row takes the touch)
-const BUTTON := 78.0  ## the header's back and info buttons
+const BUTTON := 76.0  ## the back and info buttons, on the frame's top edge
+const HEAD := Color("a03c10")  ## the groups' titles: rust
 const COLUMN_W := 380.0
 const HERO_ART := "res://assets/art/hero/hero_menu.png"
 const INK := Color("4a1e04")
@@ -56,15 +58,15 @@ func _build() -> void:
 	var page := Control.new()
 	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	area.add_child(page)
-	var card := Card.new(Vector4(44, 140, 44, 44))  # a header under the ribbon: the back and info buttons
+	var card := Card.new(Vector4(44, 98, 44, 44))  # the groups right under the ribbon (no dead band)
+	card.bosses = false  # plain corners: the jewelled ones are the results' (not one kit everywhere)
 	var columns := HBoxContainer.new()
 	columns.add_theme_constant_override(&"separation", 22)
 	card.add_child(columns)
-	# one tile colour per group (gold sound, red effects, orange game, bone help, blue purchases: the
-	# kit's tones): the eye finds a group by its colour, and inside a group every tile is
-	# the same. The rows are grouped so the columns end level (no empty block): on a wide screen three
-	# columns (big text, room to breathe) of three rows, the credits behind the info button in the
-	# header; on a narrower one two columns of five, Panoramic beside them where there is room.
+	# one tile colour everywhere (orange: tiles changing colour by column read as inconsistent). The
+	# rows are grouped so the columns end level (no empty block): on a wide screen three columns (big
+	# text, room to breathe) of three rows, the credits behind the info button on the frame; on a
+	# narrower one two columns of five, Panoramic beside them where there is room.
 	var view := get_viewport().get_visible_rect().size
 	var wide := view.x >= view.y * 1.7
 	var music := _slider_row("music-notes-fill", tr("MUSIC"), &"music_volume", &"music_on")
@@ -81,15 +83,15 @@ func _build() -> void:
 	var layout: Array  # columns of groups
 	var switches := 0  # the column with the switches' long labels
 	if wide:
-		layout = [[_group("speaker-high-fill", tr("SOUND_AND_FEEL"), Ui.Tone.GOLD, [music, sounds, vibration])],
-				[_group("play-fill", tr("GENERAL"), Ui.Tone.SUNSET, [language, shake, calm])],
-				[_group("info-fill", tr("HELP"), Ui.Tone.WHITE, [tutorial] + help)]]
+		layout = [[_group("speaker-high-fill", tr("SOUND_AND_FEEL"), [music, sounds, vibration])],
+				[_group("play-fill", tr("GENERAL"), [language, shake, calm])],
+				[_group("info-fill", tr("HELP"), [tutorial] + help)]]
 		switches = 1
 	else:
-		layout = [[_group("speaker-high-fill", tr("SOUND_GROUP"), Ui.Tone.GOLD, [music, sounds]),
-				_group("sparkle-fill", tr("FEEL"), Ui.Tone.CRIMSON, [vibration, shake, calm])],
-				[_group("play-fill", tr("GENERAL"), Ui.Tone.SUNSET, [language, tutorial]),
-				_group("info-fill", tr("HELP"), Ui.Tone.WHITE, help)]]
+		layout = [[_group("speaker-high-fill", tr("SOUND_GROUP"), [music, sounds]),
+				_group("sparkle-fill", tr("FEEL"), [vibration, shake, calm])],
+				[_group("play-fill", tr("GENERAL"), [language, tutorial]),
+				_group("info-fill", tr("HELP"), help)]]
 	var more: Array = []  # the ad choices and the purchases, where they apply: under the first column
 	if Services.ads.privacy_options_required():
 		more.append(_button_row("megaphone-fill", tr("AD_PRIVACY"), "", Services.ads.show_privacy_options))
@@ -98,7 +100,7 @@ func _build() -> void:
 			more.append(_button_row("prohibit-fill", tr("REMOVE_ADS"), Services.store.price(), Services.store.buy_remove_ads))
 		more.append(_button_row("arrows-clockwise-bold", tr("RESTORE_PURCHASES"), "", Services.store.restore))
 	if not more.is_empty():
-		layout[0].append(_group("star-four-fill", tr("MORE"), Ui.Tone.BLUE, more))
+		layout[0].append(_group("star-four-fill", tr("MORE"), more))
 	for i in layout.size():
 		var col := _column(COLUMN_W + 50.0 if i == switches else COLUMN_W)
 		for g: Control in layout[i]:
@@ -132,13 +134,13 @@ func _build() -> void:
 		banner.position = Vector2(left_x + w / 2 - banner.size.x / 2, card.position.y - top)
 		back_button.custom_minimum_size = Vector2(BUTTON, BUTTON) * k  # the panel's scale (its touch stays 86+)
 		back_button.size = back_button.custom_minimum_size
-		# docked inside the panel, on the hide at its top left under the frame (the panel's own header,
-		# its own row above the groups): neither floating beside it nor over its corner
-		back_button.position = card.position + Vector2(Card.FRAME + 20.0, Card.FRAME + 16.0) * k
-		if info:  # the same at the top right
+		# set on the frame's top edge at its left, as the ribbon is in its middle (a header row inside the
+		# panel left a dead band under the ribbon)
+		back_button.position = card.position + Vector2(36.0, Card.FRAME * 0.5 - BUTTON * 0.5) * k
+		if info:  # the same at the right
 			info.custom_minimum_size = back_button.custom_minimum_size
 			info.size = info.custom_minimum_size
-			info.position = card.position + Vector2(card.size.x - Card.FRAME - 20.0 - BUTTON, Card.FRAME + 16.0) * k
+			info.position = card.position + Vector2(card.size.x - 36.0 - BUTTON, Card.FRAME * 0.5 - BUTTON * 0.5) * k
 		if hero:
 			hero.visible = show_hero
 			var origin := area.get_global_rect().position + page.position
@@ -171,18 +173,20 @@ func _column(width := COLUMN_W) -> VBoxContainer:
 	return col
 
 
-## A group: a strong title (the heaviest weight, bigger than the rows, a gold icon, a rule running
-## to the column's edge), then its rows in one sunken card, a fine line between two rows.
-func _group(icon_name: String, title: String, tone: Ui.Tone, rows: Array) -> VBoxContainer:
+## A group: its title as a section head (capitals, spaced, in rust, smaller than the rows: a type
+## hierarchy, not every label alike), its icon and a fine rule to the column's edge, then its rows in
+## one sunken card, a fine line between two rows. Every row's tile is the same orange.
+func _group(icon_name: String, title: String, rows: Array) -> VBoxContainer:
+	var tone := Ui.Tone.SUNSET
 	var g := VBoxContainer.new()
 	g.add_theme_constant_override(&"separation", 6)
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override(&"separation", 10)
-	head.add_child(Ui.bold_icon(icon_name, 36, Ui.tone_colours(tone).bottom, Color("2e0d04")))
-	head.add_child(Ui.label(title, 34, INK, Ui.font_display, HORIZONTAL_ALIGNMENT_LEFT))
+	head.add_child(Ui.bold_icon(icon_name, 30, Ui.tone_colours(tone).bottom, Color("2e0d04")))
+	head.add_child(Ui.label(title.to_upper(), 26, HEAD, Ui.title_font(700, 3), HORIZONTAL_ALIGNMENT_LEFT))
 	var rule := ColorRect.new()  # the title's rule, to the column's edge
-	rule.color = Color(0.55, 0.3, 0.1, 0.45)
-	rule.custom_minimum_size = Vector2(0, 3)
+	rule.color = Color(0.62, 0.24, 0.06, 0.4)
+	rule.custom_minimum_size = Vector2(0, 2)
 	rule.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	rule.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(rule)
@@ -208,7 +212,7 @@ func _group(icon_name: String, title: String, tone: Ui.Tone, rows: Array) -> VBo
 		list.add_child(row)
 	well.add_child(list)
 	g.add_child(well)
-	for row: Control in rows:  # the group's colour on its rows' tiles
+	for row: Control in rows:  # the one tile colour on its rows' tiles
 		var tile := row.find_child("Tile", true, false) as PanelContainer
 		if tile:
 			var ts := Ui.candy_style(tone, 15.0, false, 5.0)
@@ -218,9 +222,6 @@ func _group(icon_name: String, title: String, tone: Ui.Tone, rows: Array) -> VBo
 			var icon := tile.get_child(0) as BoldIcon
 			if icon:
 				icon.outline = Ui.tone_colours(tone).outline
-				if tone == Ui.Tone.WHITE:  # on bone, the icon in the deep orange of the labels
-					icon.fill = Ui.LABEL_DEEP
-					icon.outline = Color(0, 0, 0, 0)
 				icon.queue_redraw()
 	return g
 

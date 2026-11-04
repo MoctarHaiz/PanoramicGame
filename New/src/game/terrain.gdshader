@@ -79,6 +79,9 @@ void fragment() {
 	vec2 bsize = vec2(70.0, 30.0);  // (blocks longer than tall, their centres kept near the middle
 	// of their bed: the joints between beds run across in wavy strata, the joints in a bed lean)
 	vec2 rq = level_pos + vec2((noise(level_pos.y * 0.021) - 0.5) * 30.0, (noise(level_pos.x * 0.011) - 0.5) * 26.0);
+	// round 12 ("evenly sized cobbles"): stretched here and squeezed there along each bed (a smooth
+	// warp: stones from about half to one and a half times the size, no seams)
+	rq.x += 22.0 * sin(level_pos.x * 0.019 + noise(rq.y * 0.025) * 5.0);
 	vec2 rp = rq / bsize;
 	vec2 ri = floor(rp);
 	vec2 rf = fract(rp);
@@ -112,7 +115,7 @@ void fragment() {
 	block = mix(block, vec3(0.66, 0.34, 0.23), step(0.62, bed_tone) * 0.7);  // redder beds
 	block = mix(block, vec3(0.84, 0.62, 0.40), step(bed_tone, 0.22) * 0.35);  // paler ones
 	block = mix(block, vec3(0.6, 0.5, 0.5), step(0.86, tone) * 0.5);  // a grey stone here and there
-	block *= 0.9 + tone * 0.2;
+	block *= 0.8 + tone * 0.28;  // (round 12: "the same brightness": more each its own)
 	c = mix(c, block, rock_k);
 	c *= 1.0 + 0.14 * facing * rock_k;  // each block rounded by the light
 	float bevel = 1.0 - smoothstep(1.8, 6.0, joint);
@@ -130,13 +133,24 @@ void fragment() {
 	float sf = fract(sy / 21.0);
 	c *= 1.0 - 0.12 * (1.0 - smoothstep(0.0, 0.12, sf)) * soil_k;
 	c *= 1.0 + (hash(floor(sy / 21.0)) - 0.5) * 0.12 * soil_k;
+	// round 12 ("the bottom an empty dark-brown dirt band"): the earth in layers of its own colour,
+	// a darker humus band under the grass, a red layer, an ochre one with a lit top edge, wavering
+	float wide = step(200.0, width) * soil_k * step(560.0, level_pos.y);  // (the main ground band only: not a ledge's edge)
+	float layer_y = depth + (noise(level_pos.x * 0.012) - 0.5) * 16.0 + sin(level_pos.x * 0.027) * 3.0;
+	vec3 earth = mix(vec3(0.42, 0.22, 0.16), soil_colour * vec3(1.08, 0.98, 0.94), smoothstep(24.0, 27.0, layer_y));
+	float ochre = smoothstep(36.0, 38.0, layer_y) * (1.0 - smoothstep(48.0, 51.0, layer_y));
+	earth = mix(earth, vec3(0.74, 0.5, 0.3), ochre);
+	earth = mix(earth, vec3(0.9, 0.66, 0.42), (smoothstep(36.0, 37.0, layer_y) - smoothstep(38.0, 40.0, layer_y)));  // its lit top edge
+	earth = mix(earth, earth * 0.7, (smoothstep(48.0, 49.0, layer_y) - smoothstep(50.0, 53.0, layer_y)));  // the shade under it
+	c = mix(c, earth * (c / max(soil_colour, vec3(0.01))) * 0.5 + earth * 0.5, wide * 0.8);
 	vec2 sc = floor(level_pos / 26.0);
-	float has_stone = step(0.86, hash(sc.x * 13.1 + sc.y * 71.7)) * soil_k;
+	float has_stone = step(mix(0.86, 0.8, wide), hash(sc.x * 13.1 + sc.y * 71.7)) * soil_k;  // (round 12: more in the ground)
 	vec2 sp = (fract(level_pos / 26.0) - 0.5 - (vec2(hash(sc.x + sc.y * 3.3), hash(sc.y + sc.x * 5.1)) - 0.5) * 0.4) * vec2(1.0, 1.5);
-	float stone = (1.0 - smoothstep(0.17, 0.2, length(sp))) * has_stone;
+	float stone_r = mix(0.2, 0.27, wide);  // (round 12: bigger in the ground band)
+	float stone = (1.0 - smoothstep(stone_r - 0.03, stone_r, length(sp))) * has_stone;
 	vec3 stone_c = mix(vec3(0.42, 0.34, 0.33), vec3(0.78, 0.66, 0.56), step(sp.y, -0.04));
 	c = mix(c, stone_c, stone);
-	ink = max(ink, (smoothstep(0.17, 0.2, length(sp)) - smoothstep(0.2, 0.24, length(sp))) * has_stone);
+	ink = max(ink, (smoothstep(stone_r - 0.03, stone_r, length(sp)) - smoothstep(stone_r, stone_r + 0.04, length(sp))) * has_stone);
 	// round 9: moss creeping down from under the grass in ragged tongues (the grass sat on the rock
 	// "like cake icing"), and on the sunny top of a block here and there
 	float lip = 18.0 + noise(level_pos.x * 0.09) * 8.0;  // (round 6: deeper, the grass overhangs)
@@ -154,18 +168,19 @@ void fragment() {
 	float fl = mix(from_left, max(from_left + to_c.x, 0.0), rock_k);
 	float fr = mix(from_right, max(from_right - to_c.x, 0.0), rock_k);
 	float lit = 1.0 - smoothstep(0.0, min(46.0, width * 0.36) * (1.0 + 0.5 * rock_k * narrow), fl);
-	float away = 1.0 - smoothstep(0.0, min(56.0, width * 0.5) * (1.0 + 0.45 * rock_k * narrow), fr);
+	// (round 12, "the shading ignores the low sun on the left": a pillar's far face clearly in shade)
+	float away = 1.0 - smoothstep(0.0, min(56.0, width * 0.5) * (1.0 + 1.05 * rock_k * narrow), fr);
 	float below_top = smoothstep(4.0, 30.0, depth);
 	float waver = (noise(level_pos.y * 0.035 + float(cell.x)) - 0.5) * 0.3 * (1.0 - rock_k);  // (round 8: band edges follow the rock)
 	float band_lit = smoothstep(0.45, 0.52, lit + waver) * below_top;
 	float band_shade = smoothstep(0.45, 0.52, away - waver) * below_top;
 	c *= mix(vec3(1.0), sun_tint, band_lit);
-	c *= mix(vec3(1.0), shade_tint * 0.8, band_shade);
+	c *= mix(vec3(1.0), shade_tint * mix(0.8, 0.7, narrow), band_shade);
 	c *= 1.0 + narrow * 0.14 * (0.5 - clamp(from_left / max(width, 1.0), 0.0, 1.0)) * below_top;  // a round column
 	// under the grass lip: a crisp band of shadow, then a long soft occlusion (round 9); the foot of a
 	// wall darker; a ledge's underside
 	c *= 1.0 - 0.55 * (1.0 - smoothstep(lip - 1.0, lip + 1.0, depth));
-	c *= 1.0 - 0.3 * exp(-max(depth - lip, 0.0) / 16.0) * step(lip, depth);
+	c *= 1.0 - mix(0.3, 0.42, narrow) * exp(-max(depth - lip, 0.0) / mix(16.0, 24.0, narrow)) * step(lip, depth);  // (round 12: the cap's occlusion on a pillar)
 	if (width < 200.0) {  // a dark contact where a wall meets the ground (round 9: a soft gradient)
 		c *= 1.0 - 0.4 * (1.0 - smoothstep(0.0, 48.0, to_foot - 6.0)) * smoothstep(30.0, 40.0, depth);
 	}
@@ -218,6 +233,9 @@ void fragment() {
 	float edge_line = (1.0 - smoothstep(2.4, 3.4, side_d)) * step(side_d, 98.0);
 	float sun_edge = (1.0 - smoothstep(4.0, 5.0, lit_d)) * step(lit_d, 98.0) * (1.0 - edge_line);
 	c = mix(c, min(c * 1.45 + rim_colour * 0.2, vec3(1.0)), sun_edge * 0.7);
+	// round 12: the low sun warms the sun side's edge further in (a pillar's left face)
+	float warm_edge = (1.0 - smoothstep(5.0, 13.0, lit_d)) * step(lit_d, 98.0) * (1.0 - edge_line) * (1.0 - sun_edge) * narrow;
+	c = mix(c, min(c * vec3(1.22, 1.08, 0.92) + rim_colour * 0.06, vec3(1.0)), warm_edge * 0.75);
 	ink = max(ink, edge_line);
 	c = mix(c, outline_colour, ink * 0.92);
 	// round 5: a ledge's underside in a wavy line (it was flat as a box), inked

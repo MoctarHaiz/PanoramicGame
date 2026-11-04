@@ -51,7 +51,7 @@ func _set_from(x: float) -> void:
 func _draw() -> void:
 	var r := size.y / 2
 	var ci := get_canvas_item()
-	var groove := Rect2(Vector2(0, r * 0.52), Vector2(size.x, r * 0.96))  # a sturdy groove
+	var groove := Rect2(Vector2(0, r * 0.38), Vector2(size.x, r * 1.24))  # a sturdy groove, room for the value
 	var gr := groove.size.y / 2
 	GlossStyle.fill_rounded(ci, groove.grow(1.0), gr + 1.0, Color(1, 1, 0.95, 0.7), Color(1, 1, 0.95, 0.7))
 	GlossStyle.fill_rounded(ci, groove, gr, INK, INK)
@@ -83,7 +83,7 @@ func _value_text(inside: Rect2, cx: float, knob_r: float) -> void:
 	var french := TranslationServer.get_locale().begins_with("fr")
 	var words := ("%d %%" if french else "%d%%") % roundi(value * 100.0)
 	var font: Font = Ui.font_display
-	var px := 21
+	var px := 25  # readable at a glance
 	var w := font.get_string_size(words, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
 	var base := inside.get_center().y + px * 0.36
 	if cx - knob_r - inside.position.x >= w + 14.0:

@@ -26,15 +26,15 @@ func _init(text: String, burst := 62.0) -> void:
 		var fit := 34.0
 		var t := _line(w, fit)
 		# the widest line fits the medallion, a little air at both ends
-		fit = minf(fit, fit * (disc * 1.62) / maxf(t.text_width(), 1.0))
+		fit = minf(fit, fit * (disc * 1.42) / maxf(t.text_width(), 1.0))  # air at both ends: not cramped
 		t.font_size = int(fit)
-		t.outline_width = roundf(fit * 0.13)
+		t.outline_width = roundf(fit * 0.11)
 		t.depth = roundf(fit * 0.07)
 		t.refresh()
 		lines.append(t)
 	var line_h := 0.0
 	for t in lines:
-		line_h = maxf(line_h, t.font_size * 0.86)
+		line_h = maxf(line_h, t.font_size * 0.96)
 	for i in lines.size():
 		var t := lines[i]
 		t.size = Vector2(size.x, line_h)

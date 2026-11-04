@@ -2,11 +2,13 @@ class_name Card
 extends PanelContainer
 ## The panel of the interface kit (pause, results, settings, About), as the pop-ups of top mobile
 ## games, in his world's materials: a deep shadow cast on the game behind, a dark ink outline, a thick
-## frame of carved wood bevelled (lit along its top and outer edge, shaded at its foot), a jewelled
-## brass boss on each corner (a ring of beads, a red cabochon: corners.png), a broad gold trim inside
+## frame of carved wood bevelled (lit along its top and outer edge, shaded at its foot), on the
+## results a jewelled brass boss on each corner (a ring of beads, a red cabochon: corners.png;
+## `bosses` off for the pause and settings: not one kit on every panel), a broad gold trim inside
 ## it, and a body of tanned hide (paper.png grain) that sinks under the frame (shade along its top,
 ## sides and foot, a soft light in its middle: it curves). Text on the body is dark brown. A mood
-## (set_mood) gilds it for a win, or darkens it to old bronze and dusty hide for a loss.
+## (set_mood) gilds it for a win (a thicker polished gold frame, engraved), or darkens it to old
+## bronze and dusty hide for a loss.
 ## The light variant (the start card, tutorial hints) is a see-through dark glass with a gold line.
 ## `well()` is the style of a sunken area inside the body (the results' counts, settings' rows).
 
@@ -29,6 +31,9 @@ var trim_top := TRIM_TOP
 var trim_bottom := TRIM_BOTTOM
 var radius := 34.0
 var bronze := false  ## a defeat's dark bronze bosses and studs instead of brass
+var frame_w := FRAME  ## the frame's width (a win's is thicker)
+var ornate := false  ## a win's frame: thick polished gold, an engraved line running round it
+var bosses := true  ## the jewelled corner bosses and studs (the results' panels; the others plain)
 var _framed := true
 var _shadow_box: StyleBoxFlat
 
@@ -54,9 +59,12 @@ func _init(margin := Vector4(34, 40, 34, 34), light := false) -> void:
 ## world, not cold steel); anything else the wood.
 func set_mood(mood: StringName) -> void:
 	match mood:
-		&"win":
-			frame_top = Color("ffd25e")
-			frame_bottom = Color("a8620c")
+		&"win":  # the biggest reward: a thick polished gold frame, engraved, a bright trim
+			frame_top = Color("ffe27a")
+			frame_bottom = Color("b0640a")
+			frame_w = 36.0
+			radius = 44.0
+			ornate = true
 			trim_top = Color("fffbe6")
 			trim_bottom = Color("f2c24a")
 			top_colour = Color("fff0c8")
@@ -111,11 +119,18 @@ func _draw() -> void:
 		_fill(_rounded(Rect2(r.position + Vector2(radius * 0.5, 3.0), Vector2(r.size.x - radius, 5.0)), 2.5),
 				Color(1, 0.92, 0.75, 0.85), Color(1, 0.92, 0.75, 0.3))
 		# the gold trim and the ink line inside it
-		var trim := r.grow(-FRAME + TRIM)
-		_fill(_rounded(trim.grow(1.5), radius - FRAME + TRIM + 1.5), INK, INK)
-		_fill(_rounded(trim, radius - FRAME + TRIM), trim_top, trim_bottom)
-		body = r.grow(-FRAME)
-		inner = radius - FRAME
+		if ornate:  # an engraved line round the middle of the gold: a dark cut, its lit lower lip
+			var cut := r.grow(-frame_w * 0.42)
+			var cr := radius - frame_w * 0.42
+			_outline(_rounded(cut.grow(1.5), cr + 1.5), Color(0.42, 0.2, 0.0, 0.75), 3.0)
+			_outline(_rounded(Rect2(cut.position + Vector2(0, 2.0), cut.size).grow(1.5), cr + 1.5), Color(1, 0.96, 0.75, 0.55), 1.5)
+			_fill(_rounded(Rect2(r.position + Vector2(radius * 0.6, 7.0), Vector2(r.size.x - radius * 1.2, 4.0)), 2.0),
+					Color(1, 1, 0.92, 0.9), Color(1, 1, 0.92, 0.4))  # the polish along its top
+		var trim := r.grow(-frame_w + TRIM)
+		_fill(_rounded(trim.grow(1.5), radius - frame_w + TRIM + 1.5), INK, INK)
+		_fill(_rounded(trim, radius - frame_w + TRIM), trim_top, trim_bottom)
+		body = r.grow(-frame_w)
+		inner = maxf(radius - frame_w, 4.0)
 		_fill(_rounded(body.grow(1.5), inner + 1.5), INK, INK)
 	if _framed:  # cream hide: its colours over the paper grain
 		_textured(_rounded(body, inner), top_colour, bottom_colour)
@@ -131,8 +146,9 @@ func _draw() -> void:
 		var foot := Rect2(body.position + Vector2(inner * 0.6, body.size.y - 26.0), Vector2(body.size.x - inner * 1.2, 26.0))
 		_fill(_rounded(foot, 0.0), Color(0.3, 0.1, 0.0, 0.0), Color(0.3, 0.1, 0.0, 0.24))  # and its foot
 		_glow(Rect2(body.position + body.size * Vector2(0.1, 0.12), body.size * Vector2(0.8, 0.6)))
-		_studs(r)
-		_corners(r)
+		if bosses:
+			_studs(r)
+			_corners(r)
 	else:  # glass: a light top edge and a fine gold line inside
 		_fill(_rounded(Rect2(r.position + Vector2(6, 4), Vector2(r.size.x - 12, minf(40.0, r.size.y * 0.25))), radius - 4),
 				Color(1, 0.85, 0.6, 0.16), Color(1, 0.85, 0.6, 0.0))
@@ -146,7 +162,7 @@ func _draw() -> void:
 func _corners(r: Rect2) -> void:
 	var cell := float(CORNERS.get_height())
 	var src := Rect2(cell if bronze else 0.0, 0.0, cell, cell)
-	var m := radius - (radius - FRAME * 0.5) * 0.7071  # the frame's middle where it turns, from the corner
+	var m := radius - (radius - frame_w * 0.5) * 0.7071  # the frame's middle where it turns, from the corner
 	for c: Vector2 in [r.position + Vector2(m, m), Vector2(r.end.x - m, r.position.y + m),
 			Vector2(r.position.x + m, r.end.y - m), r.end - Vector2(m, m)]:
 		draw_texture_rect_region(CORNERS, Rect2(c - Vector2(BOSS, BOSS) / 2, Vector2(BOSS, BOSS)), src)
@@ -157,7 +173,7 @@ func _corners(r: Rect2) -> void:
 func _studs(r: Rect2) -> void:
 	if r.size.x <= 520.0:
 		return
-	var m := FRAME * 0.5
+	var m := frame_w * 0.5
 	var stud := _stud_texture()
 	var tint := Color(0.78, 0.66, 0.54) if bronze else Color.WHITE
 	for c: Vector2 in [Vector2(r.get_center().x, r.position.y + m), Vector2(r.get_center().x, r.end.y - m)]:
@@ -237,6 +253,12 @@ func _rounded(r: Rect2, rad: float) -> PackedVector2Array:
 			var a := -PI / 2 + c * PI / 2 + i * PI / 2 / 8
 			pts.append(corners[c] + Vector2.from_angle(a) * rad)
 	return pts
+
+
+## Strokes the outline of points (closed) in one colour.
+func _outline(pts: PackedVector2Array, colour: Color, width: float) -> void:
+	pts.append(pts[0])
+	draw_polyline(pts, colour, width, true)
 
 
 ## Fills points with a vertical gradient.

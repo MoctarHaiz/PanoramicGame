@@ -4,9 +4,11 @@ shader_type canvas_item;
 // and stair-stepped edges; here every pixel is a cubic B-spline sample of it (four bilinear taps,
 // Sigg & Hadwiger): a smooth Gaussian-like blur with no block, at the cost of four texture reads, in
 // one draw call.
-// `grey` drains its colour (a defeat: the world goes cold and grey behind the panel).
+// `grey` drains its colour (a defeat: the world goes cold and grey behind the panel); `tame` softens
+// its brightest parts (the pause: the sun's bloom doesn't glare round the panel).
 
 uniform float grey : hint_range(0.0, 1.0) = 0.0;
+uniform float tame : hint_range(0.0, 1.0) = 0.0;
 varying vec4 tint;  // the vertex colour (modulate): COLOR in fragment() already holds the texture
 
 void vertex() {
@@ -40,6 +42,8 @@ void fragment() {
 	float sx = s.x / (s.x + s.y);
 	float sy = s.z / (s.z + s.w);
 	vec4 blur = mix(mix(s3, s2, sx), mix(s1, s0, sx), sy);
-	blur.rgb = mix(blur.rgb, vec3(dot(blur.rgb, vec3(0.3, 0.59, 0.11))), grey);
+	float lum = dot(blur.rgb, vec3(0.3, 0.59, 0.11));
+	blur.rgb = mix(blur.rgb, vec3(lum), grey);
+	blur.rgb *= 1.0 - 0.42 * tame * smoothstep(0.5, 0.95, lum);
 	COLOR = blur * tint;
 }

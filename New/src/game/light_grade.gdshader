@@ -11,7 +11,7 @@ uniform float wash = 0.16;
 uniform float vignette = 0.4;  // round 3: deeper darks at the edges (value structure)
 uniform float top = 0.22;  // behind the hearts, the progress and the counter
 uniform float top_reach = 0.14;  // share of the height
-uniform float bottom = 0.42;  // the foreground band along the bottom edge in shade (depth; round 3: deeper)
+uniform float bottom = 0.3;  // the foreground band along the bottom edge in shade (depth; round 3: deeper)
 uniform vec2 sun = vec2(0.09, 0.1);  // where the sun is, in UV
 uniform float aspect = 2.2;  // width / height of the view
 

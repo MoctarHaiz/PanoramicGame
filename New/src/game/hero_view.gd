@@ -40,6 +40,7 @@ const HURT_TIME := 0.33  ## seconds of the blow's reaction
 const STUMBLE := 0.14  ## seconds of the stumble after it, leaning back and catching himself
 const PULL := 0.16  ## seconds per hand-over-hand pull up a ledge
 const HAND_STEP := 0.2  ## seconds per hand step along the vine while hanging
+const LIGHT_GAIN := 1.28  ## his lit colours x this in play (actor.gdshader light_gain; the ink untouched)
 const VINE_INK_PX := 0.9  ## atlas px of ink added at the vine: hero_atlas.py's 3.2 x (1 / 0.78 - 1), the vine framing's zoom
 const WALK_IN := 70.0  ## units he walks into the doorway at home
 const DIE_PUSH := 40.0  ## units the fatal blow knocks him back
@@ -124,6 +125,8 @@ func _init() -> void:
 	_material.set_shader_parameter(&"rim_dir", Vector2(-0.6, -0.8))
 	_material.set_shader_parameter(&"outline_px", 0.0)
 	_material.set_shader_parameter(&"outline_colour", Color(0.1, 0.045, 0.035, 1.0))  # (hero_atlas.py's ink)
+	# (round 12, "top runners light the hero brightest on screen") his lit side raised in the level's light
+	_material.set_shader_parameter(&"light_gain", LIGHT_GAIN)
 	_sprite.material = _material
 	add_child(_sprite)
 

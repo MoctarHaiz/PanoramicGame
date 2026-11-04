@@ -11,7 +11,6 @@ extends Screen
 ## PLAY pops, the rest fades in. Then the logo catches the light now and then and PLAY breathes.
 
 const LOGO := "res://assets/art/ui/logo.png"  ## loaded with the menu (a preload held it, 3 MB, all run long)
-const RIBBON := preload("res://assets/art/ui/ribbon.png")
 const HERO_ART := "res://assets/art/hero/hero_menu.png"  ## the art track's render, when there
 const HERO_STAND := "res://assets/art/ui/hero_stand.png"  ## the fallback crop, loaded only when used
 const ROCK := "res://assets/art/ui/menu_rock.png"  ## loaded with the menu (7 MB: not held during play)
@@ -113,7 +112,7 @@ func enter(_data: Dictionary) -> void:
 		shine.set_shader_parameter(&"offset", 1.2)
 		_logo.material = shine
 	_logo_box.add_child(_logo)
-	_ribbon = ribbon(tr("MENU_SUBTITLE"), 29)
+	_ribbon = ribbon(tr("MENU_SUBTITLE"), 26)
 	_ribbon_fit = Control.new()
 	_ribbon_fit.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ribbon_fit.add_child(_ribbon)
@@ -133,7 +132,7 @@ func enter(_data: Dictionary) -> void:
 	_play.size = _play_box.custom_minimum_size
 	_play.pressed.connect(func() -> void: Nav.go(&"game", {}, _play.get_global_rect().get_center()))
 	_play.idle(0.06)
-	_play.shine()
+	_play.shine(3.2, 0)  # the sweep only: lens-flare glints read as stock
 	_play_pop.add_child(_play)
 
 	_row = HBoxContainer.new()
@@ -216,8 +215,9 @@ func _best_plaque() -> PanelContainer:
 	words.add_theme_constant_override(&"separation", -14)  # the two lines tight: a compact plaque
 	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	words.alignment = BoxContainer.ALIGNMENT_CENTER
-	words.add_child(Ui.label(tr("BEST"), 30, Color("a8300c"), Ui.font_display, HORIZONTAL_ALIGNMENT_LEFT))
-	words.add_child(Ui.label(str(Save.best_bobs), 50, Color("3a1404"), Ui.font_display, HORIZONTAL_ALIGNMENT_LEFT))
+	# a small spaced label over the big number, one brown family (a red "Best" fought the brown count)
+	words.add_child(Ui.label(tr("BEST").to_upper(), 22, Color("8a5a30"), Ui.title_font(700, 3), HORIZONTAL_ALIGNMENT_LEFT))
+	words.add_child(Ui.label(str(Save.best_bobs), 52, Color("3a1404"), Ui.font_display, HORIZONTAL_ALIGNMENT_LEFT))
 	row.add_child(words)
 	var stars := StarRow.new(Save.best_stars, 44)
 	stars.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -227,33 +227,13 @@ func _best_plaque() -> PanelContainer:
 	return plaque
 
 
-## The subtitle on the beadwork ribbon (its folded ends stay their size: 9-sliced).
+## The subtitle on a red ribbon drawn like the panels' titles (no baked dashed stitch), in spaced
+## capitals: a title's lettering, not the buttons' rounded lower case; straight, as the old one.
 static func ribbon(text: String, font_size: int) -> Control:
-	var holder := Control.new()
-	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var label := Ui.display_text(text, font_size, Ui.WHITE, Color("5a0c04"), Color("ffe2c6"))
-	label.depth = 2.0
-	label.shadow = Color(0, 0, 0, 0)
-	label.refresh()
-	var h := font_size * 2.5
-	var w := label.get_combined_minimum_size().x + h * 2.4
-	var k := h / RIBBON.get_height()
-	var band := NinePatchRect.new()
-	band.texture = RIBBON
-	band.patch_margin_left = 66
-	band.patch_margin_right = 66
-	band.patch_margin_top = 24
-	band.patch_margin_bottom = 24
-	band.size = Vector2(w, h) / k
-	band.scale = Vector2(k, k)
-	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	holder.add_child(band)
-	label.size = Vector2(w, h * 0.92)
-	holder.add_child(label)
-	holder.custom_minimum_size = Vector2(w, h)
-	holder.size = holder.custom_minimum_size
-	holder.pivot_offset = holder.size / 2
-	return holder
+	var b := Banner.new(text.to_upper(), Ui.Tone.CRIMSON, font_size, 0.0, null, roundf(font_size * 0.16))
+	b.size = b.custom_minimum_size
+	b.pivot_offset = b.size / 2
+	return b
 
 
 func _vignette() -> TextureRect:
@@ -274,7 +254,7 @@ func _layout() -> void:
 	var v := size
 	var insets := Device.insets()
 	var aspect := float(_hero_tex.get_width()) / _hero_tex.get_height()
-	var h := minf(v.y * HERO_TALL, v.x * 0.29 / aspect)  # (the lunge and the ring make him wide)
+	var h := minf(v.y * HERO_TALL, v.x * 0.33 / aspect)  # (the lunge and the ring make him wide; round 12: the deeper lunge is wider)
 	var w := h * aspect
 	var feet := Vector2(insets.x + w * 0.515 + 12.0, v.y * FEET_AT)  # between his boots
 	_hero.size = Vector2(w, h)

@@ -694,7 +694,7 @@ def hanging_mass(rng) -> tuple:
         x = rng.uniform(0, step)
         while x < w:
             sites.append((x + rng.uniform(-6, 6) * PX, yc + rng.uniform(-5, 5) * PX))
-            x += step * rng.uniform(0.8, 1.2)
+            x += step * rng.uniform(0.55, 1.6)  # (round 12: "same-size cobble cells": very uneven)
     sites = np.array(sites)
     d = np.hypot(xx[..., None] - sites[None, None, :, 0], (yy[..., None] - sites[None, None, :, 1]) * 1.3)
     order = np.argsort(d, axis=2)
@@ -707,12 +707,19 @@ def hanging_mass(rng) -> tuple:
     tone = rng.uniform(0.86, 1.12, len(sites))[near]
     hue = rng.choice([0, 1, 2], len(sites), p=[0.55, 0.3, 0.15])[near]
     base = np.array([hexc("9a5634"), hexc("b06a40") * np.array([1.0, 0.9, 0.84]), hexc("86605a")])[hue]
-    lam = 0.5 + 0.35 * facing
+    lam = 0.5 + 0.45 * facing  # (round 12: each stone rounder: "flat fills")
     bevel = 1 - smooth(1.5 * PX, 4.5 * PX, joint)
     lam += bevel * np.sign(facing) * smooth(0.05, 0.5, np.abs(facing)) * 0.35
     rock = base * tone[..., None] * (0.62 + 0.55 * cel(np.clip(lam, 0, 1), (0.36, 0.64))[..., None])
     rel = np.clip(yy / (h - 28 * PX), 0, 1)
-    rock = mix(rock, rock * np.array([0.5, 0.44, 0.68]), smooth(0.1, 0.85, rel) * 0.8)  # the ledge's shade below
+    rock = mix(rock, rock * np.array([0.5, 0.44, 0.68]), smooth(0.1, 0.85, rel) * 0.62)  # the ledge's shade below
+    # round 12 ("no core shadow or bounce light"): the mass is one rounded form under the ledge: a core
+    # of shadow across its lower middle, and the warm light bounced up from the plain on its lowest rim
+    t = np.clip(yy / np.maximum(depth, 1.0), 0, 1.2)
+    core = smooth(0.32, 0.62, t) * (1 - smooth(0.8, 0.97, t))
+    rock = mix(rock, rock * np.array([0.58, 0.5, 0.72]), core * 0.5)
+    bounce = smooth(0.8, 0.99, t) * (t <= 1.0)
+    rock = mix(rock, np.minimum(rock * np.array([1.55, 1.25, 0.95]) + np.array([24, 10, 0]), 255), bounce * 0.7)
     soil = ramp(np.clip(yy / band, 0, 1), [(0, "7e3e26"), (1, "5e2e22")])
     to_rock = smooth(band - 2 * PX, band + 3 * PX, yy)
     col = mix(soil, rock, to_rock)

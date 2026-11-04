@@ -13,7 +13,7 @@ from the upper left like the 3D hero, so the title belongs with him.
   lines and leaning a little, its right edge behind the C and the Z (most of it clear: ZULU hid it),
   an assegai crossing behind it; the menu's ribbon crosses its foot: one mark, not a picture beside
   a title.
-- The letters: polished gold (a bright upper half, a crisp horizon to a deeper lower half, as metal
+- The letters: polished gold (a bright upper half, a soft horizon to a warmer lower half, as metal
   reflecting the sky and the ground) with a rounded bevel (normals from the letters' distance field:
   lit top-left edges, shaded bottom-right ones, a hot specular), a thin light line inside a thick dark
   brown outline, an extruded depth, and a soft drop shadow under the whole, cast on the shield.
@@ -257,12 +257,13 @@ def text_layers(w: int, h: int, lines: list, unit: float, cx: float, span: float
         line_top = top - ARCH * unit * (1 - u * u)
         near = ndimage.binary_dilation(lm > 0.05, iterations=int(unit * 14))
         grad = np.where(near, (yy - line_top) / cap, grad)
-    # polished metal: a bright upper half and a crisp horizon to a deeper, warmer lower half (the sky
-    # and the ground reflected), not one soft gradient
-    face = ramp(grad, [(0.0, "fffbd0"), (0.25, "ffe36a"), (0.5, "ffc83a"), (0.505, "f08a14"), (0.7, "ffa82a"),
-                       (1.0, "d8560a")])
-    diff, spec = shade(m, unit * 8.0, 1.6, 2.2)
-    rgb = face * (0.62 + 0.5 * diff[..., None]) + spec[..., None] * 230
+    # polished metal: a bright upper half and a soft horizon to a warmer lower half (the sky and the
+    # ground reflected), not one plain gradient; no deep orange (it read as dark streaks)
+    face = ramp(grad, [(0.0, "fffbd0"), (0.25, "ffe36a"), (0.5, "ffca40"), (0.515, "ffa424"), (0.75, "ffb436"),
+                       (1.0, "ea7418")])
+    # a gentle bevel: its shaded side never goes muddy (deep shading read as dark streaks in the gold)
+    diff, spec = shade(m, unit * 8.0, 1.2, 2.2)
+    rgb = face * (0.76 + 0.32 * diff[..., None]) + spec[..., None] * 200
 
     layers.append((rgb, m))
     return layers, m
