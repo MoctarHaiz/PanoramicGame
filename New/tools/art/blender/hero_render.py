@@ -189,7 +189,7 @@ def sample(action, frame):
     return {pb.name: (pb.location.copy(), pb.rotation_quaternion.copy()) for pb in ARM.pose.bones}
 
 
-HEAD_SCALE = float(os.environ.get("HEAD_SCALE", "1.3"))  ## (round 15, "about 8 heads tall: the face never reads at
+HEAD_SCALE = float(os.environ.get("HEAD_SCALE", "1.5"))  ## (round 17: 1.3 -> 1.5, "the face is a few pixels at phone size")  ## (round 15, "about 8 heads tall: the face never reads at
 ## phone size; mobile heroes are 5-6 heads") his head (face and hair) this much bigger, from the top of his neck
 
 
@@ -936,6 +936,7 @@ def heel_up(side, k=0.5):
 
 THROW_TWIST = float(os.environ.get("THROW_TWIST", "18"))  ## degrees his shoulders turn against his hips at the release
 THROW_HIPS = float(os.environ.get("THROW_HIPS", "0.05"))  ## metres his hips drive towards the throw
+THROW_STANCE = float(os.environ.get("THROW_STANCE", "0.8"))  ## the lunge's width, a share of the authored one
 THROW_RING = float(os.environ.get("THROW_RING", "0.14"))  ## metres the ring has flown from his hand (the title screen
 ## keeps it inside its left two fifths, where the close-ups are cut)
 
@@ -946,6 +947,9 @@ def pose_key_throw():
     clear of his body), the throwing hand open, the ring away ahead of it; a gritted shout."""
     pose_key_lunge()
     feet = _feet()
+    mid = (feet["Left"][0] + feet["Right"][0]) / 2  # (round 17: a narrower lunge, about 1.5 shoulder widths)
+    feet = {k: (mid + (a - mid) * THROW_STANCE, f, t) for k, (a, f, t) in feet.items()}
+    turn("Hips", 10.0, (0.0, 0.0, 1.0))  # the hips turned into the throw
     toward = Vector((1.0, -0.25, 0.0)).normalized()  # the throw: picture right, a little towards us
     shift_world(toward * THROW_HIPS + Vector((0.0, 0.0, -0.025)))
     _replant(feet)
@@ -978,6 +982,8 @@ def pose_jump15(i):
     to us), the head up and three-quarters to us."""
     apply(sample("jump", 1 + i))
     w = ease((i - 2) / 4.0) * (1.0 - ease((i - 15) / 4.0))  # the flight, frames 3-18
+    turn("Head", -14.0 * (1.0 - w))  # (round 17: his face to us on every frame, take-off and landing too)
+    turn("Head", -26.0 * (1.0 - w), (0.0, 0.0, 1.0))
     if w <= 0.0:
         hand("Right", "relaxed")
         hand("Left", "relaxed")
@@ -985,8 +991,8 @@ def pose_jump15(i):
     base = current()
     turn("Spine", 6.0)  # the chest leading
     turn("Spine1", 4.0)
-    aim("RightArm", 0.8, 0.45, 0.3)  # the near arm ahead and up, to the ledge
-    aim("RightForeArm", 0.95, 0.3, 0.1)
+    aim("RightArm", 0.9, 0.0, 0.3)  # the near arm ahead to the ledge, under his face (round 17: raised, it hid it)
+    aim("RightForeArm", 0.95, 0.15, 0.1)
     aim("LeftArm", -0.55, 0.2, -0.3)  # the far arm back for balance
     aim("LeftForeArm", -0.85, 0.05, -0.2)
     aim("RightUpLeg", 0.85, -0.3)  # round 14's split
@@ -994,8 +1000,8 @@ def pose_jump15(i):
     aim("LeftUpLeg", -0.45, -0.85)
     aim("LeftLeg", -0.85, -0.4)
     aim("LeftFoot", -0.95, -0.15)
-    turn("Head", -14.0)
-    turn("Head", -26.0, (0.0, 0.0, 1.0))  # three-quarters to us
+    turn("Head", -30.0)  # chin up
+    turn("Head", -42.0, (0.0, 0.0, 1.0))  # three-quarters to us (round 17: further, the hair hid his face mid-flight)
     apply(mix(base, current(), w))
     hand("Right", "open")
     hand("Left", "relaxed")
@@ -1066,14 +1072,35 @@ def pose_idle15(i):
     """The start (round 16, round 14's won the A/B): round 14's upright stance (chin up, his face three-quarters to us)
     with a forward lean, ready; the arms loose, the hands relaxed (no boxing guard)."""
     apply(sample("idle", 1 + i * 3))
-    turn("Spine", 5.0)  # the forward lean
-    turn("Spine1", -4.0)
+    b = math.sin(i / 20.0 * math.tau)
+    # (round 17, "a T-pose that hasn't been animated") contrapposto: his weight on the far leg, the near knee bent and
+    # forward, the hips tilted and the shoulders against them, the chakram held at his side
+    turn("Hips", 4.0, (0.0, 1.0, 0.0))
+    turn("Spine1", -7.0, (0.0, 1.0, 0.0))
+    aim("RightUpLeg", 0.32, -0.95, 0.06)
+    aim("RightLeg", -0.12, -1.0)
+    aim("RightFoot", 1.0, -0.3)
+    aim("LeftUpLeg", -0.05, -1.0, -0.04)
+    aim("LeftLeg", 0.0, -1.0)
+    turn("Spine", 4.0 + 0.8 * b)
     turn("Neck", -6.0)
     turn("Head", -12.0)  # chin up
     turn("Head", -26.0, (0.0, 0.0, 1.0))
+    aim("RightArm", 0.12, -1.0, 0.25)  # the ring hand low at his side, the other on his hip
+    aim("RightForeArm", 0.4, -0.9, 0.15)
+    aim("LeftArm", -0.35, -0.9, -0.3)
+    aim("LeftForeArm", 0.6, 0.3, -0.25)
     plant(0.0)
     hand("Right", "relaxed")
-    hand("Left", "relaxed")
+    hand("Left", "fist")
+    ring = bpy.data.objects.get("AAA_Chakram")
+    if ring is not None:
+        ring.hide_render = False
+        at = (bone_world("RightHand") + bone_world("RightHand", "tail")) / 2
+        face = Vector((0.0, 1.0, 0.25)).normalized()  # (side view: its flat to the camera)
+        rot = Vector((0.0, 0.0, 1.0)).rotation_difference(Vector((1.0, 0.0, 0.15)).normalized()).to_matrix().to_4x4()
+        ring.matrix_world = Matrix.Translation(at + Vector((-0.03, 0.0, -0.05))) @ rot @ Matrix.Diagonal((*ring.matrix_world.to_scale(), 1.0))
+        bpy.context.view_layer.update()
 
 
 def pose_win15():
@@ -1087,8 +1114,8 @@ def pose_win15():
     _aim_world("RightArm", Vector((-0.35, -0.25, 0.9)).normalized())
     _aim_world("RightForeArm", Vector((-0.25, -0.3, 0.92)).normalized())
     _aim_world("RightHand", Vector((-0.15, -0.25, 0.95)).normalized())
-    _aim_world("LeftArm", Vector((0.85, -0.1, 0.3)).normalized())
-    _aim_world("LeftForeArm", Vector((0.35, -0.3, 0.88)).normalized())
+    _aim_world("LeftArm", Vector((0.88, -0.1, 0.45)).normalized())  # (round 17: wide out, nothing across his chest)
+    _aim_world("LeftForeArm", Vector((0.7, -0.15, 0.7)).normalized())
     _aim_world("RightUpLeg", Vector((-0.4, -0.6, 0.35)).normalized())  # the front knee up, towards us
     _aim_world("RightLeg", Vector((-0.4, 0.15, -0.9)).normalized())  # (round 16: the shin down and out, "a stump")
     _aim_world("RightFoot", Vector((-0.3, -0.4, -0.86)).normalized())
@@ -1124,8 +1151,8 @@ def pose_home15(t):
     turn("Spine", 8.0 * up, (1.0, 0.0, 0.0))
     turn("Head", -12.0 * up)
     turn("Head", -18.0 * up, (0.0, 0.0, 1.0))  # (round 16) his face to us, chin up
-    aim("LeftUpLeg", 0.45 * up, -1.0, -0.15 * up)  # the free knee bent and lifted on the beat
-    aim("LeftLeg", -0.35 * up - 0.25 * up * beat, -1.0)
+    aim("LeftUpLeg", 0.8 * up * (0.6 + 0.4 * beat), -1.0 + 0.6 * up * beat, -0.3 * up)  # (round 17: the knee driven up
+    aim("LeftLeg", -0.1 * up, -1.0)  # and forward, out to his side, never in)
     aim("RightUpLeg", -0.08 * up, -1.0, 0.08 * up)
     aim("RightLeg", 0.05 * up, -1.0)
     plant(0.0)
@@ -1181,20 +1208,22 @@ def pose_defeat15():
     chunky_stars()
     ARM.rotation_euler.z = math.radians(DEFEAT_TURN)
     bpy.context.view_layer.update()
-    _aim_world("RightUpLeg", Vector((-0.7, -0.62, -0.12)).normalized())  # out along the ground (picture left)
-    _aim_world("RightLeg", Vector((-0.75, -0.6, -0.2)).normalized())
-    _aim_world("RightFoot", Vector((-0.45, -0.5, 0.75)).normalized())
-    _aim_world("LeftUpLeg", Vector((0.45, -0.62, 0.5)).normalized())  # the knee up (picture right)
-    _aim_world("LeftLeg", Vector((0.2, -0.15, -0.97)).normalized())
-    _aim_world("LeftFoot", Vector((0.25, -0.75, -0.6)).normalized())
+    # (round 17, "one clear KO silhouette, no sole pancake at the camera") both legs out along the ground to the
+    # picture's left, side by side, toes up; the near knee a little raised
+    _aim_world("RightUpLeg", Vector((-0.9, -0.3, -0.05)).normalized())
+    _aim_world("RightLeg", Vector((-0.92, -0.25, -0.2)).normalized())
+    _aim_world("RightFoot", Vector((-0.3, -0.1, 0.95)).normalized())
+    _aim_world("LeftUpLeg", Vector((-0.8, -0.35, 0.3)).normalized())
+    _aim_world("LeftLeg", Vector((-0.85, -0.2, -0.45)).normalized())
+    _aim_world("LeftFoot", Vector((-0.25, -0.1, 0.96)).normalized())
     turn("Spine", -14.0, (1.0, 0.0, 0.0))  # leaning back on the braced arm, sagging
     turn("Spine1", 10.0, (1.0, 0.0, 0.0))
     turn("Spine1", 8.0, (0.0, 1.0, 0.0))
     _aim_world("RightArm", Vector((-0.55, 0.4, -0.73)).normalized())  # braced behind him
     _aim_world("RightForeArm", Vector((-0.35, 0.3, -0.89)).normalized())
     _aim_world("RightHand", Vector((-0.5, 0.0, -0.86)).normalized())
-    _aim_world("LeftArm", Vector((0.4, -0.45, -0.8)).normalized())  # limp over his knee
-    _aim_world("LeftForeArm", Vector((0.3, -0.75, -0.6)).normalized())
+    _aim_world("LeftArm", Vector((0.35, -0.2, -0.92)).normalized())  # limp at his side, the hand on the ground
+    _aim_world("LeftForeArm", Vector((0.2, -0.45, -0.87)).normalized())
     turn("Neck", 10.0, (0.0, 1.0, 0.0))
     turn("Head", 24.0, (0.0, 1.0, 0.0))  # lolling
     turn("Head", -12.0, (1.0, 0.0, 0.0))

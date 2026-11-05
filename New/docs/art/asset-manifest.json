@@ -174,7 +174,7 @@
    "path": "assets/art/hero/hero_atlas_0.png",
    "status": "approved",
    "technical": {
-    "dimensions": "2048x2032",
+    "dimensions": "2012x2036",
     "alpha": true,
     "anchor": "per hero_frames.json (ground origin / hips / hands)",
     "frames": null,
@@ -210,7 +210,7 @@
    "path": "assets/art/hero/hero_atlas_1.png",
    "status": "approved",
    "technical": {
-    "dimensions": "2032x1980",
+    "dimensions": "2040x2048",
     "alpha": true,
     "anchor": "per hero_frames.json (ground origin / hips / hands)",
     "frames": null,
@@ -246,7 +246,43 @@
    "path": "assets/art/hero/hero_atlas_2.png",
    "status": "approved",
    "technical": {
-    "dimensions": "2032x640",
+    "dimensions": "2028x2004",
+    "alpha": true,
+    "anchor": "per hero_frames.json (ground origin / hips / hands)",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "identity",
+    "proportions",
+    "palette",
+    "facing",
+    "light-direction"
+   ],
+   "source": {
+    "kind": "user-generated",
+    "url_or_tool": "the user's Blender model and animations (ROOT/Making/Animation.blend), rebuilt for AAA in ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend (same identity: cleaned mesh, weights, textures, new actions; see hero3d/AUDIT.md), rendered by tools/art/blender/hero_render.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx; ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "hero-hero_atlas_3",
+   "role": "Panoramic's animation frames: the user's 3D model (Making/Animation.blend) re-lit and posed by tools/art/blender/hero_render.py, packed by tools/art/hero_atlas.py (hero_frames.json)",
+   "path": "assets/art/hero/hero_atlas_3.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "1984x1272",
     "alpha": true,
     "anchor": "per hero_frames.json (ground origin / hips / hands)",
     "frames": null,
@@ -282,7 +318,7 @@
    "path": "assets/art/hero/hero_defeat.png",
    "status": "approved",
    "technical": {
-    "dimensions": "951x713",
+    "dimensions": "1137x713",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -315,7 +351,7 @@
    "path": "assets/art/hero/hero_menu.png",
    "status": "approved",
    "technical": {
-    "dimensions": "793x772",
+    "dimensions": "758x806",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -348,7 +384,7 @@
    "path": "assets/art/hero/hero_win.png",
    "status": "approved",
    "technical": {
-    "dimensions": "820x938",
+    "dimensions": "797x938",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,

@@ -65,7 +65,7 @@ BOLD_BANDS = {  # shade, lit (albedo multipliers; hair: absolute)
     "day": {"skin": ((0.6, 0.47, 0.5), (1.08, 0.98, 0.88)), "face": ((0.72, 0.58, 0.58), (1.1, 1.0, 0.9)),
             "hand": ((0.64, 0.5, 0.52), (1.08, 0.98, 0.88)), "hair": ((0.004, 0.0035, 0.004), (0.016, 0.012, 0.011)),
             "fur": ((0.5, 0.43, 0.42), (0.74, 0.68, 0.58)), "armour_blue": ((0.5, 0.48, 0.62), (0.9, 0.9, 0.92)),
-            "armour_silver": ((0.4, 0.38, 0.42), (0.64, 0.6, 0.54)), "scarf": ((0.42, 0.24, 0.32), (1.05, 0.98, 0.92)),
+            "armour_silver": ((0.4, 0.38, 0.42), (0.64, 0.6, 0.54)), "scarf": ((0.34, 0.16, 0.26), (1.05, 0.98, 0.92)),
             "belt": ((0.55, 0.42, 0.45), (1.05, 0.96, 0.88)), "eye": ((0.9, 0.9, 0.95), (1.03, 1.03, 1.03)),
             "chakram": ((0.4, 0.45, 0.58), (1.1, 1.1, 1.1))},
     "sunset": {"skin": ((0.55, 0.4, 0.42), (1.08, 0.9, 0.76)), "face": ((0.68, 0.52, 0.52), (1.12, 0.95, 0.82)),
@@ -113,7 +113,7 @@ DAY_FLAT_K = 1.0  ## (round 15: 0.55; round 16, "painterly smudges read as dirt"
 CHEST_LIFT = 0.1  ## (round 15, "keep the brightest values on the face and chest") light added to his chest and face
 FACE_FRAME = (-0.085, 0.28, 0.17)  ## (round 15) the drawn face's frame in the rest shape: the y and z of its lower left
 ## corner and its span (tools/art/hero_face.py; m["decal"]: the expression's picture, over the face's own colours)
-BOOT_CREAM = (0.5, 0.42, 0.3)  ## linear: the boots' white parts as cream leather, sRGB (0.74, 0.69, 0.59)
+BOOT_CREAM = (0.33, 0.24, 0.14)  ## (round 17: a tan leather, "white specular streaks: plastic rain boots")  ## linear: the boots' white parts as cream leather, sRGB (0.74, 0.69, 0.59)
 BOOT_CORD = (0.09, 0.045, 0.022)  ## the cords crossing them, a dark brown
 BOOT_BRASS = (0.45, 0.27, 0.06)  ## the band at their top
 BOOT_SOLE = (0.2, 0.11, 0.05)  ## a tan leather sole (round 16: the dark one "merged with the soil")
@@ -143,8 +143,8 @@ LOOK = {  # albedo saturation (lit), shade desaturation, shade cool tint (multip
 SAT_REGIONS = ("skin", "face", "hand", "scarf", "armour_blue", "belt")
 RIM_K = {"chakram": 1.0, "hair": 0.18, "eye": 0.0, "armour_blue": 0.7, "armour_silver": 0.5, "fur": 0.45, "face": 0.8}
 SHEEN_K = {"skin": 1.0, "face": 0.7, "hand": 0.8, "scarf": 0.45, "belt": 0.8}
-AO = {"hair": (0.06, 0.9), "fur": (0.06, 0.85), "armour_blue": (0.02, 0.45), "armour_silver": (0.02, 0.45),
-      "scarf": (0.03, 0.45), "belt": (0.02, 0.4), }
+AO = {"hair": (0.06, 0.9), "fur": (0.08, 0.95), "armour_blue": (0.02, 0.45), "armour_silver": (0.02, 0.45),
+      "scarf": (0.05, 0.8), "belt": (0.02, 0.4), }
 NORMAL_MAP = {"armour_blue": 0.75, "armour_silver": 0.75, "fur": 0.5, "belt": 0.6, "scarf": 0.3, "hair": 0.4}
 
 
@@ -402,7 +402,7 @@ def build(m, mode="day"):
     if region in AO:
         dist, k = AO[region]
         ao = g.node("ShaderNodeAmbientOcclusion", Distance=dist)
-        ao.samples = 16
+        ao.samples = 48  # (round 17: 16 left a "watercolour noise")
         ao.only_local = True
         g.link(N, ao.inputs["Normal"])
         occ = g.math("ADD", g.math("MULTIPLY", ao.outputs["AO"], k), 1.0 - k)
@@ -411,7 +411,7 @@ def build(m, mode="day"):
         # strands in value, darker roots under the belt and a darker underside
         strand2 = g.noise(P, (60.0, 60.0, 5.0), 1.0, 0.4)
         clump = g.noise(P, (24.0, 24.0, 2.5), 1.0, 0.35)  # tufts: big clumps, readable small (round 14: "scratchy dry-brush")
-        v = g.math("ADD", g.math("MULTIPLY", strand2, 0.12), 0.88)
+        v = g.math("ADD", g.math("MULTIPLY", strand2, 0.05), 0.95)  # (round 17: fine strands read as dither small)
         v = g.math("MULTIPLY", v, g.math("ADD", g.math("MULTIPLY", g.smooth(clump, 0.42, 0.5), 0.24), 0.8))
         sepw = g.node("ShaderNodeSeparateXYZ")
         g.link(geo.outputs["Normal"], sepw.inputs[0])
@@ -431,7 +431,7 @@ def build(m, mode="day"):
         # big locks (sRGB (0.42, 0.27, 0.17) at its brightest), no blue-grey sheen, no grey third step
         locks = g.smooth(g.noise(P, (16.0, 16.0, 16.0), 0.0, 0.4), 0.4, 0.6)
         band = g.math("MULTIPLY", band, g.math("ADD", g.math("MULTIPLY", locks, 0.7), 0.3))
-        colour = g.mix("ADD", g.math("MULTIPLY", band, 0.5), colour, (0.15, 0.06, 0.022))
+        colour = g.mix("ADD", g.math("MULTIPLY", band, 0.85), colour, (0.15, 0.06, 0.022))  # (round 17: 0.5, "a smudge")
         sd = BOLD_RIM[mode][2]
         toward_sun = g.math("ADD", g.math("MULTIPLY", sep.outputs["X"], sd[0]), g.math("MULTIPLY", sep.outputs["Y"], sd[1]))
         clump = g.math("MULTIPLY", g.smooth(toward_sun, 0.15, 0.55), g.smooth(edge, 0.25, 0.55))
@@ -539,7 +539,8 @@ def build(m, mode="day"):
         toward = g.math("MULTIPLY", g.smooth(toward, -0.1, 0.6), 1.0 if mode == "sunset" else 0.7)
         if mode == "sunset":
             toward = g.math("ADD", g.math("MULTIPLY", toward, 1.0 - UI_RIM_BACK), UI_RIM_BACK)
-        e = g.smooth(edge, 0.5, 0.62)  # a band, crisp-edged (cel), on the silhouette's edges
+        e = g.smooth(edge, 0.36, 0.5) if mode == "sunset" else g.smooth(edge, 0.5, 0.62)  # a band, crisp-edged (cel),
+        # on the silhouette's edges (round 17: thicker in the pictures, "a rim that reads at phone size")
         rim = g.math("MULTIPLY", g.math("MULTIPLY", e, toward), bk * min(RIM_K.get(region, 1.0) * 1.3, 1.0))
         colour = g.mix("MIX", rim, colour, bc if region != "hair" else tuple(x * 0.55 for x in bc))
         rk = 0
@@ -553,7 +554,7 @@ def build(m, mode="day"):
     g.link(em.outputs[0], out.inputs["Surface"])
     if region == "fur":  # the stepped fur edge: tufts pushed out along the normal (both faces: thickness)
         tuft = g.noise(P, (28.0, 28.0, 5.0), 1.0, 0.35)
-        disp = g.node("ShaderNodeDisplacement", Midlevel=0.4, Scale=0.0035)
+        disp = g.node("ShaderNodeDisplacement", Midlevel=0.4, Scale=0.006)  # (round 17: thick tufts, "printer paper")
         g.link(tuft, disp.inputs["Height"])
         g.link(disp.outputs[0], out.inputs["Displacement"])
         m.displacement_method = "DISPLACEMENT"

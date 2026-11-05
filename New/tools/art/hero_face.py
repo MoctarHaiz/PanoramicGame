@@ -26,7 +26,7 @@ N = 1024  ## px of the picture
 SS = 4  ## drawn at 4x and reduced (smooth edges)
 EYES = ((395.0, 538.0), (635.0, 538.0))  ## the old eyes' centres (picture px): his right eye, his left eye
 MOUTH = (513.0, 736.0)  ## the mouth's centre
-EYE_W = 192.0  ## px from corner to corner (round 14's were ~155; round 16: 178 -> 192, "bigger, cleaner shapes")
+EYE_W = 206.0  ## px from corner to corner (round 14's were ~155; round 16: 178 -> 192, "bigger, cleaner shapes")
 EYE_H = 0.5  ## the opening's height, a share of its width
 MOUTH_W = 168.0  ## (round 16: 150 -> 168)
 PAINT_WHITE = (0.97, 0.95, 0.9)  ## (round 16, "one distinctive, iconic feature": tribal face paint in his white and red)
@@ -188,7 +188,7 @@ def eye(cv, c, side, lids, gaze, iris_k, brow, tilt):
             y_peak + (y_out - y_peak) * ((t - 0.65) / 0.35) ** 1.5
         return x, y + H * 0.25 * tilt * (2 * t - 1)
     pts = _pts(brow_pt, 40)
-    cv.paint(INK, cv.mask(lambda d, s: stroke(d, s, pts, [W * (0.15 - 0.12 * (i / 39) ** 0.8) for i in range(40)])))
+    cv.paint(INK, cv.mask(lambda d, s: stroke(d, s, pts, [W * (0.18 - 0.13 * (i / 39) ** 0.8) for i in range(40)])))  # (round 17: a clearer brow)
 
 
 def mouth(cv, kind, opened, smile, width):
@@ -253,17 +253,16 @@ def mouth(cv, kind, opened, smile, width):
 
 
 def paint(cv):
-    """His face paint: on each cheek, under the outer half of the eye, a red stripe with a white one over it, swept
-    out and down; a red line and two white dots on his chin."""
+    """His face paint (round 17, "it reads as tears, spilled paint, a bruise, a scratch"): three crisp bars across each
+    cheekbone, away from the eye and the chin: white, red, white, square-ended, the middle one the longest."""
     for (cx, cy), side in zip(EYES, (-1, 1)):
-        for k, (colour, dy, w) in enumerate(((PAINT_WHITE, 70.0, 13.0), (PAINT_RED, 96.0, 17.0))):
-            pts = _pts(lambda t: (cx + side * (EYE_W * (0.02 + 0.5 * t)), cy + dy + 26.0 * t), 24)
-            cv.paint(colour, cv.mask(lambda d, s: stroke(d, s, pts, [w * (0.55 + 0.45 * math.sin(math.pi * (0.15 + 0.7 * i / 23))) for i in range(24)])))
-    mx, my = MOUTH
-    chin = _pts(lambda t: (mx, my + 62.0 + 42.0 * t), 12)
-    cv.paint(PAINT_RED, cv.mask(lambda d, s: stroke(d, s, chin, [12.0 - 5.0 * i / 11 for i in range(12)])))
-    for dx in (-26.0, 26.0):
-        cv.paint(PAINT_WHITE, cv.mask(lambda d, s: d.ellipse([(mx + dx - 7) * s, (my + 80 - 7) * s, (mx + dx + 7) * s, (my + 80 + 7) * s], fill=255)))
+        for k, (colour, dy, length) in enumerate(((PAINT_WHITE, 96.0, 70.0), (PAINT_RED, 122.0, 88.0), (PAINT_WHITE, 148.0, 70.0))):
+            x0 = cx + side * EYE_W * 0.08
+            x1 = x0 + side * length
+            y0, th = cy + dy, 15.0
+            tilt = 7.0 * side  # (rising a little to the outer cheek)
+            quad = [(x0, y0), (x1, y0 - tilt), (x1, y0 - tilt + th), (x0, y0 + th)]
+            cv.paint(colour, cv.mask(lambda d, s, q=quad: d.polygon([(x * s, y * s) for x, y in q], fill=255)))
 
 
 def tear(cv):
@@ -288,8 +287,7 @@ def make(name, e, base, base_a):
         eye(cv, c, side, e["lids"][i], gaze, e.get("iris", 1.0), e["brow"], tilt)
     paint(cv)
     mouth(cv, *e["mouth"])
-    if name == "dazed":
-        tear(cv)
+    # (round 17: no tear; with the paint it read as crying)
     out = np.concatenate([np.clip(cv.rgb, 0, 1), np.clip(cv.a, 0, 1)[..., None]], -1)
     Image.fromarray((out * 255 + 0.5).astype(np.uint8), "RGBA").save(DIR / f"face_{name}.png", optimize=True)
     print("face", name)

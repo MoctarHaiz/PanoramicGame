@@ -26,10 +26,11 @@ from scipy import ndimage
 
 NEW = Path(__file__).resolve().parents[2]
 ROOT = next(p for p in NEW.parents if (p / "Making").is_dir())  # the folder with the user's Blender files
-RENDER = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "_agents/AAA/hero3d/render/r16/game"  # (round 16: hero3d/render/render_r16.sh)
+RENDER = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "_agents/AAA/hero3d/render/r17/game"  # (round 17: hero3d/render/render_r17.sh)
 GROUND_SPEED = 8.0 * 960.0 / 1320.0 * 40.0  ## units a second the ground scrolls (World.SCROLL_SPEED)
 OUT = NEW / "assets/art/hero"
-SCALE = 0.40  ## render px -> atlas px (1024 renders: he stands ~690 px, ~276 px in the atlas; the ink line costs a little room)
+SCALE = 0.50  ## render px -> atlas px (round 17: 0.4 drew him upscaled up to 1.26x in play, 1.6x at home: "a low-res
+## sprite on a high-res backdrop"; at 0.5 he is at most 1.0x in play) (1024 renders: he stands ~690 px, ~276 px in the atlas; the ink line costs a little room)
 DRAW_HEIGHT = 150.0  ## units he stands in the game (GameArt.HERO_DRAW_HEIGHT)
 STAND_PX = 690.0  ## his standing height (boots to hair) in a 1024 render
 PAGE = 2048
@@ -64,7 +65,7 @@ def premultiplied_resize(img: Image.Image, k: float) -> np.ndarray:
 
 
 INK = np.array([0.1, 0.045, 0.035])  ## the ink of the outline: a warm near-black brown (pass 3: darker, for the pale sky)
-INK_PX = 2.7  ## atlas px of ink round his outer silhouette, on the shadow side (pass 3: 1.6 -> 2.2, "almost no value contrast against the sky"; round 11: 2.8 -> 3.2, "a brown smudge on the rock"; round 15: 2.7, "thinner ink", and INK_LIT of it on the lit side)
+INK_PX = 3.1  ## atlas px of ink round his outer silhouette, on the shadow side (pass 3: 1.6 -> 2.2, "almost no value contrast against the sky"; round 11: 2.8 -> 3.2, "a brown smudge on the rock"; round 15: 2.7, "thinner ink", and INK_LIT of it on the lit side)
 INK_PX_UI = 2.4  ## the same, scaled to the interface pictures (round 15: 2.8 -> 2.4)
 
 
@@ -111,7 +112,7 @@ def sun_rim(arr: np.ndarray, px: float = RIM_PX, rim=RIM_DAY, dark: float = 0.22
 
 
 INK_SS = 4  ## the outline is drawn at 4x and reduced: a smooth anti-aliased edge (round 11: "a jagged, uneven stroke")
-INK_CALM = 0.2  ## its contour calmed over this share of its width (no bumps where a strand of fur pokes out)
+INK_CALM = 0.35  ## its contour calmed over this share of its width (no bumps where a strand of fur pokes out)
 ## (round 15, every judge: "a thick, even, near-black outline with a paler band just inside it: a die-cut sticker";
 ## "a thinner outline in a dark shade of the local colour, thinner on the lit side") the line takes the colour it
 ## edges, darkened, and thins on the edges towards the sun
@@ -252,6 +253,7 @@ def main() -> None:
         fn = f"hero_atlas_{pi}.png"
         img.save(OUT / fn, optimize=True)
         names.append(fn)
+        same_import(fn)
         print(fn, img.size)
     for j, (name, i, arr, (ox, oy)) in enumerate(frames):
         pi, x, y = placed[j]
@@ -275,6 +277,18 @@ def main() -> None:
     (OUT / "hero_frames.json").write_text(json.dumps(data, separators=(",", ":")))
     total = sum(np.prod(p.shape[:2]) for p in pages)
     print(f"{len(frames)} frames, {len(names)} pages, {total / 1e6:.2f} Mpx")
+
+
+def same_import(fn: str) -> None:
+    """A new atlas page imports as the first does (VRAM compressed, mipmaps): round 17's fourth page came in with the
+    project's lossless default and cost 13 MB."""
+    first, imp = OUT / "hero_atlas_0.png.import", OUT / (fn + ".import")
+    if fn == "hero_atlas_0.png" or not first.exists():
+        return
+    uid = next((l for l in imp.read_text().splitlines() if l.startswith("uid=")), None) if imp.exists() else None
+    lines = first.read_text().replace("hero_atlas_0.png", fn).splitlines()
+    lines = [l for l in lines if not l.startswith("uid=")] if uid is None else [uid if l.startswith("uid=") else l for l in lines]
+    imp.write_text("\n".join(lines) + "\n")
 
 
 def trimmed(path: Path, height: int, sunset: bool = False, under: np.ndarray | None = None,
@@ -360,7 +374,8 @@ def backed(arr: np.ndarray, k: float = 0.45) -> np.ndarray:
     return out
 
 
-TRAIL = np.array([1.0, 0.62, 0.3])  ## the throw trail's colour (round 16: the sunset's, "a tapered additive trail
+TRAIL = np.array([0.4, 0.82, 1.0])  ## (round 17: a cold cyan again, "a coloured trail with contrast against the sunset")
+_TRAIL_R16 = np.array([1.0, 0.62, 0.3])  ## the throw trail's colour (round 16: the sunset's, "a tapered additive trail
 ## that fades to zero, in sunset colours"; it was the steel's cold blue)
 
 
@@ -415,7 +430,7 @@ def throw_trail(folder: Path) -> np.ndarray:
     a = np.maximum(np.maximum(np.maximum(band, core), lines), glow)
     a *= np.clip((np.hypot(xx - centre[0], yy - centre[1]) - radius * 0.98) / 3.0, 0.0, 1.0)  # (not in the ring's hole)
     white = np.clip(np.maximum(core * 1.3, lines * 0.6), 0, 1)
-    rgb = TRAIL + (np.array([1.0, 0.95, 0.82]) - TRAIL) * white[..., None]  # the core and the lines run white-hot
+    rgb = TRAIL + (np.array([0.92, 0.98, 1.0]) - TRAIL) * white[..., None]  # the core and the lines run white-hot
     out[y0:y1, x0:x1, :3] = rgb
     out[y0:y1, x0:x1, 3] = a
     return out

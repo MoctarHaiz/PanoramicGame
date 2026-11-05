@@ -213,11 +213,11 @@ static func _hero(won: bool) -> TextureRect:
 	else:
 		var tex_size := art.texture.get_size()
 		# whatever his shape he stays clear of the card's frame and band (a little air between)
-		if tex_size.x > tex_size.y * 1.35:  # lying on the ground (very wide; round 15's knocked-out sprawl is 1.23)
+		if tex_size.x > tex_size.y * 1.75:  # lying on the ground (very wide; round 17: the KO sit is 1.59)
 			art.set_meta(&"tall", 0.5)
 			art.set_meta(&"overlap", -0.03)
 		elif tex_size.x > tex_size.y * 1.15:  # (round 15) knocked out, sprawled: low, so a little taller
-			art.set_meta(&"tall", 0.76)
+			art.set_meta(&"tall", 0.7)
 			art.set_meta(&"overlap", -0.03)
 		elif tex_size.x > tex_size.y * 0.8:  # seated (wide): on the ground beside the card, big enough
 			art.set_meta(&"tall", 0.66)  # not to float small in the dark

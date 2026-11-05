@@ -20,9 +20,9 @@ const ROCK := "res://assets/art/ui/menu_rock.png"  ## loaded with the menu (7 MB
 const ROCK_STAND := Vector2(1390, 152)  ## where his feet go on the rock, in its pixels (tools/art/ui_hero.py)
 const ROCK_LEDGE := 660.0  ## the rock's flat top his stance spans, boot to boot, in its pixels
 const ROCK_TILT := -0.066  ## the rock turned a little (radians) so its ledge is level under both boots
-const STANCE := 0.718  ## his stance, boot to boot, as a share of the render's width (hero_menu.png; round 15's throw,
-## its free arm and trail further out: 0.81 -> 0.718)
-const FEET_X := 0.474  ## the point between his boots, as a share of its width (round 15: 0.515 -> 0.474)
+const STANCE := 0.629  ## his stance, boot to boot, as a share of the render's width (hero_menu.png; round 15's throw,
+## its free arm and trail further out: 0.81 -> 0.629, round 17 0.629)
+const FEET_X := 0.424  ## the point between his boots, as a share of its width (round 17: 0.424)
 const HERO_WIDE := 0.36  ## at most this share of the screen's width (round 15: 0.33; the wider throw kept as tall)
 const HERO_TALL := 0.8  ## his height, as a share of the screen's
 const FEET_AT := 0.9  ## where his feet stand, as a share of the screen's height
@@ -312,7 +312,7 @@ func _layout() -> void:
 	# the sun, low, between him and the title: it rims him and fills the middle with light
 	# the sun right behind him, low: he stands against it, rim-lit, and the title column keeps calm
 	# sky behind it
-	var sun := _hero.position + Vector2(w * 0.5, h * 0.42)
+	var sun := _hero.position + Vector2(w * 0.46, h * 0.22)  # (round 17: behind his shoulders; at his belt it "washed out the abs")
 	_backdrop.sun_at = sun / v
 	_halo_glow.size = Vector2(v.y * 1.5, v.y * 1.5)
 	_halo_glow.position = sun - _halo_glow.size / 2

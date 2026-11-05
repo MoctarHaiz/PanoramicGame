@@ -597,3 +597,35 @@ Blender (`hero3d/render/render_r15.sh` -> `r15/`).
 - **Portrait**: rendered on its own (`pose_portrait`, `hero_atlas.py PORTRAIT=1`); `head.png` re-cut from it
   (`ui_art.py FACE`).
 - The menu layout refitted (`menu_screen.gd STANCE` 0.718, `FEET_X` 0.474).
+
+## Round 17 (the hero; round 16 won the A/B 6/6; 0/7 against the references, hero 4.6)
+
+- **"Crunchy" in play, measured**: the screen draws 1179 / 640 = 1.84 px a unit times the camera's zoom (1.0-1.26 in
+  play, 1.6 pushed in at home); at `SCALE` 0.4 an atlas pixel was 0.54 units, so he was drawn **upscaled 1.0-1.26x in
+  play and 1.6x at home**. Now `SCALE` 0.5 (0.43 units a pixel): at most 1.0x in play, 1.28x at home. The pages are VRAM
+  compressed (BC3 on desktop, ETC2 on phones: two colours a 4x4 block), which posterized the noisy skin; nothing else
+  quantizes or dithers (the atlas packing and `actor.gdshader` keep full colour). The level was rendered at 32 samples
+  with 16-sample occlusion (the speckle): now 64 and 48, and the fur's fine strands (dither at that size) almost gone.
+- **Skin forms**: a Smooth modifier on the skin's and hands' vertices only, before the rig (live, `AAA_skin_forms`,
+  12 iterations): the cel bands no longer cut across the sculpt's small noise ("a threshold filter").
+- **Head 1.5x** (`HEAD_SCALE`, was 1.3); the eye 206 px, the brow thicker (`hero_face.py`); the face paint three crisp
+  square-ended bars across each cheekbone (white, red, white), none on the chin, no tear ("tears, a bruise, a scratch").
+- **Materials**: the left sleeve's upper arm made skin (live), the forearm's armour kept as a fitted bracer; the boots'
+  cream a tan leather (`BOOT_CREAM`); thick fur tufts (displacement 0.006, deeper occlusion); hair highlights stronger
+  (0.85); the scarf's folds darker; the pictures' hot rim thicker; the throw trail cyan again (contrast with the
+  sunset), still fading to nothing.
+- **Outline**: thicker on the shadow side (`INK_PX` 3.1 at the new scale) and calmer (`INK_CALM` 0.35), 0.45 of it on
+  the lit side.
+- **Light**: the menu's sun behind his shoulders (`menu_screen.gd`, it "washed out the abs" at his belt); at home the back
+  rim 0.9.
+- **Poses**: the start a contrapposto (weight on the far leg, the near knee bent, hips and shoulders tilted against each
+  other) holding the chakram at his side; game over one KO shape (leaning back, both legs out to the side, toes up,
+  arms limp); the win's free arm wide; home's knee driven up and out; the menu's lunge 0.8 as wide, the hips into the
+  throw; the jump's face turned to us on every frame.
+- The jump's leading arm lowered under his face (raised, it hid it from the side camera) and his chin up.
+- The atlas grew to 4 pages (15.1 Mpx); the fourth came in with the project's lossless default (13 MB:
+  texture memory 80.0 MB, over budget): `hero_atlas.py same_import()` now gives every new page page 0's compressed
+  import. With it: 70.4 MB. The planted-boot test's tolerance 2 -> 2.5 atlas px (a step sat on its edge at 0.5).
+- Checked: 1089 checks, 0 failed (with the bot); 70.4 MB, worst frame 7.28 ms; captures and crops in
+  `ROOT/_agents/AAA/round_17/art/` (`hero/`, `r16_recut/`, `hero_before_after.png`). Left: a small dark dashed arc by
+  his waist in the jump (stray strands); the level rendered at 64 samples took 48 minutes: iterate with `--test`.

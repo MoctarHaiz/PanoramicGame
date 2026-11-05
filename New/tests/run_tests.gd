@@ -2031,7 +2031,7 @@ func _test_art() -> void:
 		var a: Dictionary = run[i]
 		var b: Dictionary = run[(i + 1) % run.size()]
 		for toe in ["toe_r", "toe_l"]:
-			if a[toe][1] - a.origin[1] > ground - 2.0 and b[toe][1] - b.origin[1] > ground - 2.0:
+			if a[toe][1] - a.origin[1] > ground - 2.5 and b[toe][1] - b.origin[1] > ground - 2.5:  # (round 17: 2 px sat on a step's edge at the finer atlas)
 				steps.append((a[toe][0] - a.origin[0]) - (b[toe][0] - b.origin[0]))
 	var mean := 0.0
 	for d in steps:
@@ -2200,7 +2200,7 @@ func _test_art_round10() -> void:
 	for y in range(0, menu.get_height() / 3, 3):
 		for x in range(menu.get_width() / 2, menu.get_width(), 3):
 			var c := menu.get_pixel(x, y)
-			trail += 1 if c.a > 0.15 and c.a < 0.9 and c.r > 0.8 and c.g > 0.45 else 0  # the hot, half-clear streak (round 16: sunset colours)
+			trail += 1 if c.a > 0.15 and c.a < 0.9 and c.b > c.r else 0  # the cold, half-clear streak (round 17: cyan again)
 	# (round 16: the trail sunset-hot and fading to nothing at its tail, partly behind his hair: fewer half-clear pixels)
 	_check(trail > 40, "the menu's ring leaves a trail from his hand (%d samples)" % trail)
 

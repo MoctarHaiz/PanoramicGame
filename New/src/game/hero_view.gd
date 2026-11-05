@@ -424,7 +424,7 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 	# (hero pass 3) at home the campfire, on his left, warms that side of him
 	var home_k := clampf(_end_time / 0.5, 0.0, 1.0) if phase == &"home" else 0.0
 	_material.set_shader_parameter(&"bounce", 0.6 * home_k)
-	_material.set_shader_parameter(&"back_rim", 0.65 * home_k)  # (round 16: 0.4 -> 0.65, "the head vanishes into the doorway")  # (round 10) and the lit hut behind him rims him (round 14: lighter, "an orange outer-glow outline, a cut-out halo")
+	_material.set_shader_parameter(&"back_rim", 0.9 * home_k)  # (round 16: 0.4 -> 0.65, "the head vanishes into the doorway")  # (round 10) and the lit hut behind him rims him (round 14: lighter, "an orange outer-glow outline, a cut-out halo")
 	# (round 14: round 13's darker front "merged with the dark doorway": his front light kept at home)
 	_material.set_shader_parameter(&"bounce_scale", 2.0 / maxf(float(region[2]), 1.0))
 	_update_shadow(w, p)
