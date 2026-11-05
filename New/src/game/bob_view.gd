@@ -8,9 +8,9 @@ extends Node2D
 ## When Panoramic takes it, the game screen flies a copy to the counter (BobView.flier()).
 
 const DIR := "res://assets/art/bob/"
-const SIZE := 28.0  ## drawn width in units (a 32-unit tile: neighbours apart, never overlapping as they bob)
+const SIZE := 24.0  ## drawn width in units (a 32-unit tile: round 13, "13 identical gems packed edge to edge, a noisy red bar": each with air round it; the rules' pickup unchanged)
 enum Face { SMILE, BLINK, JOY, WINK }
-const SPEC_AT := Vector2(-5.9, -6.4)  ## units from its middle (at SIZE): bob_sheet.py's hard glint
+const SPEC_AT := Vector2(-5.1, -5.5)  ## units from its middle (at SIZE): bob_sheet.py's hard glint
 
 static var _sheet: Texture2D
 static var _frame_px := 128
@@ -89,15 +89,14 @@ func _init(column := 0, row := 0) -> void:
 	_shine.material = _additive
 	_shine.draw.connect(_draw_glint)
 	add_child(_shine)
-	# a wave along a row (neighbours a quarter beat apart) with a golden-angle jitter: a row reads as a
-	# ripple, not a copy-pasted line
-	_phase = fposmod(column * 1.2 + row * 1.618 + fposmod(column * 2.399, 1.2), TAU)
 	# round 6 ("stamped tomatoes"): each a little bigger or smaller and leaning its own way
 	var h := fposmod(sin(column * 12.9898 + row * 78.233) * 43758.5453, 1.0)
+	# its own beat (round 13, "13 identical gems": a smooth wave along a row read as one bar): a scattered phase
+	_phase = fposmod(h * 91.7 + column * 2.399, TAU)
 	_scale *= 0.88 + 0.22 * h
 	_tilt = (fposmod(h * 7.31, 1.0) - 0.5) * 0.7
 	_face = [Face.SMILE, Face.JOY, Face.SMILE, Face.WINK, Face.JOY][int(h * 97.0) % 5]
-	_pace = 3.0 + fposmod(column * 0.37 + row * 0.53, 0.8)
+	_pace = 2.6 + 1.4 * fposmod(h * 37.1, 1.0)
 	_clock = 0.0
 	_blink_at = 1.0 + fposmod(column * 1.37 + row * 0.71, 4.0)
 	_glint_at = 0.2 + fposmod(column * 0.41 + row * 1.9, 3.0)

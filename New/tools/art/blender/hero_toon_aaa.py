@@ -80,9 +80,13 @@ BOLD_STOPS = (0.0, 0.155, 0.185, 1.0)
 ## a slightly softer step, the face lit, the steel ring dark at its core and bright on its polish
 UI_FLAT = {"skin": (0.305, 0.0864, 0.0298), "hand": (0.305, 0.0864, 0.0298)}  ## (linear: the albedo picture's mean skin, sRGB (0.588, 0.325, 0.189))
 UI_BANDS = {"skin": ((0.62, 0.4, 0.33), (1.12, 0.93, 0.78)), "hand": ((0.64, 0.42, 0.35), (1.12, 0.93, 0.78)),
-            "face": ((0.84, 0.66, 0.58), (1.16, 0.98, 0.85)), "chakram": ((0.16, 0.2, 0.36), (1.2, 1.2, 1.28))}
+            "face": ((0.84, 0.66, 0.58), (1.16, 0.98, 0.85)), "chakram": ((0.12, 0.15, 0.3), (1.3, 1.3, 1.36)),
+            "fur": ((0.78, 0.62, 0.52), (1.08, 1.0, 0.86))}  ## (round 13: the loincloth warm white, "flat grey")
+UI_FACE_LIFT = 0.22  ## (round 13, "the face lost in shadow under the hair") light added to the face in the pictures
 UI_STOPS = (0.0, 0.14, 0.2, 1.0)  ## the terminator: a crisp step (a pixel or two of softening)
-BOLD_RIM = {"day": ((1.0, 0.62, 0.26), 0.6, (-0.6, 0.8)), "sunset": ((1.0, 0.5, 0.12), 1.0, (0.62, 0.78))}
+BOLD_RIM = {"day": ((1.0, 0.62, 0.26), 0.6, (-0.6, 0.8)), "sunset": ((1.0, 0.62, 0.3), 1.0, (-0.6, 0.7))}
+## (round 13, "a pale outline glow rings the hero" on every interface picture: the sunset rim lay on every edge (a 0.3
+## floor); now only on the edges towards the sun, upper left as in the level: a rim against the sky, not a halo)
 ## (sunset: the key lights him from the front-left, the sun's hot rim takes the other edges, upper right)
 BOLD_ALBEDO = {"scarf": (0.5, 0.02, 0.015), "armour_blue": None}  ## flat linear colours (scarf: no blotches)
 # light levels (Shader to RGB of a white diffuse under the key sun 3.2 and the fill) where the bands turn
@@ -249,6 +253,8 @@ def build(m, mode="day"):
     if region == "fur":  # strands: the light itself broken along them (a stepped terminator)
         strand = g.noise(P, (90.0, 90.0, 7.0), 1.5, 0.5)
         L = g.math("ADD", L, g.math("MULTIPLY", g.math("SUBTRACT", strand, 0.5), 0.18))
+    if region == "face" and mode == "sunset":  # (round 13) out of the hair's shadow
+        L = g.math("ADD", L, UI_FACE_LIFT)
     if region == "hair":  # the locks: their own terminator, broken per lock
         lock = g.noise(P, (38.0, 38.0, 38.0), 1.0, 0.4)
         L = g.math("ADD", L, g.math("MULTIPLY", g.math("SUBTRACT", lock, 0.5), 0.16))
@@ -355,7 +361,9 @@ def build(m, mode="day"):
             # sky in two bright lobes across it (upper left, lower right) and dark steel between, crisp like cel bands
             lobe = g.math("COSINE", g.math("MULTIPLY", g.math("SUBTRACT", ang, 2.36), 2.0))
             chrome = g.smooth(lobe, -0.05, 0.25)
-            colour = g.mix("MIX", chrome, (0.07, 0.09, 0.17), colour)
+            colour = g.mix("MIX", chrome, (0.05, 0.07, 0.14), colour)
+            # (round 13, "a plain grey torus") the hot core of each lobe runs white, crisp
+            colour = g.mix("MIX", g.math("MULTIPLY", g.smooth(lobe, 0.72, 0.8), 0.85), colour, (1.0, 0.98, 0.95))
         colour = g.mix("MULTIPLY", g.math("MULTIPLY", eng, 0.75), colour, (0.18, 0.2, 0.3))
         edge_band = g.smooth(r, 0.063, 0.068)
         gl = g.node("ShaderNodeBsdfGlossy", Roughness=0.08)
@@ -405,7 +413,7 @@ def build(m, mode="day"):
         if m.get("rim"):  # (round 9) the material's own rim colour and strength (the bandit's cold rim)
             bc, bk = tuple(m["rim"]), m.get("rim_k", bk)
         toward = g.math("ADD", g.math("MULTIPLY", sep.outputs["X"], sd[0]), g.math("MULTIPLY", sep.outputs["Y"], sd[1]))
-        toward = g.math("ADD", g.math("MULTIPLY", g.smooth(toward, -0.1, 0.6), 0.7), 0.3 if mode == "sunset" else 0.0)
+        toward = g.math("MULTIPLY", g.smooth(toward, -0.1, 0.6), 1.0 if mode == "sunset" else 0.7)
         e = g.smooth(edge, 0.5, 0.62)  # a band, crisp-edged (cel), on the silhouette's edges
         rim = g.math("MULTIPLY", g.math("MULTIPLY", e, toward), bk * min(RIM_K.get(region, 1.0) * 1.3, 1.0))
         colour = g.mix("MIX", rim, colour, bc if region != "hair" else tuple(x * 0.55 for x in bc))

@@ -10,7 +10,7 @@ hips, head, toes and hands (airborne frames hang from the hips, hanging ones fro
 Also writes the interface pictures (hero_menu.png, hero_win.png, hero_defeat.png) and portrait.png (the
 source of the HUD badge, the icons and the store art: tools/art/ui_art.py, icons.py, tools/store_art.py).
 
-    python3 tools/art/hero_atlas.py [RENDER_DIR]   # default ROOT/_agents/AAA/hero3d/render/r12/game
+    python3 tools/art/hero_atlas.py [RENDER_DIR]   # default ROOT/_agents/AAA/hero3d/render/r13/game
 
 (The AAA hero: rendered by hero_render.py from ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend, see
 ROOT/_agents/AAA/hero3d/render/render_all.sh; the interface pictures come from RENDER_DIR/../render_ui.)
@@ -26,7 +26,7 @@ from scipy import ndimage
 
 NEW = Path(__file__).resolve().parents[2]
 ROOT = next(p for p in NEW.parents if (p / "Making").is_dir())  # the folder with the user's Blender files
-RENDER = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "_agents/AAA/hero3d/render/r12/game"  # (round 12: the level's animations round 11's, the interface pictures new: hero3d/render/render_r12.sh)
+RENDER = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "_agents/AAA/hero3d/render/r13/game"  # (round 13: the hang, the catch and the cheer new, the rest round 11's; the interface pictures new: hero3d/render/render_r13.sh)
 GROUND_SPEED = 8.0 * 960.0 / 1320.0 * 40.0  ## units a second the ground scrolls (World.SCROLL_SPEED)
 OUT = NEW / "assets/art/hero"
 SCALE = 0.40  ## render px -> atlas px (1024 renders: he stands ~690 px, ~276 px in the atlas; the ink line costs a little room)
@@ -69,16 +69,20 @@ INK_PX_UI = 2.8  ## the same, scaled to the interface pictures (as before)
 
 
 SUN = np.array([-0.6, -0.8])  ## towards the sun on screen (x right, y down): upper left, as in the world
-RIM_PX = 4.2  ## atlas px of the hot rim on the sun side (hero pass 2: "a thick hot band, not a thin line"; round 11: 3.4 -> 4.2)
+RIM_PX = 5.0  ## atlas px of the hot rim on the sun side (hero pass 2: "a thick hot band, not a thin line"; round 11: 3.4 -> 4.2; round 13: 5.0)
 RIM_PX_UI = 2.4  ## the same, scaled to the interface pictures (round 11: 3.4 -> 2.4, "a lighter halo" inside the line)
-RIM_DAY = (np.array([1.0, 0.72, 0.36]), 0.75)  ## colour, strength (round 11: lighter and stronger, to part him from the rock)
-RIM_SUNSET = (np.array([1.0, 0.48, 0.12]), 0.75)
+RIM_DAY = (np.array([1.0, 0.94, 0.8]), 1.0)  ## colour, strength (round 11: lighter and stronger, to part him from the rock;
+## round 13, "orange-brown on the orange pillar, no rim light, the third thing you see": a warm white back light)
+RIM_DAY_DARK = 0.55  ## how much of it his black hair takes in the level (a backlit sheen on the locks)
+RIM_DAY_FALL = 0.7  ## a solid band in the level, readable at phone size (the interface pictures keep a line)
+RIM_SUNSET = (np.array([1.0, 0.78, 0.48]), 0.8)  ## (round 13: warmer white, the rim against the sky; on the sun side only)
 
 
-def sun_rim(arr: np.ndarray, px: float = RIM_PX, rim=RIM_DAY, dark: float = 0.22) -> np.ndarray:
+def sun_rim(arr: np.ndarray, px: float = RIM_PX, rim=RIM_DAY, dark: float = 0.22, fall: float = 1.6) -> np.ndarray:
     """A thick hot band inside the silhouette, only on the edges that face the sun (the shadow side's
     edges keep the dark of the form: no pale fringe inside the ink). Applied before inked(). `dark`: how
-    much of the band the darkest colours take (his black hair: a faint sheen; 1: all, the dark bandit)."""
+    much of the band the darkest colours take (his black hair: a faint sheen; 1: all, the dark bandit); `fall`: how
+    fast it fades into the form (1.6: a line at the edge; under 1: a solid band)."""
     a = arr[..., 3]
     inside = a > 0.5
     if not inside.any():
@@ -91,7 +95,7 @@ def sun_rim(arr: np.ndarray, px: float = RIM_PX, rim=RIM_DAY, dark: float = 0.22
     f = np.clip((facing - 0.15) / 0.5, 0.0, 1.0)
     f = f * f * (3 - 2 * f)
     t = np.clip(1.0 - (d - 0.5) / px, 0.0, 1.0)
-    band = (t ** 1.6) * f * inside * rim[1]  # strongest at the edge, a soft fall into the form
+    band = (t ** fall) * f * inside * rim[1]  # strongest at the edge, a fall into the form
     lum = arr[..., :3] @ np.array([0.3, 0.59, 0.11])
     band = band * (dark + (1.0 - dark) * np.clip(lum / 0.4, 0.0, 1.0))  # the black hair stays black (a faint warm sheen)
     rgb = arr[..., :3]
@@ -191,7 +195,7 @@ def main() -> None:
         origin = points.get("origin")
         meta[name] = {"fps": fps, "loop": loop, "frames": [], "k": k, "points": points, "origin": origin}
         for i in idx:
-            arr = inked(sun_rim(premultiplied_resize(Image.open(files[i]), k)))
+            arr = inked(sun_rim(premultiplied_resize(Image.open(files[i]), k), dark=RIM_DAY_DARK, fall=RIM_DAY_FALL))
             ys, xs = np.nonzero(arr[..., 3] > 0.004)
             x0, x1 = max(xs.min() - PAD, 0), min(xs.max() + PAD + 1, arr.shape[1])
             y0, y1 = max(ys.min() - PAD, 0), min(ys.max() + PAD + 1, arr.shape[0])
@@ -355,7 +359,7 @@ def throw_trail(folder: Path) -> np.ndarray:
         return a.reshape(yy.shape)
 
     tt = t[:, 0]
-    band = stroke(curve, lambda k: radius * 0.8 * k ** 0.7, lambda k: 0.3 + 0.6 * k)
+    band = stroke(curve, lambda k: radius * 0.85 * k ** 0.7, lambda k: 0.38 + 0.6 * k)  # (round 13: "a stronger smear")
     core = stroke(curve, lambda k: radius * 0.24 * k ** 0.7, lambda k: 0.95 * k ** 0.7)
     lines = np.zeros_like(band)
     for sgn in (-1.0, 1.0):  # speed lines either side, along the middle of the flight

@@ -463,3 +463,25 @@ win and defeat renders; (6) the studio logo; (7) the null texture on the first b
   `r11/game`). The HUD ruby icon was not needed (UX's counter already shows the ruby; QA: its coral comes from a
   pickup glow).
 - Tests: `_test_art_round12()` (the light gain in play).
+
+## Round 13 (only art and ux this round)
+
+- **The pale halo** on game over, win and menu (every judge, three rounds): at 100 % zoom it was a light band just
+  inside the ink on every edge: the sunset pictures' 3D rim had a 0.3 floor all round (`hero_toon_aaa.py`
+  `BOLD_RIM`). Now the rim lies only on the edges towards the sun (upper left, as in the level): a rim against the
+  sky, not a ring (the 2D `RIM_SUNSET` a warmer white, on the sun side only). The bleed under the transparent pixels
+  was already the ink's colour (checked).
+- **In play** ("mid-brown on mid-brown, no rim light"): `hero_atlas.py` `RIM_DAY` a warm white (1.0, 0.94, 0.8) at
+  full strength, `RIM_PX` 5.0, a solid band (`sun_rim(fall=0.7)`) and his hair takes more of it (`RIM_DAY_DARK`
+  0.55). Measured on the game shot (`/tmp`-style script: his inked silhouette vs the 40 px round him): his mean
+  luminance 0.564 -> 0.602, his lit quartile 0.778 -> 0.847 (the sky round him 0.74).
+- **Menu key art** (round 12's skin kept): the face lifted out of the hair's shadow (`UI_FACE_LIFT`), the loincloth a
+  warm white with shading (`UI_BANDS["fur"]`), the steel ring's lobes with white-hot cores, a stronger trail.
+- **Hang**: knees bent and the legs swinging under him (`pose_hang`). **Home**: an asymmetric cheer (one fist punched
+  high, the other pumping at his chest, a lean; `pose_win`), his front falling into the hut's backlight
+  (HeroView `light_gain` 1.28 -> 0.92 at home, the back rim at full).
+- **Red Bobs**: drawn 24 units (was 28; the rules' pickup unchanged), each on its own beat and pace (no smooth
+  wave along a row).
+- Renders: `hero3d/render/render_r13.sh` -> `r13/` (hang, catch, win; the interface pictures); the other level
+  animations round 11's (symlinked).
+- Tests: `_test_art_round13()` (the smaller Bobs, their scattered beats, the backlit home).

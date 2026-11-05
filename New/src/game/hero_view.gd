@@ -423,7 +423,9 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 	# (hero pass 3) at home the campfire, on his left, warms that side of him
 	var home_k := clampf(_end_time / 0.5, 0.0, 1.0) if phase == &"home" else 0.0
 	_material.set_shader_parameter(&"bounce", 0.6 * home_k)
-	_material.set_shader_parameter(&"back_rim", 0.9 * home_k)  # (round 10) and the lit hut behind him rims him
+	_material.set_shader_parameter(&"back_rim", home_k)  # (round 10) and the lit hut behind him rims him
+	# (round 13, "lit flat from the front") at home his front falls a little into the hut's backlight
+	_material.set_shader_parameter(&"light_gain", lerpf(LIGHT_GAIN, 0.92, home_k))
 	_material.set_shader_parameter(&"bounce_scale", 2.0 / maxf(float(region[2]), 1.0))
 	_update_shadow(w, p)
 	if is_instance_valid(_under):

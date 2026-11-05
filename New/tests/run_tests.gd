@@ -2099,6 +2099,7 @@ func _test_art() -> void:
 	_test_art_round10()
 	_test_art_round11()
 	_test_art_round12()
+	_test_art_round13()
 
 
 ## Round 9: the hero's boots on the ground in every grounded frame; the bandit reads in every moment (its sheet
@@ -2223,6 +2224,39 @@ func _test_art_round12() -> void:
 	var gain: float = hero._material.get_shader_parameter(&"light_gain")
 	_check(gain > 1.15, "in play his lit colours are raised (light_gain %.2f)" % gain)
 	hero.free()
+
+
+## Round 13: the Red Bobs drawn smaller (each with air round it; the rules' pickup unchanged) on beats of their own
+## (no smooth wave along a row), and at home his front falls into the lit hut's backlight.
+func _test_art_round13() -> void:
+	_check(BobView.SIZE < 28.0, "Red Bobs drawn smaller than their 28-unit round 12 size (%.0f)" % BobView.SIZE)
+	var phases: Array[float] = []
+	for c in 8:
+		var b := BobView.new(100 + c, 6)
+		phases.append(b._phase)
+		b.free()
+	var steps := 0.0
+	var mean := 0.0
+	var gaps: Array[float] = []
+	for i in 7:
+		var d := fposmod(phases[i + 1] - phases[i], TAU)
+		gaps.append(d)
+		mean += d / 7.0
+	for d in gaps:
+		steps += absf(d - mean) / 7.0
+	_check(steps > 0.4, "neighbouring Red Bobs keep beats of their own, not one wave (spread %.2f rad)" % steps)
+	var holder := Node2D.new()
+	add_child(holder)
+	var hero := HeroView.new()
+	holder.add_child(hero)
+	var w := _standing_world()
+	w.state = World.State.WON
+	w.end_time = World.HOME_LAND + 0.4
+	for i in 4:
+		hero.show_state(w, w.draw_hero(), 1.0 / 60.0)
+	var gain: float = hero._material.get_shader_parameter(&"light_gain")
+	_check(gain < 1.0, "at home his front falls into the hut's backlight (light_gain %.2f)" % gain)
+	holder.queue_free()
 
 
 ## The staging hooks for the views (the rules unchanged): a bandit's blow is seen coming (its swing
