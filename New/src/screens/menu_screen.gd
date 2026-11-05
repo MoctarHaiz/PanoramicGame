@@ -39,6 +39,7 @@ var _rock: TextureRect
 var _shadow: TextureRect  # his shadow on the rock
 var _front: TextureRect  # dark backlit grass across the bottom, in front of the rock's foot
 var _halo_glow: ColorRect
+var _backing: TextureRect  # the dusk shade behind him (key art k11)
 var _logo_box: Control  # sized by _layout; the logo and its ribbon inside
 var _logo: TextureRect
 var _ribbon: Control
@@ -62,7 +63,7 @@ func enter(_data: Dictionary) -> void:
 	_backdrop.horizon = 0.8  # more sky: the horizon doesn't cut the frame in half
 	_backdrop.tree_x = 0.37  # the small acacia between him and the title, not behind the buttons
 	_backdrop.sun_disc = 0.0  # (key art k6) its bloom only: the layered sun is painted over it here (_halo_glow)
-	_backdrop.sun_glow = 0.5  # (key art k6: the two blooms added up clipped the haze to a pale wash, no corona)
+	_backdrop.sun_glow = 0.42  # (k11: 0.5)  # (key art k6: the two blooms added up clipped the haze to a pale wash, no corona)
 	add_child(_backdrop)
 	_lit_crop = not ResourceLoader.exists(HERO_ART)
 	_hero_tex = load(HERO_STAND if _lit_crop else HERO_ART)
@@ -79,12 +80,17 @@ func enter(_data: Dictionary) -> void:
 	bloom.set_shader_parameter(&"paint", 1.0)
 	bloom.set_shader_parameter(&"core", 1.0)
 	bloom.set_shader_parameter(&"core_radius", 0.113)
-	bloom.set_shader_parameter(&"core_colour", Color(1.0, 0.98, 0.92))
-	bloom.set_shader_parameter(&"corona", 0.95)
+	bloom.set_shader_parameter(&"core_colour", Color(1.0, 0.86, 0.62))  # (key art k11, "the flat white disc is the brightest value on screen": warmer, lower)
+	bloom.set_shader_parameter(&"corona", 0.8)
 	bloom.set_shader_parameter(&"corona_radius", 0.3)
 	bloom.set_shader_parameter(&"corona_colour", Color(1.0, 0.7, 0.16))
 	_halo_glow.material = bloom
 	add_child(_halo_glow)
+	# (key art k11, "the orange sky band behind the torso matches the skin") the sky just behind him a little darker and
+	# cooler: a broad soft dusk shade, far larger than his outline (not a halo round him)
+	_backing = _picture(Fx.glow_texture())
+	_backing.modulate = Color(0.2, 0.09, 0.26, 0.34)
+	add_child(_backing)
 	_rock_tex = load(ROCK)
 	_rock = _picture(_rock_tex)
 	add_child(_rock)
@@ -330,6 +336,8 @@ func _layout() -> void:
 	_backdrop.sun_at = sun / v
 	_halo_glow.size = Vector2(v.y * 1.5, v.y * 1.5)
 	_halo_glow.position = sun - _halo_glow.size / 2
+	_backing.size = Vector2(w * 1.25, h * 1.05)
+	_backing.position = _hero.position + Vector2(w * 0.5, h * 0.42) - _backing.size / 2
 	# the column on the right of the sun
 	var column_left := minf(_hero.position.x + w + v.x * 0.06, v.x - insets.z - 18.0 - 470.0)
 	_hero_side.custom_minimum_size.x = maxf(column_left - insets.x - 18.0, 0.0)

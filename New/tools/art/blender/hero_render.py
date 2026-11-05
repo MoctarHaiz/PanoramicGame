@@ -222,7 +222,7 @@ def copy_fingers():
 HANDS = {  # (round 15, "mittens") per hand shape: the bend at each joint (degrees), the spread, the thumb's bend
     "fist": ((88, 100, 75), 0.0, 70.0),  # (key art k3: tighter, the thumb wrapped over, "a mitten")
     "open": ((4, 6, 3), 9.0, -8.0),
-    "release": ((10, 16, 12), 14.0, -24.0),  # (key art k10) the fingers opening as the ring leaves the palm, the thumb out
+    "release": ((6, 9, 7), 20.0, -26.0),  # (k11: wider open, "a small mitten with a stubby pointing finger")  # (key art k10) the fingers opening as the ring leaves the palm, the thumb out
     "relaxed": ((24, 32, 20), 3.0, 12.0),
     "brace": ((10, 12, 6), 7.0, 0.0),
 }
@@ -937,14 +937,14 @@ def heel_up(side, k=0.5):
 
 THROW_TWIST = float(os.environ.get("THROW_TWIST", "18"))  ## degrees his shoulders turn against his hips at the release
 THROW_HIPS = float(os.environ.get("THROW_HIPS", "0.05"))  ## metres his hips drive towards the throw
-THROW_STANCE = float(os.environ.get("THROW_STANCE", "0.8"))  ## the lunge's width, a share of the authored one
+THROW_STANCE = float(os.environ.get("THROW_STANCE", "0.68"))  ## (key art k11: 0.8, "the lunge so wide the back leg looks over-long")  ## the lunge's width, a share of the authored one
 THROW_RING = float(os.environ.get("THROW_RING", "0.19"))  ## (key art k10: 0.14, "pinches the chakram at its rim": the ring just left the open hand)  ## metres the ring has flown from his hand (the title screen
 ## keeps it inside its left two fifths, where the close-ups are cut)
 
 
 KEY_BUILD = {  # (key art k9, "a stringy, narrow torso and thin upper arms against heavy thighs and big boots") the key
     # art's build: bone scales across the bone (x, z; y runs along it), the children not inheriting them
-    "Spine2": (1.18, 1.0, 1.08), "Neck": (1.18, 1.0, 1.18), "LeftArm": (1.2, 1.0, 1.2), "RightArm": (1.2, 1.0, 1.2),
+    "Spine1": (1.12, 1.0, 1.05), "Spine2": (1.26, 1.0, 1.1), "Neck": (1.18, 1.0, 1.18),  # (k11: "shoulders narrow for the head": wider, lats) "LeftArm": (1.2, 1.0, 1.2), "RightArm": (1.2, 1.0, 1.2),
     "LeftForeArm": (1.1, 1.0, 1.1), "RightForeArm": (1.1, 1.0, 1.1),  # (key art k10: chunkier, "commit to one style")
     "LeftUpLeg": (0.92, 1.0, 0.92), "RightUpLeg": (0.92, 1.0, 0.92), "LeftLeg": (0.94, 1.0, 0.94), "RightLeg": (0.94, 1.0, 0.94),
     "LeftFoot": (0.95, 0.95, 0.95), "RightFoot": (0.95, 0.95, 0.95)}
@@ -984,7 +984,8 @@ def pose_key_throw():
     _aim_world("LeftForeArm", Vector((-0.55, 0.05, 0.1)).normalized())
     hand("Left", "fist")  # (k1's open palm lost: "a flat stop gesture that fights the throw")
     hand("Right", "release")
-    ARM.pose.bones[P + "RightHand"].scale = (1.25,) * 3  # (key art k10, "the front hand is tiny")
+    ARM.pose.bones[P + "RightHand"].scale = (1.4,) * 3  # (key art k11: "hands about the size of the face"; k10 1.25)
+    ARM.pose.bones[P + "LeftHand"].scale = (1.2,) * 3
     turn("Spine2", -16.0, (0.0, 0.0, 1.0))  # (key art k9: -10, "the head turns 3/4 on a profile body: the thin neck looks
     # twisted": the chest further to us, the head less)  # (key art k2: the chest a little to us, so the neck doesn't twist)
     turn("Neck", -6.0)  # (key art k1, kept: his face to us, chin up: "a stern profile, the face too small")

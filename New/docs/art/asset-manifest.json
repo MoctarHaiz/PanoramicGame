@@ -351,7 +351,7 @@
    "path": "assets/art/hero/hero_menu.png",
    "status": "approved",
    "technical": {
-    "dimensions": "769x790",
+    "dimensions": "751x808",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,

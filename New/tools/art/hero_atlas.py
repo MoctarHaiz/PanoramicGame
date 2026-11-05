@@ -323,6 +323,8 @@ def trimmed(path: Path, height: int, sunset: bool = False, under: np.ndarray | N
             near = ndimage.binary_dilation(keep, iterations=2)
             arr = arr.copy()
             arr[..., 3] = np.where(near, arr[..., 3], 0.0) * np.where(solid & ~keep, 0.0, 1.0)
+            # (key art k11, "pale halo pixels along the fist and hem") the soft edge tightened: the ink sits on solid colour
+            arr[..., 3] = np.clip((arr[..., 3] - 0.22) / 0.56, 0.0, 1.0)
     pad = np.zeros((arr.shape[0] + 2 * m, arr.shape[1] + 2 * m, 4), np.float32)
     pad[m:-m, m:-m] = arr
     if rim is not None:  # (key art k8) the menu's own: (colour, strength, width k, fall)
@@ -562,7 +564,7 @@ def pictures() -> None:
     menu = trimmed(ui / "menu_hero/000.png", int(round(1100 * k)), sunset=True, under=swoosh_trail(ui / "menu_hero"),
                    ink_k=MENU_INK, clean=True, ink_lit=1.0, ink_mix=0.85)  # (k10, "the outline flickers": one dark line)  # (key art k9, the user: "remove the sun reflect on the
     # character": no rim band, no glint from the sun on the ring, an even line all round)
-    save(grounded(menu, strength=1.6, tight=0.55), "hero_menu.png")  # (key art k8, "no contact shadow under either boot": a darker, tighter contact)  # (key art k5: no glow round him, "a dark soft halo"; a firmer contact shadow)  # (k2: "no contact shadow under the boots")
+    save(grounded(menu, strength=2.0, tight=0.4), "hero_menu.png")  # (k11, "a weak contact shadow": darker, tighter)  # (key art k8, "no contact shadow under either boot": a darker, tighter contact)  # (key art k5: no glow round him, "a dark soft halo"; a firmer contact shadow)  # (k2: "no contact shadow under the boots")
     # the portrait: 660 x 752 from his hair to his hips (round 16: from its own render, standing, his face to us)
     if (ui / "portrait/000.png").exists():
         hero = trimmed(ui / "portrait/000.png", 1100, sunset=True)
