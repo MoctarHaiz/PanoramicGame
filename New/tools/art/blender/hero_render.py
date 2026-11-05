@@ -941,6 +941,27 @@ THROW_RING = float(os.environ.get("THROW_RING", "0.14"))  ## metres the ring has
 ## keeps it inside its left two fifths, where the close-ups are cut)
 
 
+KEY_BUILD = {  # (key art k9, "a stringy, narrow torso and thin upper arms against heavy thighs and big boots") the key
+    # art's build: bone scales across the bone (x, z; y runs along it), the children not inheriting them
+    "Spine2": (1.12, 1.0, 1.05), "Neck": (1.14, 1.0, 1.14), "LeftArm": (1.14, 1.0, 1.14), "RightArm": (1.14, 1.0, 1.14),
+    "LeftUpLeg": (0.92, 1.0, 0.92), "RightUpLeg": (0.92, 1.0, 0.92), "LeftLeg": (0.94, 1.0, 0.94), "RightLeg": (0.94, 1.0, 0.94),
+    "LeftFoot": (0.95, 0.95, 0.95), "RightFoot": (0.95, 0.95, 0.95)}
+
+
+def key_build():
+    if os.environ.get("KEY_BUILD", "1") != "1":
+        return
+    for name, sc in KEY_BUILD.items():
+        pb = ARM.pose.bones.get(P + name)
+        if pb is None:
+            continue
+        for child in pb.bone.children:
+            child.inherit_scale = "NONE"
+        k = HEAD_SCALE if name == "Head" else 1.0
+        pb.scale = tuple(c * k for c in sc)
+    bpy.context.view_layer.update()
+
+
 def pose_key_throw():
     """The title screen (round 15): the release with the body behind it: the hips driven over the bent front knee,
     the back heel up, the shoulders turned through against the hips, the free arm pulled back hard (his armoured fist
@@ -961,10 +982,12 @@ def pose_key_throw():
     _aim_world("LeftForeArm", Vector((-0.55, 0.05, 0.1)).normalized())
     hand("Left", "fist")  # (k1's open palm lost: "a flat stop gesture that fights the throw")
     hand("Right", "open")
-    turn("Spine2", -10.0, (0.0, 0.0, 1.0))  # (key art k2: the chest a little to us, so the neck doesn't twist)
+    turn("Spine2", -16.0, (0.0, 0.0, 1.0))  # (key art k9: -10, "the head turns 3/4 on a profile body: the thin neck looks
+    # twisted": the chest further to us, the head less)  # (key art k2: the chest a little to us, so the neck doesn't twist)
     turn("Neck", -6.0)  # (key art k1, kept: his face to us, chin up: "a stern profile, the face too small")
     turn("Head", -10.0)
-    turn("Head", -14.0, (0.0, 0.0, 1.0))
+    turn("Head", -9.0, (0.0, 0.0, 1.0))
+    key_build()
     ring = bpy.data.objects.get("AAA_Chakram")
     if ring is not None:  # the ring well ahead of the hand on the throw's line
         fore = (bone_world("RightHand", "tail") - bone_world("RightForeArm")).normalized()

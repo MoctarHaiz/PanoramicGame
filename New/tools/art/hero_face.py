@@ -54,7 +54,7 @@ EXPRESSIONS = {
     # lifted lip, the lower teeth and the tongue in the dark below, snarl lines at the corners; no squared corners
     # (key art k7, "the heavy black anime lid and the gritted teeth read as a pained grimace": the eye opened, a lighter
     # lash and lid shadow; "the three-bar paint is tiny and right under the eye: noise": one bold stripe)
-    "warcry": dict(brow=(-0.14, -0.72), lids=((0.1, 0.08), (0.1, 0.08)), gaze=(0.12, 0.0), mouth=("cry", 1.0, -0.05, 1.18),
+    "warcry": dict(brow=(-0.14, -0.72), lids=((0.1, 0.08), (0.1, 0.08)), gaze=(0.12, 0.0), mouth=("cry", 1.05, -0.05, 1.24),
                    lash=0.62, lid_shade=0.35, paint="stripe"),
     "focus": dict(brow=(-0.02, -0.38), lids=((0.16, 0.12), (0.16, 0.12)), gaze=(0.2, -0.22), mouth=("open", 0.28, -0.1, 0.9)),
     "effort": dict(brow=(-0.02, -0.5), lids=((0.25, 0.2), (0.25, 0.2)), gaze=(0.12, 0.08), mouth=("teeth", 0.32, -0.2, 1.08)),
@@ -234,7 +234,7 @@ def mouth(cv, kind, opened, smile, width):
         bot = _pts(lambda t: lip(t, -Ho * 0.3, Ho * 1.0), 40)
         shape = top + bot[::-1]
     m = cv.mask(lambda d, s: d.polygon([(x * s, y * s) for x, y in shape], fill=255))
-    cv.paint(MOUTH_IN, m)
+    cv.paint(MOUTH_IN if kind != "cry" else (0.07, 0.02, 0.03), m)  # (key art k9: the cry's inside near-black, "one flat orange-red")
     ys = np.array([p[1] for p in shape])
     y0, y1 = ys.min(), ys.max()
     yy = np.mgrid[0:N, 0:N][0].astype(np.float32)
@@ -242,13 +242,15 @@ def mouth(cv, kind, opened, smile, width):
         # the tongue low in the dark, the lower teeth a thin row in front of it, the upper teeth a bold row under the lip
         tongue = cv.mask(lambda d, s: d.ellipse([(cx - W * 0.26) * s, (y1 - (y1 - y0) * 0.36) * s, (cx + W * 0.26) * s,
                                                  (y1 + (y1 - y0) * 0.12) * s], fill=255))
-        cv.paint((0.55, 0.16, 0.16), tongue * m)
+        cv.paint((0.78, 0.32, 0.32), tongue * m)  # (k9: lighter, its own plane, a groove down its middle)
+        groove = cv.mask(lambda d, s: d.line([(cx * s, (y1 - (y1 - y0) * 0.3) * s), (cx * s, (y1 - (y1 - y0) * 0.05) * s)], fill=255, width=int(5 * s)))
+        cv.paint((0.45, 0.12, 0.14), groove * tongue * m, 0.8)
         top_edge = np.array([p[1] for p in shape[:40]])
         xx = np.mgrid[0:N, 0:N][1].astype(np.float32)
         tx = np.interp(xx[0], [p[0] for p in shape[:40]], top_edge)  # the lip's line across each column
-        upper = (yy < tx[None, :] + (y1 - y0) * 0.3).astype(np.float32)
+        upper = (yy < tx[None, :] + (y1 - y0) * 0.34).astype(np.float32)
         cv.paint(TEETH, ndimage.gaussian_filter(upper, 0.8) * m)
-        lower = ((yy > y1 - (y1 - y0) * 0.17) & (np.abs(xx - cx) < W * 0.27)).astype(np.float32)
+        lower = ((yy > y1 - (y1 - y0) * 0.2) & (np.abs(xx - cx) < W * 0.34)).astype(np.float32)
         cv.paint((0.9, 0.88, 0.82), ndimage.gaussian_filter(lower, 0.8) * m)
         gaps = (np.abs(((xx - cx) / (W * 0.15)) % 1.0 - 0.5) > 0.46).astype(np.float32)
         cv.multiply((0.78, 0.74, 0.72), ndimage.gaussian_filter(gaps, 0.7) * m * ndimage.gaussian_filter(upper, 0.8) * 0.4)

@@ -122,7 +122,7 @@ INK_MIX = 0.3  ## share of the plain warm near-black ink in it (one family of li
 INK_LIT = 0.45  ## the line's width on the edges towards the sun, a share of its width on the shadow side
 
 
-def inked(arr: np.ndarray, px: float = INK_PX, ink: np.ndarray = INK) -> np.ndarray:
+def inked(arr: np.ndarray, px: float = INK_PX, ink: np.ndarray = INK, lit: float = INK_LIT) -> np.ndarray:
     """A frame with an ink line round its outer silhouette (anti-aliased), under the figure: the cel look's
     outline reads against the pale sky at phone size, inside lines stay thin. The line follows a calmed contour
     of the silhouette, so it keeps an even width, drawn at INK_SS x and reduced (smooth, no stair steps); round a
@@ -146,7 +146,7 @@ def inked(arr: np.ndarray, px: float = INK_PX, ink: np.ndarray = INK) -> np.ndar
     facing = np.where(n > 0.5, (vx / n) * SUN[0] + (vy / n) * SUN[1], 0.0)
     f = np.clip((facing - 0.1) / 0.6, 0.0, 1.0)
     f = ndimage.gaussian_filter(f * f * (3 - 2 * f), 1.0)
-    width = 1.0 - (1.0 - INK_LIT) * f
+    width = 1.0 - (1.0 - lit) * f
     lum = local @ np.array([0.3, 0.59, 0.11])
     k = np.minimum(INK_DARK, INK_LUM / np.maximum(lum, 1e-3))
     colour = local * k[..., None] * (1.0 - INK_MIX) + ink * INK_MIX
@@ -292,7 +292,8 @@ def same_import(fn: str) -> None:
 
 
 def trimmed(path: Path, height: int, sunset: bool = False, under: np.ndarray | None = None,
-            over: np.ndarray | None = None, ink_k: float = 1.0) -> np.ndarray:
+            over: np.ndarray | None = None, ink_k: float = 1.0, rim=None, clean: bool = False,
+            ink_lit: float = INK_LIT) -> np.ndarray:
     """A render cut to what it shows and reduced to `height` px; `under` and `over` (RGBA 0..1, the render's size):
     layers drawn behind and in front of the figure, cut and reduced with it, with no ink round them (the menu's
     throw trail, the glint on its ring)."""
@@ -312,10 +313,23 @@ def trimmed(path: Path, height: int, sunset: bool = False, under: np.ndarray | N
     arr = premultiplied_resize(img, k)
     ink = INK_PX_UI * height / 300.0 * ink_k  # (as thick, for its size, as in the game before pass 3)
     m = int(np.ceil(ink)) + 3  # (round 11: room for the whole line; a 4 px border cut it flat at his boots)
+    if clean:  # (key art k9, "dark speckle noise along the hair, boots and kilt hem") no loose specks for the ink to ring:
+        # islands under 40 px dropped, faint pixels away from the figure cleared
+        solid = arr[..., 3] > 0.5
+        lab, n = ndimage.label(solid)
+        if n:
+            sizes = ndimage.sum(np.ones_like(lab), lab, range(1, n + 1))
+            keep = np.isin(lab, np.nonzero(sizes >= 40)[0] + 1)
+            near = ndimage.binary_dilation(keep, iterations=2)
+            arr = arr.copy()
+            arr[..., 3] = np.where(near, arr[..., 3], 0.0) * np.where(solid & ~keep, 0.0, 1.0)
     pad = np.zeros((arr.shape[0] + 2 * m, arr.shape[1] + 2 * m, 4), np.float32)
     pad[m:-m, m:-m] = arr
-    pad = sun_rim(pad, RIM_PX_UI * height / 300.0, RIM_SUNSET if sunset else RIM_DAY)
-    out = inked(pad, ink)
+    if rim is not None:  # (key art k8) the menu's own: (colour, strength, width k, fall)
+        pad = sun_rim(pad, RIM_PX_UI * height / 300.0 * rim[2], (rim[0], rim[1]), fall=rim[3])
+    else:
+        pad = sun_rim(pad, RIM_PX_UI * height / 300.0, RIM_SUNSET if sunset else RIM_DAY)
+    out = inked(pad, ink, lit=ink_lit)
     if under is not None:
         u = premultiplied_resize(Image.fromarray((under * 255 + 0.5).astype(np.uint8), "RGBA").crop(box), k)
         low = np.zeros_like(out)
@@ -436,6 +450,53 @@ def throw_trail(folder: Path) -> np.ndarray:
     return out
 
 
+def swoosh_trail(folder: Path) -> np.ndarray:
+    """(Key art k9, "a flat translucent cyan shard: a rendering glitch") the throw's trail as two spin arcs hugging the
+    ring's trailing side: each a curved, tapered stroke, its outer (leading) edge a crisp white-hot line, the light
+    fading inwards across it and back along it to nothing. At the render's size."""
+    from scipy.spatial import cKDTree
+    src = np.asarray(Image.open(folder / "000.png"))
+    points = json.loads((folder / "points.json").read_text())
+    hand = np.array(points["frames"][0]["hand_r"], np.float64)
+    centre, radius, _ = _ring(folder)
+    d = centre - hand
+    back = np.arctan2(-d[1], -d[0])  # the side it came from
+    h, w = src.shape[:2]
+    out = np.zeros((h, w, 4), np.float32)
+    for rk, wk, span, ak in ((1.28, 0.36, 150.0, 1.0), (1.62, 0.2, 110.0, 0.8)):
+        th = np.radians(np.linspace(-span * 0.55, span * 0.45, 500)) + back  # tail (k 0) to head (k 1)
+        curve = centre + rk * radius * np.stack([np.cos(th), np.sin(th)], -1)
+        tn = np.gradient(curve, axis=0)
+        tn = tn / np.maximum(np.hypot(*tn.T)[:, None], 1e-6)
+        side = np.stack([tn[:, 1], -tn[:, 0]], -1)
+        inner = np.sign(np.sum(side * (centre - curve), 1))  # towards the ring: behind the leading (outer) edge
+        lo = np.floor(curve.min(0) - radius).astype(int).clip(0)
+        hi = np.ceil(curve.max(0) + radius).astype(int)
+        x0, y0 = lo
+        x1, y1 = min(hi[0], w), min(hi[1], h)
+        yy, xx = np.mgrid[y0:y1, x0:x1]
+        pix = np.stack([xx.ravel(), yy.ravel()], -1).astype(np.float64)
+        dist, i = cKDTree(curve).query(pix)
+        k = i / (len(curve) - 1)
+        s_ = np.sum((pix - curve[i]) * side[i], 1) * inner[i]
+        width = radius * wk * np.clip(k, 0, 1) ** 0.9 * np.clip((1.0 - k) / 0.1, 0.0, 1.0) ** 0.5
+        inside = (k > 0.0) & (k < 1.0)
+        outside = np.clip(1.0 + s_ / 1.6, 0.0, 1.0)
+        across = np.where(s_ < 0, outside, np.clip(1.0 - s_ / np.maximum(width, 1e-3), 0.0, 1.0) ** 1.6)
+        along = np.clip(k, 0, 1) ** 1.2
+        a = across * along * (dist < width + 2.0) * inside
+        edge = np.where(s_ < 0, outside, np.clip(1.0 - s_ / 3.0, 0.0, 1.0)) * along * (dist < width + 2.0) * inside
+        a = np.maximum(a * 0.72, edge * 0.98).reshape(yy.shape) * ak
+        hot = edge.reshape(yy.shape)
+        a *= np.clip((np.hypot(xx - centre[0], yy - centre[1]) - radius * 0.98) / 3.0, 0.0, 1.0)
+        rgb = TRAIL + (np.array([0.95, 0.99, 1.0]) - TRAIL) * np.clip(hot * 1.2, 0, 1)[..., None]
+        old = out[y0:y1, x0:x1]
+        al = a + old[..., 3] * (1.0 - a)
+        old[..., :3] = (rgb * a[..., None] + old[..., :3] * old[..., 3:4] * (1.0 - a[..., None])) / np.maximum(al, 1e-4)[..., None]
+        old[..., 3] = al
+    return out
+
+
 def save(arr: np.ndarray, name: str, pad: int = 8) -> None:
     h, w = arr.shape[:2]
     out = np.zeros((h + pad * 2, w + pad * 2, 4), np.float32)
@@ -445,7 +506,7 @@ def save(arr: np.ndarray, name: str, pad: int = 8) -> None:
     print(name, out.shape[1], out.shape[0])
 
 
-def grounded(arr: np.ndarray, airborne: bool = False, strength: float = 1.0) -> np.ndarray:
+def grounded(arr: np.ndarray, airborne: bool = False, strength: float = 1.0, tight: float = 1.0) -> np.ndarray:
     """A figure on the ground (hero pass 2: "floats, no contact shadow"): a wide soft pool of warm-dark
     shade under him and a tight dark contact where his boots (or his seat) touch the ground."""
     h, w = arr.shape[:2]
@@ -467,8 +528,8 @@ def grounded(arr: np.ndarray, airborne: bool = False, strength: float = 1.0) -> 
     contact = np.zeros((out.shape[0], w), np.float32)
     foot = band.any(0).astype(np.float32)
     contact[int(gy) - 1:int(gy) + 2, :] = foot[None, :]
-    contact = ndimage.gaussian_filter(contact, (h * 0.008 + 1.5, h * 0.016 + 1.5))
-    contact = np.clip(contact / max(contact.max(), 1e-6), 0, 1) * min((0.3 if airborne else 0.62) * strength, 0.9)
+    contact = ndimage.gaussian_filter(contact, ((h * 0.008 + 1.5) * tight, (h * 0.016 + 1.5) * tight))
+    contact = np.clip(contact / max(contact.max(), 1e-6), 0, 1) * min((0.3 if airborne else 0.62) * strength, 0.9 if tight >= 1.0 else 0.96)
     shade = 1.0 - (1.0 - pool) * (1.0 - contact)
     out[..., :3] = np.array([0.1, 0.045, 0.04])
     out[..., 3] = shade
@@ -481,6 +542,8 @@ def grounded(arr: np.ndarray, airborne: bool = False, strength: float = 1.0) -> 
 
 WIN_AIRBORNE = True  ## (hero pass 4: the win is a leap: his shadow on the ground below, softer)
 WIN_SHADOW = False  ## (round 15) none under the leap
+MENU_RIM = (np.array([1.0, 0.6, 0.2]), 0.8, 1.15, 0.9)  ## (key art k8, "no hot rim on the sun side, the front the brightest
+## part") a hot band inside his silhouette on the edges towards the sun (upper left): colour, strength, width, fall
 MENU_INK = 0.62  ## the menu picture's outline, a share of the others' (key art k6: "a sticker outline")
 MENU_PIXELS = 550000  ## the menu picture's pixel budget (with its padding and shadow: no more than round 6's 0.61 Mpx)
 
@@ -496,9 +559,10 @@ def pictures() -> None:
     # a wide pose: as many pixels as an upright one, its ink drawn at that size (round 11: reduced after inking,
     # the line went soft and uneven)
     k = min((MENU_PIXELS / (hero.shape[0] * hero.shape[1])) ** 0.5, 1.0)
-    menu = trimmed(ui / "menu_hero/000.png", int(round(1100 * k)), sunset=True, under=throw_trail(ui / "menu_hero"),
-                   over=ring_glint(ui / "menu_hero"), ink_k=MENU_INK)
-    save(grounded(menu, strength=1.6), "hero_menu.png")  # (key art k5: no glow round him, "a dark soft halo"; a firmer contact shadow)  # (k2: "no contact shadow under the boots")
+    menu = trimmed(ui / "menu_hero/000.png", int(round(1100 * k)), sunset=True, under=swoosh_trail(ui / "menu_hero"),
+                   ink_k=MENU_INK, clean=True, ink_lit=1.0)  # (key art k9, the user: "remove the sun reflect on the
+    # character": no rim band, no glint from the sun on the ring, an even line all round)
+    save(grounded(menu, strength=1.6, tight=0.55), "hero_menu.png")  # (key art k8, "no contact shadow under either boot": a darker, tighter contact)  # (key art k5: no glow round him, "a dark soft halo"; a firmer contact shadow)  # (k2: "no contact shadow under the boots")
     # the portrait: 660 x 752 from his hair to his hips (round 16: from its own render, standing, his face to us)
     if (ui / "portrait/000.png").exists():
         hero = trimmed(ui / "portrait/000.png", 1100, sunset=True)
