@@ -20,9 +20,9 @@ const ROCK := "res://assets/art/ui/menu_rock.png"  ## loaded with the menu (7 MB
 const ROCK_STAND := Vector2(1390, 152)  ## where his feet go on the rock, in its pixels (tools/art/ui_hero.py)
 const ROCK_LEDGE := 660.0  ## the rock's flat top his stance spans, boot to boot, in its pixels
 const ROCK_TILT := -0.066  ## the rock turned a little (radians) so its ledge is level under both boots
-const STANCE := 0.693  ## his stance, boot to boot, as a share of the render's width (hero_menu.png; round 15's throw,
-## its free arm and trail further out: 0.81 -> 0.693)
-const FEET_X := 0.457  ## the point between his boots, as a share of its width (round 15: 0.515 -> 0.457)
+const STANCE := 0.718  ## his stance, boot to boot, as a share of the render's width (hero_menu.png; round 15's throw,
+## its free arm and trail further out: 0.81 -> 0.718)
+const FEET_X := 0.474  ## the point between his boots, as a share of its width (round 15: 0.515 -> 0.474)
 const HERO_WIDE := 0.36  ## at most this share of the screen's width (round 15: 0.33; the wider throw kept as tall)
 const HERO_TALL := 0.8  ## his height, as a share of the screen's
 const FEET_AT := 0.9  ## where his feet stand, as a share of the screen's height

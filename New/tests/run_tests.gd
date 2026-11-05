@@ -2200,8 +2200,9 @@ func _test_art_round10() -> void:
 	for y in range(0, menu.get_height() / 3, 3):
 		for x in range(menu.get_width() / 2, menu.get_width(), 3):
 			var c := menu.get_pixel(x, y)
-			trail += 1 if c.a > 0.15 and c.a < 0.9 and c.b > c.r else 0  # the cold, half-clear streak
-	_check(trail > 150, "the menu's ring leaves a trail from his hand (%d samples)" % trail)
+			trail += 1 if c.a > 0.15 and c.a < 0.9 and c.r > 0.8 and c.g > 0.45 else 0  # the hot, half-clear streak (round 16: sunset colours)
+	# (round 16: the trail sunset-hot and fading to nothing at its tail, partly behind his hair: fewer half-clear pixels)
+	_check(trail > 40, "the menu's ring leaves a trail from his hand (%d samples)" % trail)
 
 
 ## Round 11: the interface pictures' ink line is whole (it was cut flat where he touched the trimmed edge).

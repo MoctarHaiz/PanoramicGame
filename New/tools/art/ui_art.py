@@ -21,7 +21,7 @@ SS = 4  # supersampling
 # his face in portrait.png (hair to chin) and the crop's radius (px): the face big in the badge at the
 # HUD's size; behind him a dark warm disc, so the cheek's ink outline against the clear background
 # melts into it (on the bright sunset it read as a stray ">" on the badge's right) and his lit face pops
-FACE, FACE_R = (282, 238), 94
+FACE, FACE_R = (236, 236), 150  # (round 16, the art track: the new portrait, his face turned to us)
 
 
 def disc_mask(n: int, r: float) -> Image.Image:

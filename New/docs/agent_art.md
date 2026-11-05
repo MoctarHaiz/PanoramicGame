@@ -570,3 +570,30 @@ Blender (`hero3d/render/render_r15.sh` -> `r15/`).
   184 frames on 3 pages, 9.25 Mpx; captures and close-ups in `ROOT/_agents/AAA/round_15/art/` (`hero/`,
   `hero_before_after.png` against round 14). Not redone: `portrait.png` (the HUD badge, UX's `head.png`) still shows
   round 14's face; the bandit (unchanged; his renders keep a 1.0 head, no drawn face, no costume pieces).
+
+## Round 16 (the hero; round 15 won the A/B 4/6, lost the jump and the start; 0/7 against the references)
+
+- **No panels between his legs** ("a holster, a codpiece, a phallic tube"): removed from the AAA file (live); their
+  zigzag and blue beads are on the belt now (`hero_toon_aaa.py BELT_*`); the underwrap stays.
+- **Skin**: one clean brown (`SKIN`, sRGB (0.52, 0.31, 0.2); the painted texture's smudges and lines gone in the
+  level too, `DAY_FLAT_K` 1.0) in three bands: a cool plum shade, a mid, a warm orange light, soft between
+  (`SKIN_BANDS`, `SKIN_STOPS`); the face's picture warmed to it (`FACE_TO_SKIN`); no extra saturation or lift
+  (`HERO_LIT_LIFT` 1.0); in play `LIGHT_GAIN` 1.28 -> 1.18 ("traffic-cone orange").
+- **The outline**: measured on every picture and atlas page: no pixel outside the ink lighter than the background it
+  lies on (over 0.15 and 0.5 greys: 0 in the win and defeat pictures, ~20 of 100 000 edge pixels per atlas page; the
+  menu's light ones are its trail and glint). At home the back rim lit the thinner ink ("a pale outer edge"):
+  `actor.gdshader back_rim_ink_px` 3.0 -> 3.4; the home rim stronger (0.65, "the head vanishes into the doorway").
+- **Hands**: the blue glove made his own skin (live: its faces to the hand region); the blue stays on the bracers.
+- **Face** (`hero_face.py`): bigger eyes (192 px) and mouth (168), a smaller iris and calmer catchlights; **tribal face
+  paint**, his iconic mark: a white stripe over a red one on each cheek, a red line and two white dots on the chin; a
+  bright tear when dazed; a bigger grin at home and on the win; the shout smaller.
+- **Hair**: a warm rim on the sun side of every clump, the locks' tips a warm dark brown (`HAIR_RIM`, `HAIR_TIPS`).
+- **Boots**: two values and one accent (blue and cream, brass); no cords or strips; a tan sole (it merged with the soil).
+- **Chakram**: six swept blades (live), its blades turned to us on the title screen; no glow disc round it ("a soap
+  bubble"); a hot glint; the trail in sunset colours, fading to nothing at its tail.
+- **Poses**: the jump back to round 14's split leap, led by the near arm to the ledge, the trailing toes pointed back,
+  the head three-quarters to us; the start round 14's upright stance with a forward lean and chin up, hands loose; the
+  win's near shin shown; home's face turned to us; five stars orbiting his head on game over.
+- **Portrait**: rendered on its own (`pose_portrait`, `hero_atlas.py PORTRAIT=1`); `head.png` re-cut from it
+  (`ui_art.py FACE`).
+- The menu layout refitted (`menu_screen.gd STANCE` 0.718, `FEET_X` 0.474).

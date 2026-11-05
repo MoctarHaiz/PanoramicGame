@@ -62,8 +62,9 @@ P = "mixamorig:"
 
 # ------------------------------------------------------------------ scene
 
-COSTUME = ("AAA_Underwrap", "AAA_PanelFront", "AAA_PanelBack", "AAA_BootCuffs", "AAA_Bracer")  ## (round 15) his
-## costume's new pieces in the AAA file: the leather underwrap and panels, the boots' fur cuffs, the right bracer
+COSTUME = ("AAA_Underwrap", "AAA_BootCuffs", "AAA_Bracer")  ## (round 15) his
+## costume's new pieces in the AAA file: the leather underwrap, the boots' fur cuffs, the right bracer (round 16: the
+## panels between his legs gone, "a holster, a codpiece"; their pattern on the belt)
 
 
 def setup_scene():
@@ -959,8 +960,11 @@ def pose_key_throw():
     ring = bpy.data.objects.get("AAA_Chakram")
     if ring is not None:  # the ring well ahead of the hand on the throw's line
         fore = (bone_world("RightHand", "tail") - bone_world("RightForeArm")).normalized()
-        m = ring.matrix_world.copy()
-        m.translation = bone_world("RightHand", "tail") + (fore * 0.8 + Vector((0.0, 0.0, 0.45))).normalized() * THROW_RING
+        at = bone_world("RightHand", "tail") + (fore * 0.8 + Vector((0.0, 0.0, 0.45))).normalized() * THROW_RING
+        # (round 16) its blades turned to us (edge-on it read as a thin ring), tipped a little up the throw
+        face = Vector((0.3, -1.0, 0.35)).normalized()
+        rot = Vector((0.0, 0.0, 1.0)).rotation_difference(face).to_matrix().to_4x4()
+        m = Matrix.Translation(at) @ rot @ Matrix.Diagonal((*ring.matrix_world.to_scale(), 1.0))
         ring.matrix_world = m
         bpy.context.view_layer.update()
 
@@ -969,36 +973,32 @@ JUMP_LEAN = float(os.environ.get("JUMP_LEAN", "16"))  ## degrees forward his bod
 
 
 def pose_jump15(i):
-    """The jump (round 15): leading with his chest (his body set to a forward lean of JUMP_LEAN, turned a little to
-    us) and his near arm reaching ahead to the gems, the front knee driven up, the trailing leg folded behind in a C,
-    the head up, his eyes on the landing."""
+    """The jump (round 16, round 14's won the A/B): round 14's split leap, stretched clear, but led by his chest and
+    his near arm reaching to the ledge, the far arm back for balance, the trailing foot's toes pointed back (no sole
+    to us), the head up and three-quarters to us."""
     apply(sample("jump", 1 + i))
-    w = ease((i - 2) / 4.0) * (1.0 - ease((i - 16) / 5.0))  # the flight
+    w = ease((i - 2) / 4.0) * (1.0 - ease((i - 15) / 4.0))  # the flight, frames 3-18
     if w <= 0.0:
         hand("Right", "relaxed")
         hand("Left", "relaxed")
         return
     base = current()
-    turn("Hips", JUMP_LEAN - _lean())
-    turn("Spine1", -14.0, (0.0, 0.0, 1.0))  # the chest turned to us (round 14: "back to the camera, no face")
-    turn("Spine2", -8.0, (0.0, 0.0, 1.0))
-    aim("RightArm", 0.85, 0.5, 0.3)  # the near arm reaching ahead and up, towards the gems
-    aim("RightForeArm", 0.95, 0.35, 0.1)
-    aim("RightHand", 1.0, 0.2)
-    aim("LeftArm", -0.6, -0.5, -0.3)  # the far arm back and down for balance
-    aim("LeftForeArm", -0.3, -0.9, -0.2)
-    aim("RightUpLeg", 0.75, 0.35, 0.05)  # the front knee driven up
-    aim("RightLeg", 0.25, -0.95)
-    aim("RightFoot", 0.7, -0.7)
-    aim("LeftUpLeg", -0.45, -0.85, -0.05)  # the trailing leg folded back: a C
-    aim("LeftLeg", -0.55, 0.8)
-    aim("LeftFoot", -0.3, 0.9)
-    turn("Neck", -8.0)
-    turn("Head", -12.0)
-    turn("Head", -18.0, (0.0, 0.0, 1.0))
+    turn("Spine", 6.0)  # the chest leading
+    turn("Spine1", 4.0)
+    aim("RightArm", 0.8, 0.45, 0.3)  # the near arm ahead and up, to the ledge
+    aim("RightForeArm", 0.95, 0.3, 0.1)
+    aim("LeftArm", -0.55, 0.2, -0.3)  # the far arm back for balance
+    aim("LeftForeArm", -0.85, 0.05, -0.2)
+    aim("RightUpLeg", 0.85, -0.3)  # round 14's split
+    aim("RightLeg", 0.3, -0.95)
+    aim("LeftUpLeg", -0.45, -0.85)
+    aim("LeftLeg", -0.85, -0.4)
+    aim("LeftFoot", -0.95, -0.15)
+    turn("Head", -14.0)
+    turn("Head", -26.0, (0.0, 0.0, 1.0))  # three-quarters to us
     apply(mix(base, current(), w))
     hand("Right", "open")
-    hand("Left", "fist")
+    hand("Left", "relaxed")
 
 
 RUN_LEAN = float(os.environ.get("RUN_LEAN", "14"))  ## degrees forward his body leans in the run (round 14: ~45)
@@ -1063,27 +1063,17 @@ def pose_hang15(t, turn_k=1.0):
 
 
 def pose_idle15(i):
-    """The start (round 15): ready to run: the front knee bent, the weight forward, the back heel up, fists set at his
-    sides, his head and eyes to the way he will run."""
+    """The start (round 16, round 14's won the A/B): round 14's upright stance (chin up, his face three-quarters to us)
+    with a forward lean, ready; the arms loose, the hands relaxed (no boxing guard)."""
     apply(sample("idle", 1 + i * 3))
-    b = 0.5 + 0.5 * math.sin(i / 20.0 * math.tau)  # breathing
-    turn("Spine", 12.0 + 1.0 * b)
-    turn("Spine1", 4.0)
-    turn("Neck", -8.0)
-    turn("Head", -6.0)
-    aim("RightUpLeg", 0.5, -0.86, 0.05)  # the front leg forward, its knee bent over the foot
-    aim("RightLeg", -0.18, -1.0)
-    aim("RightFoot", 1.0, -0.25)
-    aim("LeftUpLeg", -0.3, -0.95, -0.05)  # the back leg behind
-    aim("LeftLeg", -0.42, -0.9)
-    aim("LeftFoot", 1.0, -0.6)
-    aim("RightArm", -0.2, -0.95, 0.25)  # fists set: the forearms forward, ready to pump
-    aim("RightForeArm", 0.75, 0.55, 0.1)
-    aim("LeftArm", 0.25, -0.95, -0.25)
-    aim("LeftForeArm", 0.85, 0.35, -0.1)
+    turn("Spine", 5.0)  # the forward lean
+    turn("Spine1", -4.0)
+    turn("Neck", -6.0)
+    turn("Head", -12.0)  # chin up
+    turn("Head", -26.0, (0.0, 0.0, 1.0))
     plant(0.0)
-    hand("Right", "fist")
-    hand("Left", "fist")
+    hand("Right", "relaxed")
+    hand("Left", "relaxed")
 
 
 def pose_win15():
@@ -1100,8 +1090,8 @@ def pose_win15():
     _aim_world("LeftArm", Vector((0.85, -0.1, 0.3)).normalized())
     _aim_world("LeftForeArm", Vector((0.35, -0.3, 0.88)).normalized())
     _aim_world("RightUpLeg", Vector((-0.4, -0.6, 0.35)).normalized())  # the front knee up, towards us
-    _aim_world("RightLeg", Vector((-0.05, -0.1, -1.0)).normalized())
-    _aim_world("RightFoot", Vector((-0.05, -0.55, -0.8)).normalized())
+    _aim_world("RightLeg", Vector((-0.4, 0.15, -0.9)).normalized())  # (round 16: the shin down and out, "a stump")
+    _aim_world("RightFoot", Vector((-0.3, -0.4, -0.86)).normalized())
     _aim_world("LeftUpLeg", Vector((0.5, 0.42, -0.75)).normalized())  # the trailing leg long behind him
     _aim_world("LeftLeg", Vector((0.55, 0.55, -0.6)).normalized())
     _aim_world("LeftFoot", Vector((0.5, 0.45, -0.72)).normalized())
@@ -1132,7 +1122,8 @@ def pose_home15(t):
     turn("Spine", -7.0 * up)  # the back arched
     turn("Spine1", -5.0 * up)
     turn("Spine", 8.0 * up, (1.0, 0.0, 0.0))
-    turn("Head", -10.0 * up)
+    turn("Head", -12.0 * up)
+    turn("Head", -18.0 * up, (0.0, 0.0, 1.0))  # (round 16) his face to us, chin up
     aim("LeftUpLeg", 0.45 * up, -1.0, -0.15 * up)  # the free knee bent and lifted on the beat
     aim("LeftLeg", -0.35 * up - 0.25 * up * beat, -1.0)
     aim("RightUpLeg", -0.08 * up, -1.0, 0.08 * up)
@@ -1150,25 +1141,34 @@ def pose_home15(t):
 HOME_TURN = float(os.environ.get("HOME_TURN", "-62"))  ## degrees he turns to us at home (round 14: -90, "his back turned")
 
 
-DIZZY_R = 0.13  ## metres: the radius of the stars' circle round his head
+DIZZY_R = 0.15  ## metres: the radius of the stars' circle round his head
 
 
 def _dizzy_round_head(drop):
-    """The dizzy stars circling his head wherever the pose put it (round 14: "the halo sits high above the hair:
-    detached"): on a level circle round his brow, tipped a little towards us, `drop` metres under the top of his
-    hair; the authored trail (placed for the authored slump, it stood on its edge beside him) left out."""
+    """The dizzy stars orbiting his head wherever the pose put it (round 16, "one star like a hair clip": five, evenly
+    round a level ring at his brow, tipped to us so all five show); the authored trail (placed for the authored slump,
+    it stood on its edge beside him) left out."""
     obs = [ob for ob in bpy.data.objects if ob.name.startswith(("AAA_DizzyStar", "AAA_DizzyTrail")) and not ob.hide_render]
     for ob in obs:
         if ob.name.startswith("AAA_DizzyTrail"):
             ob.hide_render = True
-    head, top = bone_world("Head"), bone_world("HeadTop_End")
-    centre = head + (top - head) * 0.75 + Vector((0.0, 0.0, -drop))
-    a = Vector((1.0, 0.0, 0.0))  # (picture right)
-    b = Vector((0.0, -0.45, 0.89)).cross(a).normalized() * -1.0  # (towards us, tipped)
     stars = sorted((ob for ob in obs if ob.name.startswith("AAA_DizzyStar")), key=lambda ob: ob.name)
-    for ob, ang in zip(stars, (20.0, 160.0, 265.0)):  # (two in front, either side of his face, one behind)
+    if not stars:
+        return
+    while len(stars) < 5:  # copies of the authored stars (render only, never saved)
+        extra = stars[len(stars) % 3].copy()
+        extra.name = f"AAA_DizzyStarCopy{len(stars)}"
+        for col in stars[0].users_collection:
+            col.objects.link(extra)
+        stars.append(extra)
+    head, top = bone_world("Head"), bone_world("HeadTop_End")
+    centre = head + (top - head) * 0.85 + Vector((0.0, 0.0, -drop))
+    a = Vector((1.0, 0.0, 0.0))  # (picture right)
+    b = Vector((0.0, -0.5, 0.35)).normalized()  # (towards us and up: the ring tipped so its back rises over his hair)
+    for k, ob in enumerate(stars):
+        ang = math.radians(90.0 + 72.0 * k + 36.0)
         m = ob.matrix_world.copy()
-        m.translation = centre + (a * math.cos(math.radians(ang)) + b * math.sin(math.radians(ang))) * DIZZY_R
+        m.translation = centre + (a * math.cos(ang) - b * math.sin(ang)) * DIZZY_R
         ob.matrix_world = m
     bpy.context.view_layer.update()
 
@@ -1213,6 +1213,20 @@ def pose_defeat15():
 DIZZY_DROP = float(os.environ.get("DIZZY_DROP", "-0.02"))  ## metres the dizzy ring comes down, round his brow
 
 
+def pose_portrait():
+    """The HUD badge's and the cards' portrait (round 16: the new face): standing, a little turned, his face
+    three-quarters to us, chin up."""
+    reset_turn()
+    apply(sample("idle", 1))
+    ARM.rotation_euler.z = math.radians(-18.0)
+    bpy.context.view_layer.update()
+    turn("Neck", -4.0)
+    turn("Head", -8.0)
+    turn("Head", -8.0, (0.0, 0.0, 1.0))
+    hand("Right", "relaxed")
+    hand("Left", "relaxed")
+
+
 # name -> (camera view, frames: callables or (action, frame), camera lift in metres)
 def anims():
     out = {}
@@ -1237,6 +1251,7 @@ def anims():
         out["menu_hero"] = ("front", [lambda: pose_key_throw()], -0.06, 6.0)
         out["win_front"] = ("front", [lambda: pose_win15()], -0.03, 7.0)
         out["defeat"] = ("front", [lambda: pose_defeat15()], 0.03, float(os.environ.get("DEFEAT_TILT", "-4")))  # (looking down a little: he sits on the ground)
+    out["portrait"] = ("front", [lambda: pose_portrait()], 0.1, 7.0)
     if arg("--hands"):  # the hand shapes, for reviews (--anims hands --hands)
         out["hands"] = ("front", [lambda k=k: (apply(sample("idle", 1)), hand("Right", k), hand("Left", k)) for k in HANDS], 0.0)
     if arg("--turn"):  # the turnaround, for reviews (--anims turn --turn)
@@ -2076,7 +2091,7 @@ def points(cam):
     ring = bpy.data.objects.get("AAA_Chakram")
     if ring is not None and not ring.hide_render:  # (round 15) the flying ring: its middle and radius on screen
         c = ring.matrix_world.translation
-        edge = c + (cam.matrix_world.to_3x3() @ Vector((1.0, 0.0, 0.0))) * 0.083 * ring.matrix_world.to_scale().x
+        edge = c + (cam.matrix_world.to_3x3() @ Vector((1.0, 0.0, 0.0))) * 0.095 * ring.matrix_world.to_scale().x
         v, e = world_to_camera_view(SC, cam, c), world_to_camera_view(SC, cam, edge)
         out["ring"] = [round(v.x * SIZE, 2), round((1.0 - v.y) * SIZE, 2), round((e.x - v.x) * SIZE, 2)]
     return out
@@ -2095,7 +2110,7 @@ def mirror_user_lights():
 
 FACES = {"run": "determined", "jump": "focus", "idle": "determined", "die": "hurt", "hang": "effort", "catch": "effort",
          "throw": "shout", "crouch": "determined", "hurt": "hurt", "climb": "effort", "win": "smile",
-         "menu_hero": "shout", "win_front": "grin", "defeat": "dazed"}  ## (round 15) his expression in each
+         "menu_hero": "shout", "win_front": "grin", "defeat": "dazed", "portrait": "determined"}  ## (round 15) his expression in each
 _face = [None]
 
 

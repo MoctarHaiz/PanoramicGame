@@ -40,7 +40,8 @@ const HURT_TIME := 0.33  ## seconds of the blow's reaction
 const STUMBLE := 0.14  ## seconds of the stumble after it, leaning back and catching himself
 const PULL := 0.16  ## seconds per hand-over-hand pull up a ledge
 const HAND_STEP := 0.2  ## seconds per hand step along the vine while hanging
-const LIGHT_GAIN := 1.28  ## his lit colours x this in play (actor.gdshader light_gain; the ink untouched)
+const LIGHT_GAIN := 1.18  ## his lit colours x this in play (actor.gdshader light_gain; the ink untouched; round 16:
+## 1.28 -> 1.18, "traffic-cone orange")
 const VINE_INK_PX := 0.9  ## atlas px of ink added at the vine: hero_atlas.py's 3.2 x (1 / 0.78 - 1), the vine framing's zoom
 const WALK_IN := 70.0  ## units he walks into the doorway at home
 const DIE_PUSH := 40.0  ## units the fatal blow knocks him back
@@ -423,7 +424,7 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 	# (hero pass 3) at home the campfire, on his left, warms that side of him
 	var home_k := clampf(_end_time / 0.5, 0.0, 1.0) if phase == &"home" else 0.0
 	_material.set_shader_parameter(&"bounce", 0.6 * home_k)
-	_material.set_shader_parameter(&"back_rim", 0.4 * home_k)  # (round 10) and the lit hut behind him rims him (round 14: lighter, "an orange outer-glow outline, a cut-out halo")
+	_material.set_shader_parameter(&"back_rim", 0.65 * home_k)  # (round 16: 0.4 -> 0.65, "the head vanishes into the doorway")  # (round 10) and the lit hut behind him rims him (round 14: lighter, "an orange outer-glow outline, a cut-out halo")
 	# (round 14: round 13's darker front "merged with the dark doorway": his front light kept at home)
 	_material.set_shader_parameter(&"bounce_scale", 2.0 / maxf(float(region[2]), 1.0))
 	_update_shadow(w, p)

@@ -33,7 +33,8 @@ uniform float bounce_scale = 0.01;  // 1 / (half the frame's width, in local px)
 uniform float light_gain = 1.0;
 uniform float back_rim = 0.0;  // 0..1
 uniform vec4 back_rim_colour : source_color = vec4(1.0, 0.6, 0.22, 1.0);
-uniform float back_rim_ink_px = 3.0;  // the ink round the outline, in texture pixels (no light on it)
+uniform float back_rim_ink_px = 3.4;  // the ink round the outline, in texture pixels (no light on it; round 16: 3.0 lit
+// the edge of round 15's thinner ink, "a pale outer edge")
 uniform float back_rim_px = 2.2;  // the band's width inside the ink
 varying vec2 local_pos;
 

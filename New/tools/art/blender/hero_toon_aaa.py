@@ -49,6 +49,13 @@ BANDS = {
         "chakram": ((0.14, 0.13, 0.22), (0.3, 0.27, 0.4), (0.7, 0.62, 0.7), (1.15, 0.95, 0.8)),
     },
 }
+## (round 16, "traffic-cone / tangerine orange, not a skin tone"; "abs drawn as lines: a plastic toy") one clean brown
+## (linear; sRGB (0.52, 0.31, 0.2)) in three bands: a cool plum shade, a mid, a warm orange light, soft between
+SKIN = (0.237, 0.0757, 0.0331)
+SKIN_BANDS = {"day": ((0.62, 0.45, 0.62), (0.9, 0.82, 0.8), (1.16, 1.0, 0.82)),
+              "sunset": ((0.56, 0.38, 0.52), (0.84, 0.68, 0.62), (1.22, 0.96, 0.72))}
+SKIN_STOPS = (0.0, 0.07, 0.15, 0.27, 0.36, 1.0)
+SKIN_REGIONS = ("skin", "hand", "face")
 # (pass 4) "bold": two clear cel bands with a crisp terminator, the rim on the back edges (screen space, the
 # sun's side strongest), no bounce or sheen on the skin, flat red scarf, deeper blue armour: the UI's toy-like
 # language ("semi-realistic anatomy with fine muscle rendering ... pasted in from another game")
@@ -71,14 +78,14 @@ BOLD_BANDS = {  # shade, lit (albedo multipliers; hair: absolute)
 ## (round 11, "in play his dark orange skin shares the value of the rock and the haze: a brown smudge") the lit band
 ## of his skin lighter and warmer in the level's light (linear multipliers on top of BOLD_BANDS; the shade kept, so
 ## the light-shade split widens); the interface pictures and the bandit (flat colours) unchanged
-_LIFT = float(_os.environ.get("HERO_LIT_LIFT", "1.3"))
+_LIFT = float(_os.environ.get("HERO_LIT_LIFT", "1.0"))  ## (round 16: 1.3 -> 1.0, "traffic-cone orange")
 DAY_LIT = {r: (_LIFT * 1.04, _LIFT, _LIFT * 0.9) for r in ("skin", "face", "hand")}
 BOLD_STOPS = (0.0, 0.155, 0.185, 1.0)
 ## (round 12, "the key art below the UI in finish: skin blotchy, orange-to-brown patches with hard muddy transitions;
 ## the face small, dark, blank; the ring a flat grey donut") the interface pictures (sunset): the skin and hands one
 ## clean colour (the albedo's mean; the face keeps its painted features), a warm shade (not a muddy purple-brown) and
 ## a slightly softer step, the face lit, the steel ring dark at its core and bright on its polish
-UI_FLAT = {"skin": (0.305, 0.0864, 0.0298), "hand": (0.305, 0.0864, 0.0298),
+UI_FLAT = {"skin": SKIN, "hand": SKIN,
            "armour_blue": (0.0175, 0.069, 0.343), "armour_silver": (0.36, 0.33, 0.29)}  ## (round 14: flat, "mottled noise on the boots")  ## (linear: the albedo picture's mean skin, sRGB (0.588, 0.325, 0.189))
 UI_BANDS = {"skin": ((0.62, 0.4, 0.33), (1.12, 0.93, 0.78)), "hand": ((0.64, 0.42, 0.35), (1.12, 0.93, 0.78)),
             "face": ((0.84, 0.66, 0.58), (1.16, 0.98, 0.85)), "chakram": ((0.12, 0.15, 0.3), (1.3, 1.3, 1.36)),
@@ -101,16 +108,23 @@ UI_RIM_BACK = 0.45  ## (round 15, "the sun directly behind his chest, yet no rim
 SOFT_STOPS = {"day": (0.0, 0.11, 0.26, 1.0), "sunset": (0.0, 0.1, 0.28, 1.0)}  ## (round 15, "abs and chest cut in
 ## with dark lines of equal strength, muscles printed on": the skin's terminator a soft blend, not a step)
 SOFT_REGIONS = ("skin", "hand")
-DAY_FLAT_K = 0.55  ## (round 15) how far the skin's painted albedo goes to its mean colour in the level (no drawn lines)
+DAY_FLAT_K = 1.0  ## (round 15: 0.55; round 16, "painterly smudges read as dirt": all the way) how far the skin's
+## painted albedo goes to its clean colour in the level
 CHEST_LIFT = 0.1  ## (round 15, "keep the brightest values on the face and chest") light added to his chest and face
 FACE_FRAME = (-0.085, 0.28, 0.17)  ## (round 15) the drawn face's frame in the rest shape: the y and z of its lower left
 ## corner and its span (tools/art/hero_face.py; m["decal"]: the expression's picture, over the face's own colours)
 BOOT_CREAM = (0.5, 0.42, 0.3)  ## linear: the boots' white parts as cream leather, sRGB (0.74, 0.69, 0.59)
 BOOT_CORD = (0.09, 0.045, 0.022)  ## the cords crossing them, a dark brown
 BOOT_BRASS = (0.45, 0.27, 0.06)  ## the band at their top
-BOOT_SOLE = (0.05, 0.025, 0.013)  ## a dark leather sole (no white sneaker sole)
+BOOT_SOLE = (0.2, 0.11, 0.05)  ## a tan leather sole (round 16: the dark one "merged with the soil")
 BOOT_WRAPS = 150.0  ## radians of the cords' wind per rest unit of height (about six crossings up the boot)
 CHAKRAM_CORE = (0.35, 0.85, 1.0)  ## linear: the glow round the chakram's grip, the throw trail's cold light
+FACE_TO_SKIN = (0.777, 0.876, 1.11)  ## the face picture's mean skin to SKIN (both linear)
+HAIR_RIM = (0.55, 0.2, 0.05)  ## (round 16, "a solid black blob") a warm rim on the sun side of every clump (linear)
+HAIR_TIPS = (0.05, 0.022, 0.012)  ## and the locks' ends a warm dark brown
+HAIR_CENTRE = (0.0, 0.0, 0.4)  ## the middle of his head in the rest shape (the tips lie furthest from it)
+BELT_WHITE = (0.85, 0.8, 0.68)  ## (round 16: the panels' pattern moved to the belt) a white zigzag round it
+BELT_BEAD = (0.03, 0.12, 0.55)  ## and blue beads under it
 FEET_DIM = 0.18  ## and how much darker everything is at his boots (rest height: -0.5 his soles, 0.5 his hair)
 ## (round 13, "a pale outline glow rings the hero" on every interface picture: the sunset rim lay on every edge (a 0.3
 ## floor); now only on the edges towards the sun, upper left as in the level: a rim against the sky, not a halo)
@@ -285,6 +299,8 @@ def build(m, mode="day"):
         g.link(comb.outputs[0], dt.inputs["Vector"])
         front = g.smooth(sepd.outputs["X"], -0.01, 0.01)  # the face's front only, never through to the back
         albedo = g.mix("MIX", g.math("MULTIPLY", dt.outputs["Alpha"], front), albedo, dt.outputs["Color"])
+    if region == "face" and BOLD and not flat:  # (round 16) the painted face's orange to the body's clean brown
+        albedo = g.mix("MULTIPLY", 1.0, albedo, FACE_TO_SKIN)
     # the light (key and fill, with cast shadows) as one value
     dif = g.node("ShaderNodeBsdfDiffuse", Color=(1, 1, 1, 1))
     g.link(N, dif.inputs["Normal"])
@@ -321,6 +337,11 @@ def build(m, mode="day"):
         if not flat and region in SOFT_REGIONS:
             stops = SOFT_STOPS[mode]
         cols = (sh, sh, li, li)
+        if not flat and region in SKIN_REGIONS:  # (round 16) three bands
+            b3 = SKIN_BANDS[mode]
+            lift = 1.08 if region == "face" else 1.0  # (the face a little lighter: it leads)
+            cols = tuple(tuple(c * lift for c in b) for b in (b3[0], b3[0], b3[1], b3[1], b3[2], b3[2]))
+            stops = SKIN_STOPS
     else:
         stops, cols = STOPS, (deep, deep, shade, shade, mid, mid, lit, lit)
     el[0].position, el[0].color = stops[0], (*cols[0], 1)
@@ -349,15 +370,9 @@ def build(m, mode="day"):
             ang = g.math("ARCTAN2", sepr.outputs["X"], g.math("SUBTRACT", g.math("ABSOLUTE", sepr.outputs["Y"]), 0.085))
             boot = g.smooth(height, -0.215, -0.24)
             wind = g.math("MULTIPLY", height, BOOT_WRAPS)
+            # (round 16, "noise at phone size": two values and one accent) cream and blue, plain; brass the accent
             if region == "armour_silver":
                 alb = g.mix("MIX", boot, alb, BOOT_CREAM)
-                c1 = g.math("SINE", g.math("ADD", wind, g.math("MULTIPLY", ang, 3.0)))
-                c2 = g.math("SINE", g.math("SUBTRACT", wind, g.math("MULTIPLY", ang, 3.0)))
-                cord = g.math("MAXIMUM", g.smooth(c1, 0.86, 0.95), g.smooth(c2, 0.86, 0.95))
-                alb = g.mix("MIX", g.math("MULTIPLY", cord, boot), alb, BOOT_CORD)
-            else:
-                strip = g.smooth(g.math("SINE", g.math("ADD", g.math("MULTIPLY", wind, 0.5), g.math("MULTIPLY", ang, 1.0))), 0.55, 0.75)
-                alb = g.mix("MULTIPLY", g.math("MULTIPLY", g.math("MULTIPLY", strip, boot), 0.35), alb, (0.55, 0.6, 0.75))
             band = g.math("MULTIPLY", g.smooth(height, -0.252, -0.246), g.smooth(height, -0.226, -0.232))
             alb = g.mix("MIX", band, alb, BOOT_BRASS)
             alb = g.mix("MIX", g.smooth(height, -0.466, -0.476), alb, BOOT_SOLE)
@@ -369,7 +384,7 @@ def build(m, mode="day"):
             g.link(alb, lum.inputs[0])
             grey = g.grey(lum.outputs[0])
             # in the light: a little more saturated; in the shade: greyer and cooler (no flat orange)
-            lit_s = g.mix("MIX", sat, grey, alb)
+            lit_s = g.mix("MIX", 1.0 if region in SKIN_REGIONS else sat, grey, alb)
             shade_s = g.mix("MULTIPLY", 1.0, g.mix("MIX", desat, alb, grey), cool)
             alb = g.mix("MIX", g.smooth(L, stops[1], stops[2]) if BOLD else g.smooth(L, STOPS[3], STOPS[5]), shade_s, lit_s)
         colour = g.mix("MULTIPLY", 1.0, alb, ramp.outputs["Color"])
@@ -417,6 +432,16 @@ def build(m, mode="day"):
         locks = g.smooth(g.noise(P, (16.0, 16.0, 16.0), 0.0, 0.4), 0.4, 0.6)
         band = g.math("MULTIPLY", band, g.math("ADD", g.math("MULTIPLY", locks, 0.7), 0.3))
         colour = g.mix("ADD", g.math("MULTIPLY", band, 0.5), colour, (0.15, 0.06, 0.022))
+        sd = BOLD_RIM[mode][2]
+        toward_sun = g.math("ADD", g.math("MULTIPLY", sep.outputs["X"], sd[0]), g.math("MULTIPLY", sep.outputs["Y"], sd[1]))
+        clump = g.math("MULTIPLY", g.smooth(toward_sun, 0.15, 0.55), g.smooth(edge, 0.25, 0.55))
+        colour = g.mix("ADD", g.math("MULTIPLY", clump, 0.6 if mode == "day" else 0.75), colour, HAIR_RIM)
+        cen = g.node("ShaderNodeVectorMath")
+        cen.operation = "DISTANCE"
+        g.link(P, cen.inputs[0])
+        cen.inputs[1].default_value = HAIR_CENTRE
+        tips = g.smooth(cen.outputs["Value"], 0.1, 0.16)
+        colour = g.mix("MIX", g.math("MULTIPLY", tips, 0.6), colour, HAIR_TIPS)
     if region == "chakram":
         # engraving: a groove round the blade and a ring of notched marks, darker; a polished outer edge
         oc = uv.outputs["Object"]
@@ -451,6 +476,16 @@ def build(m, mode="day"):
         # AAA/hero3d, live): its ground edge and teeth bright steel, a glowing blue core round the grip's hole
         colour = g.mix("MIX", g.math("MULTIPLY", g.smooth(r, 0.066, 0.071), 0.75), colour, (0.85, 0.92, 1.0))
         colour = g.mix("MIX", g.smooth(r, 0.0485, 0.0445), colour, CHAKRAM_CORE)
+    if region == "belt" and BOLD and not flat:
+        # (round 16) the belt carries the costume's pattern: a white zigzag round it, a row of blue beads under it
+        ang_b = g.math("ARCTAN2", sepr.outputs["Y"], sepr.outputs["X"])
+        tri = g.math("ABSOLUTE", g.math("SUBTRACT", g.math("FRACT", g.math("MULTIPLY", ang_b, 9.0 / 6.2832)), 0.5))
+        zig = g.math("ADD", 0.112, g.math("MULTIPLY", tri, 0.03))
+        line = g.smooth(g.math("ABSOLUTE", g.math("SUBTRACT", height, zig)), 0.0042, 0.0026)
+        colour = g.mix("MIX", line, colour, BELT_WHITE)
+        bead = g.math("MULTIPLY", g.smooth(g.math("SINE", g.math("MULTIPLY", ang_b, 36.0)), 0.55, 0.8),
+                      g.math("MULTIPLY", g.smooth(height, 0.088, 0.092), g.smooth(height, 0.1, 0.096)))
+        colour = g.mix("MIX", bead, colour, BELT_BEAD)
     if region in ("armour_blue", "armour_silver"):
         # scuffs and dust: low, broken value changes (wear), matte
         wear = g.noise(P, (22.0, 22.0, 22.0), 1.5, 0.5)

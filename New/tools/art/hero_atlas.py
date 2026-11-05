@@ -26,7 +26,7 @@ from scipy import ndimage
 
 NEW = Path(__file__).resolve().parents[2]
 ROOT = next(p for p in NEW.parents if (p / "Making").is_dir())  # the folder with the user's Blender files
-RENDER = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "_agents/AAA/hero3d/render/r15/game"  # (round 15: the hero made over, hero3d/render/render_r15.sh)
+RENDER = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "_agents/AAA/hero3d/render/r16/game"  # (round 16: hero3d/render/render_r16.sh)
 GROUND_SPEED = 8.0 * 960.0 / 1320.0 * 40.0  ## units a second the ground scrolls (World.SCROLL_SPEED)
 OUT = NEW / "assets/art/hero"
 SCALE = 0.40  ## render px -> atlas px (1024 renders: he stands ~690 px, ~276 px in the atlas; the ink line costs a little room)
@@ -340,9 +340,9 @@ def ring_glint(folder: Path) -> np.ndarray:
     u, v = (xx - at[0]) / radius, (yy - at[1]) / radius
     arm = lambda a, b: np.clip(1.0 - np.abs(a) / 0.55, 0, 1) ** 2 * np.clip(1.0 - np.abs(b) / (0.035 + 0.05 * np.clip(1.0 - np.abs(a) / 0.55, 0, 1)), 0, 1)  # noqa: E731
     star = np.maximum(arm(u, v), arm(v, u) * 0.85)
-    core = np.exp(-(u * u + v * v) / 0.012)
+    core = np.exp(-(u * u + v * v) / 0.004)  # (round 16: smaller, no pale disc)
     out = np.zeros((h, w, 4), np.float32)
-    out[..., :3] = 1.0
+    out[..., :3] = np.array([1.0, 0.9, 0.7])  # (a hot glint)
     out[..., 3] = np.clip(np.maximum(star, core), 0, 1)
     return out
 
@@ -360,7 +360,8 @@ def backed(arr: np.ndarray, k: float = 0.45) -> np.ndarray:
     return out
 
 
-TRAIL = np.array([0.6, 0.84, 1.0])  ## the throw trail's colour: the steel ring's cold light
+TRAIL = np.array([1.0, 0.62, 0.3])  ## the throw trail's colour (round 16: the sunset's, "a tapered additive trail
+## that fades to zero, in sunset colours"; it was the steel's cold blue)
 
 
 def throw_trail(folder: Path) -> np.ndarray:
@@ -401,11 +402,11 @@ def throw_trail(folder: Path) -> np.ndarray:
     # light: needle-thin and faint at his hand, widening to a sharp, bright head at the ring, a white-hot core, a
     # cold glow round the head and three crisp speed lines
     # (round 15, "the trail a thin white hairline: a tapered arc connecting hand to ring") thicker, from the hand on
-    band = stroke(curve, lambda k: radius * (0.2 + 0.8 * k ** 0.45), lambda k: 0.45 + 0.55 * k ** 0.4)
-    core = stroke(curve, lambda k: radius * (0.07 + 0.28 * k ** 0.45), lambda k: 0.5 + 0.5 * k ** 0.4)
+    band = stroke(curve, lambda k: radius * 0.95 * k ** 0.45, lambda k: 0.9 * k ** 0.5)  # (fading to nothing)
+    core = stroke(curve, lambda k: radius * 0.3 * k ** 0.45, lambda k: k ** 0.5)
     glow = np.clip(1.0 - ndimage.distance_transform_edt(band < 0.5) / (radius * 0.35), 0.0, 1.0) ** 2
     head = np.clip(1.0 - np.hypot(xx - centre[0], yy - centre[1]) / (radius * 1.5), 0.0, 1.0)
-    glow = glow * head * 0.28  # (round 15: 0.5 read as a pale disc round the ring)
+    glow = glow * head * 0.0  # (round 15: 0.5 read as a pale disc round the ring; round 16, "a soap bubble": none)
     lines = np.zeros_like(band)
     for sgn, off, reach in ((-1.0, 1.15, (0.35, 0.9)), (1.0, 1.15, (0.3, 0.85)), (1.0, 1.75, (0.5, 0.92))):
         path = curve + side * (sgn * radius * off * tt ** 1.1)[:, None]
@@ -414,7 +415,7 @@ def throw_trail(folder: Path) -> np.ndarray:
     a = np.maximum(np.maximum(np.maximum(band, core), lines), glow)
     a *= np.clip((np.hypot(xx - centre[0], yy - centre[1]) - radius * 0.98) / 3.0, 0.0, 1.0)  # (not in the ring's hole)
     white = np.clip(np.maximum(core * 1.3, lines * 0.6), 0, 1)
-    rgb = TRAIL + (1.0 - TRAIL) * white[..., None]  # the core and the lines run white
+    rgb = TRAIL + (np.array([1.0, 0.95, 0.82]) - TRAIL) * white[..., None]  # the core and the lines run white-hot
     out[y0:y1, x0:x1, :3] = rgb
     out[y0:y1, x0:x1, 3] = a
     return out
@@ -482,7 +483,9 @@ def pictures() -> None:
     menu = trimmed(ui / "menu_hero/000.png", int(round(1100 * k)), sunset=True, under=throw_trail(ui / "menu_hero"),
                    over=ring_glint(ui / "menu_hero"))
     save(grounded(backed(menu)), "hero_menu.png")
-    # the portrait: 660 x 752 from his hair to his hips
+    # the portrait: 660 x 752 from his hair to his hips (round 16: from its own render, standing, his face to us)
+    if (ui / "portrait/000.png").exists():
+        hero = trimmed(ui / "portrait/000.png", 1100, sunset=True)
     h, w = hero.shape[:2]
     crop_h = int(h * 0.56)
     crop_w = int(crop_h * 660 / 752)
