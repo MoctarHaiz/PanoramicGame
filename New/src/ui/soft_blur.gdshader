@@ -44,6 +44,6 @@ void fragment() {
 	vec4 blur = mix(mix(s3, s2, sx), mix(s1, s0, sx), sy);
 	float lum = dot(blur.rgb, vec3(0.3, 0.59, 0.11));
 	blur.rgb = mix(blur.rgb, vec3(lum), grey);
-	blur.rgb *= 1.0 - 0.42 * tame * smoothstep(0.5, 0.95, lum);
+	blur.rgb *= 1.0 - 0.6 * tame * smoothstep(0.38, 0.9, lum);  // the sun's bloom: no bright smudge
 	COLOR = blur * tint;
 }

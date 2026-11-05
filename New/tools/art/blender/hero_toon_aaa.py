@@ -78,11 +78,17 @@ BOLD_STOPS = (0.0, 0.155, 0.185, 1.0)
 ## the face small, dark, blank; the ring a flat grey donut") the interface pictures (sunset): the skin and hands one
 ## clean colour (the albedo's mean; the face keeps its painted features), a warm shade (not a muddy purple-brown) and
 ## a slightly softer step, the face lit, the steel ring dark at its core and bright on its polish
-UI_FLAT = {"skin": (0.305, 0.0864, 0.0298), "hand": (0.305, 0.0864, 0.0298)}  ## (linear: the albedo picture's mean skin, sRGB (0.588, 0.325, 0.189))
+UI_FLAT = {"skin": (0.305, 0.0864, 0.0298), "hand": (0.305, 0.0864, 0.0298),
+           "armour_blue": (0.0175, 0.069, 0.343), "armour_silver": (0.477, 0.463, 0.492)}  ## (round 14: flat, "mottled noise on the boots")  ## (linear: the albedo picture's mean skin, sRGB (0.588, 0.325, 0.189))
 UI_BANDS = {"skin": ((0.62, 0.4, 0.33), (1.12, 0.93, 0.78)), "hand": ((0.64, 0.42, 0.35), (1.12, 0.93, 0.78)),
             "face": ((0.84, 0.66, 0.58), (1.16, 0.98, 0.85)), "chakram": ((0.12, 0.15, 0.3), (1.3, 1.3, 1.36)),
             "fur": ((0.78, 0.62, 0.52), (1.08, 1.0, 0.86))}  ## (round 13: the loincloth warm white, "flat grey")
-UI_FACE_LIFT = 0.22  ## (round 13, "the face lost in shadow under the hair") light added to the face in the pictures
+DAY_PURPLE = (1.556, 0.717, 2.185)  ## the savanna's evening purple (sRGB (0.6, 0.42, 0.7)) at a luminance of 1 (linear)
+DAY_PURPLE_K = 0.35  ## how far his shade turns to it in the level (round 14)
+UI_MAGENTA = (1.95, 0.55, 1.6)  ## the sunset's magenta (sRGB (0.7, 0.4, 0.62)) at a luminance of 1 (linear)
+UI_MAGENTA_K = 0.18  ## "a touch of sunset magenta in his shadows" (menu, round 14)
+UI_FACE_LIFT = 0.22
+ARMOUR_GLINT = 0.0  ## (round 14, "glossy blue-and-white plastic boots with hard speculars"): matte, like the skin  ## (round 13, "the face lost in shadow under the hair") light added to the face in the pictures
 UI_STOPS = (0.0, 0.14, 0.2, 1.0)  ## the terminator: a crisp step (a pixel or two of softening)
 BOLD_RIM = {"day": ((1.0, 0.62, 0.26), 0.6, (-0.6, 0.8)), "sunset": ((1.0, 0.62, 0.3), 1.0, (-0.6, 0.7))}
 ## (round 13, "a pale outline glow rings the hero" on every interface picture: the sunset rim lay on every edge (a 0.3
@@ -251,7 +257,7 @@ def build(m, mode="day"):
     g.link(s2r.outputs["Color"], bw.inputs[0])
     L = bw.outputs[0]
     if region == "fur":  # strands: the light itself broken along them (a stepped terminator)
-        strand = g.noise(P, (90.0, 90.0, 7.0), 1.5, 0.5)
+        strand = g.noise(P, (38.0, 38.0, 4.0), 1.0, 0.4)  # (round 14: tufts, not scratchy strands)
         L = g.math("ADD", L, g.math("MULTIPLY", g.math("SUBTRACT", strand, 0.5), 0.18))
     if region == "face" and mode == "sunset":  # (round 13) out of the hair's shadow
         L = g.math("ADD", L, UI_FACE_LIFT)
@@ -325,10 +331,10 @@ def build(m, mode="day"):
         colour = g.mix("MULTIPLY", 1.0, colour, g.grey(occ))
     if region == "fur":
         # strands in value, darker roots under the belt and a darker underside
-        strand2 = g.noise(P, (120.0, 120.0, 6.0), 2.0, 0.5)
-        clump = g.noise(P, (45.0, 45.0, 3.5), 1.0, 0.4)  # tufts: bigger groups of strands, readable small
-        v = g.math("ADD", g.math("MULTIPLY", strand2, 0.3), 0.72)
-        v = g.math("MULTIPLY", v, g.math("ADD", g.math("MULTIPLY", g.smooth(clump, 0.35, 0.65), 0.28), 0.82))
+        strand2 = g.noise(P, (60.0, 60.0, 5.0), 1.0, 0.4)
+        clump = g.noise(P, (24.0, 24.0, 2.5), 1.0, 0.35)  # tufts: big clumps, readable small (round 14: "scratchy dry-brush")
+        v = g.math("ADD", g.math("MULTIPLY", strand2, 0.12), 0.88)
+        v = g.math("MULTIPLY", v, g.math("ADD", g.math("MULTIPLY", g.smooth(clump, 0.42, 0.5), 0.24), 0.8))
         sepw = g.node("ShaderNodeSeparateXYZ")
         g.link(geo.outputs["Normal"], sepw.inputs[0])
         under = g.math("MULTIPLY", g.smooth(sepw.outputs["Z"], 0.15, -0.5), 0.4)
@@ -343,8 +349,12 @@ def build(m, mode="day"):
         y = g.math("ADD", sep.outputs["Y"], off)
         band = g.math("MULTIPLY", g.smooth(y, 0.18, 0.34), g.smooth(y, 0.62, 0.46))
         band = g.math("MULTIPLY", band, g.math("ADD", g.math("MULTIPLY", lit_k, 0.7), 0.3))
-        colour = g.mix("ADD", g.math("MULTIPLY", band, 0.55 if mode == "day" else 0.4), colour,
-                       (0.07, 0.085, 0.14) if mode == "day" else (0.07, 0.07, 0.11))
+        colour = g.mix("ADD", g.math("MULTIPLY", band, 0.35 if mode == "day" else 0.4), colour,
+                       (0.07, 0.085, 0.14) if mode == "day" else (0.07, 0.07, 0.11))  # (round 14: 0.55 -> 0.35 in the level, "grey-white, reads aged")
+        # (round 14, "a flat grey-black mop, a helmet") a third, lighter step on the lit locks, in clumps
+        locks = g.smooth(g.noise(P, (30.0, 30.0, 30.0), 0.5, 0.3), 0.5, 0.56)
+        step3 = g.math("MULTIPLY", g.math("MULTIPLY", locks, lit_k), 0.7)
+        colour = g.mix("MIX", step3, colour, (0.065, 0.065, 0.095) if mode == "day" else (0.1, 0.08, 0.1))  # (still black hair)
     if region == "chakram":
         # engraving: a groove round the blade and a ring of notched marks, darker; a polished outer edge
         oc = uv.outputs["Object"]
@@ -378,7 +388,7 @@ def build(m, mode="day"):
     if region in ("armour_blue", "armour_silver"):
         # scuffs and dust: low, broken value changes (wear), matte
         wear = g.noise(P, (22.0, 22.0, 22.0), 1.5, 0.5)
-        w = g.math("ADD", g.math("MULTIPLY", g.smooth(wear, 0.45, 0.75), 0.12), 0.94)
+        w = g.math("ADD", g.math("MULTIPLY", g.smooth(wear, 0.45, 0.75), 0.05), 0.975)  # (round 14: matte, barely worn)
         colour = g.mix("MULTIPLY", 1.0, colour, g.grey(w))
         # crisp glints where the key reflects, broken by the wear (painted metal, not plastic)
         gl = g.node("ShaderNodeBsdfGlossy", Roughness=0.16)
@@ -388,7 +398,7 @@ def build(m, mode="day"):
         gbw = g.node("ShaderNodeRGBToBW")
         g.link(s2g.outputs["Color"], gbw.inputs[0])
         glint = g.math("MULTIPLY", g.smooth(gbw.outputs[0], 0.9, 1.4), g.smooth(wear, 0.62, 0.38))
-        k = (0.45 if region == "armour_silver" else 0.3) * (1.0 if mode == "day" else 0.8)
+        k = (0.45 if region == "armour_silver" else 0.3) * (1.0 if mode == "day" else 0.8) * ARMOUR_GLINT
         colour = g.mix("ADD", g.math("MULTIPLY", glint, k), colour, (1.0, 0.95, 0.86))
     # a soft sheen on the sun side (skin, the scarf's silk, the belt's leather)
     if region in SHEEN_K and not BOLD:
@@ -406,6 +416,15 @@ def build(m, mode="day"):
         front = g.math("POWER", facing, 2.0)
         b = g.math("MULTIPLY", g.math("MULTIPLY", g.math("SUBTRACT", 1.0, lit_k), front), b_k)
         colour = g.mix("ADD", b, colour, b_c)
+    # (round 14, the judges' own fix: "tint his shadow side with the scene's purple, a warm rim only on the sun side,
+    # a dark ink outline so he sits inside the world") his shade takes the savanna's evening purple, its value kept
+    tint_k = DAY_PURPLE_K if mode == "day" else UI_MAGENTA_K
+    if BOLD and not flat and region != "eye" and tint_k > 0.0:
+        lum_c = g.node("ShaderNodeRGBToBW")
+        g.link(colour, lum_c.inputs[0])
+        tint = g.mix("MULTIPLY", 1.0, g.grey(lum_c.outputs[0]), DAY_PURPLE if mode == "day" else UI_MAGENTA)
+        shade_k = g.math("MULTIPLY", g.smooth(L, BOLD_STOPS[2], BOLD_STOPS[1]), tint_k)
+        colour = g.mix("MIX", shade_k, colour, tint)
     # the thick hot rim: lit edges only (the sun's side of the silhouette)
     rk = rim_k * RIM_K.get(region, 1.0)
     if BOLD and RIM_K.get(region, 1.0) > 0:
@@ -427,7 +446,7 @@ def build(m, mode="day"):
     g.link(colour, em.inputs["Color"])
     g.link(em.outputs[0], out.inputs["Surface"])
     if region == "fur":  # the stepped fur edge: tufts pushed out along the normal (both faces: thickness)
-        tuft = g.noise(P, (55.0, 55.0, 8.0), 1.0, 0.4)
+        tuft = g.noise(P, (28.0, 28.0, 5.0), 1.0, 0.35)
         disp = g.node("ShaderNodeDisplacement", Midlevel=0.4, Scale=0.0035)
         g.link(tuft, disp.inputs["Height"])
         g.link(disp.outputs[0], out.inputs["Displacement"])

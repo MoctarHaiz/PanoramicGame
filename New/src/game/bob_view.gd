@@ -8,9 +8,9 @@ extends Node2D
 ## When Panoramic takes it, the game screen flies a copy to the counter (BobView.flier()).
 
 const DIR := "res://assets/art/bob/"
-const SIZE := 24.0  ## drawn width in units (a 32-unit tile: round 13, "13 identical gems packed edge to edge, a noisy red bar": each with air round it; the rules' pickup unchanged)
+const SIZE := 28.0  ## drawn width in units (a 32-unit tile; round 14: round 13's 24 read "small and pale", round 12's 28 "bigger and more saturated")
 enum Face { SMILE, BLINK, JOY, WINK }
-const SPEC_AT := Vector2(-5.1, -5.5)  ## units from its middle (at SIZE): bob_sheet.py's hard glint
+const SPEC_AT := Vector2(-5.9, -6.4)  ## units from its middle (at SIZE): bob_sheet.py's hard glint
 
 static var _sheet: Texture2D
 static var _frame_px := 128
@@ -99,7 +99,7 @@ func _init(column := 0, row := 0) -> void:
 	_pace = 2.6 + 1.4 * fposmod(h * 37.1, 1.0)
 	_clock = 0.0
 	_blink_at = 1.0 + fposmod(column * 1.37 + row * 0.71, 4.0)
-	_glint_at = 0.2 + fposmod(column * 0.41 + row * 1.9, 3.0)
+	_glint_at = 0.2 + 3.0 * fposmod(h * 13.7, 1.0)  # (its glint on its own beat too: round 14, "identical stamps")
 
 
 func _process(delta: float) -> void:

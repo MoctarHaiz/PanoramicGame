@@ -2188,7 +2188,7 @@ func _test_art_round10() -> void:
 	for i in 4:
 		hero.show_state(w, w.draw_hero(), 1.0 / 60.0)
 	var rim: float = hero._material.get_shader_parameter(&"back_rim")
-	_check(rim > 0.5, "at home the lit hut rims him from behind (%.2f)" % rim)
+	_check(rim > 0.3, "at home the lit hut rims him from behind (%.2f)" % rim)
 	holder.queue_free()
 	var menu := Image.load_from_file(ProjectSettings.globalize_path(HeroView.DIR + "hero_menu.png"))
 	var trail := 0
@@ -2226,10 +2226,10 @@ func _test_art_round12() -> void:
 	hero.free()
 
 
-## Round 13: the Red Bobs drawn smaller (each with air round it; the rules' pickup unchanged) on beats of their own
-## (no smooth wave along a row), and at home his front falls into the lit hut's backlight.
+## Round 13-14: the Red Bobs on beats of their own (no smooth wave along a row) at round 12's 28 units, and at home
+## his front keeps its light (round 13's backlit front lost).
 func _test_art_round13() -> void:
-	_check(BobView.SIZE < 28.0, "Red Bobs drawn smaller than their 28-unit round 12 size (%.0f)" % BobView.SIZE)
+	_check(BobView.SIZE == 28.0, "Red Bobs drawn 28 units (round 13's 24 read small and pale) (%.0f)" % BobView.SIZE)
 	var phases: Array[float] = []
 	for c in 8:
 		var b := BobView.new(100 + c, 6)
@@ -2255,7 +2255,7 @@ func _test_art_round13() -> void:
 	for i in 4:
 		hero.show_state(w, w.draw_hero(), 1.0 / 60.0)
 	var gain: float = hero._material.get_shader_parameter(&"light_gain")
-	_check(gain < 1.0, "at home his front falls into the hut's backlight (light_gain %.2f)" % gain)
+	_check(gain > 1.15, "at home his front keeps the level's light (round 14; light_gain %.2f)" % gain)
 	holder.queue_free()
 
 

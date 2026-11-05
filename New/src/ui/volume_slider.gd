@@ -83,10 +83,10 @@ func _value_text(inside: Rect2, cx: float, knob_r: float) -> void:
 	var french := TranslationServer.get_locale().begins_with("fr")
 	var words := ("%d %%" if french else "%d%%") % roundi(value * 100.0)
 	var font: Font = Ui.font_display
-	var px := 25  # readable at a glance
+	var px := 28  # readable at a glance
 	var w := font.get_string_size(words, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
 	var base := inside.get_center().y + px * 0.36
 	if cx - knob_r - inside.position.x >= w + 14.0:
-		draw_string(font, Vector2(cx - knob_r - 8.0 - w, base), words, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color("6a2a04"))
+		draw_string(font, Vector2(cx - knob_r - 8.0 - w, base), words, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color("3a1202"))
 	elif inside.end.x - (cx + knob_r) >= w + 12.0:
-		draw_string(font, Vector2(cx + knob_r + 8.0, base), words, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color(1, 0.95, 0.85, 0.9))
+		draw_string(font, Vector2(cx + knob_r + 8.0, base), words, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color(1, 0.97, 0.9))

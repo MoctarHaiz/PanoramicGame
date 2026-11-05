@@ -656,3 +656,52 @@ menu, pause and settings lost to round 11; game over and win won. ROUND13.md (ux
   screen). perf.gd, quiet Mac (load 1.5): texture peak 63.3 MB on iPhone 15 and iPad 13; play draw
   calls mean 118.9 (HUD 28.2: 118.9 with it, 90.7 without), max 258 (was 369); paused 113 (128),
   results 210, menu 91 (122); worst own work in play 7.9 / 7.6 ms (PASS).
+
+## Round 14
+
+Round 13 merged (1b79174). ROUND14.md (ux) and judge/p13, plus the character judge (judge/c13) on the
+menu behind the hero. No QA this round: my own tests, perf and captures. The user ranks the hero first:
+the UI never covers or crowds him (menu, game over, win).
+
+- Start: the round-13 plate is gone (it read as "a debug toast"); round 12's floating outlined text,
+  with only the soft dark glow hugging the letters (shade alpha 0.55), never a box.
+- Game over: the navy well has no grain now (a smooth vertical gradient, `0c1226` to `3e4e7c`, the
+  inset's soft inner shadow and lit lip; the well no longer repeats its children's textures); the
+  subtitle back to round 12's cream stroke, thinner (outline 3, no depth, a faint warm shadow); the
+  NEW BEST stays 62. The way-home bar: the fill is the track's own shape from its left end, its full
+  inner height (fill_bar with no cap), a bright edge at its tip; the way still to go near black
+  (`03050a` to `0c1222`, its top half shaded) inside an ink line and a pale cream rim, so the gold
+  reads as the bar filling, not a pill on it.
+- Win: no grain in the score well; the outer stars' tilts exact mirrors (-0.24, 0, 0.24), no longer
+  rocking (the rock made them differ in every frame).
+- Pause: Controls one finger-tap glyph (Phosphor's hand-pointing-fill; gamepad.svg removed); the
+  ON/OFF tags astride each tile's top edge, off the icons; the corner diamonds bigger (8.5, a dark
+  outline, a gold face, a lit facet), all eight in one triangle array (one polygon at a time they
+  cost the pause 16 draw calls); the blurred background's highlights tamed evenly (soft_blur: `tame`
+  takes 60 % off from luminance 0.38 up), so the sun's bloom no longer competes with the panel.
+- Settings: the card's top inset 112 (the back and info buttons just under the frame, the headers
+  close under them); the Sound group's tiles a richer amber (Ui.Tone.AMBER, `ffcc4e` to `5a2604`, its
+  own frame); the sliders' "100 %" 28 px, dark brown on the fill, cream past the knob; side margins
+  (the card fits the room less 120).
+- Menu: the BEST plate 112 tall (margins 22/28), its stars 50; the gear tile the plate's height
+  (PLATE_H); the ribbon without its dashed stitch (ui_kit.py `ribbon_plain()`, ui/ribbon_plain.png, a
+  manifest row). The hero keeps his size (0.33 of the width) on every screen: the plaque and the gear
+  sit in a holder (`_row_fit`) that shrinks them only where the title column is narrower than they
+  are (a 4:3 iPad, about 0.9; phones keep the full size), so the row stays whole in the safe area
+  (the French iPad's gear was 9 px past it) without pushing him smaller.
+- Menu sun (judge c13: "concentric, stepped rings"): they were mine, twelve stacked additive circles
+  and a 128 px glow stretched across the sky. Now src/ui/sun_glow.gdshader: the bloom worked out per
+  pixel (a smooth radial falloff, an optional white-hot disc), dithered by half a level in screen
+  space: no rings, no visible grain. SunsetBackdrop's sun and horizon glow and the menu's halo behind
+  the hero use it (the backdrop no longer loads world/sun.png). The menu's draw calls 91 -> 68 (max).
+- Menu ring "on a faint lighter rectangle" (judge c13): nothing of mine is behind it (rays.png is
+  clear at its top, left and right edges). It is in art's hero_menu.png: the ring's soft halo and its
+  trail are cut at the picture's top and right edges (the ring touches the canvas edge); the render
+  needs a margin round the ring.
+- HUD: the way-home track's empty part plain dark (`2c1610`), its footprints gone.
+- Captures need `--fixed-fps 60` (as perf): without it the menu's 1.3 s wait is real time and, on a
+  busy machine, catches the entrance halfway (no Play, no Best row).
+- Tests: 1087 checks, 0 failed. Captures AAA/round_14/ux/{en,fr}/ (iPhone 15 and iPad, every UI
+  screen). perf.gd, quiet Mac: texture peak 63.0 MB on iPhone 15 and iPad 13; play draw calls mean
+  118.7 (HUD 27.9: 118.9 with it, 91.0 without), max 258; paused 101 mean (106 max, was 113), results
+  207, menu 59 mean (68 max, was 91); worst own work in play 7.9 / 7.4 ms (PASS).

@@ -177,6 +177,9 @@ func _inlays(r: Rect2) -> void:
 	var mid := frame_w * 0.5
 	var arc_r := maxf(radius - mid, 2.0)
 	var arm := 46.0
+	var gems := PackedVector2Array()  # the eight diamonds, three shapes each, in one triangle array
+	var gem_colours := PackedColorArray()
+	var gem_idx := PackedInt32Array()
 	for corner: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
 		var c := r.get_center() + Vector2(r.size.x / 2 - radius, r.size.y / 2 - radius) * corner
 		var pts := PackedVector2Array()
@@ -190,10 +193,19 @@ func _inlays(r: Rect2) -> void:
 			lip.append(q + Vector2(0, 1.6))
 		draw_polyline(pts, Color(0.32, 0.12, 0.02, 0.8), 3.4, true)
 		draw_polyline(lip, Color(1, 0.86, 0.5, 0.9), 1.6, true)
-		for end: Vector2 in [pts[0], pts[pts.size() - 1]]:
-			var d := 4.5
-			draw_colored_polygon(PackedVector2Array([end + Vector2(0, -d), end + Vector2(d, 0), end + Vector2(0, d),
-					end + Vector2(-d, 0)]), Color("ffd060"))
+		for end: Vector2 in [pts[0], pts[pts.size() - 1]]:  # diamonds big enough to register on a phone
+			var d := 8.5
+			var o := d + 2.0
+			var h := d * 0.5
+			for quad: Array in [[Vector2(0, -o), Vector2(o, 0), Vector2(0, o), Vector2(-o, 0), Color("3a1606")],
+					[Vector2(0, -d), Vector2(d, 0), Vector2(0, d), Vector2(-d, 0), Color("ffd060")],
+					[Vector2(0, -d), Vector2(h, -h), Vector2.ZERO, Vector2(-h, -h), Color("fff2b8")]]:  # (its lit facet)
+				var base := gems.size()
+				for i in 4:
+					gems.append(end + quad[i])
+					gem_colours.append(quad[4])
+				gem_idx.append_array([base, base + 1, base + 2, base, base + 2, base + 3])
+	RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), gem_idx, gems, gem_colours)
 
 
 ## Gold studs nailed into the middle of the frame's long edges on a wide card (the corners carry

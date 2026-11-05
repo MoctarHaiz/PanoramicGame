@@ -41,7 +41,7 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	clip_contents = true
-	for name in ["sunset_sky", "sunset_far", "sunset_hills", "sunset_grass", "sun", "rays", "mote", "bird",
+	for name in ["sunset_sky", "sunset_far", "sunset_hills", "sunset_grass", "rays", "mote", "bird",
 			"tree_acacia_1", "tree_acacia_2", "tree_baobab_1"]:
 		_tex[StringName(name)] = load(DIR + name + ".png")
 	var add := CanvasItemMaterial.new()
@@ -54,7 +54,8 @@ func _ready() -> void:
 		for i in 4:
 			_tex[StringName("cloud_%d" % (i + 1))] = load(DIR + "cloud_%d.png" % (i + 1))
 		_painter(_draw_clouds)
-	_painter(_draw_sun).material = add
+	_painter(_draw_horizon_glow).material = _glow_material(0.0)  # smooth blooms (stacked discs stepped
+	_painter(_draw_sun).material = _glow_material(1.0)  # into rings round the sun)
 	_painter(_draw_rays).material = add
 	_painter(_draw_strip.bind(&"sunset_far", 0.0, 0.62, 2.0), true)
 	_painter(_draw_strip.bind(&"sunset_hills", 0.2, 0.9, 5.0), true)
@@ -109,20 +110,29 @@ func _draw_clouds(ci: CanvasItem) -> void:
 		ci.draw_texture_rect(tex, Rect2(at - sz / 2, sz), false, tint)
 
 
+## A smooth bloom (sun_glow.gdshader: worked out per pixel, dithered), `core`: its white-hot disc.
+func _glow_material(core: float) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = preload("res://src/ui/sun_glow.gdshader")
+	m.set_shader_parameter(&"core", core)
+	m.set_shader_parameter(&"core_radius", 0.2)  # (the disc: 0.15 of the height, the bloom 0.75)
+	m.set_shader_parameter(&"falloff", 2.0 if core > 0.0 else 1.6)
+	return m
+
+
+## The warm air along the horizon either side of the sun.
+func _draw_horizon_glow(ci: CanvasItem) -> void:
+	var c := _sun()
+	var band := Vector2(size.y * 2.6, size.y * 0.42)
+	ci.draw_rect(Rect2(Vector2(c.x, size.y * horizon) - band / 2, band), Color(1, 0.7, 0.45, 0.4))
+
+
+## The sun: a blown-out disc, white-hot in its middle, blooming smoothly into the sky (no hard edge,
+## no rings).
 func _draw_sun(ci: CanvasItem) -> void:
 	var c := _sun()
-	var r := size.y * 0.15 * (1.0 + sin(_clock * 0.8) * 0.01)
-	var glow := size.y * 1.5
-	ci.draw_texture_rect(_tex[&"sun"], Rect2(c - Vector2(glow, glow) / 2, Vector2(glow, glow)), false, Color(1, 0.8, 0.6, 0.9))
-	# the warm air along the horizon either side of the sun
-	var band := Vector2(size.y * 2.6, size.y * 0.42)
-	ci.draw_texture_rect(_tex[&"sun"], Rect2(Vector2(c.x, size.y * horizon) - band / 2, band), false, Color(1, 0.7, 0.45, 0.55))
-	# a blown-out disc: many soft rings added up, white-hot in its middle, blooming into the sky
-	# (no hard cut-out edge)
-	for i in 12:
-		var u := i / 11.0
-		ci.draw_circle(c, r * lerpf(1.7, 0.55, u), Color(1.0, lerpf(0.72, 0.97, u), lerpf(0.45, 0.88, u), lerpf(0.06, 0.22, u)),
-				true, -1.0, true)
+	var glow := size.y * 1.5 * (1.0 + sin(_clock * 0.8) * 0.01)
+	ci.draw_rect(Rect2(c - Vector2(glow, glow) / 2, Vector2(glow, glow)), Color(1, 0.78, 0.55, 0.85))
 
 
 ## Soft rays fanning up from the low sun, turning very slowly.

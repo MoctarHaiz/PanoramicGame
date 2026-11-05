@@ -34,10 +34,15 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 	if won:
 		body.add_child(_stars_stage(stars))
 	else:
-		# what happened: plain deep-red letters, a little spaced: simple (an outline on red ran the
-		# letters together, a cream fill in a red outline was busy)
-		var why := Ui.label(TranslationServer.translate("FELL" if world.death_reason == &"fall" else "CAUGHT"),
-				38, Color("a81408"), Ui.title_font(700, 2))
+		# what happened: red display letters with a thin cream stroke, spaced (game-like; plain red read
+		# as body text)
+		var why := Ui.display_text(TranslationServer.translate("FELL" if world.death_reason == &"fall" else "CAUGHT"),
+				38, Color("e8301a"), Color("fff2dc"), Color("b81408"))
+		why.outline_width = 3.0
+		why.depth = 0.0
+		why.tracking = 2.0
+		why.shadow = Color(0.3, 0.04, 0.0, 0.35)
+		why.refresh()
 		var air := MarginContainer.new()  # air round it (not edge to edge), room for a crown under it
 		air.add_theme_constant_override(&"margin_bottom", 14)
 		air.add_theme_constant_override(&"margin_left", 34)
@@ -46,7 +51,6 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 		body.add_child(air)
 	var well := PanelContainer.new()
 	well.add_theme_stylebox_override(&"panel", _dark_well(won))
-	well.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED  # (its grain tiles)
 	var lines := VBoxContainer.new()
 	lines.add_theme_constant_override(&"separation", 10)
 	well.add_child(lines)
@@ -124,14 +128,13 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 
 ## The groove under the run's count: cut into the parchment (InsetStyle: shade under its upper
 ## edge, the lit lip of the parchment under it), dark, so the cream numbers stand out on it; warm
-## leather after a win, a deep cool navy after a loss (its gold numbers stand out on it), both with a
-## faint grain (a material, not a flat slab).
+## leather after a win, a deep cool navy after a loss (its gold numbers stand out on it): smooth
+## gradients and a soft inner shadow (a grain read as dithering).
 static func _dark_well(won: bool) -> InsetStyle:
 	var s := InsetStyle.new(22.0)
 	s.top = Color("6a2e10") if won else Color("0c1226")  # a win's warmer (dark chocolate dulled the gold)
 	s.bottom = Color("9c5420") if won else Color("3e4e7c")  # a loss's a deep cool gradient
 	s.outline = Card.INK if won else Color("0a0e1e")
-	s.grain = 0.35
 	s.content_margin_top = 12
 	s.content_margin_bottom = 14
 	return s
@@ -322,10 +325,6 @@ static func _slam_star(tree: SceneTree, star: Control, i: int, delay: float, pan
 		shine.tween_interval(1.4 + i * 0.35)
 		shine.tween_property(star, "scale", Vector2.ONE * 1.08, 0.12).set_trans(Tween.TRANS_SINE)
 		shine.tween_property(star, "scale", Vector2.ONE, 0.2).set_trans(Tween.TRANS_SINE)
-		var rock := star.create_tween().set_loops()  # a gentle rock about its tilt: alive, not stuck on
-		rock.tween_interval(0.4)
-		rock.tween_property(star, "rotation", tilt + 0.07, 1.3).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-		rock.tween_property(star, "rotation", tilt - 0.07, 1.3).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
 ## The Red Bobs roll up from 0 to `target` in COUNT_TIME, ticking, then punch.
@@ -389,9 +388,10 @@ static func _shake(c: Control, px: float) -> void:
 	t.tween_property(c, "position", at, 0.05)
 
 
-## The way home on a lost run's card: a sunken groove, a thick gold fill to where he got (it fills
-## up when the count is done), the percentage riding the fill's tip, and at its end the goal: the
-## house on a gold disc, drawn as part of the bar (not a button).
+## The way home on a lost run's card: a sunken track (a pale rim, the way to go dark), the gold
+## filling it from its left end to where he got (when the count is done), cut square at the tip,
+## the percentage riding the tip, and at its end the goal: the house on a gold disc, drawn as part
+## of the bar (not a button).
 class WayBar extends Control:
 	var progress := 0.0
 	var _shown := 0.0
@@ -431,12 +431,19 @@ class WayBar extends Control:
 		var ci := get_canvas_item()
 		var r := Rect2(Vector2(0, 8), Vector2(size.x - 44.0, size.y - 16))
 		var rad := r.size.y / 2
-		GlossStyle.fill_rounded(ci, r.grow(3.0), rad + 3.0, Color("080a16"), Color("080a16"))
-		GlossStyle.fill_rounded(ci, r, rad, Color("0a0e1c"), Color("1e2640"))  # a groove in the navy well
+		# the track, plainly a track: a pale rim round it, an ink line, the way still to go much darker
+		# than the well (a groove the colour of the well let the gold read as a pill sitting on it)
+		GlossStyle.fill_rounded(ci, r.grow(6.0), rad + 6.0, Color(0.95, 0.84, 0.6, 0.7), Color(0.85, 0.7, 0.45, 0.7))
+		GlossStyle.fill_rounded(ci, r.grow(3.0), rad + 3.0, Color("05070e"), Color("05070e"))
+		GlossStyle.fill_rounded(ci, r, rad, Color("03050a"), Color("0c1222"))
 		GlossStyle.fill_clipped(ci, r, rad, Rect2(r.position, Vector2(r.size.x, r.size.y * 0.5)),
 				Color(0, 0, 0, 0.5), Color(0, 0, 0, 0))
-		# the way done: a fill in the groove's own shape, a rounded end, a light inside its top
-		GlossStyle.fill_bar(ci, r, rad, r.position.x + r.size.x * _shown, Color("ffd84e"), Color("e07a0a"), 0.95)
+		# the way done: the track's own fill, from its left end, its full inner height, cut square at the
+		# tip with a bright edge there, a light inside its top
+		var tip := r.position.x + r.size.x * _shown
+		GlossStyle.fill_bar(ci, r, rad, tip, Color("ffd84e"), Color("e07a0a"), 0.95, 0.0)
+		if _shown > 0.0 and tip < r.end.x - rad * 0.5:
+			draw_line(Vector2(tip - 1.0, r.position.y + 3.0), Vector2(tip - 1.0, r.end.y - 3.0), Color(1, 1, 0.85, 0.85), 2.0, true)
 		# the goal: the house on a gold disc, part of the bar
 		var hc := Vector2(size.x - 28.0, size.y / 2)
 		draw_circle(hc, 29.0, Card.INK, true, -1, true)

@@ -10,7 +10,7 @@ hips, head, toes and hands (airborne frames hang from the hips, hanging ones fro
 Also writes the interface pictures (hero_menu.png, hero_win.png, hero_defeat.png) and portrait.png (the
 source of the HUD badge, the icons and the store art: tools/art/ui_art.py, icons.py, tools/store_art.py).
 
-    python3 tools/art/hero_atlas.py [RENDER_DIR]   # default ROOT/_agents/AAA/hero3d/render/r13/game
+    python3 tools/art/hero_atlas.py [RENDER_DIR]   # default ROOT/_agents/AAA/hero3d/render/r14/game
 
 (The AAA hero: rendered by hero_render.py from ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend, see
 ROOT/_agents/AAA/hero3d/render/render_all.sh; the interface pictures come from RENDER_DIR/../render_ui.)
@@ -26,7 +26,7 @@ from scipy import ndimage
 
 NEW = Path(__file__).resolve().parents[2]
 ROOT = next(p for p in NEW.parents if (p / "Making").is_dir())  # the folder with the user's Blender files
-RENDER = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "_agents/AAA/hero3d/render/r13/game"  # (round 13: the hang, the catch and the cheer new, the rest round 11's; the interface pictures new: hero3d/render/render_r13.sh)
+RENDER = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "_agents/AAA/hero3d/render/r14/game"  # (round 14: every level animation with his shade in the savanna's purple, hero3d/render/render_r14.sh)
 GROUND_SPEED = 8.0 * 960.0 / 1320.0 * 40.0  ## units a second the ground scrolls (World.SCROLL_SPEED)
 OUT = NEW / "assets/art/hero"
 SCALE = 0.40  ## render px -> atlas px (1024 renders: he stands ~690 px, ~276 px in the atlas; the ink line costs a little room)
@@ -69,12 +69,13 @@ INK_PX_UI = 2.8  ## the same, scaled to the interface pictures (as before)
 
 
 SUN = np.array([-0.6, -0.8])  ## towards the sun on screen (x right, y down): upper left, as in the world
-RIM_PX = 5.0  ## atlas px of the hot rim on the sun side (hero pass 2: "a thick hot band, not a thin line"; round 11: 3.4 -> 4.2; round 13: 5.0)
+RIM_PX = 4.2  ## atlas px of the hot rim on the sun side (hero pass 2: "a thick hot band, not a thin line"; round 11: 3.4 -> 4.2; round 14: round 13's 5.0 reverted)
 RIM_PX_UI = 2.4  ## the same, scaled to the interface pictures (round 11: 3.4 -> 2.4, "a lighter halo" inside the line)
-RIM_DAY = (np.array([1.0, 0.94, 0.8]), 1.0)  ## colour, strength (round 11: lighter and stronger, to part him from the rock;
-## round 13, "orange-brown on the orange pillar, no rim light, the third thing you see": a warm white back light)
-RIM_DAY_DARK = 0.55  ## how much of it his black hair takes in the level (a backlit sheen on the locks)
-RIM_DAY_FALL = 0.7  ## a solid band in the level, readable at phone size (the interface pictures keep a line)
+RIM_DAY = (np.array([1.0, 0.72, 0.36]), 0.75)  ## colour, strength (round 11: lighter and stronger, to part him from the rock;
+## round 14: round 13's warm white band read "a whitish edge, a cut-out sticker": back to round 12's warm orange)
+RIM_DAY_DARK = 0.22  ## how much of it his black hair takes in the level
+RIM_DAY_FALL = 1.6  ## a line at the edge falling into the form
+INK_DAY = np.array([0.075, 0.032, 0.038])  ## (round 14) the level's ink darker, a little purple: "a dark ink outline so he sits inside the world"
 RIM_SUNSET = (np.array([1.0, 0.78, 0.48]), 0.8)  ## (round 13: warmer white, the rim against the sky; on the sun side only)
 
 
@@ -111,7 +112,7 @@ INK_SS = 4  ## the outline is drawn at 4x and reduced: a smooth anti-aliased edg
 INK_CALM = 0.2  ## its contour calmed over this share of its width (no bumps where a strand of fur pokes out)
 
 
-def inked(arr: np.ndarray, px: float = INK_PX) -> np.ndarray:
+def inked(arr: np.ndarray, px: float = INK_PX, ink: np.ndarray = INK) -> np.ndarray:
     """A frame with a thicker ink line round its outer silhouette (anti-aliased), under the figure:
     the cel look's outline reads against the pale sky at phone size, inside lines stay thin. The line follows
     a calmed contour of the silhouette, so it keeps an even width, drawn at INK_SS x and reduced (smooth, no
@@ -125,7 +126,7 @@ def inked(arr: np.ndarray, px: float = INK_PX) -> np.ndarray:
     cover |= ndimage.distance_transform_edt(big < 0.5) <= px * 0.75 * ss
     ring = cover.astype(np.float32).reshape(h, ss, w, ss).mean((1, 3))
     out = np.zeros_like(arr)
-    out[..., :3] = INK
+    out[..., :3] = ink
     out[..., 3] = ring
     fa = a[..., None]
     out[..., :3] = arr[..., :3] * fa + out[..., :3] * (1.0 - fa)
@@ -195,7 +196,7 @@ def main() -> None:
         origin = points.get("origin")
         meta[name] = {"fps": fps, "loop": loop, "frames": [], "k": k, "points": points, "origin": origin}
         for i in idx:
-            arr = inked(sun_rim(premultiplied_resize(Image.open(files[i]), k), dark=RIM_DAY_DARK, fall=RIM_DAY_FALL))
+            arr = inked(sun_rim(premultiplied_resize(Image.open(files[i]), k), dark=RIM_DAY_DARK, fall=RIM_DAY_FALL), ink=INK_DAY)
             ys, xs = np.nonzero(arr[..., 3] > 0.004)
             x0, x1 = max(xs.min() - PAD, 0), min(xs.max() + PAD + 1, arr.shape[1])
             y0, y1 = max(ys.min() - PAD, 0), min(ys.max() + PAD + 1, arr.shape[0])
@@ -319,7 +320,7 @@ def backed(arr: np.ndarray, k: float = 0.45) -> np.ndarray:
     return out
 
 
-TRAIL = np.array([0.74, 0.9, 1.0])  ## the throw trail's colour: the steel ring's cold light
+TRAIL = np.array([0.6, 0.84, 1.0])  ## the throw trail's colour: the steel ring's cold light
 
 
 def throw_trail(folder: Path) -> np.ndarray:
@@ -359,16 +360,23 @@ def throw_trail(folder: Path) -> np.ndarray:
         return a.reshape(yy.shape)
 
     tt = t[:, 0]
-    band = stroke(curve, lambda k: radius * 0.85 * k ** 0.7, lambda k: 0.38 + 0.6 * k)  # (round 13: "a stronger smear")
-    core = stroke(curve, lambda k: radius * 0.24 * k ** 0.7, lambda k: 0.95 * k ** 0.7)
+    # (round 14, "a flat grey-blue smear with no speed lines, glow or sharp leading edge: an undo-ghost") a blade of
+    # light: needle-thin and faint at his hand, widening to a sharp, bright head at the ring, a white-hot core, a
+    # cold glow round the head and three crisp speed lines
+    band = stroke(curve, lambda k: radius * 0.8 * k ** 1.3, lambda k: 0.2 + 0.8 * k ** 0.6)
+    core = stroke(curve, lambda k: radius * 0.28 * k ** 1.3, lambda k: k ** 0.5)
+    glow = np.clip(1.0 - ndimage.distance_transform_edt(band < 0.5) / (radius * 0.45), 0.0, 1.0) ** 2
+    head = np.clip(1.0 - np.hypot(xx - centre[0], yy - centre[1]) / (radius * 2.2), 0.0, 1.0)
+    glow = glow * head * 0.5
     lines = np.zeros_like(band)
-    for sgn in (-1.0, 1.0):  # speed lines either side, along the middle of the flight
-        path = curve + side * (sgn * radius * 1.15 * tt ** 0.8)[:, None]
-        keep = (tt > 0.3) & (tt < 0.85)
-        lines = np.maximum(lines, stroke(path[keep], lambda k: np.full_like(k, radius * 0.05), lambda k: 0.75 * np.sin(k * np.pi)))
-    a = np.maximum(np.maximum(band, core), lines)
+    for sgn, off, reach in ((-1.0, 1.15, (0.35, 0.9)), (1.0, 1.15, (0.3, 0.85)), (1.0, 1.75, (0.5, 0.92))):
+        path = curve + side * (sgn * radius * off * tt ** 1.1)[:, None]
+        keep = (tt > reach[0]) & (tt < reach[1])
+        lines = np.maximum(lines, stroke(path[keep], lambda k: np.full_like(k, radius * 0.045), lambda k: 0.9 * np.sin(k * np.pi) ** 0.6))
+    a = np.maximum(np.maximum(np.maximum(band, core), lines), glow)
     a *= np.clip((np.hypot(xx - centre[0], yy - centre[1]) - radius * 0.98) / 3.0, 0.0, 1.0)  # (not in the ring's hole)
-    rgb = TRAIL + (1.0 - TRAIL) * np.clip(core * 1.2, 0, 1)[..., None]  # the core runs white
+    white = np.clip(np.maximum(core * 1.3, lines * 0.6), 0, 1)
+    rgb = TRAIL + (1.0 - TRAIL) * white[..., None]  # the core and the lines run white
     out[y0:y1, x0:x1, :3] = rgb
     out[y0:y1, x0:x1, 3] = a
     return out
@@ -383,7 +391,7 @@ def save(arr: np.ndarray, name: str, pad: int = 8) -> None:
     print(name, out.shape[1], out.shape[0])
 
 
-def grounded(arr: np.ndarray, airborne: bool = False) -> np.ndarray:
+def grounded(arr: np.ndarray, airborne: bool = False, strength: float = 1.0) -> np.ndarray:
     """A figure on the ground (hero pass 2: "floats, no contact shadow"): a wide soft pool of warm-dark
     shade under him and a tight dark contact where his boots (or his seat) touch the ground."""
     h, w = arr.shape[:2]
@@ -398,13 +406,15 @@ def grounded(arr: np.ndarray, airborne: bool = False) -> np.ndarray:
     span = (cols.max() - cols.min()) if cols.size else w * 0.4
     yy, xx = np.mgrid[0:out.shape[0], 0:w]
     gy = bottom + h * (0.05 if airborne else 0.004)  # (a leap: the shadow on the ground below him)
-    rx, ry = span * 0.58 + w * 0.1, h * 0.03
-    pool = np.clip(1.0 - ((xx - cx) / rx) ** 2 - ((yy - gy) / ry) ** 2, 0.0, 1.0) ** 1.4 * 0.5
+    # (round 14, the character judge: "banded into concentric rings, like a puddle") one soft occlusion blob: a wide
+    # gaussian falloff under him and a tighter, darker one where he touches the ground, no edge anywhere
+    rx, ry = (span * 0.55 + w * 0.08) * (0.85 + 0.15 * strength), h * 0.028 * strength
+    pool = np.exp(-((xx - cx) / rx) ** 2 * 2.2 - ((yy - gy) / ry) ** 2 * 2.2) * min(0.42 * strength, 0.75)
     contact = np.zeros((out.shape[0], w), np.float32)
     foot = band.any(0).astype(np.float32)
     contact[int(gy) - 1:int(gy) + 2, :] = foot[None, :]
-    contact = ndimage.gaussian_filter(contact, (h * 0.006 + 1.0, h * 0.01 + 1.0))
-    contact = np.clip(contact / max(contact.max(), 1e-6), 0, 1) * (0.3 if airborne else 0.72)
+    contact = ndimage.gaussian_filter(contact, (h * 0.008 + 1.5, h * 0.016 + 1.5))
+    contact = np.clip(contact / max(contact.max(), 1e-6), 0, 1) * min((0.3 if airborne else 0.62) * strength, 0.9)
     shade = 1.0 - (1.0 - pool) * (1.0 - contact)
     out[..., :3] = np.array([0.1, 0.045, 0.04])
     out[..., 3] = shade
@@ -449,7 +459,7 @@ def pictures() -> None:
     if os.environ.get("PORTRAIT") == "1":  # (round 11: kept as it was unless asked: UX's badge is cut from it)
         save(full, "portrait.png", pad=0)
     save(grounded(trimmed(ui / "win_front/000.png", 900, sunset=True), airborne=WIN_AIRBORNE), "hero_win.png")
-    save(grounded(trimmed(ui / "defeat/000.png", 640, sunset=True)), "hero_defeat.png")
+    save(grounded(trimmed(ui / "defeat/000.png", 640, sunset=True), strength=1.35), "hero_defeat.png")  # (round 14, "floats with no ground or shadow")
 
 
 if __name__ == "__main__":

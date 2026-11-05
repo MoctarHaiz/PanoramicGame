@@ -10,7 +10,8 @@ extends Screen
 ## short choreography: the hero rises onto the rock, the logo drops and bounces, the ribbon unrolls,
 ## PLAY pops, the rest fades in. Then the logo catches the light now and then and PLAY breathes.
 
-const RIBBON := preload("res://assets/art/ui/ribbon.png")
+const RIBBON := preload("res://assets/art/ui/ribbon_plain.png")  ## (its dashed stitch removed: tools/art/ui_kit.py)
+const PLATE_H := 112.0  ## the Best plaque's height, and the gear's beside it
 const TAIL_TRIM := 8  ## px cut off each end of the ribbon's tails (its notch is 24 deep)
 const LOGO := "res://assets/art/ui/logo.png"  ## loaded with the menu (a preload held it, 3 MB, all run long)
 const HERO_ART := "res://assets/art/hero/hero_menu.png"  ## the art track's render, when there
@@ -32,7 +33,7 @@ var _lit_crop := false  # the fallback crop (no art render): lit here by hero.gd
 var _rock: TextureRect
 var _shadow: TextureRect  # his shadow on the rock
 var _front: TextureRect  # dark backlit grass across the bottom, in front of the rock's foot
-var _halo_glow: TextureRect
+var _halo_glow: ColorRect
 var _logo_box: Control  # sized by _layout; the logo and its ribbon inside
 var _logo: TextureRect
 var _ribbon: Control
@@ -41,6 +42,7 @@ var _play_box: Control
 var _play_pop: Control  # unmanaged inside _play_box: what the entrance scales
 var _play: JuicyButton
 var _row: HBoxContainer
+var _row_fit: Control  # holds the Best plaque and the gear, shrunk when the column is narrow (a tablet)
 var _left: VBoxContainer
 var _hero_side: Control
 var _clock := 0.0
@@ -58,12 +60,13 @@ func enter(_data: Dictionary) -> void:
 	_lit_crop = not ResourceLoader.exists(HERO_ART)
 	_hero_tex = load(HERO_STAND if _lit_crop else HERO_ART)
 	# the bloom around the low sun
-	_halo_glow = TextureRect.new()
-	_halo_glow.texture = Fx.glow_texture()
-	_halo_glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_halo_glow.modulate = Color(1, 0.7, 0.42, 0.7)
+	_halo_glow = ColorRect.new()  # worked out per pixel (a small gradient stretched stepped into rings)
+	_halo_glow.color = Color(1, 0.7, 0.42, 0.6)
 	_halo_glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_halo_glow.material = Fx.additive()
+	var bloom := ShaderMaterial.new()
+	bloom.shader = preload("res://src/ui/sun_glow.gdshader")
+	bloom.set_shader_parameter(&"falloff", 1.8)
+	_halo_glow.material = bloom
 	add_child(_halo_glow)
 	_rock_tex = load(ROCK)
 	_rock = _picture(_rock_tex)
@@ -143,16 +146,21 @@ func enter(_data: Dictionary) -> void:
 	_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if Save.games_played > 0:
 		_row.add_child(_best_plaque())
-	# the gear a gold tile of the kit (the pause's tiles), a fixed size: the row's width is known from
-	# the first frame (grown to the plaque's height later, it pushed the row past a French tablet's
-	# safe area while the menu came in)
-	var settings := Ui.icon_button("gear-chunky", Ui.Tone.GOLD, 94.0, 28.0)
+	# the gear a gold tile of the kit (the pause's tiles), fixed at the plaque's fixed height: the
+	# row's width is known from the first frame (grown to the plaque's height in a later resize, it
+	# pushed the row past a French tablet's safe area while the menu came in)
+	var settings := Ui.icon_button("gear-chunky", Ui.Tone.GOLD, PLATE_H, 32.0)  # as tall as the plaque
 	settings.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	settings.pressed.connect(func() -> void: Nav.go(&"settings", {}, settings.get_global_rect().get_center()))
 	_row.add_child(settings)
-	_left.add_child(_row)
+	_row_fit = Control.new()
+	_row_fit.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_row_fit.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_row_fit.add_child(_row)
+	_left.add_child(_row_fit)
 
 	resized.connect(_layout)
+	_row.minimum_size_changed.connect(_layout)  # (the holder takes the row's size from _layout)
 	Device.changed.connect(_layout)
 	_layout()
 	_arrive()
@@ -192,16 +200,17 @@ func _picture(texture: Texture2D) -> TextureRect:
 ## (the missing ones dark sockets in gold rims).
 func _best_plaque() -> PanelContainer:
 	var s := Ui.plaque_style(30.0)
-	s.content_margin_left = 18
-	s.content_margin_right = 26
+	s.content_margin_left = 22
+	s.content_margin_right = 28
 	s.content_margin_top = 8
 	s.content_margin_bottom = 16
 	var plaque := PanelContainer.new()
 	plaque.add_theme_stylebox_override(&"panel", s)
 	plaque.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	plaque.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	plaque.custom_minimum_size.y = PLATE_H
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override(&"separation", 14)
+	row.add_theme_constant_override(&"separation", 18)  # room: it read as cramped
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var bob := TextureRect.new()
 	bob.texture = BobView.texture()
@@ -219,7 +228,7 @@ func _best_plaque() -> PanelContainer:
 	words.add_child(Ui.label(tr("BEST").to_upper(), 26, Color("b0682c"), Ui.title_font(580, 1), HORIZONTAL_ALIGNMENT_LEFT))
 	words.add_child(Ui.label(str(Save.best_bobs), 52, Color("3a1404"), Ui.font_display, HORIZONTAL_ALIGNMENT_LEFT))
 	row.add_child(words)
-	var stars := StarRow.new(Save.best_stars, 44)
+	var stars := StarRow.new(Save.best_stars, 50)
 	stars.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	stars.add_theme_constant_override(&"separation", 4)
 	row.add_child(stars)
@@ -276,7 +285,9 @@ func _layout() -> void:
 	var v := size
 	var insets := Device.insets()
 	var aspect := float(_hero_tex.get_width()) / _hero_tex.get_height()
-	var h := minf(v.y * HERO_TALL, v.x * 0.33 / aspect)  # (the lunge and the ring make him wide; round 12: the deeper lunge is wider)
+	# (the lunge and the ring make him wide; round 12: the deeper lunge is wider; the hero comes first:
+	# where the title column is narrow, its Best row shrinks, not him)
+	var h := minf(v.y * HERO_TALL, v.x * 0.33 / aspect)
 	var w := h * aspect
 	var feet := Vector2(insets.x + w * 0.515 + 12.0, v.y * FEET_AT)  # between his boots
 	_hero.size = Vector2(w, h)
@@ -305,10 +316,17 @@ func _layout() -> void:
 	var column_left := minf(_hero.position.x + w + v.x * 0.06, v.x - insets.z - 18.0 - 470.0)
 	_hero_side.custom_minimum_size.x = maxf(column_left - insets.x - 18.0, 0.0)
 	var free := v.y - insets.y - Device.bottom_with_banner() - Device.ad_gap() - 36.0
-	var row_h := maxf(_row.get_combined_minimum_size().y, 92.0)  # the Best plaque and the gear
+	var column_w := v.x - insets.z - 18.0 - column_left
+	# the Best plaque and the gear whole in the column: their full size on a phone, a little smaller
+	# where a 4:3 tablet's column is narrower than them (the French "Record" is the widest)
+	var row_size := _row.get_combined_minimum_size()
+	var fit := minf(1.0, (column_w - 8.0) / row_size.x)
+	_row.size = row_size
+	_row.scale = Vector2(fit, fit)
+	_row_fit.custom_minimum_size = row_size * fit
+	var row_h := maxf(row_size.y * fit, 92.0)
 	var logo_h := clampf(free - 124.0 - row_h - 48.0 - _ribbon.size.y * 0.5, 170.0, 330.0)  # air above and below
 	var logo_w := logo_h * _logo_tex.get_width() / _logo_tex.get_height()
-	var column_w := v.x - insets.z - 18.0 - column_left
 	if logo_w > column_w * 0.96:
 		logo_w = column_w * 0.96
 		logo_h = logo_w * _logo_tex.get_height() / _logo_tex.get_width()

@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Textures of the interface kit (numpy + Pillow).
 
-    python3 tools/art/ui_kit.py      # assets/art/ui/paper.png, corners.png
+    python3 tools/art/ui_kit.py      # assets/art/ui/paper.png, corners.png, ribbon_plain.png
 
 - paper.png: a seamless warm paper/hide grain (256 x 256, tiles both ways), near white: the panels
   multiply their cream by it, so the body reads as a material, not a flat fill. Soft mottling, fine
   fibres running mostly across, a few darker flecks.
+- ribbon_plain.png: the menu's subtitle ribbon (ribbon.png) without its dashed stitch.
 - corners.png: the jewelled bosses on the panels' corners (src/ui/card.gd): a bevelled metal ring
   set with a ring of small beads, a domed cabochon in it, a soft shadow. Two cells: brass with a red
   stone (every panel), dark bronze with a garnet (a defeat). BOSS_SS px per card unit.
@@ -121,10 +122,28 @@ def corners() -> Image.Image:
     return Image.fromarray(atlas.astype(np.uint8), "RGBA")
 
 
+def ribbon_plain() -> Image.Image:
+    """The menu's subtitle ribbon (ribbon.png, tools/art/logo.py) without its dashed stitch (it read
+    as fussy): each stitch pixel takes the colour of the band a few rows nearer its middle."""
+    a = np.asarray(Image.open(OUT / "ribbon.png").convert("RGBA")).astype(float)
+    h = a.shape[0]
+    r, g, b, al = a[..., 0], a[..., 1], a[..., 2], a[..., 3]
+    stitch = (r > 190) & (g > 120) & (b < 150) & (al > 150)
+    stitch = ndimage.binary_dilation(stitch, iterations=1)
+    out = a.copy()
+    ys, xs = np.nonzero(stitch)
+    for y, x in zip(ys, xs):
+        src = y + 4 if y < h / 2 else y - 4  # towards the band's middle, past the stitch
+        out[y, x, :3] = a[src, x, :3]
+    return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8), "RGBA")
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     paper().save(OUT / "paper.png", optimize=True)
     print("paper.png (256, 256)")
+    ribbon_plain().save(OUT / "ribbon_plain.png", optimize=True)
+    print("ribbon_plain.png")
     img = corners()
     img.save(OUT / "corners.png", optimize=True)
     print(f"corners.png {img.size}")

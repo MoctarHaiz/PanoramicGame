@@ -485,3 +485,34 @@ win and defeat renders; (6) the studio logo; (7) the null texture on the first b
 - Renders: `hero3d/render/render_r13.sh` -> `r13/` (hang, catch, win; the interface pictures); the other level
   animations round 11's (symlinked).
 - Tests: `_test_art_round13()` (the smaller Bobs, their scattered beats, the backlit home).
+
+## Round 14 (the hero first: the judges now score him on his own)
+
+- **In play**: round 13's warm-white band ("a whitish edge, a cut-out sticker") reverted to round 12's warm orange sun
+  rim (`RIM_DAY`, `RIM_PX` 4.2, a line at the edge); then the judges' own fix: his shade in the savanna's evening
+  purple, its value kept (`hero_toon_aaa.py DAY_PURPLE`, `DAY_PURPLE_K` 0.35, every level animation re-rendered:
+  `hero3d/render/render_r14.sh` -> `r14/`), and a darker, slightly purple ink in the level (`hero_atlas.py INK_DAY`).
+- **Menu** (it won: kept): a touch of sunset magenta in his shadows (`UI_MAGENTA_K` 0.18); the chakram's trail a blade
+  of light (`throw_trail()`: needle-thin and faint at the hand, a sharp bright head at the ring, a white-hot core, a
+  cold glow round the head, three crisp speed lines; "an undo-ghost").
+- **Game over**: a stronger contact shadow (`grounded(strength=1.35)`, "floats with no ground") and a bold dizzy ring
+  (the orbit's streak 2.2x thicker and brighter, the stars 1.25x; "a thin yellow line: a placeholder").
+- **Home**: round 12's front light back (HeroView: no darker front; the back rim at 0.9); the cheer's second arm
+  pumped out to the side (it crossed his chest).
+- **Red Bobs**: 28 units again (24 read "small and pale"); each Bob's glint on its own beat.
+- Tests: `_test_art_round13()` updated (28-unit Bobs, the home's front light).
+- **The character judge (c13: 0/7, 4.4/10)**, worked in its order:
+  - Acting, within the model (no face rig; the face kept as the user made it): the idle's chin up and his face turned
+    three-quarters to us (`pose_idle`: "the head bowed so far the face is invisible"); in the jump his head up and
+    turned to us, looking at the landing; the key art's head kept on the ring.
+  - Poses: the key art's open release hand (index and thumb out, the wrist flicked) with the ring ahead of it on the
+    throw's arc ("a fist punching while the ring trails behind"); the jump's flight a split leap, the near arm up and
+    forward, the other back ("kneeling in mid-air"; `pose_jump`, blended over frames 3-18); the win's fist punched
+    straight up and the other leg trailing (`WIN_LEAP` "trail"; the kick "splayed the legs"); the cheer's body
+    twisting to us.
+  - Rendering: matte armour (no glints, barely worn; flat colours in the interface pictures: "glossy plastic boots",
+    "mottled noise"); the hair in three value steps with clumped locks; the fur in big tufts, not scratchy strands;
+    no inner ink hull anywhere (only the smooth outer line: "ragged and brushy"); the contact shadows one soft blob
+    (HeroView `_blob()`, `grounded()`: "concentric rings, like a puddle"); the home back rim lighter (0.4).
+  - Not done: expressions (a shout, a grin, dazed eyes): the model has no face rig and its face is the user's
+    identity; the proportions.

@@ -423,9 +423,8 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 	# (hero pass 3) at home the campfire, on his left, warms that side of him
 	var home_k := clampf(_end_time / 0.5, 0.0, 1.0) if phase == &"home" else 0.0
 	_material.set_shader_parameter(&"bounce", 0.6 * home_k)
-	_material.set_shader_parameter(&"back_rim", home_k)  # (round 10) and the lit hut behind him rims him
-	# (round 13, "lit flat from the front") at home his front falls a little into the hut's backlight
-	_material.set_shader_parameter(&"light_gain", lerpf(LIGHT_GAIN, 0.92, home_k))
+	_material.set_shader_parameter(&"back_rim", 0.4 * home_k)  # (round 10) and the lit hut behind him rims him (round 14: lighter, "an orange outer-glow outline, a cut-out halo")
+	# (round 14: round 13's darker front "merged with the dark doorway": his front light kept at home)
 	_material.set_shader_parameter(&"bounce_scale", 2.0 / maxf(float(region[2]), 1.0))
 	_update_shadow(w, p)
 	if is_instance_valid(_under):
@@ -470,9 +469,27 @@ func _draw_under() -> void:
 	if _shadow.x < 0.0:
 		return
 	var w := 50.0 * (0.45 + 0.55 * _shadow_k)
-	for i in 6:  # a soft ellipse: rings of falling darkness, darkest under his feet (round 5: darker,
-		# so it reads at phone size and he stands on the ground)
-		var r := 1.0 - i * 0.15
-		_under.draw_set_transform(_shadow, 0.0, Vector2(_shadow_w, 0.22))
-		_under.draw_circle(Vector2.ZERO, w * r, Color(0.12, 0.04, 0.06, (0.2 * _shadow_k + 0.05) * _visible))
+	# one soft blob, darkest under his feet (round 14, the character judge: six stacked circles "banded into
+	# concentric rings, like a puddle"); as dark in the middle as the rings were
+	var a := (1.0 - pow(1.0 - (0.2 * _shadow_k + 0.05), 6.0)) * _visible
+	_under.draw_set_transform(_shadow, 0.0, Vector2(_shadow_w, 0.22))
+	_under.draw_texture_rect(_blob(), Rect2(-w, -w, w * 2.0, w * 2.0), false, Color(0.12, 0.04, 0.06, a))
 	_under.draw_set_transform(Vector2.ZERO)
+
+
+static var _blob_tex: Texture2D
+
+
+## A soft round shadow: full in the middle, falling smoothly to nothing at the edge (no bands).
+static func _blob() -> Texture2D:
+	if _blob_tex:
+		return _blob_tex
+	var n := 64
+	var img := Image.create_empty(n, n, false, Image.FORMAT_RGBA8)
+	for y in n:
+		for x in n:
+			var r := (Vector2(x + 0.5, y + 0.5) / (n / 2.0) - Vector2.ONE).length()
+			img.set_pixel(x, y, Color(1, 1, 1, pow(clampf(1.0 - r * r, 0.0, 1.0), 1.6)))
+	img.generate_mipmaps()
+	_blob_tex = ImageTexture.create_from_image(img)
+	return _blob_tex

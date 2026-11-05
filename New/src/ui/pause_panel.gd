@@ -32,7 +32,7 @@ static func open(host: Control, resume: Callable, home: Callable, hide: Array = 
 	row.add_theme_constant_override(&"separation", GAP)
 	row.add_child(SoundSwitch.new("music-notes-fill", "", &"music_on", tr_key("MUSIC")))
 	row.add_child(SoundSwitch.new("speaker-high-fill", "speaker-x-fill", &"sounds_on", tr_key("SOUNDS")))
-	var controls := _tile("gamepad", Ui.Tone.GOLD, tr_key("CONTROLS"))  # the moves: read at a glance
+	var controls := _tile("hand-pointing-fill", Ui.Tone.GOLD, tr_key("CONTROLS"))  # the moves: one finger, a tap
 	(controls.get_child(0).get_child(0) as JuicyButton).pressed.connect(func() -> void:
 		if help.get_child_count() == 0:
 			help.add_child(controls_well())
@@ -191,6 +191,7 @@ class SoundSwitch extends VBoxContainer:
 		var word := TranslationServer.translate("SWITCH_ON" if on else "SWITCH_OFF").to_upper()
 		pill.add_child(Ui.label(word, 24, Color.WHITE, Ui.font_display))
 		pill.size = pill.get_combined_minimum_size()
-		# pinned inside its own tile's top right corner (one hanging over the gap read as the next tile's)
-		pill.position = Vector2(TILE - pill.size.x - 7.0, 7.0)
+		# pinned over its own tile's top right corner, inside its width (one hanging over the gap read as
+		# the next tile's), astride its top edge (inside the corner it covered the icon)
+		pill.position = Vector2(TILE - pill.size.x - 6.0, -pill.size.y * 0.5)  # on the top edge: off the icon
 		return pill

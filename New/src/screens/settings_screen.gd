@@ -56,11 +56,11 @@ func _build() -> void:
 	var page := Control.new()
 	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	area.add_child(page)
-	var card := Card.new(Vector4(44, 140, 44, 44))  # a header under the ribbon: the back and info buttons
+	var card := Card.new(Vector4(44, 112, 44, 44))  # a header row under the ribbon: the back and info buttons
 	var columns := HBoxContainer.new()
 	columns.add_theme_constant_override(&"separation", 22)
 	card.add_child(columns)
-	# one tile colour per group (gold sound, red effects, orange game, red help, blue purchases: the
+	# one tile colour per group (amber sound, red effects, orange game, red help, blue purchases: the
 	# kit's tones, all the same candy material): the eye finds a group by its colour, and inside a
 	# group every tile is the same. The rows are grouped so the columns end level (no empty block): on a wide screen three
 	# columns (big text, room to breathe) of three rows, the credits behind the info button in the
@@ -81,12 +81,12 @@ func _build() -> void:
 	var layout: Array  # columns of groups
 	var switches := 0  # the column with the switches' long labels
 	if wide:
-		layout = [[_group("speaker-high-fill", tr("SOUND_AND_FEEL"), Ui.Tone.GOLD, [music, sounds, vibration])],
+		layout = [[_group("speaker-high-fill", tr("SOUND_AND_FEEL"), Ui.Tone.AMBER, [music, sounds, vibration])],
 				[_group("play-fill", tr("GENERAL"), Ui.Tone.SUNSET, [language, shake, calm])],
 				[_group("info-fill", tr("HELP"), Ui.Tone.CRIMSON, [tutorial] + help)]]
 		switches = 1
 	else:
-		layout = [[_group("speaker-high-fill", tr("SOUND_GROUP"), Ui.Tone.GOLD, [music, sounds]),
+		layout = [[_group("speaker-high-fill", tr("SOUND_GROUP"), Ui.Tone.AMBER, [music, sounds]),
 				_group("sparkle-fill", tr("FEEL"), Ui.Tone.CRIMSON, [vibration, shake, calm])],
 				[_group("play-fill", tr("GENERAL"), Ui.Tone.SUNSET, [language, tutorial]),
 				_group("info-fill", tr("HELP"), Ui.Tone.BLUE, help)]]  # (red is the effects' here)
@@ -121,7 +121,7 @@ func _build() -> void:
 		var top := banner.custom_minimum_size.y * 0.5
 		card.size = card.get_combined_minimum_size()
 		var slot := 0.0  # the back button is inside the panel now
-		var k := minf(1.0, minf((room.x - 30.0) / card.size.x, (room.y - top - 12.0) / card.size.y))
+		var k := minf(1.0, minf((room.x - 120.0) / card.size.x, (room.y - top - 12.0) / card.size.y))  # side margins
 		card.scale = Vector2.ONE * k
 		var w := card.size.x * k
 		# Panoramic whole at the left when the panel leaves him room, else the panel in the middle
@@ -135,11 +135,11 @@ func _build() -> void:
 		back_button.size = back_button.custom_minimum_size
 		# docked inside the panel, on the hide at its top left under the frame (the panel's own header,
 		# its own row above the groups): neither floating beside it nor over its corner
-		back_button.position = card.position + Vector2(Card.FRAME + 20.0, Card.FRAME + 16.0) * k
+		back_button.position = card.position + Vector2(Card.FRAME + 20.0, Card.FRAME + 6.0) * k  # high: no dead band
 		if info:  # the same at the top right
 			info.custom_minimum_size = back_button.custom_minimum_size
 			info.size = info.custom_minimum_size
-			info.position = card.position + Vector2(card.size.x - Card.FRAME - 20.0 - BUTTON, Card.FRAME + 16.0) * k
+			info.position = card.position + Vector2(card.size.x - Card.FRAME - 20.0 - BUTTON, Card.FRAME + 6.0) * k
 		if hero:
 			hero.visible = show_hero
 			var origin := area.get_global_rect().position + page.position

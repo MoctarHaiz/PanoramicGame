@@ -445,10 +445,12 @@ def pose_win(t, face_turn=-90.0):
     aim("RightArm", -0.3 + 0.1 * up, -0.95 + 1.95 * up, 0.15)
     aim("RightForeArm", -0.05 - 0.1 * (1 - up), 0.1 + 0.9 * up, 0.25 * (1 - up))
     aim("RightHand", -0.05, 1.0)
-    aim("LeftArm", 0.3 + 0.45 * up, -0.95 + 0.75 * up, 0.15 + 0.2 * up)
-    aim("LeftForeArm", 0.05 - 0.3 * up, 0.1 + 0.85 * up * (0.55 + 0.45 * pump), 0.25)
-    aim("LeftHand", -0.1, 1.0)
+    # (round 14: "the bent second arm overlaps his chest") pumped out to the side, the fist up at shoulder height
+    aim("LeftArm", 0.3 + 0.65 * up, -0.95 + 1.0 * up, 0.15 - 0.05 * up)
+    aim("LeftForeArm", 0.05 + 0.2 * up, 0.1 + 0.85 * up * (0.6 + 0.4 * pump), 0.25 - 0.15 * up)
+    aim("LeftHand", 0.15, 1.0)
     turn("Spine1", 6.0 * up)  # (a lean towards the raised fist, as the side camera sees him)
+    turn("Spine", 12.0 * up, (0.0, 0.0, 1.0))  # (round 14: the body twisting to the viewer)
     turn("Head", -8.0 * up)
     if t > 0.4:
         shift_hips(0.0, 0.03 * pump)
@@ -610,6 +612,54 @@ def pose_key_lunge():
         _aim_world(side + "ToeBase", toe)
     fore = bone_world("RightForeArm", "tail") - bone_world("RightForeArm")
     _aim_world("RightForeArm", Vector((fore.x * 1.25, fore.y * 0.45, fore.z)))
+    # (round 14, the character judge: "a closed fist punching forward while the ring trails behind: the throw doesn't
+    # make sense") the hand opened in the release, the wrist flicked, the ring ahead of it on the throw's arc
+    fore = (bone_world("RightForeArm", "tail") - bone_world("RightForeArm")).normalized()
+    up = Vector((0.0, 0.0, 1.0))
+    _aim_world("RightHand", (fore + up * 0.35).normalized())
+    for bone in ("RightHandIndex1", "RightHandIndex2", "RightHandIndex3"):
+        _aim_world(bone, (fore + up * 0.25).normalized())
+    for bone in ("RightHandThumb1", "RightHandThumb2", "RightHandThumb3"):
+        _aim_world(bone, (fore * 0.6 + up * 0.8).normalized())
+    ring = bpy.data.objects.get("AAA_Chakram")
+    if ring is not None:
+        hand = bone_world("RightHand", "tail")
+        m = ring.matrix_world.copy()
+        m.translation = hand + (fore * 0.85 + up * 0.5).normalized() * 0.2
+        ring.matrix_world = m
+        bpy.context.view_layer.update()
+
+
+def pose_idle(i):
+    """The idle (round 14, the character judge: "the head bowed so far the face is invisible: reads dejected", "a
+    stiff scissor stance"): chin up, the face turned three-quarters to us, the chest lifted."""
+    apply(sample("idle", 1 + i * 3))
+    turn("Spine1", -4.0)
+    turn("Neck", -6.0)
+    turn("Head", -10.0)
+    turn("Head", -22.0, (0.0, 0.0, 1.0))
+
+
+def pose_jump(i):
+    """The jump as authored, its flight (round 14, the character judge: "no arms visible, one leg straight forward and
+    the other knee down: reads as kneeling in mid-air"): a split leap, the near arm up and forward, the other back for
+    balance (the far arm forward, so the near one never covers his face), the head up and three-quarters to us."""
+    apply(sample("jump", 1 + i))
+    w = ease((i - 2) / 4.0) * (1.0 - ease((i - 15) / 4.0))  # the flight, frames 3-18
+    if w <= 0.0:
+        return
+    base = current()
+    aim("LeftArm", 0.55, 0.65, -0.3)  # the far arm up and forward (behind his head: his face stays clear)
+    aim("LeftForeArm", 0.8, 0.5, -0.2)
+    aim("RightArm", -0.6, 0.25, 0.3)  # the near arm back for balance
+    aim("RightForeArm", -0.85, 0.05, 0.2)
+    aim("RightUpLeg", 0.85, -0.3)
+    aim("RightLeg", 0.3, -0.95)
+    aim("LeftUpLeg", -0.45, -0.85)
+    aim("LeftLeg", -0.85, -0.4)
+    turn("Head", -12.0)
+    turn("Head", -20.0, (0.0, 0.0, 1.0))
+    apply(mix(base, current(), w))
 
 
 DEFEAT_TURN = float(os.environ.get("DEFEAT_TURN", "32"))  ## degrees (round 12: "legs splay towards the camera")
@@ -626,7 +676,8 @@ def pose_defeat_turned():
     turn("Head", -DEFEAT_TURN * 0.35, (0.0, 0.0, 1.0))
 
 
-WIN_LEAP = os.environ.get("WIN_LEAP", "kick")  ## "pass4": as authored; "tuck"; "trail"; "kick"
+WIN_LEAP = os.environ.get("WIN_LEAP", "trail")  ## "pass4": as authored; "tuck"; "trail"; "kick" (round 14: "trail",
+## the character judge: "a clean fist-pump jump, one knee up, the other leg trailing"; the kick "splayed the legs")
 
 
 def pose_win_tuck():
@@ -641,6 +692,9 @@ def pose_win_tuck():
         _aim_world("RightLeg", shin)
         _aim_world("RightFoot", (shin * 0.6 + down * 0.4).normalized())
     elif WIN_LEAP == "trail":
+        _aim_world("RightArm", Vector((-0.12, 0.05, 1.0)).normalized())  # (round 14: the fist punched straight up,
+        _aim_world("RightForeArm", Vector((-0.05, 0.02, 1.0)).normalized())  # "the raised arm curls over the head like a hook")
+        _aim_world("RightHand", Vector((0.0, 0.0, 1.0)))
         _aim_world("RightLeg", Vector((-0.12, 0.05, -1.0)).normalized())  # the front shin under its knee
         _aim_world("RightFoot", Vector((0.15, -0.05, -1.0)).normalized())
         _aim_world("LeftUpLeg", Vector((-0.45, 0.12, -0.88)).normalized())  # the other leg trailing behind
@@ -666,12 +720,17 @@ def chunky_stars():
             if n.type == "BSDF_PRINCIPLED":
                 n.inputs["Base Color"].default_value = (*_lin(1.0, 0.9, 0.6), 1.0)
                 n.inputs["Emission Color"].default_value = (*_lin(1.0, 0.86, 0.5), 1.0)
+                n.inputs["Emission Strength"].default_value = 1.6
     for ob in bpy.data.objects:
         if ob.name.startswith("AAA_DizzySwirl"):
             ob.hide_render = True
+        if ob.name.startswith("AAA_DizzyTrail") and ob.type == "CURVE" and not ob.get("bold"):
+            ob["bold"] = True  # (round 14, "the star halo a thin yellow line: a placeholder") a bold ring of light
+            ob.data.bevel_depth *= 2.2
         if not ob.name.startswith("AAA_DizzyStar") or ob.get("chunky"):
             continue
         ob["chunky"] = True
+        ob.scale = ob.scale * 1.25  # (round 14: bigger, they read at card size)
         bevel = ob.modifiers.new("Round", "BEVEL")  # (an 8 cm star, 2.4 cm thick: its edges rounded, puffy)
         bevel.width = 0.007
         bevel.segments = 3
@@ -778,8 +837,8 @@ def reset_turn():
 def anims():
     out = {}
     out["run"] = ("side", [lambda i=i: apply(sample_jog(1 + i)) for i in range(16)])
-    out["jump"] = ("side", [("jump", 1 + i) for i in range(27)])
-    out["idle"] = ("side", [("idle", 1 + i * 3) for i in range(20)])
+    out["jump"] = ("side", [lambda i=i: pose_jump(i) for i in range(27)])
+    out["idle"] = ("side", [lambda i=i: pose_idle(i) for i in range(20)])
     out["idle_front"] = ("front", [("idle", 1 + i * 2) for i in range(30)])
     out["die"] = ("other_side", [("die", f) for f in list(range(1, 50, 2)) + [62, 78]])
     out["hang"] = ("side", [lambda i=i: pose_hang(i / 12.0) for i in range(12)])
@@ -1612,7 +1671,7 @@ def toon_setup():
     if AAA:  # the props hidden until their pose (the chakram) get their shading too
         _aaa_toon().build_all(bpy.data.objects, mode)
         # (round 12: none in the interface pictures, "abs scribbled ink lines"; the outer line is hero_atlas.py's)
-        hull = float(os.environ.get("HERO_HULL", "0.0" if mode == "sunset" else "0.0026"))
+        hull = float(os.environ.get("HERO_HULL", "0.0"))  # (round 14: in the level too, "ragged and brushy")
         if hull > 0:  # (pass 4) inner ink lines (limb over body), the same weight everywhere: the calmed
             ink_hull(MESH, hull)  # muscles no longer catch it (round 8 removed it for "grime")
 

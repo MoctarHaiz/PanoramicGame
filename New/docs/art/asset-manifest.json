@@ -174,7 +174,7 @@
    "path": "assets/art/hero/hero_atlas_0.png",
    "status": "approved",
    "technical": {
-    "dimensions": "2048x2048",
+    "dimensions": "2048x2040",
     "alpha": true,
     "anchor": "per hero_frames.json (ground origin / hips / hands)",
     "frames": null,
@@ -210,7 +210,7 @@
    "path": "assets/art/hero/hero_atlas_1.png",
    "status": "approved",
    "technical": {
-    "dimensions": "2044x2048",
+    "dimensions": "2036x2028",
     "alpha": true,
     "anchor": "per hero_frames.json (ground origin / hips / hands)",
     "frames": null,
@@ -246,7 +246,7 @@
    "path": "assets/art/hero/hero_atlas_2.png",
    "status": "approved",
    "technical": {
-    "dimensions": "1808x376",
+    "dimensions": "2000x484",
     "alpha": true,
     "anchor": "per hero_frames.json (ground origin / hips / hands)",
     "frames": null,
@@ -282,7 +282,7 @@
    "path": "assets/art/hero/hero_defeat.png",
    "status": "approved",
    "technical": {
-    "dimensions": "735x713",
+    "dimensions": "724x713",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -315,7 +315,7 @@
    "path": "assets/art/hero/hero_menu.png",
    "status": "approved",
    "technical": {
-    "dimensions": "757x804",
+    "dimensions": "754x809",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -348,7 +348,7 @@
    "path": "assets/art/hero/hero_win.png",
    "status": "approved",
    "technical": {
-    "dimensions": "753x1032",
+    "dimensions": "521x1032",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -921,6 +921,38 @@
     "creator": "Claude for Haiz Studio",
     "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
     "prompt_or_source_record": "tools/art/ui_art.py / logo.py",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "ui-ribbon_plain",
+   "role": "the menu's subtitle ribbon without its dashed stitch (from ui/ribbon.png)",
+   "path": "assets/art/ui/ribbon_plain.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "720x120",
+    "alpha": true,
+    "anchor": "9-sliced: tails 58 px",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette"
+   ],
+   "source": {
+    "kind": "authored-procedural",
+    "url_or_tool": "tools/art/ui_kit.py",
+    "creator": "Claude for Haiz Studio",
+    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
+    "prompt_or_source_record": "tools/art/ui_kit.py",
     "created_at": "2026-10-30",
     "attribution": ""
    },

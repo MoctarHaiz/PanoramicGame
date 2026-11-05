@@ -39,7 +39,7 @@ const SAND_DEEP := Color("dcb47c")
 ## go colour (one main action per screen: Play, Resume, Play again; also "on"), GOLD rewards and the
 ## pause's tiles, SUNSET the brand, BLUE the quiet buttons beside the main one, CRIMSON warnings,
 ## WHITE (bone) the quietest choice, SLATE the defeat's cool title.
-enum Tone { GREEN, GOLD, SUNSET, BLUE, CRIMSON, WHITE, SLATE }
+enum Tone { GREEN, GOLD, SUNSET, BLUE, CRIMSON, WHITE, SLATE, AMBER }
 ## Per tone: face top, face bottom, edge (the bevel under the face), outline (and text outline).
 const TONES := {
 	Tone.GREEN: [Color("d2e874"), Color("68aa30"), Color("467c1e"), Color("1f3c0e")],  # warm leaf, not neon
@@ -49,6 +49,7 @@ const TONES := {
 	Tone.CRIMSON: [Color("ff7a5c"), Color("e82808"), Color("a8180a"), Color("4e0804")],
 	Tone.WHITE: [Color("fffaf0"), Color("f1e2c4"), Color("d2b48a"), Color("4a1e04")],
 	Tone.SLATE: [Color("9aaccc"), Color("4e5f86"), Color("34415e"), Color("141a2c")],  # dusk blue-grey
+	Tone.AMBER: [Color("ffcc4e"), Color("ec8c0c"), Color("b45a06"), Color("5a2604")],  # a richer gold (settings)
 }
 ## The ring around a button's face: thin bright brass (lit along its top, deeper at its foot), per
 ## tone: ring top, ring bottom, the thickness under it (edge), the outline around it all. A gold face
@@ -62,6 +63,7 @@ const FRAMES := {
 	Tone.CRIMSON: BRASS,
 	Tone.WHITE: BRASS,
 	Tone.SLATE: [Color("dfe6f2"), Color("8c98ae"), Color("4a5468"), Color("141a2c")],
+	Tone.AMBER: [Color("ffc27a"), Color("d8641c"), Color("8a340a"), Color("3a1404")],
 }
 
 var font_title: FontVariation  ## Fredoka Bold: titles, buttons, numbers

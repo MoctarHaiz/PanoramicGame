@@ -7,8 +7,8 @@ extends Control
 ## - lives on the left: three glossy hearts; a lost one flashes, cracks in two and its halves fall
 ##   while the plate flashes red, leaving a dark socket; the last one beats when it is all that is
 ##   left;
-## - the way home in the middle: a dark trail cut into the plate, his footprints faint on it leading
-##   to the house, filling with gold as the level scrolls, Panoramic's face, big in its gold ring over
+## - the way home in the middle: a plain dark trail cut into the plate, filling with gold as the level
+##   scrolls, Panoramic's face, big in its gold ring over
 ##   the plate's edges, running along it to the house on a gold disc;
 ## - the Red Bobs on the right (counted the moment one is taken, the counter punching and
 ##   flashing) and the pause button, a round gold button of the kit in a bright brass ring.
@@ -328,7 +328,7 @@ func blocks(pos: Vector2) -> bool:
 	return _pause.global_hit_rect().has_point(pos)
 
 
-## The way home: a dark trail cut into the plate, his footprints faint on it (_Groove, drawn once), a thick
+## The way home: a plain dark trail cut into the plate (_Groove, drawn once), a thick
 ## bright gold fill with a lit top edge to where he is, Panoramic's
 ## face big in a gold ring at its tip (over the plate's edges, as the icons of top games' counters),
 ## and the house on a glowing gold disc at the end.
@@ -402,9 +402,9 @@ class _Track extends Control:
 
 
 
-## The way home's trail (the _Track's, behind its fill): a dark groove cut into the plate (a shade under
-## its upper edge, the plate's lit lip under it: sand read as already filled, or disabled), his
-## footprints faint on it, leading to the house (the gold fill covers them as he goes). Drawn once.
+## The way home's trail (the _Track's, behind its fill): a plain dark groove cut into the plate (a shade
+## under its upper edge, the plate's lit lip under it; sand read as already filled, footprints as mud).
+## Drawn once.
 class _Groove extends Control:
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -414,23 +414,13 @@ class _Groove extends Control:
 		var w := Hud.TRACK_W - 34.0
 		var g := Rect2(_Track.X0, size.y / 2 - _Track.GROOVE / 2, w, _Track.GROOVE)
 		var r := _Track.GROOVE / 2
-		GlossStyle.begin_batch()  # the groove and its footprints in one draw call
+		GlossStyle.begin_batch()  # the groove in one draw call
 		GlossStyle.fill_rounded(ci, Rect2(g.position + Vector2(0, 2.0), g.size).grow(2.0), r + 2.0,
 				Color(1, 0.85, 0.6, 0.22), Color(1, 0.85, 0.6, 0.22))  # the plate's lit lip under it
 		GlossStyle.fill_rounded(ci, g.grow(2.0), r + 2.0, Hud.PLATE_LINE, Hud.PLATE_LINE)
-		GlossStyle.fill_rounded(ci, g, r, Color("1e0a05"), Color("4a2410"))  # dark: only the way done is coloured
+		GlossStyle.fill_rounded(ci, g, r, Color("120806"), Color("2c1610"))  # plain dark: only the way done is coloured
 		GlossStyle.fill_clipped(ci, g, r, Rect2(g.position, Vector2(w, _Track.GROOVE * 0.45)),
 				Color(0, 0, 0, 0.55), Color(0, 0, 0, 0))
-		var x := g.position.x + 22.0
-		var k := 0
-		var print_colour := Color(1, 0.82, 0.55, 0.13)  # faint on the dark
-		while x < g.end.x - 18.0:  # footprints, left and right, walking towards the house
-			var at := Vector2(x, g.get_center().y + (-3.2 if k % 2 == 0 else 3.2))
-			var turn := 0.2 if k % 2 == 0 else -0.2
-			GlossStyle.fill_disc(ci, at, 4.2, print_colour, Vector2(1.0, 0.62), turn)
-			GlossStyle.fill_disc(ci, at + Vector2(5.6, 0).rotated(turn), 2.0, print_colour, Vector2(1.0, 0.62), turn)  # the toes
-			x += 15.0
-			k += 1
 		GlossStyle.end_batch(ci)
 
 
