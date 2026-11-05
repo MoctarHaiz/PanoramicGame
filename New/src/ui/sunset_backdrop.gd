@@ -25,6 +25,10 @@ var motes := true
 var shafts := 1.0
 ## Long sunset clouds across the upper sky (the level's painted clouds, tinted by the dusk).
 var clouds := false
+## The sun's white-hot disc (0: only its bloom; the menu paints its own layered sun over it: key art k6).
+var sun_disc := 1.0
+## How strong the sun's bloom is (the menu's is lower: its sky not washed white round the sun, key art k6).
+var sun_glow := 0.85
 var _clock := 0.0
 var _tex := {}
 var _painters: Array[Node2D] = []
@@ -55,7 +59,7 @@ func _ready() -> void:
 			_tex[StringName("cloud_%d" % (i + 1))] = load(DIR + "cloud_%d.png" % (i + 1))
 		_painter(_draw_clouds)
 	_painter(_draw_horizon_glow).material = _glow_material(0.0)  # smooth blooms (stacked discs stepped
-	_painter(_draw_sun).material = _glow_material(1.0)  # into rings round the sun)
+	_painter(_draw_sun).material = _glow_material(sun_disc, 2.0)  # into rings round the sun)
 	_painter(_draw_rays).material = add
 	_painter(_draw_strip.bind(&"sunset_far", 0.0, 0.62, 2.0), true)
 	_painter(_draw_strip.bind(&"sunset_hills", 0.2, 0.9, 5.0), true)
@@ -111,12 +115,12 @@ func _draw_clouds(ci: CanvasItem) -> void:
 
 
 ## A smooth bloom (sun_glow.gdshader: worked out per pixel, dithered), `core`: its white-hot disc.
-func _glow_material(core: float) -> ShaderMaterial:
+func _glow_material(core: float, falloff := -1.0) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = preload("res://src/ui/sun_glow.gdshader")
 	m.set_shader_parameter(&"core", core)
 	m.set_shader_parameter(&"core_radius", 0.2)  # (the disc: 0.15 of the height, the bloom 0.75)
-	m.set_shader_parameter(&"falloff", 2.0 if core > 0.0 else 1.6)
+	m.set_shader_parameter(&"falloff", falloff if falloff > 0.0 else (2.0 if core > 0.0 else 1.6))
 	return m
 
 
@@ -132,7 +136,7 @@ func _draw_horizon_glow(ci: CanvasItem) -> void:
 func _draw_sun(ci: CanvasItem) -> void:
 	var c := _sun()
 	var glow := size.y * 1.5 * (1.0 + sin(_clock * 0.8) * 0.01)
-	ci.draw_rect(Rect2(c - Vector2(glow, glow) / 2, Vector2(glow, glow)), Color(1, 0.78, 0.55, 0.85))
+	ci.draw_rect(Rect2(c - Vector2(glow, glow) / 2, Vector2(glow, glow)), Color(1, 0.78, 0.55, sun_glow))
 
 
 ## Soft rays fanning up from the low sun, turning very slowly.

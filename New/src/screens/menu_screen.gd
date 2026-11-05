@@ -26,6 +26,8 @@ const FEET_X := 0.424  ## the point between his boots, as a share of its width (
 const HERO_WIDE := 0.36  ## at most this share of the screen's width (round 15: 0.33; the wider throw kept as tall)
 const HERO_TALL := 0.8  ## his height, as a share of the screen's
 const FEET_AT := 0.9  ## where his feet stand, as a share of the screen's height
+const FEET_SINK := 0.008  ## his soles pressed onto the rock's ledge, a share of his height (key art k6: they hovered ~7 px over it,
+## his contact shadow fell on the grass behind, "no contact shadow on the rock")
 
 var _backdrop: SunsetBackdrop
 var _hero: TextureRect
@@ -59,16 +61,28 @@ func enter(_data: Dictionary) -> void:
 	_backdrop.shafts = 2.4
 	_backdrop.horizon = 0.8  # more sky: the horizon doesn't cut the frame in half
 	_backdrop.tree_x = 0.37  # the small acacia between him and the title, not behind the buttons
+	_backdrop.sun_disc = 0.0  # (key art k6) its bloom only: the layered sun is painted over it here (_halo_glow)
+	_backdrop.sun_glow = 0.5  # (key art k6: the two blooms added up clipped the haze to a pale wash, no corona)
 	add_child(_backdrop)
 	_lit_crop = not ResourceLoader.exists(HERO_ART)
 	_hero_tex = load(HERO_STAND if _lit_crop else HERO_ART)
 	# the bloom around the low sun
 	_halo_glow = ColorRect.new()  # worked out per pixel (a small gradient stretched stepped into rings)
-	_halo_glow.color = Color(1, 0.7, 0.42, 0.6)
+	_halo_glow.color = Color(1, 0.6, 0.32, 0.32)  # (key art k6: 0.6, a wash; warmer: an orange haze round the gold)
 	_halo_glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var bloom := ShaderMaterial.new()
 	bloom.shader = preload("res://src/ui/sun_glow.gdshader")
 	bloom.set_shader_parameter(&"falloff", 1.8)
+	# (key art k6, "a flat white disc": a halo behind his head and back) a white-hot core, a gold corona round
+	# it, both painted over the sky, then the bloom fading into the haze (shares of the rect's half size, 0.75 of
+	# the screen's height: the core 0.085 of it, the corona out to 0.2)
+	bloom.set_shader_parameter(&"paint", 1.0)
+	bloom.set_shader_parameter(&"core", 1.0)
+	bloom.set_shader_parameter(&"core_radius", 0.113)
+	bloom.set_shader_parameter(&"core_colour", Color(1.0, 0.98, 0.92))
+	bloom.set_shader_parameter(&"corona", 0.95)
+	bloom.set_shader_parameter(&"corona_radius", 0.3)
+	bloom.set_shader_parameter(&"corona_colour", Color(1.0, 0.7, 0.16))
 	_halo_glow.material = bloom
 	add_child(_halo_glow)
 	_rock_tex = load(ROCK)
@@ -297,7 +311,7 @@ func _layout() -> void:
 	_hero.size = Vector2(w, h)
 	# the art track's render stands on its own contact shadow, both soles at 0.93 of its height; the
 	# fallback crop's soles are at its foot
-	_hero.position = feet - Vector2(w * fx, h * (0.985 if _lit_crop else 0.93))
+	_hero.position = feet - Vector2(w * fx, h * (0.985 if _lit_crop else 0.93 - FEET_SINK))
 	_hero.pivot_offset = Vector2(w / 2, h)
 	# the rock's pixels to screen units: its ledge as wide as his stance, turned level, both boots on it
 	var k := w * STANCE / ROCK_LEDGE if not _lit_crop else h * 0.62 / _rock_tex.get_height()
@@ -312,7 +326,7 @@ func _layout() -> void:
 	# the sun, low, between him and the title: it rims him and fills the middle with light
 	# the sun right behind him, low: he stands against it, rim-lit, and the title column keeps calm
 	# sky behind it
-	var sun := _hero.position + Vector2(w * 0.46, h * 0.22)  # (round 17: behind his shoulders; at his belt it "washed out the abs")
+	var sun := _hero.position + Vector2(w * 0.32, h * 0.1)  # (key art k7, "the hair edge touches the disc edge": the disc 25 px clear of his silhouette, left of his head at its height)  # (key art k6: the layered halo behind the back of his head, off the ring and the kilt)  # (key art k5: up behind his head and back, a halo; low it lit his crotch)  # (key art k4: low behind his back, clear of his face and the ring)  # (key art k2: off his head, behind the throw, "a white blob that competes with the face")  # (round 17: behind his shoulders; at his belt it "washed out the abs")
 	_backdrop.sun_at = sun / v
 	_halo_glow.size = Vector2(v.y * 1.5, v.y * 1.5)
 	_halo_glow.position = sun - _halo_glow.size / 2

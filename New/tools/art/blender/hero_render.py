@@ -62,7 +62,7 @@ P = "mixamorig:"
 
 # ------------------------------------------------------------------ scene
 
-COSTUME = ("AAA_Underwrap", "AAA_BootCuffs", "AAA_Bracer")  ## (round 15) his
+COSTUME = ("AAA_Underwrap", "AAA_Bracer")  ## (key art k4: no fur cuffs, "a knotted bandage" on one leg only)  ## (round 15) his
 ## costume's new pieces in the AAA file: the leather underwrap, the boots' fur cuffs, the right bracer (round 16: the
 ## panels between his legs gone, "a holster, a codpiece"; their pattern on the belt)
 
@@ -220,7 +220,7 @@ def copy_fingers():
 
 
 HANDS = {  # (round 15, "mittens") per hand shape: the bend at each joint (degrees), the spread, the thumb's bend
-    "fist": ((82, 96, 70), 0.0, 40.0),
+    "fist": ((88, 100, 75), 0.0, 70.0),  # (key art k3: tighter, the thumb wrapped over, "a mitten")
     "open": ((4, 6, 3), 9.0, -8.0),
     "relaxed": ((24, 32, 20), 3.0, 12.0),
     "brace": ((10, 12, 6), 7.0, 0.0),
@@ -959,8 +959,12 @@ def pose_key_throw():
     turn("Spine", 5.0, (0.0, 1.0, 0.0))  # the chest leaning into the throw
     _aim_world("LeftArm", Vector((-0.8, 0.25, -0.35)).normalized())  # the free arm back, out from his side
     _aim_world("LeftForeArm", Vector((-0.55, 0.05, 0.1)).normalized())
-    hand("Left", "fist")
+    hand("Left", "fist")  # (k1's open palm lost: "a flat stop gesture that fights the throw")
     hand("Right", "open")
+    turn("Spine2", -10.0, (0.0, 0.0, 1.0))  # (key art k2: the chest a little to us, so the neck doesn't twist)
+    turn("Neck", -6.0)  # (key art k1, kept: his face to us, chin up: "a stern profile, the face too small")
+    turn("Head", -10.0)
+    turn("Head", -14.0, (0.0, 0.0, 1.0))
     ring = bpy.data.objects.get("AAA_Chakram")
     if ring is not None:  # the ring well ahead of the hand on the throw's line
         fore = (bone_world("RightHand", "tail") - bone_world("RightForeArm")).normalized()
@@ -2139,7 +2143,7 @@ def mirror_user_lights():
 
 FACES = {"run": "determined", "jump": "focus", "idle": "determined", "die": "hurt", "hang": "effort", "catch": "effort",
          "throw": "shout", "crouch": "determined", "hurt": "hurt", "climb": "effort", "win": "smile",
-         "menu_hero": "shout", "win_front": "grin", "defeat": "dazed", "portrait": "determined"}  ## (round 15) his expression in each
+         "menu_hero": "warcry", "win_front": "grin", "defeat": "dazed", "portrait": "determined"}  ## (round 15) his expression in each
 _face = [None]
 
 

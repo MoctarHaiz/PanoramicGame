@@ -292,7 +292,7 @@ def same_import(fn: str) -> None:
 
 
 def trimmed(path: Path, height: int, sunset: bool = False, under: np.ndarray | None = None,
-            over: np.ndarray | None = None) -> np.ndarray:
+            over: np.ndarray | None = None, ink_k: float = 1.0) -> np.ndarray:
     """A render cut to what it shows and reduced to `height` px; `under` and `over` (RGBA 0..1, the render's size):
     layers drawn behind and in front of the figure, cut and reduced with it, with no ink round them (the menu's
     throw trail, the glint on its ring)."""
@@ -310,7 +310,7 @@ def trimmed(path: Path, height: int, sunset: bool = False, under: np.ndarray | N
     img = img.crop(box)
     k = height / img.height
     arr = premultiplied_resize(img, k)
-    ink = INK_PX_UI * height / 300.0  # (as thick, for its size, as in the game before pass 3)
+    ink = INK_PX_UI * height / 300.0 * ink_k  # (as thick, for its size, as in the game before pass 3)
     m = int(np.ceil(ink)) + 3  # (round 11: room for the whole line; a 4 px border cut it flat at his boots)
     pad = np.zeros((arr.shape[0] + 2 * m, arr.shape[1] + 2 * m, 4), np.float32)
     pad[m:-m, m:-m] = arr
@@ -423,7 +423,7 @@ def throw_trail(folder: Path) -> np.ndarray:
     head = np.clip(1.0 - np.hypot(xx - centre[0], yy - centre[1]) / (radius * 1.5), 0.0, 1.0)
     glow = glow * head * 0.0  # (round 15: 0.5 read as a pale disc round the ring; round 16, "a soap bubble": none)
     lines = np.zeros_like(band)
-    for sgn, off, reach in ((-1.0, 1.15, (0.35, 0.9)), (1.0, 1.15, (0.3, 0.85)), (1.0, 1.75, (0.5, 0.92))):
+    for sgn, off, reach in ((-1.0, 1.15, (0.35, 0.9)), (1.0, 1.15, (0.3, 0.85)), (1.0, 1.75, (0.5, 0.92))):  # (k4: k0's blade streak)
         path = curve + side * (sgn * radius * off * tt ** 1.1)[:, None]
         keep = (tt > reach[0]) & (tt < reach[1])
         lines = np.maximum(lines, stroke(path[keep], lambda k: np.full_like(k, radius * 0.045), lambda k: 0.9 * np.sin(k * np.pi) ** 0.6))
@@ -481,6 +481,7 @@ def grounded(arr: np.ndarray, airborne: bool = False, strength: float = 1.0) -> 
 
 WIN_AIRBORNE = True  ## (hero pass 4: the win is a leap: his shadow on the ground below, softer)
 WIN_SHADOW = False  ## (round 15) none under the leap
+MENU_INK = 0.62  ## the menu picture's outline, a share of the others' (key art k6: "a sticker outline")
 MENU_PIXELS = 550000  ## the menu picture's pixel budget (with its padding and shadow: no more than round 6's 0.61 Mpx)
 
 
@@ -496,8 +497,8 @@ def pictures() -> None:
     # the line went soft and uneven)
     k = min((MENU_PIXELS / (hero.shape[0] * hero.shape[1])) ** 0.5, 1.0)
     menu = trimmed(ui / "menu_hero/000.png", int(round(1100 * k)), sunset=True, under=throw_trail(ui / "menu_hero"),
-                   over=ring_glint(ui / "menu_hero"))
-    save(grounded(backed(menu)), "hero_menu.png")
+                   over=ring_glint(ui / "menu_hero"), ink_k=MENU_INK)
+    save(grounded(menu, strength=1.6), "hero_menu.png")  # (key art k5: no glow round him, "a dark soft halo"; a firmer contact shadow)  # (k2: "no contact shadow under the boots")
     # the portrait: 660 x 752 from his hair to his hips (round 16: from its own render, standing, his face to us)
     if (ui / "portrait/000.png").exists():
         hero = trimmed(ui / "portrait/000.png", 1100, sunset=True)
