@@ -26,7 +26,7 @@ from scipy import ndimage
 
 NEW = Path(__file__).resolve().parents[2]
 ROOT = next(p for p in NEW.parents if (p / "Making").is_dir())  # the folder with the user's Blender files
-RENDER = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "_agents/AAA/hero3d/render/r14/game"  # (round 14: every level animation with his shade in the savanna's purple, hero3d/render/render_r14.sh)
+RENDER = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "_agents/AAA/hero3d/render/r15/game"  # (round 15: the hero made over, hero3d/render/render_r15.sh)
 GROUND_SPEED = 8.0 * 960.0 / 1320.0 * 40.0  ## units a second the ground scrolls (World.SCROLL_SPEED)
 OUT = NEW / "assets/art/hero"
 SCALE = 0.40  ## render px -> atlas px (1024 renders: he stands ~690 px, ~276 px in the atlas; the ink line costs a little room)
@@ -64,19 +64,21 @@ def premultiplied_resize(img: Image.Image, k: float) -> np.ndarray:
 
 
 INK = np.array([0.1, 0.045, 0.035])  ## the ink of the outline: a warm near-black brown (pass 3: darker, for the pale sky)
-INK_PX = 3.2  ## atlas px of ink round his outer silhouette (pass 3: 1.6 -> 2.2, "almost no value contrast against the sky"; round 11: 2.8 -> 3.2, "a brown smudge on the rock")
-INK_PX_UI = 2.8  ## the same, scaled to the interface pictures (as before)
+INK_PX = 2.7  ## atlas px of ink round his outer silhouette, on the shadow side (pass 3: 1.6 -> 2.2, "almost no value contrast against the sky"; round 11: 2.8 -> 3.2, "a brown smudge on the rock"; round 15: 2.7, "thinner ink", and INK_LIT of it on the lit side)
+INK_PX_UI = 2.4  ## the same, scaled to the interface pictures (round 15: 2.8 -> 2.4)
 
 
 SUN = np.array([-0.6, -0.8])  ## towards the sun on screen (x right, y down): upper left, as in the world
-RIM_PX = 4.2  ## atlas px of the hot rim on the sun side (hero pass 2: "a thick hot band, not a thin line"; round 11: 3.4 -> 4.2; round 14: round 13's 5.0 reverted)
+RIM_PX = 2.6  ## atlas px of the hot rim on the sun side (hero pass 2: "a thick hot band, not a thin line"; round 11: 3.4 -> 4.2; round 14: round 13's 5.0 reverted;
+## round 15, "a paler band just inside the outline: a die-cut sticker": thinner, hot orange, falling into the form)
 RIM_PX_UI = 2.4  ## the same, scaled to the interface pictures (round 11: 3.4 -> 2.4, "a lighter halo" inside the line)
-RIM_DAY = (np.array([1.0, 0.72, 0.36]), 0.75)  ## colour, strength (round 11: lighter and stronger, to part him from the rock;
+RIM_DAY = (np.array([1.0, 0.56, 0.2]), 0.5)  ## colour, strength (round 11: lighter and stronger, to part him from the rock;
 ## round 14: round 13's warm white band read "a whitish edge, a cut-out sticker": back to round 12's warm orange)
-RIM_DAY_DARK = 0.22  ## how much of it his black hair takes in the level
+RIM_DAY_DARK = 0.0  ## how much of it his black hair takes in the level (round 15: none, "grey hair")
 RIM_DAY_FALL = 1.6  ## a line at the edge falling into the form
 INK_DAY = np.array([0.075, 0.032, 0.038])  ## (round 14) the level's ink darker, a little purple: "a dark ink outline so he sits inside the world"
-RIM_SUNSET = (np.array([1.0, 0.78, 0.48]), 0.8)  ## (round 13: warmer white, the rim against the sky; on the sun side only)
+RIM_SUNSET = (np.array([1.0, 0.55, 0.2]), 0.0)  ## (round 13: warmer white, the rim against the sky; on the sun side only;
+## round 15: none: the pictures' hot rim is the 3D render's, on the form, not a band along the line)
 
 
 def sun_rim(arr: np.ndarray, px: float = RIM_PX, rim=RIM_DAY, dark: float = 0.22, fall: float = 1.6) -> np.ndarray:
@@ -110,26 +112,52 @@ def sun_rim(arr: np.ndarray, px: float = RIM_PX, rim=RIM_DAY, dark: float = 0.22
 
 INK_SS = 4  ## the outline is drawn at 4x and reduced: a smooth anti-aliased edge (round 11: "a jagged, uneven stroke")
 INK_CALM = 0.2  ## its contour calmed over this share of its width (no bumps where a strand of fur pokes out)
+## (round 15, every judge: "a thick, even, near-black outline with a paler band just inside it: a die-cut sticker";
+## "a thinner outline in a dark shade of the local colour, thinner on the lit side") the line takes the colour it
+## edges, darkened, and thins on the edges towards the sun
+INK_LUM = 0.12  ## the line's luminance (sRGB): the local colour darkened to it, never lighter than INK_DARK of it
+INK_DARK = 0.3
+INK_MIX = 0.3  ## share of the plain warm near-black ink in it (one family of lines across his colours)
+INK_LIT = 0.45  ## the line's width on the edges towards the sun, a share of its width on the shadow side
 
 
 def inked(arr: np.ndarray, px: float = INK_PX, ink: np.ndarray = INK) -> np.ndarray:
-    """A frame with a thicker ink line round its outer silhouette (anti-aliased), under the figure:
-    the cel look's outline reads against the pale sky at phone size, inside lines stay thin. The line follows
-    a calmed contour of the silhouette, so it keeps an even width, drawn at INK_SS x and reduced (smooth, no
-    stair steps); round a strand too thin for the calmed contour it is three quarters as wide, never missing."""
+    """A frame with an ink line round its outer silhouette (anti-aliased), under the figure: the cel look's
+    outline reads against the pale sky at phone size, inside lines stay thin. The line follows a calmed contour
+    of the silhouette, so it keeps an even width, drawn at INK_SS x and reduced (smooth, no stair steps); round a
+    strand too thin for the calmed contour it is three quarters as wide, never missing. Its colour is the colour
+    next to it, darkened (black hair: black; skin: a deep brown; the blue boots: a deep blue), and it is
+    INK_LIT as wide where the edge faces the sun."""
     a = arr[..., 3].astype(np.float32)
     h, w = a.shape
     ss = INK_SS
+    inside = a > 0.5
+    if not inside.any():
+        return arr
+    # the colour a few pixels in from each edge (the rim and the anti-aliased edge left out) and the edge's way out
+    soft = ndimage.gaussian_filter(inside.astype(np.float32), 1.5)
+    local = ndimage.gaussian_filter(arr[..., :3] * inside[..., None], (1.5, 1.5, 0)) / np.maximum(soft, 1e-4)[..., None]
+    _, (iy, ix) = ndimage.distance_transform_edt(~inside, return_indices=True)
+    local = local[iy, ix]
+    yy, xx = np.mgrid[0:h, 0:w]
+    vx, vy = (xx - ix).astype(np.float32), (yy - iy).astype(np.float32)
+    n = np.hypot(vx, vy) + 1e-6
+    facing = np.where(n > 0.5, (vx / n) * SUN[0] + (vy / n) * SUN[1], 0.0)
+    f = np.clip((facing - 0.1) / 0.6, 0.0, 1.0)
+    f = ndimage.gaussian_filter(f * f * (3 - 2 * f), 1.0)
+    width = 1.0 - (1.0 - INK_LIT) * f
+    lum = local @ np.array([0.3, 0.59, 0.11])
+    k = np.minimum(INK_DARK, INK_LUM / np.maximum(lum, 1e-3))
+    colour = local * k[..., None] * (1.0 - INK_MIX) + ink * INK_MIX
     big = np.asarray(Image.fromarray(a, "F").resize((w * ss, h * ss), Image.BILINEAR))
+    wide = np.asarray(Image.fromarray(width.astype(np.float32), "F").resize((w * ss, h * ss), Image.BILINEAR))
     calm = ndimage.gaussian_filter(big, px * INK_CALM * ss)
-    cover = ndimage.distance_transform_edt(calm < 0.5) <= px * ss
-    cover |= ndimage.distance_transform_edt(big < 0.5) <= px * 0.75 * ss
+    cover = ndimage.distance_transform_edt(calm < 0.5) <= px * ss * wide
+    cover |= ndimage.distance_transform_edt(big < 0.5) <= px * 0.75 * ss * wide
     ring = cover.astype(np.float32).reshape(h, ss, w, ss).mean((1, 3))
     out = np.zeros_like(arr)
-    out[..., :3] = ink
-    out[..., 3] = ring
     fa = a[..., None]
-    out[..., :3] = arr[..., :3] * fa + out[..., :3] * (1.0 - fa)
+    out[..., :3] = arr[..., :3] * fa + colour * (1.0 - fa)
     out[..., 3] = a + ring * (1.0 - a)
     return out
 
@@ -255,7 +283,16 @@ def trimmed(path: Path, height: int, sunset: bool = False, under: np.ndarray | N
     layers drawn behind and in front of the figure, cut and reduced with it, with no ink round them (the menu's
     throw trail, the glint on its ring)."""
     img = Image.open(path).convert("RGBA")
-    box = img.getchannel("A").point(lambda v: 255 if v > 2 else 0).getbbox()
+    # (round 15, "a faint hard-edged lighter rectangle in the sky behind the hair and the ring": cut to the figure,
+    # the trail's glow round the ring was cut straight) cut to everything drawn, the glows too, with room round it
+    seen = np.asarray(img.getchannel("A")) > 2
+    for layer in (under, over):
+        if layer is not None:
+            seen |= layer[..., 3] > 0.002
+    ys, xs = np.nonzero(seen)
+    room = int(img.height * 0.006)  # (none under his soles: the menu stands them on the rock at 0.93 of its height)
+    box = (max(xs.min() - room, 0), max(ys.min() - room, 0), min(xs.max() + room + 1, img.width),
+           min(ys.max() + 1, img.height))
     img = img.crop(box)
     k = height / img.height
     arr = premultiplied_resize(img, k)
@@ -285,6 +322,9 @@ def trimmed(path: Path, height: int, sunset: bool = False, under: np.ndarray | N
 def _ring(folder: Path):
     """The flying ring in a render: the second piece of the picture (centre, radius, in render px)."""
     src = np.asarray(Image.open(folder / "000.png"))
+    ring = json.loads((folder / "points.json").read_text())["frames"][0].get("ring")
+    if ring:  # (round 15: the ring close to his hand, touching him: hero_render.py writes where it is)
+        return np.array(ring[:2]), float(ring[2]), src.shape[:2]
     lab, n = ndimage.label(src[..., 3] > 128)
     sizes = ndimage.sum(np.ones_like(lab), lab, range(1, n + 1))
     ys, xs = np.nonzero(lab == np.argsort(-sizes)[1] + 1)
@@ -331,23 +371,20 @@ def throw_trail(folder: Path) -> np.ndarray:
     src = np.asarray(Image.open(folder / "000.png"))
     points = json.loads((folder / "points.json").read_text())
     hand = np.array(points["frames"][0]["hand_r"], np.float64)
-    lab, n = ndimage.label(src[..., 3] > 128)
-    sizes = ndimage.sum(np.ones_like(lab), lab, range(1, n + 1))
-    ring = np.argsort(-sizes)[1] + 1  # the second piece: the ring, flying free of his hand
-    ys, xs = np.nonzero(lab == ring)
-    centre = np.array([xs.mean(), ys.mean()])
-    radius = (xs.max() - xs.min()) / 2.0
+    centre, radius, _ = _ring(folder)
     d = centre - hand
     length = np.hypot(*d)
-    normal = np.array([-d[1], d[0]]) / length  # (away from his body: the ring swings out as it leaves)
-    ctrl = (hand + centre) / 2.0 + normal * length * 0.22
+    # (round 15: the ring a hand's breadth out, so the trail is the throw's whole arc) from high behind his hand (the
+    # wind-up over his shoulder), sweeping down over his forearm, out to the ring
+    start = hand - d * 0.7 + np.array([0.0, -length * 1.1])
+    ctrl = hand + np.array([0.0, -length * 0.45])
     t = np.linspace(0.0, 1.0, 400)[:, None]
-    curve = (1 - t) ** 2 * hand + 2 * (1 - t) * t * ctrl + t ** 2 * centre
+    curve = (1 - t) ** 2 * start + 2 * (1 - t) * t * ctrl + t ** 2 * centre
     tangent = np.gradient(curve, axis=0)
     side = np.stack([tangent[:, 1], -tangent[:, 0]], -1) / np.maximum(np.hypot(*tangent.T)[:, None], 1e-6)
     h, w = src.shape[:2]
-    x0, y0 = np.floor(np.minimum(hand, centre) - radius * 2).astype(int).clip(0)
-    x1, y1 = np.ceil(np.maximum(hand, centre) + radius * 2).astype(int)
+    x0, y0 = np.floor(np.minimum(np.minimum(hand, centre), curve.min(0)) - radius * 2).astype(int).clip(0)
+    x1, y1 = np.ceil(np.maximum(np.maximum(hand, centre), curve.max(0)) + radius * 2).astype(int)
     x1, y1 = min(x1, w), min(y1, h)
     yy, xx = np.mgrid[y0:y1, x0:x1]
     pix = np.stack([xx.ravel(), yy.ravel()], -1).astype(np.float64)
@@ -363,11 +400,12 @@ def throw_trail(folder: Path) -> np.ndarray:
     # (round 14, "a flat grey-blue smear with no speed lines, glow or sharp leading edge: an undo-ghost") a blade of
     # light: needle-thin and faint at his hand, widening to a sharp, bright head at the ring, a white-hot core, a
     # cold glow round the head and three crisp speed lines
-    band = stroke(curve, lambda k: radius * 0.8 * k ** 1.3, lambda k: 0.2 + 0.8 * k ** 0.6)
-    core = stroke(curve, lambda k: radius * 0.28 * k ** 1.3, lambda k: k ** 0.5)
-    glow = np.clip(1.0 - ndimage.distance_transform_edt(band < 0.5) / (radius * 0.45), 0.0, 1.0) ** 2
-    head = np.clip(1.0 - np.hypot(xx - centre[0], yy - centre[1]) / (radius * 2.2), 0.0, 1.0)
-    glow = glow * head * 0.5
+    # (round 15, "the trail a thin white hairline: a tapered arc connecting hand to ring") thicker, from the hand on
+    band = stroke(curve, lambda k: radius * (0.2 + 0.8 * k ** 0.45), lambda k: 0.45 + 0.55 * k ** 0.4)
+    core = stroke(curve, lambda k: radius * (0.07 + 0.28 * k ** 0.45), lambda k: 0.5 + 0.5 * k ** 0.4)
+    glow = np.clip(1.0 - ndimage.distance_transform_edt(band < 0.5) / (radius * 0.35), 0.0, 1.0) ** 2
+    head = np.clip(1.0 - np.hypot(xx - centre[0], yy - centre[1]) / (radius * 1.5), 0.0, 1.0)
+    glow = glow * head * 0.28  # (round 15: 0.5 read as a pale disc round the ring)
     lines = np.zeros_like(band)
     for sgn, off, reach in ((-1.0, 1.15, (0.35, 0.9)), (1.0, 1.15, (0.3, 0.85)), (1.0, 1.75, (0.5, 0.92))):
         path = curve + side * (sgn * radius * off * tt ** 1.1)[:, None]
@@ -426,6 +464,7 @@ def grounded(arr: np.ndarray, airborne: bool = False, strength: float = 1.0) -> 
 
 
 WIN_AIRBORNE = True  ## (hero pass 4: the win is a leap: his shadow on the ground below, softer)
+WIN_SHADOW = False  ## (round 15) none under the leap
 MENU_PIXELS = 550000  ## the menu picture's pixel budget (with its padding and shadow: no more than round 6's 0.61 Mpx)
 
 
@@ -458,7 +497,9 @@ def pictures() -> None:
     full[:min(752, arr.shape[0]), :min(660, arr.shape[1])] = arr[:752, :660]
     if os.environ.get("PORTRAIT") == "1":  # (round 11: kept as it was unless asked: UX's badge is cut from it)
         save(full, "portrait.png", pad=0)
-    save(grounded(trimmed(ui / "win_front/000.png", 900, sunset=True), airborne=WIN_AIRBORNE), "hero_win.png")
+    # (round 15, "the disc shadow far below his feet": the leap with no shadow at all; the win card's glow is his ground)
+    win = trimmed(ui / "win_front/000.png", 900, sunset=True)
+    save(grounded(win, airborne=WIN_AIRBORNE) if WIN_SHADOW else win, "hero_win.png")
     save(grounded(trimmed(ui / "defeat/000.png", 640, sunset=True), strength=1.35), "hero_defeat.png")  # (round 14, "floats with no ground or shadow")
 
 

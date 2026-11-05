@@ -20,7 +20,10 @@ const ROCK := "res://assets/art/ui/menu_rock.png"  ## loaded with the menu (7 MB
 const ROCK_STAND := Vector2(1390, 152)  ## where his feet go on the rock, in its pixels (tools/art/ui_hero.py)
 const ROCK_LEDGE := 660.0  ## the rock's flat top his stance spans, boot to boot, in its pixels
 const ROCK_TILT := -0.066  ## the rock turned a little (radians) so its ledge is level under both boots
-const STANCE := 0.81  ## his stance, boot to boot, as a share of the render's width (hero_menu.png)
+const STANCE := 0.693  ## his stance, boot to boot, as a share of the render's width (hero_menu.png; round 15's throw,
+## its free arm and trail further out: 0.81 -> 0.693)
+const FEET_X := 0.457  ## the point between his boots, as a share of its width (round 15: 0.515 -> 0.457)
+const HERO_WIDE := 0.36  ## at most this share of the screen's width (round 15: 0.33; the wider throw kept as tall)
 const HERO_TALL := 0.8  ## his height, as a share of the screen's
 const FEET_AT := 0.9  ## where his feet stand, as a share of the screen's height
 
@@ -287,13 +290,14 @@ func _layout() -> void:
 	var aspect := float(_hero_tex.get_width()) / _hero_tex.get_height()
 	# (the lunge and the ring make him wide; round 12: the deeper lunge is wider; the hero comes first:
 	# where the title column is narrow, its Best row shrinks, not him)
-	var h := minf(v.y * HERO_TALL, v.x * 0.33 / aspect)
+	var h := minf(v.y * HERO_TALL, v.x * (HERO_WIDE if not _lit_crop else 0.33) / aspect)
 	var w := h * aspect
-	var feet := Vector2(insets.x + w * 0.515 + 12.0, v.y * FEET_AT)  # between his boots
+	var fx := FEET_X if not _lit_crop else 0.515
+	var feet := Vector2(insets.x + w * fx + 12.0, v.y * FEET_AT)  # between his boots
 	_hero.size = Vector2(w, h)
 	# the art track's render stands on its own contact shadow, both soles at 0.93 of its height; the
 	# fallback crop's soles are at its foot
-	_hero.position = feet - Vector2(w * 0.515, h * (0.985 if _lit_crop else 0.93))
+	_hero.position = feet - Vector2(w * fx, h * (0.985 if _lit_crop else 0.93))
 	_hero.pivot_offset = Vector2(w / 2, h)
 	# the rock's pixels to screen units: its ledge as wide as his stance, turned level, both boots on it
 	var k := w * STANCE / ROCK_LEDGE if not _lit_crop else h * 0.62 / _rock_tex.get_height()

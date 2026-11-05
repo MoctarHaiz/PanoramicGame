@@ -24,6 +24,7 @@ uniform float opacity = 1.0;
 uniform float bounce = 0.0;
 uniform vec4 bounce_colour : source_color = vec4(1.35, 1.0, 0.7, 1.0);
 uniform vec2 bounce_dir = vec2(-1.0, 0.0);
+uniform vec4 bounce_cool : source_color = vec4(0.72, 0.76, 0.98, 1.0);  // the side away from the fire (round 15)
 uniform float bounce_scale = 0.01;  // 1 / (half the frame's width, in local px): the sprite is an atlas region
 // A warm back rim (round 10, home: the lit hut behind him): a band just inside the ink on the edges that face
 // up and to the sides, the light from behind wrapping his silhouette; the ink line itself stays dark.
@@ -86,8 +87,13 @@ void fragment() {
 		c.rgb = 1.0 - (1.0 - c.rgb) * (1.0 - glow);
 	}
 	if (bounce > 0.0) {
-		float side = smoothstep(-0.6, 0.9, dot(local_pos * bounce_scale, normalize(bounce_dir)));
+		// (round 15, "drenched in uniform orange that flattens all his anatomy: fire key on one side, cooler shadow on
+		// the other") the fire on its side only, the far side in a cool shade
+		float x = dot(local_pos * bounce_scale, normalize(bounce_dir));
+		float side = smoothstep(-0.15, 0.85, x);
+		float far = smoothstep(0.1, -0.7, x);
 		c.rgb *= mix(vec3(1.0), bounce_colour.rgb, bounce * side);
+		c.rgb *= mix(vec3(1.0), bounce_cool.rgb, bounce * far);
 	}
 	c.rgb = mix(c.rgb, tint.rgb, amount);
 	COLOR = c;

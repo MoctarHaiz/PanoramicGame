@@ -4,22 +4,28 @@ extends Node2D
 ## a cut crimson gem with a face that floats up and down (each at its own phase and pace, so a row never
 ## moves as one), sways, squashes at the bottom of its float, blinks now and then, and now and then its one
 ## hard glint flares into a star. (Round 10: no glow round it: along a row the halos "merged into one pink
-## smear"; its bright rim and the glint are in the sheet.)
+## smear"; round 15, "red dots in a tight row": a tight soft glow, clear inside the ball, and a steady spark.)
 ## When Panoramic takes it, the game screen flies a copy to the counter (BobView.flier()).
 
 const DIR := "res://assets/art/bob/"
 const SIZE := 28.0  ## drawn width in units (a 32-unit tile; round 14: round 13's 24 read "small and pale", round 12's 28 "bigger and more saturated")
 enum Face { SMILE, BLINK, JOY, WINK }
 const SPEC_AT := Vector2(-5.9, -6.4)  ## units from its middle (at SIZE): bob_sheet.py's hard glint
+## (round 15, the judges: "red dots in a tight row": a brighter specular and a soft outer glow on each)
+const GLOW := Color(1.0, 0.3, 0.36, 0.42)  ## the glow round it (additive), kept tight so a row never merges
+const GLOW_R := 0.82  ## its reach, a share of SIZE from the middle (the ball is 0.5)
+const SPEC_K := 0.85  ## the steady specular spark on its glint
 
 static var _sheet: Texture2D
 static var _frame_px := 128
 static var _radius_px := 57.0
 static var _faces := {}  # Face -> AtlasTexture
 static var _glint: Texture2D
+static var _halo: Texture2D
 static var _additive: CanvasItemMaterial
 
 var _sprite: Sprite2D
+var _glow: Sprite2D
 var _pace := 3.4  # radians per second of its float
 var _shine: Node2D  # the glint, added onto the ball
 var _clock := 0.0
@@ -46,6 +52,7 @@ static func load_art() -> void:
 		a.region = Rect2(f * _frame_px, 0, _frame_px, _frame_px)
 		_faces[f] = a
 	_glint = _make_glint()
+	_halo = _make_halo()
 	_additive = CanvasItemMaterial.new()
 	_additive.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 
@@ -77,14 +84,40 @@ static func _make_glint() -> Texture2D:
 	return ImageTexture.create_from_image(img)
 
 
+## A soft round glow (additive), clear in its middle where the ball covers it, fading out past its rim.
+static func _make_halo() -> Texture2D:
+	var n := 64
+	var img := Image.create_empty(n, n, false, Image.FORMAT_RGBA8)
+	var ball := 0.5 / GLOW_R  # the ball's rim, a share of the glow's radius
+	for y in n:
+		for x in n:
+			var r := (Vector2(x + 0.5, y + 0.5) / (n / 2.0) - Vector2.ONE).length()
+			var a := smoothstep(1.0, ball, r) * smoothstep(ball * 0.6, ball, r)
+			img.set_pixel(x, y, Color(1, 1, 1, a * a))
+	img.generate_mipmaps()
+	return ImageTexture.create_from_image(img)
+
+
 func _init(column := 0, row := 0) -> void:
 	load_art()
 	_scale = scale_for(SIZE)
 	_unit = _scale
+	_glow = Sprite2D.new()
+	_glow.texture = _halo
+	_glow.material = _additive
+	_glow.modulate = GLOW
+	add_child(_glow)
 	_sprite = Sprite2D.new()
 	_sprite.texture = _faces[Face.SMILE]
 	_sprite.scale = Vector2.ONE * _scale
 	add_child(_sprite)
+	var spec := Sprite2D.new()  # the steady spark on its glint, turning and floating with it
+	spec.texture = _glint
+	spec.material = _additive
+	spec.modulate = Color(1, 1, 1, SPEC_K)
+	spec.position = SPEC_AT / _unit
+	spec.scale = Vector2.ONE * (0.1 * SIZE / 24.0) / _unit
+	_sprite.add_child(spec)
 	_shine = Node2D.new()
 	_shine.material = _additive
 	_shine.draw.connect(_draw_glint)
@@ -95,6 +128,7 @@ func _init(column := 0, row := 0) -> void:
 	_phase = fposmod(h * 91.7 + column * 2.399, TAU)
 	_scale *= 0.88 + 0.22 * h
 	_tilt = (fposmod(h * 7.31, 1.0) - 0.5) * 0.7
+	_glow.scale = Vector2.ONE * (SIZE * GLOW_R * 2.0 / 64.0) * (_scale / _unit)
 	_face = [Face.SMILE, Face.JOY, Face.SMILE, Face.WINK, Face.JOY][int(h * 97.0) % 5]
 	_pace = 2.6 + 1.4 * fposmod(h * 37.1, 1.0)
 	_clock = 0.0
@@ -111,6 +145,7 @@ func _process(delta: float) -> void:
 	var pulse := 1.0 + 0.045 * maxf(sin(_clock * 3.1 - _phase * 1.3), 0.0)  # a slight beat of size
 	_sprite.scale = Vector2(_scale * (1.0 + squash), _scale * (1.0 - squash)) * pulse
 	_sprite.rotation = _tilt + 0.09 * sin(_clock * 2.1 - _phase * 0.7)
+	_glow.position = _sprite.position
 	# blink every few seconds; once in a while a wink
 	var face := _face
 	if _clock >= _blink_at:

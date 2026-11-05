@@ -62,6 +62,10 @@ P = "mixamorig:"
 
 # ------------------------------------------------------------------ scene
 
+COSTUME = ("AAA_Underwrap", "AAA_PanelFront", "AAA_PanelBack", "AAA_BootCuffs", "AAA_Bracer")  ## (round 15) his
+## costume's new pieces in the AAA file: the leather underwrap and panels, the boots' fur cuffs, the right bracer
+
+
 def setup_scene():
     """The user's scene as they lit it (their lights, world, materials and AgX), plus the savanna:
     a warm rim from the game's sun (behind him, upper left on screen) and a faint warm bounce from
@@ -69,7 +73,7 @@ def setup_scene():
     user_lights = [ob for ob in bpy.data.objects if ob.type == "LIGHT"]
     for ob in bpy.data.objects:
         if ob.type in ("ARMATURE", "MESH"):
-            show = ob in (ARM, MESH)
+            show = ob in (ARM, MESH) or (ob.name in COSTUME and arg("--character") != "bandit")
             ob.hide_render = not show
             ob.hide_viewport = not show
     r = SC.render
@@ -184,12 +188,58 @@ def sample(action, frame):
     return {pb.name: (pb.location.copy(), pb.rotation_quaternion.copy()) for pb in ARM.pose.bones}
 
 
+HEAD_SCALE = float(os.environ.get("HEAD_SCALE", "1.3"))  ## (round 15, "about 8 heads tall: the face never reads at
+## phone size; mobile heroes are 5-6 heads") his head (face and hair) this much bigger, from the top of his neck
+
+
 def apply(pose):
     ARM.animation_data.action = None
     for pb in ARM.pose.bones:
         loc, rot = pose[pb.name]
         pb.location = loc
         pb.rotation_quaternion = rot
+        pb.scale = (1.0, 1.0, 1.0)
+    ARM.pose.bones[P + "Head"].scale = (HEAD_SCALE if arg("--character") != "bandit" else 1.0,) * 3
+    copy_fingers()
+    bpy.context.view_layer.update()
+
+
+FINGERS = ("Index", "Middle", "Ring", "Pinky")
+
+
+def copy_fingers():
+    """(Round 15: the AAA file's middle, ring and little fingers have their own bones now, ROOT/_agents/AAA/hero3d/
+    scripts: the animations only move the index finger) every finger bends as the index finger does."""
+    for side in ("Left", "Right"):
+        for name in FINGERS[1:]:
+            for k in (1, 2, 3):
+                pb = ARM.pose.bones.get(f"{P}{side}Hand{name}{k}")
+                if pb is not None:
+                    pb.rotation_quaternion = ARM.pose.bones[f"{P}{side}HandIndex{k}"].rotation_quaternion.copy()
+
+
+HANDS = {  # (round 15, "mittens") per hand shape: the bend at each joint (degrees), the spread, the thumb's bend
+    "fist": ((82, 96, 70), 0.0, 40.0),
+    "open": ((4, 6, 3), 9.0, -8.0),
+    "relaxed": ((24, 32, 20), 3.0, 12.0),
+    "brace": ((10, 12, 6), 7.0, 0.0),
+}
+CURL = float(os.environ.get("CURL_SIGN", "1"))  ## the way the finger bones bend (their local x)
+
+
+def hand(side, shape):
+    """His hand in a shape: every finger bent at its three joints, spread from the middle, the thumb in."""
+    if P + side + "HandMiddle1" not in ARM.pose.bones:
+        return
+    bend, spread, thumb = HANDS[shape]
+    for fi, name in enumerate(FINGERS):
+        for k in (1, 2, 3):
+            q = Quaternion((1.0, 0.0, 0.0), math.radians(bend[k - 1] * CURL))
+            if k == 1:
+                q = q @ Quaternion((0.0, 0.0, 1.0), math.radians(spread * (fi - 1.2)))
+            ARM.pose.bones[f"{P}{side}Hand{name}{k}"].rotation_quaternion = q
+    for k in (2, 3):
+        ARM.pose.bones[f"{P}{side}HandThumb{k}"].rotation_quaternion = Quaternion((1.0, 0.0, 0.0), math.radians(thumb * CURL))
     bpy.context.view_layer.update()
 
 
@@ -324,7 +374,7 @@ def pose_hang(t, turn_k=1.0):
 
 def pose_catch(t):
     """From the rising jump into the hang: arms sweep up to the vine (t 0..1)."""
-    pose_hang(0.0)
+    pose_hang15(0.0)
     hang = current()
     a = sample("jump", 6 + 2 * t)
     apply(mix(a, hang, ease(t)))
@@ -827,36 +877,368 @@ def pose_turn(k):
 
 def reset_turn():
     ARM.rotation_euler.z = 0.0
+    _grip[0] = None
+    front = bpy.data.objects.get("AAA_PanelFront")
+    if front is not None and arg("--character") != "bandit":
+        front.hide_render = not front.get("shown", True)
     for ob in bpy.data.objects:  # only the title screen's picture holds a ring, only the defeat has stars
         if ob.name in ("MenuRing", "AAA_Chakram") or ob.name.startswith(("AAA_DizzyStar", "AAA_DizzyTrail", "AAA_DizzySwirl")):
             ob.hide_render = True
     bpy.context.view_layer.update()
 
 
+# ------------------------------------------------------------------ round 15: the poses acted
+# (the character judges, round 14: the throw "very wide with both feet flat: no weight over the front knee, no torso
+# twist"; the jump "a starfish falling backwards"; the run "bent 90 degrees, an old man shuffling"; the hang "a
+# plank"; the idle "stiff, arms hang straight"; the win "the fist buried in the hair, broken at the waist"; home
+# "square, knees locked, hailing a taxi"; game over "resting, not knocked out")
+
+def shift_world(v):
+    """Moves the whole body by a world vector (metres)."""
+    pb = ARM.pose.bones[P + "Hips"]
+    m = pb.matrix.copy()
+    m.translation += ARM.matrix_world.to_3x3().inverted() @ v
+    pb.matrix = m
+    bpy.context.view_layer.update()
+
+
+def _feet():
+    return {side: (bone_world(side + "Foot"), bone_world(side + "Foot", "tail") - bone_world(side + "Foot"),
+                   bone_world(side + "ToeBase", "tail") - bone_world(side + "ToeBase")) for side in ("Left", "Right")}
+
+
+def _replant(feet, sides=("Left", "Right")):
+    """The legs reach their feet again (where `feet` held them), the knees bending the way they were."""
+    for side in sides:
+        ankle, foot, toe = feet[side]
+        hip, knee = bone_world(side + "UpLeg"), bone_world(side + "Leg")
+        u = (ankle - hip).normalized()
+        pole = (knee - hip) - u * (knee - hip).dot(u)
+        ik_leg(side, ankle, pole if pole.length > 1e-4 else Vector((0.0, -1.0, 0.0)))
+        _aim_world(side + "Foot", foot)
+        _aim_world(side + "ToeBase", toe)
+
+
+def heel_up(side, k=0.5):
+    """His heel lifted off the ground, the ball of his foot where it was (a pushing-off back foot)."""
+    ball = bone_world(side + "ToeBase")
+    foot = bone_world(side + "Foot", "tail") - bone_world(side + "Foot")
+    level = Vector((foot.x, foot.y, 0.0)).normalized()
+    d = (level * (1.0 - k) + Vector((0.0, 0.0, -1.0)) * k).normalized()
+    ankle = ball - d * foot.length
+    hip, knee = bone_world(side + "UpLeg"), bone_world(side + "Leg")
+    u = (ankle - hip).normalized()
+    ik_leg(side, ankle, (knee - hip) - u * (knee - hip).dot(u))
+    _aim_world(side + "Foot", d)
+    _aim_world(side + "ToeBase", level)
+
+
+THROW_TWIST = float(os.environ.get("THROW_TWIST", "18"))  ## degrees his shoulders turn against his hips at the release
+THROW_HIPS = float(os.environ.get("THROW_HIPS", "0.05"))  ## metres his hips drive towards the throw
+THROW_RING = float(os.environ.get("THROW_RING", "0.14"))  ## metres the ring has flown from his hand (the title screen
+## keeps it inside its left two fifths, where the close-ups are cut)
+
+
+def pose_key_throw():
+    """The title screen (round 15): the release with the body behind it: the hips driven over the bent front knee,
+    the back heel up, the shoulders turned through against the hips, the free arm pulled back hard (his armoured fist
+    clear of his body), the throwing hand open, the ring away ahead of it; a gritted shout."""
+    pose_key_lunge()
+    feet = _feet()
+    toward = Vector((1.0, -0.25, 0.0)).normalized()  # the throw: picture right, a little towards us
+    shift_world(toward * THROW_HIPS + Vector((0.0, 0.0, -0.025)))
+    _replant(feet)
+    heel_up("Left", 0.55)
+    turn("Spine1", THROW_TWIST * 0.5, (0.0, 0.0, 1.0))
+    turn("Spine2", THROW_TWIST * 0.5, (0.0, 0.0, 1.0))
+    turn("Spine", 5.0, (0.0, 1.0, 0.0))  # the chest leaning into the throw
+    _aim_world("LeftArm", Vector((-0.8, 0.25, -0.35)).normalized())  # the free arm back, out from his side
+    _aim_world("LeftForeArm", Vector((-0.55, 0.05, 0.1)).normalized())
+    hand("Left", "fist")
+    hand("Right", "open")
+    ring = bpy.data.objects.get("AAA_Chakram")
+    if ring is not None:  # the ring well ahead of the hand on the throw's line
+        fore = (bone_world("RightHand", "tail") - bone_world("RightForeArm")).normalized()
+        m = ring.matrix_world.copy()
+        m.translation = bone_world("RightHand", "tail") + (fore * 0.8 + Vector((0.0, 0.0, 0.45))).normalized() * THROW_RING
+        ring.matrix_world = m
+        bpy.context.view_layer.update()
+
+
+JUMP_LEAN = float(os.environ.get("JUMP_LEAN", "16"))  ## degrees forward his body leans in the flight
+
+
+def pose_jump15(i):
+    """The jump (round 15): leading with his chest (his body set to a forward lean of JUMP_LEAN, turned a little to
+    us) and his near arm reaching ahead to the gems, the front knee driven up, the trailing leg folded behind in a C,
+    the head up, his eyes on the landing."""
+    apply(sample("jump", 1 + i))
+    w = ease((i - 2) / 4.0) * (1.0 - ease((i - 16) / 5.0))  # the flight
+    if w <= 0.0:
+        hand("Right", "relaxed")
+        hand("Left", "relaxed")
+        return
+    base = current()
+    turn("Hips", JUMP_LEAN - _lean())
+    turn("Spine1", -14.0, (0.0, 0.0, 1.0))  # the chest turned to us (round 14: "back to the camera, no face")
+    turn("Spine2", -8.0, (0.0, 0.0, 1.0))
+    aim("RightArm", 0.85, 0.5, 0.3)  # the near arm reaching ahead and up, towards the gems
+    aim("RightForeArm", 0.95, 0.35, 0.1)
+    aim("RightHand", 1.0, 0.2)
+    aim("LeftArm", -0.6, -0.5, -0.3)  # the far arm back and down for balance
+    aim("LeftForeArm", -0.3, -0.9, -0.2)
+    aim("RightUpLeg", 0.75, 0.35, 0.05)  # the front knee driven up
+    aim("RightLeg", 0.25, -0.95)
+    aim("RightFoot", 0.7, -0.7)
+    aim("LeftUpLeg", -0.45, -0.85, -0.05)  # the trailing leg folded back: a C
+    aim("LeftLeg", -0.55, 0.8)
+    aim("LeftFoot", -0.3, 0.9)
+    turn("Neck", -8.0)
+    turn("Head", -12.0)
+    turn("Head", -18.0, (0.0, 0.0, 1.0))
+    apply(mix(base, current(), w))
+    hand("Right", "open")
+    hand("Left", "fist")
+
+
+RUN_LEAN = float(os.environ.get("RUN_LEAN", "14"))  ## degrees forward his body leans in the run (round 14: ~45)
+
+
+def _lean():
+    """Degrees his back leans forward from upright, as the side camera sees it (hips to neck)."""
+    d = bone_world("Neck") - bone_world("Hips")
+    return math.degrees(math.atan2(-d.y, d.z))  # (side view: screen x is -y)
+
+
+def pose_run15(i):
+    """The run (round 15): the authored stride with his chest up (a forward lean of RUN_LEAN, not a stoop), the head
+    up, a higher knee drive and a bigger arm pump; fists."""
+    apply(sample_jog(1 + i))
+    over = _lean() - RUN_LEAN
+    turn("Spine", -over * 0.45)
+    turn("Spine1", -over * 0.35)
+    turn("Spine2", -over * 0.2)
+    turn("Neck", -6.0)
+    turn("Head", -8.0)
+    for side in ("Right", "Left"):  # the knee in front drives higher
+        d = bone_world(side + "Leg") - bone_world(side + "UpLeg")
+        if -d.y > 0.02:  # (side view: x is -y) this thigh is in front
+            turn(side + "UpLeg", -14.0)
+            turn(side + "Leg", 8.0)
+        a = bone_world(side + "ForeArm") - bone_world(side + "Arm")  # the arms swing further
+        turn(side + "Arm", 16.0 if -a.y < 0 else -16.0)
+        turn(side + "ForeArm", -12.0)
+    hand("Right", "fist")
+    hand("Left", "fist")
+
+
+_grip = [None]  ## the hand he hangs by (both hand points of the frame are put at it: the game hangs him from them)
+
+
+def pose_hang15(t, turn_k=1.0):
+    """Hanging (round 15): by his far hand, the near arm out, his hips swung forward and his knees bent, swinging."""
+    apply(sample("idle", 1 + t * 59))
+    ARM.rotation_euler.z = math.radians(HANG_TURN * turn_k)
+    bpy.context.view_layer.update()
+    s = math.sin(t * math.tau)
+    c = math.cos(t * math.tau)
+    turn("Spine", -6 + 3 * s)  # (his back arched a little: the hips forward)
+    aim("LeftArm", 0.05, 1.0, -0.1)  # the far hand on the vine
+    aim("LeftForeArm", 0.08, 1.0, -0.02)
+    aim("LeftHand", 0.05, 1.0)
+    aim("RightArm", 0.9, 0.25 + 0.1 * s, 0.35)  # the near arm out, open
+    aim("RightForeArm", 0.95, 0.4 + 0.1 * s, 0.2)
+    aim("RightUpLeg", 0.95, -0.35 + 0.25 * s)  # the hips swung forward, the thighs up, both knees bent
+    aim("RightLeg", 0.12 + 0.2 * c, -1.0)
+    aim("RightFoot", 0.7, -0.7)
+    aim("LeftUpLeg", 0.8, -0.6 + 0.25 * s)
+    aim("LeftLeg", -0.15 + 0.2 * c, -1.0)
+    aim("LeftFoot", 0.5, -0.85)
+    turn("Head", -10.0)
+    hand("Left", "fist")
+    hand("Right", "open")
+    top = bone_world("LeftHand", "tail").z
+    shift_hips(0.0, HANG_TOP - top)
+    _grip[0] = "LeftHand"
+
+
+def pose_idle15(i):
+    """The start (round 15): ready to run: the front knee bent, the weight forward, the back heel up, fists set at his
+    sides, his head and eyes to the way he will run."""
+    apply(sample("idle", 1 + i * 3))
+    b = 0.5 + 0.5 * math.sin(i / 20.0 * math.tau)  # breathing
+    turn("Spine", 12.0 + 1.0 * b)
+    turn("Spine1", 4.0)
+    turn("Neck", -8.0)
+    turn("Head", -6.0)
+    aim("RightUpLeg", 0.5, -0.86, 0.05)  # the front leg forward, its knee bent over the foot
+    aim("RightLeg", -0.18, -1.0)
+    aim("RightFoot", 1.0, -0.25)
+    aim("LeftUpLeg", -0.3, -0.95, -0.05)  # the back leg behind
+    aim("LeftLeg", -0.42, -0.9)
+    aim("LeftFoot", 1.0, -0.6)
+    aim("RightArm", -0.2, -0.95, 0.25)  # fists set: the forearms forward, ready to pump
+    aim("RightForeArm", 0.75, 0.55, 0.1)
+    aim("LeftArm", 0.25, -0.95, -0.25)
+    aim("LeftForeArm", 0.85, 0.35, -0.1)
+    plant(0.0)
+    hand("Right", "fist")
+    hand("Left", "fist")
+
+
+def pose_win15():
+    """The win picture (round 15): the leap of joy with its finish: the whole body turned three-quarters (hips and
+    shoulders together), the front knee tucked high, the trailing leg driven long behind, his right fist punched up
+    and out clear of his head, the armoured arm swung up on the other side; an open grin."""
+    pose_authored("key_win")
+    ARM.rotation_euler.z = math.radians(WIN_TURN)
+    bpy.context.view_layer.update()
+    # (front camera: x picture right, -y towards us, z up; facing us his right is picture left)
+    _aim_world("RightArm", Vector((-0.35, -0.25, 0.9)).normalized())
+    _aim_world("RightForeArm", Vector((-0.25, -0.3, 0.92)).normalized())
+    _aim_world("RightHand", Vector((-0.15, -0.25, 0.95)).normalized())
+    _aim_world("LeftArm", Vector((0.85, -0.1, 0.3)).normalized())
+    _aim_world("LeftForeArm", Vector((0.35, -0.3, 0.88)).normalized())
+    _aim_world("RightUpLeg", Vector((-0.4, -0.6, 0.35)).normalized())  # the front knee up, towards us
+    _aim_world("RightLeg", Vector((-0.05, -0.1, -1.0)).normalized())
+    _aim_world("RightFoot", Vector((-0.05, -0.55, -0.8)).normalized())
+    _aim_world("LeftUpLeg", Vector((0.5, 0.42, -0.75)).normalized())  # the trailing leg long behind him
+    _aim_world("LeftLeg", Vector((0.55, 0.55, -0.6)).normalized())
+    _aim_world("LeftFoot", Vector((0.5, 0.45, -0.72)).normalized())
+    turn("Neck", -6.0)
+    turn("Head", -8.0)
+    hand("Right", "fist")
+    hand("Left", "open")
+
+
+WIN_TURN = float(os.environ.get("WIN_TURN", "-28"))  ## degrees the win picture's body turns from facing us
+
+
+def pose_home15(t):
+    """Home (round 15): he stops, turns three-quarters to us and cheers: his weight on one leg, the other knee bent
+    and lifted on the beat (a hop), the hips shifted, his back arched, one fist punched up, the other arm waving;
+    a big smile."""
+    turn_t = ease(t / 0.3)
+    run = sample_jog(1)
+    apply(sample("idle", 1 + t * 30))
+    ARM.rotation_euler.z = math.radians(HOME_TURN * turn_t)
+    bpy.context.view_layer.update()
+    up = ease((t - 0.1) / 0.3)
+    beat = 0.5 + 0.5 * math.sin((t - 0.4) / 0.6 * math.tau * 2) if t > 0.4 else 1.0
+    aim("RightArm", -0.2 + 0.1 * up, -0.95 + 1.95 * up, 0.3 * up)
+    aim("RightForeArm", -0.1, 0.1 + 0.9 * up, 0.25 * up)
+    aim("LeftArm", 0.45 + 0.4 * up, -0.95 + 1.35 * up, -0.1)
+    aim("LeftForeArm", 0.2 + 0.25 * beat * up, 0.2 + 0.8 * up, -0.1)
+    turn("Spine", -7.0 * up)  # the back arched
+    turn("Spine1", -5.0 * up)
+    turn("Spine", 8.0 * up, (1.0, 0.0, 0.0))
+    turn("Head", -10.0 * up)
+    aim("LeftUpLeg", 0.45 * up, -1.0, -0.15 * up)  # the free knee bent and lifted on the beat
+    aim("LeftLeg", -0.35 * up - 0.25 * up * beat, -1.0)
+    aim("RightUpLeg", -0.08 * up, -1.0, 0.08 * up)
+    aim("RightLeg", 0.05 * up, -1.0)
+    plant(0.0)
+    if t > 0.4:
+        shift_hips(0.0, 0.025 * beat)
+    hand("Right", "fist")
+    hand("Left", "open")
+    if t < 0.15:
+        cheer = current()
+        apply(mix(run, cheer, ease(t / 0.15)))
+
+
+HOME_TURN = float(os.environ.get("HOME_TURN", "-62"))  ## degrees he turns to us at home (round 14: -90, "his back turned")
+
+
+DIZZY_R = 0.13  ## metres: the radius of the stars' circle round his head
+
+
+def _dizzy_round_head(drop):
+    """The dizzy stars circling his head wherever the pose put it (round 14: "the halo sits high above the hair:
+    detached"): on a level circle round his brow, tipped a little towards us, `drop` metres under the top of his
+    hair; the authored trail (placed for the authored slump, it stood on its edge beside him) left out."""
+    obs = [ob for ob in bpy.data.objects if ob.name.startswith(("AAA_DizzyStar", "AAA_DizzyTrail")) and not ob.hide_render]
+    for ob in obs:
+        if ob.name.startswith("AAA_DizzyTrail"):
+            ob.hide_render = True
+    head, top = bone_world("Head"), bone_world("HeadTop_End")
+    centre = head + (top - head) * 0.75 + Vector((0.0, 0.0, -drop))
+    a = Vector((1.0, 0.0, 0.0))  # (picture right)
+    b = Vector((0.0, -0.45, 0.89)).cross(a).normalized() * -1.0  # (towards us, tipped)
+    stars = sorted((ob for ob in obs if ob.name.startswith("AAA_DizzyStar")), key=lambda ob: ob.name)
+    for ob, ang in zip(stars, (20.0, 160.0, 265.0)):  # (two in front, either side of his face, one behind)
+        m = ob.matrix_world.copy()
+        m.translation = centre + (a * math.cos(math.radians(ang)) + b * math.sin(math.radians(ang))) * DIZZY_R
+        ob.matrix_world = m
+    bpy.context.view_layer.update()
+
+
+def pose_defeat15():
+    """Game over (round 15): knocked out, not resting: sat back on the ground, his spine sagging, his head lolling to
+    one side, one arm braced behind him, the other limp over his knee, one leg out along the ground and the other
+    knee up: four clear shapes; the dizzy ring round his head."""
+    pose_authored("key_defeat", stars=True)
+    chunky_stars()
+    ARM.rotation_euler.z = math.radians(DEFEAT_TURN)
+    bpy.context.view_layer.update()
+    _aim_world("RightUpLeg", Vector((-0.7, -0.62, -0.12)).normalized())  # out along the ground (picture left)
+    _aim_world("RightLeg", Vector((-0.75, -0.6, -0.2)).normalized())
+    _aim_world("RightFoot", Vector((-0.45, -0.5, 0.75)).normalized())
+    _aim_world("LeftUpLeg", Vector((0.45, -0.62, 0.5)).normalized())  # the knee up (picture right)
+    _aim_world("LeftLeg", Vector((0.2, -0.15, -0.97)).normalized())
+    _aim_world("LeftFoot", Vector((0.25, -0.75, -0.6)).normalized())
+    turn("Spine", -14.0, (1.0, 0.0, 0.0))  # leaning back on the braced arm, sagging
+    turn("Spine1", 10.0, (1.0, 0.0, 0.0))
+    turn("Spine1", 8.0, (0.0, 1.0, 0.0))
+    _aim_world("RightArm", Vector((-0.55, 0.4, -0.73)).normalized())  # braced behind him
+    _aim_world("RightForeArm", Vector((-0.35, 0.3, -0.89)).normalized())
+    _aim_world("RightHand", Vector((-0.5, 0.0, -0.86)).normalized())
+    _aim_world("LeftArm", Vector((0.4, -0.45, -0.8)).normalized())  # limp over his knee
+    _aim_world("LeftForeArm", Vector((0.3, -0.75, -0.6)).normalized())
+    turn("Neck", 10.0, (0.0, 1.0, 0.0))
+    turn("Head", 24.0, (0.0, 1.0, 0.0))  # lolling
+    turn("Head", -12.0, (1.0, 0.0, 0.0))
+    hand("Right", "brace")
+    hand("Left", "relaxed")
+    for panel in ("AAA_PanelFront", "AAA_PanelBack"):  # (sat on the ground, the panels stiff with his hips would
+        ob = bpy.data.objects.get(panel)  # stand down through it)
+        if ob is not None:
+            ob.hide_render = True
+    seat = bone_z("Hips") - 0.085
+    low = min(seat, bone_z("RightToe_End"), bone_z("LeftToe_End"), bone_z("RightHand", "tail"))
+    shift_hips(0.0, 0.0 - low)
+    _dizzy_round_head(DIZZY_DROP)
+
+
+DIZZY_DROP = float(os.environ.get("DIZZY_DROP", "-0.02"))  ## metres the dizzy ring comes down, round his brow
+
+
 # name -> (camera view, frames: callables or (action, frame), camera lift in metres)
 def anims():
     out = {}
-    out["run"] = ("side", [lambda i=i: apply(sample_jog(1 + i)) for i in range(16)])
-    out["jump"] = ("side", [lambda i=i: pose_jump(i) for i in range(27)])
-    out["idle"] = ("side", [lambda i=i: pose_idle(i) for i in range(20)])
+    out["run"] = ("side", [lambda i=i: pose_run15(i) for i in range(16)])
+    out["jump"] = ("side", [lambda i=i: pose_jump15(i) for i in range(27)])
+    out["idle"] = ("side", [lambda i=i: pose_idle15(i) for i in range(20)])
     out["idle_front"] = ("front", [("idle", 1 + i * 2) for i in range(30)])
     out["die"] = ("other_side", [("die", f) for f in list(range(1, 50, 2)) + [62, 78]])
-    out["hang"] = ("side", [lambda i=i: pose_hang(i / 12.0) for i in range(12)])
+    out["hang"] = ("side", [lambda i=i: pose_hang15(i / 12.0) for i in range(12)])
     out["catch"] = ("side", [lambda i=i: pose_catch((i + 1) / 4.0) for i in range(4)])
     out["throw"] = ("side", [lambda i=i, s=s: pose_throw(i, s) for s in (0, 1) for i in range(16)])
     out["crouch"] = ("side", [lambda i=i: pose_crouch((i + 1) / 4.0) for i in range(4)])
     out["hurt"] = ("side", [lambda i=i: pose_hurt(i / 9.0) for i in range(10)])
     out["climb"] = ("side", [lambda i=i: pose_climb(i / 7.0) for i in range(8)])
-    out["win"] = ("side", [lambda i=i: pose_win(i / 23.0) for i in range(24)], 0.2)
+    out["win"] = ("side", [lambda i=i: pose_home15(i / 23.0) for i in range(24)], 0.2)
     out["menu"] = ("front", [lambda k=k: pose_menu(k) for k in range(4)], 0.1)
     # the interface pictures: front camera, looking a little up at him (his face under his hair)
     out["menu_hero"] = ("front", [lambda: pose_key_art()], 0.1, 7.0)
     out["defeat"] = ("front", [lambda: pose_seated()], -0.15, 3.0)
     out["win_front"] = ("front", [lambda: pose_celebrate()], 0.15, 7.0)
     if "key_menu" in ACTIONS:  # (hero pass 2: the poses authored by hand on the timeline)
-        out["menu_hero"] = ("front", [lambda: pose_key_lunge()], -0.06, 6.0)
-        out["win_front"] = ("front", [lambda: pose_win_tuck()], -0.03, 7.0)
-        out["defeat"] = ("front", [lambda: pose_defeat_turned()], 0.03, float(os.environ.get("DEFEAT_TILT", "-4")))  # (looking down a little: he sits on the ground)
+        out["menu_hero"] = ("front", [lambda: pose_key_throw()], -0.06, 6.0)
+        out["win_front"] = ("front", [lambda: pose_win15()], -0.03, 7.0)
+        out["defeat"] = ("front", [lambda: pose_defeat15()], 0.03, float(os.environ.get("DEFEAT_TILT", "-4")))  # (looking down a little: he sits on the ground)
+    if arg("--hands"):  # the hand shapes, for reviews (--anims hands --hands)
+        out["hands"] = ("front", [lambda k=k: (apply(sample("idle", 1)), hand("Right", k), hand("Left", k)) for k in HANDS], 0.0)
     if arg("--turn"):  # the turnaround, for reviews (--anims turn --turn)
         out["turn"] = ("front", [lambda k=k: pose_turn(k) for k in range(4)], 0.0)
     return out
@@ -1685,10 +2067,18 @@ def points(cam):
     out = {}
     mw = ARM.matrix_world
     for key, (bone, end) in POINTS.items():
+        if key in ("hand_r", "hand_l") and _grip[0]:  # (round 15) hanging by one hand: the game hangs him from it
+            bone = _grip[0]
         pb = ARM.pose.bones[P + bone]
         co = mw @ (pb.head if end == "head" else pb.tail)
         v = world_to_camera_view(SC, cam, co)
         out[key] = [round(v.x * SIZE, 2), round((1.0 - v.y) * SIZE, 2)]
+    ring = bpy.data.objects.get("AAA_Chakram")
+    if ring is not None and not ring.hide_render:  # (round 15) the flying ring: its middle and radius on screen
+        c = ring.matrix_world.translation
+        edge = c + (cam.matrix_world.to_3x3() @ Vector((1.0, 0.0, 0.0))) * 0.083 * ring.matrix_world.to_scale().x
+        v, e = world_to_camera_view(SC, cam, c), world_to_camera_view(SC, cam, edge)
+        out["ring"] = [round(v.x * SIZE, 2), round((1.0 - v.y) * SIZE, 2), round((e.x - v.x) * SIZE, 2)]
     return out
 
 
@@ -1703,7 +2093,27 @@ def mirror_user_lights():
     bpy.context.view_layer.update()
 
 
+FACES = {"run": "determined", "jump": "focus", "idle": "determined", "die": "hurt", "hang": "effort", "catch": "effort",
+         "throw": "shout", "crouch": "determined", "hurt": "hurt", "climb": "effort", "win": "smile",
+         "menu_hero": "shout", "win_front": "grin", "defeat": "dazed"}  ## (round 15) his expression in each
+_face = [None]
+
+
+def set_face(expression):
+    """His drawn face for this moment (ROOT/_agents/AAA/hero3d/textures/face/face_<expression>.png, tools/art/hero_face.py)."""
+    if not AAA or expression == _face[0] or arg("--character") == "bandit":
+        return
+    path = os.path.join(os.path.dirname(bpy.data.filepath), "textures", "face", f"face_{expression}.png")
+    m = bpy.data.materials.get("AAA_face")
+    if m is None or not os.path.exists(path):
+        return
+    m["decal"] = bpy.data.images.load(path, check_existing=True).name
+    _aaa_toon().build(m, "sunset" if arg("--light", "day") == "sunset" else "day")
+    _face[0] = expression
+
+
 def render(name, view, frames, lift=0.0, tilt=0.0):
+    set_face(FACES.get(name, "determined"))
     SC.camera = camera(view)
     level = SC.camera.rotation_euler.x
     SC.camera.rotation_euler.x = level + math.radians(tilt)  # + looks up at him
@@ -1721,6 +2131,12 @@ def render(name, view, frames, lift=0.0, tilt=0.0):
     # where the world's origin (on the ground, under his hips at rest) falls in the picture
     o = world_to_camera_view(SC, SC.camera, Vector((0.0, 0.0, 0.0)))
     data = {"view": view, "size": SIZE, "origin": [round(o.x * SIZE, 2), round((1.0 - o.y) * SIZE, 2)], "frames": []}
+    # (the leather panels only where they face us: from the side they show edge-on as a thin brown frame)
+    for panel, shown in (("AAA_PanelBack", view == "front"), ("AAA_PanelFront", view == "front" or name == "win")):
+        ob = bpy.data.objects.get(panel)
+        if ob is not None:
+            ob.hide_render = not shown or arg("--character") == "bandit"
+            ob["shown"] = shown
     for i, f in enumerate(frames):
         if TEST and i not in (0, len(frames) // 2):
             continue

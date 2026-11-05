@@ -516,3 +516,57 @@ win and defeat renders; (6) the studio logo; (7) the null texture on the first b
     (HeroView `_blob()`, `grounded()`: "concentric rings, like a puddle"); the home back rim lighter (0.4).
   - Not done: expressions (a shout, a grin, dazed eyes): the model has no face rig and its face is the user's
     identity; the proportions.
+
+## Round 15 (the hero alone, the identity rule lifted: "do everything you can")
+
+Worked live in the user's Blender window (ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend, through the MCP add-on:
+`hero3d/scripts/bl.py`), saved after each step, backups in `hero3d/backups/`; every frame rendered in background
+Blender (`hero3d/render/render_r15.sh` -> `r15/`).
+
+- **Head and face** ("8 heads tall, the face never reads"; "blue eyeshadow and glowing irises read as make-up"):
+  - his head 1.3x from the top of his neck (`hero_render.py HEAD_SCALE`, every pose; the bandit keeps 1.0);
+  - the painted eyes, brows and mouth had been cut into other regions by colour (the eyeshadow into the blue armour,
+    the whites into the fur, the brows into the hair): put back into the face region (live);
+  - a drawn face over it (`tools/art/hero_face.py` -> `hero3d/textures/face/face_<expression>.png`): the old
+    features filled with his own skin, new ones a little bigger: clear whites, a dark brown iris with a warm lower
+    half and two catchlights, a lash line, strong tapered brows, a mouth that acts. Mapped by the rest shape's y and
+    z (`hero_toon_aaa.py FACE_FRAME`, the face material's `decal`), so it bends with his face in every pose;
+  - an expression per moment (`hero_render.py FACES`, `set_face()`): a gritted shout on the throw, an open grin on
+    the win, dazed (one eye half-lidded, the irises apart, a slack mouth) on game over, a big smile at home,
+    determined at the start and in the run, eyes on the landing in the jump, effort on the vine, pain when hurt.
+- **Hands** ("mittens"): the auto-rig gave all four fingers to the index finger's bones; each finger has its own three
+  bones and weights now (live), every finger follows the index in the animations (`copy_fingers()`), and the poses
+  set shapes (`hand()`: fist, open, relaxed, brace).
+- **Costume** (same meanings, same colours):
+  - a dark leather underwrap round his hips, copied from his own skin and lifted 4 mm (no bare seat), and leather
+    panels front and back hanging from the belt (`tools/art/hero_costume.py`: a stitched edge, a white zigzag, blue
+    beads); the boots made warrior's footwear in the shader (`hero_toon_aaa.py BOOT_*`: cream leather laced with
+    crossed brown cords, the blue wrapped in strips, a brass band, a dark leather sole) with fur cuffs; a blue
+    bracer on the bare right forearm to answer the armoured left;
+  - the chakram a blade: eight hooked teeth on a ground edge, a glowing blue core (`CHAKRAM_CORE`);
+  - the slivers the poses stretched into streaks ("a blue blade streak", "a dark rod behind the shoulder") cut away;
+    stray dark paint on the armour taken back from the hair region.
+- **Rendering**: black hair (a warm near-black, big locks, a warm band of light, deeper root shadow, no blue sheen,
+  none of the 2D rim); the whites a value lower (the loincloth, the boots' white); the skin's terminator soft and its
+  painted lines most of the way to its mean colour; his chest and face lit most, the light falling off to his boots;
+  a hot orange rim (3D: every edge in the backlit pictures, the sun side in full); the sunset's warm rose in his
+  shade; the ink a dark shade of the colour it edges, thinner (2.7 px in play) and 0.45 as wide on the sun's side
+  (`inked()`); the in-play 2D rim thin and hot orange, none in the pictures; at home the fire warms one side and the
+  other falls into a cool shade (`actor.gdshader bounce_cool`).
+- **Poses** (`pose_key_throw`, `pose_jump15`, `pose_run15`, `pose_hang15`, `pose_idle15`, `pose_win15`,
+  `pose_home15`, `pose_defeat15`): the throw's hips driven over the front knee, back heel up, shoulders turned
+  through, the free fist pulled back; the jump leading with the chest and the near arm, the front knee up, the
+  trailing leg in a C, the chest turned to us; the run upright (a 14 degree lean) with a knee drive and an arm pump;
+  the hang by one hand, the other arm out, the hips swung forward; the start ready to run; the win's fist up and out
+  clear of his head, the body turned three-quarters as one; home three-quarters to us with a hop, a hip shift and an
+  arched back; game over knocked out (a sagging spine, a lolling head, a braced arm, the legs apart) with the stars
+  circling his brow.
+- **Menu**: its picture cut to everything drawn, the ring's glow too (the "hard-edged lighter rectangle"); the trail
+  thicker from the hand; `menu_screen.gd` STANCE / FEET_X / HERO_WIDE for the wider throw. **Win**: no shadow under
+  the leap (`results_panel.gd` ground 1.04); the knocked-out sprawl kept "seated" size (1.35).
+- **Red Bobs**: a tight soft glow, clear inside the ball, and a steady spark on the glint (`bob_view.gd GLOW`,
+  `SPEC_K`); `_test_art_round9()` checks it.
+- Checked: 1089 checks, 0 failed (with the bot); texture memory 63.3 MB, worst frame of play 7.28 ms; the atlas
+  184 frames on 3 pages, 9.25 Mpx; captures and close-ups in `ROOT/_agents/AAA/round_15/art/` (`hero/`,
+  `hero_before_after.png` against round 14). Not redone: `portrait.png` (the HUD badge, UX's `head.png`) still shows
+  round 14's face; the bandit (unchanged; his renders keep a 1.0 head, no drawn face, no costume pieces).

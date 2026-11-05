@@ -2158,11 +2158,16 @@ func _test_art_round9() -> void:
 	_check(sum.r > sum.b * 2.0 and sum.b > sum.g, "a Red Bob is ruby crimson, not tomato orange (%.2f %.2f %.2f)" % [sum.r, sum.g, sum.b])
 	var rim := bob.get_pixel(31, 23)  # 92 % of the way out towards the sun
 	_check(rim.r > 0.9 and rim.g > 0.45, "a bright rim inside its ink on the sun's side (%s)" % rim)
+	# (round 15, "red dots in a tight row": a soft glow round each, kept tight and clear inside the ball, so a row
+	# never merges into one smear as round 10's did, and a steady spark on its glint)
 	var one := BobView.new(3, 5)
-	var glows := 0
-	for child in one.get_children():
-		glows += 1 if child is Sprite2D and child != one.get_child(0) else 0
-	_check(one.get_child_count() == 2 and glows == 0, "no glow sprite round a Red Bob (%d children)" % one.get_child_count())
+	var glow: Sprite2D = one._glow
+	var halo := glow.texture.get_image()
+	var mid := halo.get_pixel(halo.get_width() / 2, halo.get_height() / 2).a
+	_check(glow.get_index() < one._sprite.get_index() and mid < 0.05,
+		"a Red Bob's glow is behind it and clear inside the ball (%.2f in its middle)" % mid)
+	_check(BobView.GLOW_R < 0.9, "its glow stays tight (out to %.2f of its size from the middle)" % BobView.GLOW_R)
+	_check(one._sprite.get_child_count() == 1, "a steady spark on its glint (%d)" % one._sprite.get_child_count())
 	one.free()
 
 
