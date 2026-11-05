@@ -2,8 +2,8 @@ class_name StartCard
 extends Control
 ## Before the first touch the world waits (the 2017 "Ready"): the screen's call to action in the sky,
 ## above the platforms and the ground he runs on: "Tap to start" in big bold display letters (cream to
-## gold, a heavy ink outline and depth) on a soft dark glow that keeps them readable over sky and
-## grass, a big hand tapping beside them with its ripples (never over the words), the whole beating
+## gold, a heavy ink outline and depth) on a soft dark plate and glow that keep them readable over
+## the busy mesa, sky and grass, a big hand tapping beside them with its ripples (never over the words), the whole beating
 ## like the Play button, a warm light pulsing behind.
 ## The first time, nothing else: the moves are taught when they are needed (Tutorial). Later runs
 ## show the five moves above it on a strip of dark glass, each with its own gesture, so every
@@ -47,9 +47,19 @@ func _init(first_run: bool) -> void:
 	var shade := TextureRect.new()  # the soft dark glow behind the words (no pill: not a tooltip)
 	shade.texture = Fx.glow_texture()
 	shade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	shade.modulate = Color(0.08, 0.02, 0.0, 0.55)
+	shade.modulate = Color(0.08, 0.02, 0.0, 0.7)
 	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	halo.add_child(shade)
+	var plate := Panel.new()  # and a soft dark plate right behind them: they read over the busy mesa
+	var ps := StyleBoxFlat.new()
+	ps.bg_color = Color(0.08, 0.03, 0.01, 0.42)
+	ps.set_corner_radius_all(60)
+	ps.shadow_color = Color(0.08, 0.03, 0.01, 0.42)
+	ps.shadow_size = 34
+	ps.anti_aliasing = true
+	plate.add_theme_stylebox_override(&"panel", ps)
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	halo.add_child(plate)
 	var glow := TextureRect.new()  # and a warm light pulsing in it
 	glow.texture = Fx.glow_texture()
 	glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -81,6 +91,8 @@ func _init(first_run: bool) -> void:
 		go_row.size = need
 		shade.size = need * Vector2(1.25, 2.1)
 		shade.position = need / 2 - shade.size / 2
+		plate.size = need + Vector2(40, 6)
+		plate.position = need / 2 - plate.size / 2
 		glow.size = need * Vector2(1.1, 1.8)
 		glow.position = need / 2 - glow.size / 2
 		halo.pivot_offset = need / 2

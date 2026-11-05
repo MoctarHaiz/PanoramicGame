@@ -24,6 +24,7 @@ var _rays: Rays  # and its soft shafts of light
 var _back: Control  # the picture behind, its scrim and vignette
 var _picture: TextureRect
 var _hidden: Array[CanvasItem] = []  # what it hid behind it, shown again when it goes
+var _out_of_picture: Array[CanvasItem] = []  # hidden for the picture only
 var _to_cover: Array = []  # what its picture stands for (the world): hidden once the picture covers it
 var _covered: Array[CanvasItem] = []
 var _mood := &""  # &"win", &"loss" or none (Card.set_mood)
@@ -105,7 +106,8 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 	add_child(_pop)
 	card = Card.new(Vector4(54, 68, 54, 46))  # inside the thick frame and its trim
 	card.set_mood(_mood)
-	card.bosses = _mood != &""  # the jewelled corners for the results only (the pause: plain)
+	card.bosses = _mood != &""  # the jewelled corners for the results only
+	card.inlays = _mood == &""  # the pause's: engraved gold corners
 	card.add_child(body)
 	banner = Banner.new(title, tone, 54)
 	banner.size = banner.custom_minimum_size
@@ -161,8 +163,23 @@ func _snapshot_then_enter(hide: Array) -> void:
 	# the end panels blurred deeper (1/64: at 1/16 the sun's haze and a pale mesa kept their outlines
 	# and turned to flat grey blocks under the dim); the pause lighter (1/16: the scene stays readable)
 	_picture.texture = Ui.blurred_snapshot(get_viewport(), 4 if _mood == &"" else 6)
+	for n: CanvasItem in _out_of_picture:  # back at once: only the picture leaves them out
+		if is_instance_valid(n):
+			n.visible = true
+	_out_of_picture.clear()
 	visible = true
 	_enter()
+
+
+## Leaves `nodes` out of the picture behind (shown again as soon as it is taken): the frozen scene's
+## moving pieces, which blurred and lightly dimmed read as smears (call right after open()).
+func leave_out_of_picture(nodes: Array) -> void:
+	if DisplayServer.get_name() == "headless":  # no picture is taken there
+		return
+	for n: Variant in nodes:
+		if is_instance_valid(n) and n is CanvasItem and (n as CanvasItem).visible:
+			(n as CanvasItem).visible = false
+			_out_of_picture.append(n)
 
 
 ## Hides `nodes` (the world under the panel) once the picture of it covers the screen, and shows
@@ -216,7 +233,7 @@ func _enter() -> void:
 func _exit_tree() -> void:
 	if Device.changed.is_connected(_place):
 		Device.changed.disconnect(_place)
-	for n: Variant in _hidden:
+	for n: Variant in _hidden + _out_of_picture:  # (gone before its picture was taken: them too)
 		if is_instance_valid(n):
 			(n as CanvasItem).visible = true
 	uncover()

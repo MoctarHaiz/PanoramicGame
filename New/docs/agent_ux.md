@@ -612,3 +612,47 @@ pause and settings among them); game over and win still lost to round 9 (slight)
   screen), the round's start in round_12/before/. perf.gd (load average 3-4): texture peak 61.3 MB on
   iPhone 15 and iPad 13; draw calls menu 122, paused 128 (round 11: 117 / 215), results 210 (301);
   worst own work in play 8.1 / 10.8 ms (PASS).
+
+## Round 13
+
+Round 12 merged (7480cc8, then aa8038a: env's layer names). The blind A/B: round 12 won 7/10, but
+menu, pause and settings lost to round 11; game over and win won. ROUND13.md (ux), judge/p12.
+
+- HUD draw calls (perf.tscn, iPhone 15, the first 40 s of play, means): the whole frame 228.7 -> 119.0;
+  with the HUD hidden (--hide=Hud: the HUD now names itself) 91.2 -> 91.1, so the HUD 137.5 -> 27.9.
+  By piece before (hidden one at a time): the way-home track 90, lives 18, the counter 12, the pause
+  11, the shade 1. Causes and fixes, in the shared kit (every screen gains):
+  - GlossStyle drew each box as about ten separate polygons: they now go into one triangle array per
+    style (`_Batch`); GlossStyle.begin_batch()/end_batch() lets any code do the same with fill_rounded,
+    fill_clipped, the new fill_disc (feathered disc or ellipse) and fill_bar.
+  - DisplayText set a transform for every glyph (so none batched): straight, still text now draws its
+    glyphs where they stand (the shader's gradient measured from the baseline).
+  - The track's footprints (a transform and two circles each), its discs and its fill, the hearts'
+    shine: all batched or transform-free.
+- Pause (lost): round 11's sizes back (tiles 136, Resume 122/54, captions 34); the thick frame with
+  engraved gold corner inlays ending in diamonds (Card `inlays`; no rivets); the "red stubs under the
+  ribbon" were the level's Red Bobs and the "hero smear" Panoramic, blurred above the card: the pause
+  leaves the actors and the Bobs out of its picture (GamePanel.leave_out_of_picture: back the moment
+  it is taken); ON/OFF crisp corner tags (radius 9, a fine edge, a drop shadow) inside the tiles;
+  Controls a gamepad (assets/icons/gamepad.svg; hand-swipe.svg removed).
+- Settings (lost): round 11's file back, then only: Help's tiles red candy like the other columns (the
+  iPad's two-column Help blue: red is its Effects'), the info button bone (lighter than dark wood).
+- Menu (lost): round 11's ribbon back, its tails trimmed 8 px a side (TAIL_TRIM); BEST 26 (was 22), lighter
+  (a warm tan in the 580 weight).
+- Game over (won): the navy well a deeper gradient, a firmer lit foot, a faint grain (InsetStyle
+  `grain`); the way-home fill fills the groove's own shape to a tightly rounded tip with a light inside
+  its top (GlossStyle.fill_bar: at 21 % it was an oval knob); the headline plain deep red, spaced; the
+  NEW BEST badge 62.
+- Win (won): the stars' shadow on the panel and a lit bevel inside their edge; the stage's sunburst
+  stronger; the stats well warmer (6a2e10 to 9c5420, grained); Play again bigger with a warm light
+  breathing behind it and its glints (the reward's call, not the game over's).
+- Start: a soft dark plate behind "Tap to start" (over the busy mesa).
+- HUD: 26 units between the gem counter and the pause; a little more gloss inside the pills.
+- Menu row, deterministic (the coordinator: a French iPad check failed once in base, then passed):
+  the gear grew to the Best plaque's height in a later resize and pushed the row past the safe area
+  while the menu came in; it is a fixed 94 tile now, the row's width known from the first frame, its
+  gap 18.
+- Tests: 1084 checks, 0 failed. Captures AAA/round_13/ux/{en,fr}/ (iPhone 15 and iPad, every UI
+  screen). perf.gd, quiet Mac (load 1.5): texture peak 63.3 MB on iPhone 15 and iPad 13; play draw
+  calls mean 118.9 (HUD 28.2: 118.9 with it, 90.7 without), max 258 (was 369); paused 113 (128),
+  results 210, menu 91 (122); worst own work in play 7.9 / 7.6 ms (PASS).

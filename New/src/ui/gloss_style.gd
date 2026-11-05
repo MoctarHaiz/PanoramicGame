@@ -96,6 +96,14 @@ func _draw(ci: RID, rect: Rect2) -> void:
 	var r := _radius(rect)
 	shadow.set_corner_radius_all(int(r))
 	shadow.draw(ci, rect)
+	var outer := _batch  # (a batch some code has open around it carries on after)
+	_batch = _Batch.new()  # every shape below into one triangle array: one draw call, not ten
+	_draw_shapes(ci, rect, sink, r)
+	_batch.flush(ci)
+	_batch = outer
+
+
+func _draw_shapes(ci: RID, rect: Rect2, sink: float, r: float) -> void:
 	var body := Rect2(rect.position + Vector2(0, sink), rect.size - Vector2(0, sink))
 	var w := outline_width
 	if w > 0:
@@ -164,12 +172,90 @@ static func _clipped(ci: RID, rect: Rect2, r: float, band: Rect2, c_top: Color, 
 		var colours := PackedColorArray()
 		for p in poly:
 			colours.append(c_top.lerp(c_bottom, clampf((p.y - band.position.y) / maxf(band.size.y, 0.001), 0, 1)))
-		RenderingServer.canvas_item_add_polygon(ci, poly, colours)
+		if _batch:
+			_batch.add_fan(poly, colours)
+		else:
+			RenderingServer.canvas_item_add_polygon(ci, poly, colours)
 
 
 ## A filled, anti-aliased rounded rectangle with a vertical gradient, for code that draws itself.
 static func fill_rounded(ci: RID, rect: Rect2, r: float, c_top: Color, c_bottom: Color) -> void:
 	_rounded(ci, rect, maxf(0.0, minf(r, minf(rect.size.x, rect.size.y) / 2)), c_top, c_bottom)
+
+
+## From now until end_batch(), every fill_* shape (and every GlossStyle drawn) goes into one triangle
+## array, sent as one draw call: for code that draws many shapes (a draw call each would add up).
+static func begin_batch() -> void:
+	_batch = _Batch.new()
+
+
+static func end_batch(ci: RID) -> void:
+	if _batch:
+		_batch.flush(ci)
+	_batch = null
+
+
+## A filled anti-aliased disc (or, `squash`ed and turned `angle` radians, an ellipse) in one colour.
+static func fill_disc(ci: RID, c: Vector2, r: float, colour: Color, squash := Vector2.ONE, angle := 0.0) -> void:
+	var n := clampi(int(r * 1.5), 12, 40)
+	var pts := PackedVector2Array()
+	var cols := PackedColorArray()
+	var rim := Color(colour, 0.0)
+	for i in n:
+		var a := i * TAU / n
+		var u := Vector2(cos(a) * squash.x, sin(a) * squash.y)
+		pts.append(c + (u * r).rotated(angle))
+		cols.append(colour)
+	for i in n:  # the feather, FEATHER px out
+		var a := i * TAU / n
+		var u := Vector2(cos(a) * squash.x, sin(a) * squash.y)
+		pts.append(c + (u * r + u.normalized() * FEATHER).rotated(angle))
+		cols.append(rim)
+	var base := _batch.points.size() if _batch else 0
+	var idx := PackedInt32Array()
+	for i in range(1, n - 1):
+		idx.append_array([base, base + i, base + i + 1])
+	for i in n:
+		var j := (i + 1) % n
+		idx.append_array([base + i, base + j, base + n + i, base + j, base + n + j, base + n + i])
+	if _batch:
+		_batch.add(pts, cols, idx)
+	else:
+		RenderingServer.canvas_item_add_triangle_array(ci, idx, pts, cols)
+
+
+## A progress bar's fill inside its groove (`groove`, corner radius r) up to x = `tip`: the groove's own
+## rounded start, a tighter rounded end at the tip (radius `cap`, -1: a third of r), a vertical gradient
+## and a light band along its top inside (`shine`, alpha), so it reads as a fill at any length (a pill
+## rounded alike at both ends read as a slider's knob).
+static func fill_bar(ci: RID, groove: Rect2, r: float, tip: float, c_top: Color, c_bottom: Color, shine := 0.0,
+		cap := -1.0) -> void:
+	if tip <= groove.position.x + 1.0:
+		return
+	var cr := r / 3.0 if cap < 0.0 else cap
+	var reach := Rect2(groove.position.x - r, groove.position.y, tip - groove.position.x + r, groove.size.y)
+	var shape := rounded_points(groove, r)
+	for poly in Geometry2D.intersect_polygons(shape, rounded_points(reach, cr)):
+		var cols := PackedColorArray()
+		for q in poly:
+			cols.append(c_top.lerp(c_bottom, clampf((q.y - groove.position.y) / maxf(groove.size.y, 0.001), 0, 1)))
+		if _batch:
+			_batch.add_fan(poly, cols)
+		else:
+			RenderingServer.canvas_item_add_polygon(ci, poly, cols)
+		if shine > 0.0:  # the light along its top, inside it
+			var band := PackedVector2Array([Vector2(reach.position.x, groove.position.y + groove.size.y * 0.1),
+					Vector2(reach.end.x - cr, groove.position.y + groove.size.y * 0.1),
+					Vector2(reach.end.x - cr, groove.position.y + groove.size.y * 0.36),
+					Vector2(reach.position.x, groove.position.y + groove.size.y * 0.36)])
+			for lit in Geometry2D.intersect_polygons(poly, band):
+				var lc := PackedColorArray()
+				for q in lit:
+					lc.append(Color(1, 1, 0.92, shine * (1.0 - clampf((q.y - groove.position.y) / groove.size.y * 2.0, 0, 1))))
+				if _batch:
+					_batch.add_fan(lit, lc)
+				else:
+					RenderingServer.canvas_item_add_polygon(ci, lit, lc)
 
 
 ## The part of `band` inside the rounded rectangle `rect` (radius r), with a vertical gradient: a
@@ -204,10 +290,42 @@ static func _rounded(ci: RID, rect: Rect2, r: float, c_top: Color, c_bottom: Col
 		outer_colours.append(Color(c, 0))
 	var points := pts + outer
 	var all_colours := colours + outer_colours
+	var base := _batch.points.size() if _batch else 0
 	var indices := PackedInt32Array()
 	for i in range(1, n - 1):  # the face (convex fan)
-		indices.append_array([0, i, i + 1])
+		indices.append_array([base, base + i, base + i + 1])
 	for i in n:  # the feathered border
 		var j := (i + 1) % n
-		indices.append_array([i, j, n + i, j, n + j, n + i])
-	RenderingServer.canvas_item_add_triangle_array(ci, indices, points, all_colours)
+		indices.append_array([base + i, base + j, base + n + i, base + j, base + n + j, base + n + i])
+	if _batch:
+		_batch.add(points, all_colours, indices)
+	else:
+		RenderingServer.canvas_item_add_triangle_array(ci, indices, points, all_colours)
+
+
+## Shapes gathered into one triangle array while a style draws (drawn in order: later ones over
+## earlier ones, as separate calls would be), then sent as one draw call.
+static var _batch: _Batch
+
+
+class _Batch:
+	var points := PackedVector2Array()
+	var colours := PackedColorArray()
+	var indices := PackedInt32Array()
+
+	func add(pts: PackedVector2Array, cols: PackedColorArray, idx: PackedInt32Array) -> void:
+		points.append_array(pts)
+		colours.append_array(cols)
+		indices.append_array(idx)
+
+	## A convex polygon as a fan.
+	func add_fan(pts: PackedVector2Array, cols: PackedColorArray) -> void:
+		var base := points.size()
+		points.append_array(pts)
+		colours.append_array(cols)
+		for i in range(1, pts.size() - 1):
+			indices.append_array([base, base + i, base + i + 1])
+
+	func flush(ci: RID) -> void:
+		if not indices.is_empty():
+			RenderingServer.canvas_item_add_triangle_array(ci, indices, points, colours)

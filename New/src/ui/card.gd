@@ -33,7 +33,8 @@ var radius := 34.0
 var bronze := false  ## a defeat's dark bronze bosses and studs instead of brass
 var frame_w := FRAME  ## the frame's width (a win's is thicker)
 var ornate := false  ## a win's frame: thick polished gold, an engraved line running round it
-var bosses := true  ## the jewelled corner bosses and studs (the results' panels; the others plain)
+var bosses := true  ## the jewelled corner bosses and studs (the results' panels)
+var inlays := false  ## an engraved gold inlay round each corner, its arms ending in diamonds (the pause)
 var _framed := true
 var _shadow_box: StyleBoxFlat
 
@@ -149,6 +150,8 @@ func _draw() -> void:
 		if bosses:
 			_studs(r)
 			_corners(r)
+		if inlays:
+			_inlays(r)
 	else:  # glass: a light top edge and a fine gold line inside
 		_fill(_rounded(Rect2(r.position + Vector2(6, 4), Vector2(r.size.x - 12, minf(40.0, r.size.y * 0.25))), radius - 4),
 				Color(1, 0.85, 0.6, 0.16), Color(1, 0.85, 0.6, 0.0))
@@ -166,6 +169,31 @@ func _corners(r: Rect2) -> void:
 	for c: Vector2 in [r.position + Vector2(m, m), Vector2(r.end.x - m, r.position.y + m),
 			Vector2(r.position.x + m, r.end.y - m), r.end - Vector2(m, m)]:
 		draw_texture_rect_region(CORNERS, Rect2(c - Vector2(BOSS, BOSS) / 2, Vector2(BOSS, BOSS)), src)
+
+
+## An engraved gold inlay round each corner, along the middle of the frame: a dark cut, its lit lip,
+## each arm ending in a small gold diamond (the corner's detail, without rivets).
+func _inlays(r: Rect2) -> void:
+	var mid := frame_w * 0.5
+	var arc_r := maxf(radius - mid, 2.0)
+	var arm := 46.0
+	for corner: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+		var c := r.get_center() + Vector2(r.size.x / 2 - radius, r.size.y / 2 - radius) * corner
+		var pts := PackedVector2Array()
+		pts.append(c + Vector2(corner.x * arc_r, -corner.y * arm))  # along the side edge, into the corner
+		for i in 9:  # round the corner
+			var a := lerpf(0.0, PI / 2, i / 8.0)
+			pts.append(c + Vector2(cos(a) * corner.x, sin(a) * corner.y) * arc_r)
+		pts.append(c + Vector2(-corner.x * arm, corner.y * arc_r))  # and out along the top or foot
+		var lip := PackedVector2Array()
+		for q in pts:
+			lip.append(q + Vector2(0, 1.6))
+		draw_polyline(pts, Color(0.32, 0.12, 0.02, 0.8), 3.4, true)
+		draw_polyline(lip, Color(1, 0.86, 0.5, 0.9), 1.6, true)
+		for end: Vector2 in [pts[0], pts[pts.size() - 1]]:
+			var d := 4.5
+			draw_colored_polygon(PackedVector2Array([end + Vector2(0, -d), end + Vector2(d, 0), end + Vector2(0, d),
+					end + Vector2(-d, 0)]), Color("ffd060"))
 
 
 ## Gold studs nailed into the middle of the frame's long edges on a wide card (the corners carry

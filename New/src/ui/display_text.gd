@@ -132,6 +132,12 @@ func _draw() -> void:
 	var lift := maxf(1.0, roundf(font_size * 0.035)) if highlight > 0 else 0.0
 	var light := fill_top.lerp(Color.WHITE, highlight)
 	var half := maxf(_width / 2, 1.0)
+	# Straight and still (no arch, no letter popping in): every glyph drawn where it stands, with no
+	# transform of its own, so they batch into a few draw calls (a transform per glyph cost one each);
+	# the fill's gradient is then measured from the baseline.
+	var straight := is_zero_approx(arch) and not _revealing
+	_material.set_shader_parameter(&"y_top", (baseline if straight else 0.0) - font_size * CAP)
+	_material.set_shader_parameter(&"y_bottom", baseline if straight else 0.0)
 	# One pass per layer over all the letters, so no outline covers a neighbour's fill.
 	for layer in 6:
 		for i in text.length():
@@ -140,9 +146,12 @@ func _draw() -> void:
 				continue
 			var ch := text[i]
 			var cx := left + _x[i] + _w[i] / 2
-			var u := (cx - (left + _width / 2)) / half
-			draw_set_transform(Vector2(cx, baseline - arch * (1.0 - u * u)), atan(2.0 * arch * u / half), Vector2(k, k))
 			var o := Vector2(-_w[i] / 2, 0)
+			if straight:
+				o += Vector2(cx, baseline)
+			else:
+				var u := (cx - (left + _width / 2)) / half
+				draw_set_transform(Vector2(cx, baseline - arch * (1.0 - u * u)), atan(2.0 * arch * u / half), Vector2(k, k))
 			match layer:
 				0:  # soft drop shadow
 					if shadow.a > 0:
@@ -163,4 +172,5 @@ func _draw() -> void:
 						draw_char(font, o, ch, font_size, light)
 				5:  # the fill (its gradient comes from the shader)
 					draw_char(font, o + Vector2(0, lift), ch, font_size, MARKER)
-	draw_set_transform(Vector2.ZERO)
+	if not straight:
+		draw_set_transform(Vector2.ZERO)

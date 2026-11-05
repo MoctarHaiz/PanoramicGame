@@ -1,7 +1,8 @@
 shader_type canvas_item;
 // Drawn by a DisplayText: glyphs whose colour is `marker` are its fill, and get a top-to-bottom
 // gradient in each letter's own frame (VERTEX is the glyph's, before draw_set_transform), so the
-// gradient follows every letter along an arc. Outlines and depth keep their colours.
+// gradient follows every letter along an arc (straight text has no transform per glyph: its range is
+// then measured from the baseline). Outlines and depth keep their colours.
 
 uniform vec4 marker : source_color = vec4(1.0, 0.0, 1.0, 1.0);
 uniform vec4 top_colour : source_color = vec4(1.0);

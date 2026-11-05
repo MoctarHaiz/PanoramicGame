@@ -1,9 +1,11 @@
 class_name StarBadge
 extends Control
-## A big shiny star (results, best run): a fat five-point star with a fine warm rim, a gold
-## face lit from the top, a darker bevel along its lower edge and a glossy highlight on its upper
-## left, a warm glow behind it and now and then a twinkle on a tip. Unlit, it is the same star in dim,
-## desaturated gold (an outline over a pale inlay, a lit lip below): an empty place, not a dark hole.
+## A big shiny star (results, best run): a fat five-point star with a fine warm rim, a gold face
+## lit from the top, a lit bevel inside its edge, a darker bevel along its lower edge, a glossy
+## highlight on its upper left, its shadow on the panel, a warm glow behind it, sparkles twinkling
+## round it and now and then a twinkle on a tip. Unlit, it is its socket: a star pressed into the
+## panel, outlined, shaded inside under its upper edges and light at its foot, a lit lip below: a
+## place waiting for its star (not a dark hole, not a missing picture).
 
 const INK := Color("2e0d04")
 const FACE_TOP := Color("fff47e")
@@ -87,7 +89,8 @@ func _draw() -> void:
 		_gradient(points(c, r - o * 0.4, 0.53), c, r, Color("a87038"), Color("f0d29a"))
 		_gradient(points(c + Vector2(0, o * 0.7), r - o * 1.5, 0.5), c, r, Color("c8965a"), Color("f6dca8"))
 		return
-	# the ink outline (a fatter star), the bevel under the face, then the face
+	# its shadow on the panel, the ink outline (a fatter star), the bevel under the face, then the face
+	draw_colored_polygon(points(c + Vector2(o * 0.5, o * 2.4), r + o * 0.5, 0.55), Color(0.3, 0.1, 0.0, 0.32))
 	draw_colored_polygon(points(c + Vector2(0, o * 0.4), r + o * 0.6, 0.55), RIM)  # a fine warm rim
 	draw_colored_polygon(points(c + Vector2(0, o * 0.55), r, 0.52), BEVEL)
 	var face := points(c, r - o * 0.15, 0.52)
@@ -96,6 +99,9 @@ func _draw() -> void:
 		var t := clampf((p.y - (c.y - r)) / (r * 1.9), 0.0, 1.0)
 		cols.append(FACE_TOP.lerp(FACE_MID, t * 1.6) if t < 0.6 else FACE_MID.lerp(FACE_LOW, (t - 0.6) / 0.4))
 	draw_polygon(face, cols)
+	var bevel := points(c, r - o * 0.8, 0.52)  # a lit bevel just inside its edge
+	bevel.append(bevel[0])
+	draw_polyline(bevel, Color(1, 1, 0.86, 0.55), maxf(o * 0.4, 1.2), true)
 	# the gloss on the upper left (the face's gradient already lights its middle)
 	var gloss := PackedVector2Array()
 	for i in 16:

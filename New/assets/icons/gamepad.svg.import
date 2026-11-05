@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://blhkeml8871l4"
-path="res://.godot/imported/hand-swipe.svg-05a9884ca4567d088ef0417cec78d404.ctex"
+uid="uid://bkxdye54efo77"
+path="res://.godot/imported/gamepad.svg-1f43d5d90b50d5a8faf0b88edc66f46b.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/icons/hand-swipe.svg"
-dest_files=["res://.godot/imported/hand-swipe.svg-05a9884ca4567d088ef0417cec78d404.ctex"]
+source_file="res://assets/icons/gamepad.svg"
+dest_files=["res://.godot/imported/gamepad.svg-1f43d5d90b50d5a8faf0b88edc66f46b.ctex"]
 
 [params]
 

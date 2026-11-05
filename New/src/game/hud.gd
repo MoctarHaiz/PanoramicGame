@@ -48,8 +48,8 @@ static func plate(radius: float, pressed := false) -> GlossStyle:
 	var s := GlossStyle.new(PLATE_TOP, PLATE_BOTTOM, PLATE_EDGE, radius, 3.0, pressed)
 	s.set_outline(PLATE_LINE, 2.0)
 	s.set_frame(3.5, Ui.BRASS[0], Ui.BRASS[1], Color(PLATE_LINE, 0.8))  # the kit's brass ring, bright
-	s.rim = 0.18
-	s.gloss = 0.12
+	s.rim = 0.22
+	s.gloss = 0.22  # a little light inside the top of each pill
 	s.shadow.shadow_color = Color(0.05, 0.0, 0.0, 0.42)  # it stands off the vine and the sky behind it
 	s.shadow.shadow_size = 12
 	s.shadow.shadow_offset = Vector2(0, 6)
@@ -58,6 +58,7 @@ static func plate(radius: float, pressed := false) -> GlossStyle:
 
 func setup(w: World) -> void:
 	world = w
+	name = "Hud"  # (perf.tscn --hide=Hud measures what it costs)
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var shelf := TextureRect.new()  # a soft shade along the top: the HUD's band reads apart from the vine
@@ -73,6 +74,7 @@ func setup(w: World) -> void:
 	shelf.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	shelf.custom_minimum_size.y = ROW_HEIGHT + 34.0
 	shelf.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	shelf.name = "HudShelf"
 	add_child(shelf)
 	var area := SafeArea.new(false, 12.0)
 	add_child(area)
@@ -97,6 +99,7 @@ func setup(w: World) -> void:
 		hearts.add_child(slot)
 		_hearts.append(h)
 	_lives_glass = _glass(hearts, 14.0)
+	_lives_glass.name = "HudLives"
 	row.add_child(_lives_glass)
 
 	var middle := CenterContainer.new()
@@ -105,16 +108,19 @@ func setup(w: World) -> void:
 	row.add_child(middle)
 	_track = _Track.new()
 	_track_glass = _glass(_track, 10.0)
+	_track_glass.name = "HudTrack"
 	middle.add_child(_track_glass)
 
 	_count_box = _counter()
+	_count_box.name = "HudCount"
 	_count_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(_count_box)
 	var gap := Control.new()  # the counter never crowds the pause button
-	gap.custom_minimum_size = Vector2(16, 0)
+	gap.custom_minimum_size = Vector2(26, 0)
 	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(gap)
 	_pause = _pause_button(ROW_HEIGHT + 4.0)
+	_pause.name = "HudPause"
 	_pause.pressed.connect(pause_pressed.emit)
 	row.add_child(_pause)
 	_fx = Node2D.new()
@@ -339,7 +345,6 @@ class _Track extends Control:
 	var _clock := 0.0
 	var _house: BoldIcon
 	var _face: TextureRect  # his portrait, lifted (lift.gdshader): bright in its ring
-	var _styles := {}  # (colour, radius, border) -> StyleBoxFlat, made once
 
 	func _init() -> void:
 		custom_minimum_size = Vector2(Hud.TRACK_W + 50, Hud.ROW_HEIGHT - 8.0)
@@ -364,50 +369,37 @@ class _Track extends Control:
 		_clock += delta
 		queue_redraw()
 
-	func _draw() -> void:
+	func _draw() -> void:  # every shape in one triangle array: one draw call (a call each added up)
+		var ci := get_canvas_item()
 		var y := size.y / 2
 		var x0 := X0
 		var w := Hud.TRACK_W - 34.0
 		var fill_w := maxf(w * progress, 0.0)
-		if fill_w > 6.0:  # the way done: a thick bright gold fill with a lit top
-			var fill := Rect2(x0 + 2, y - GROOVE / 2 + 2, fill_w - 2, GROOVE - 4)
-			_rounded(fill, Color("e07a0c"), fill.size.y / 2)
-			_rounded(Rect2(fill.position, Vector2(fill.size.x, fill.size.y * 0.6)), Color("ffcf3a"), fill.size.y * 0.3)
-			_rounded(Rect2(fill.position + Vector2(5, 3), Vector2(maxf(fill.size.x - 10, 0), 4)), Color(1, 1, 0.9, 0.8), 2.0)
+		GlossStyle.begin_batch()
+		# the way done: a bright gold fill in the groove's own shape, a rounded end, a lit top inside
+		var groove := Rect2(x0, y - GROOVE / 2, w, GROOVE).grow(-2.0)
+		GlossStyle.fill_bar(ci, groove, groove.size.y / 2, x0 + 2 + fill_w, Color("ffcf3a"), Color("e07a0c"), 0.75)
 		# the house at the end, on a glowing gold disc
 		var hc := Vector2(x0 + w + 12, y)
 		var pulse := 0.5 + 0.5 * sin(_clock * 3.0)
-		draw_circle(hc, 33.0 + pulse * 3.0, Color(1, 0.85, 0.4, 0.18 + 0.1 * pulse))
-		draw_circle(hc, 27.0, Hud.PLATE_LINE)
-		draw_circle(hc, 24.5, Color("e08a10"))
-		draw_circle(hc + Vector2(0, -2), 22.0, Color("ffc93c"))
-		draw_circle(hc + Vector2(-7, -10), 5.5, Color(1, 1, 0.9, 0.5))
+		GlossStyle.fill_disc(ci, hc, 33.0 + pulse * 3.0, Color(1, 0.85, 0.4, 0.18 + 0.1 * pulse))
+		GlossStyle.fill_disc(ci, hc, 27.0, Hud.PLATE_LINE)
+		GlossStyle.fill_disc(ci, hc, 24.5, Color("e08a10"))
+		GlossStyle.fill_disc(ci, hc + Vector2(0, -2), 22.0, Color("ffc93c"))
+		GlossStyle.fill_disc(ci, hc + Vector2(-7, -10), 5.5, Color(1, 1, 0.9, 0.5))
 		_house.position = hc - _house.size / 2 + Vector2(0, 1)
 		# the face in its gold ring, bobbing a little as it runs
 		var hx := x0 + 4 + fill_w
 		var bob := absf(sin(_clock * 8.0)) * 2.0
 		var c := Vector2(hx, y - bob)
 		var ring := FACE / 2 + 5.0
-		draw_circle(c + Vector2(0, 4), ring, Color(0, 0, 0, 0.32))
-		draw_circle(c, ring, Hud.PLATE_LINE)
-		draw_circle(c, ring - 2.5, Color("e08a10"))
-		draw_circle(c + Vector2(0, -1), ring - 4.0, Color("ffd34a"))
+		GlossStyle.fill_disc(ci, c + Vector2(0, 4), ring, Color(0, 0, 0, 0.32))
+		GlossStyle.fill_disc(ci, c, ring, Hud.PLATE_LINE)
+		GlossStyle.fill_disc(ci, c, ring - 2.5, Color("e08a10"))
+		GlossStyle.fill_disc(ci, c + Vector2(0, -1), ring - 4.0, Color("ffd34a"))
+		GlossStyle.end_batch(ci)
 		_face.position = c - _face.size / 2
 
-	func _rounded(r: Rect2, colour: Color, radius: float, border := Color(0, 0, 0, 0), border_w := 0.0) -> void:
-		var key := [colour, int(minf(radius, r.size.y / 2)), border, border_w]
-		var s: StyleBoxFlat = _styles.get(key)
-		if not s:
-			s = StyleBoxFlat.new()
-			s.bg_color = colour
-			s.set_corner_radius_all(key[1])
-			s.anti_aliasing = true
-			if border_w > 0:
-				s.border_color = border
-				s.set_border_width_all(int(border_w))
-				s.draw_center = colour.a > 0
-			_styles[key] = s
-		draw_style_box(s, r)
 
 
 ## The way home's trail (the _Track's, behind its fill): a dark groove cut into the plate (a shade under
@@ -422,6 +414,7 @@ class _Groove extends Control:
 		var w := Hud.TRACK_W - 34.0
 		var g := Rect2(_Track.X0, size.y / 2 - _Track.GROOVE / 2, w, _Track.GROOVE)
 		var r := _Track.GROOVE / 2
+		GlossStyle.begin_batch()  # the groove and its footprints in one draw call
 		GlossStyle.fill_rounded(ci, Rect2(g.position + Vector2(0, 2.0), g.size).grow(2.0), r + 2.0,
 				Color(1, 0.85, 0.6, 0.22), Color(1, 0.85, 0.6, 0.22))  # the plate's lit lip under it
 		GlossStyle.fill_rounded(ci, g.grow(2.0), r + 2.0, Hud.PLATE_LINE, Hud.PLATE_LINE)
@@ -430,14 +423,15 @@ class _Groove extends Control:
 				Color(0, 0, 0, 0.55), Color(0, 0, 0, 0))
 		var x := g.position.x + 22.0
 		var k := 0
+		var print_colour := Color(1, 0.82, 0.55, 0.13)  # faint on the dark
 		while x < g.end.x - 18.0:  # footprints, left and right, walking towards the house
 			var at := Vector2(x, g.get_center().y + (-3.2 if k % 2 == 0 else 3.2))
-			draw_set_transform(at, 0.2 if k % 2 == 0 else -0.2, Vector2(1.0, 0.62))
-			draw_circle(Vector2.ZERO, 4.2, Color(1, 0.82, 0.55, 0.13), true, -1, true)  # faint on the dark
-			draw_circle(Vector2(5.6, 0), 2.0, Color(1, 0.82, 0.55, 0.13), true, -1, true)  # the toes
+			var turn := 0.2 if k % 2 == 0 else -0.2
+			GlossStyle.fill_disc(ci, at, 4.2, print_colour, Vector2(1.0, 0.62), turn)
+			GlossStyle.fill_disc(ci, at + Vector2(5.6, 0).rotated(turn), 2.0, print_colour, Vector2(1.0, 0.62), turn)  # the toes
 			x += 15.0
 			k += 1
-		draw_set_transform(Vector2.ZERO)
+		GlossStyle.end_batch(ci)
 
 
 ## A heart: full, it is glossy red in an ink outline with a white shine on its left lobe; empty, a
@@ -466,7 +460,6 @@ class _Heart extends Control:
 			draw_texture_rect(TEX, Rect2(r.position + d, r.size), false, Hud.PLATE_LINE)
 		draw_texture_rect(TEX, r, false, Color("c8140c"))
 		draw_texture_rect(TEX, Rect2(r.position + Vector2(r.size.x * 0.06, 0), r.size * Vector2(0.88, 0.86)), false, Color("ff3a26"))
-		draw_set_transform(r.position + r.size * Vector2(0.3, 0.3), -0.6, Vector2(1.0, 0.6))
-		draw_circle(Vector2.ZERO, side * 0.13, Color(1, 1, 1, 0.85), true, -1, true)
-		draw_set_transform(Vector2.ZERO)
+		GlossStyle.fill_disc(get_canvas_item(), r.position + r.size * Vector2(0.3, 0.3), side * 0.13, Color(1, 1, 1, 0.85),
+				Vector2(1.0, 0.6), -0.6)  # the shine (no transform: it batches)
 

@@ -21,7 +21,7 @@ const HERO_STAND := "res://assets/art/ui/hero_stand.png"  ## fallbacks, loaded o
 const HERO_DOWN := "res://assets/art/ui/hero_down.png"  ## kept them in texture memory all the time)
 const STAR_STEP := 0.32  ## seconds between two stars
 const COUNT_TIME := 0.7  ## seconds the Red Bobs take to roll up
-const BADGE := 54.0  ## the NEW BEST badge's radius (its spikes)
+const BADGE := 62.0  ## the NEW BEST badge's radius (its spikes)
 
 
 ## Opens the results over `game` (the game screen). `news`: what Save.record_run found new.
@@ -34,15 +34,10 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 	if won:
 		body.add_child(_stars_stage(stars))
 	else:
-		# what happened: cream display letters in a red outline, spaced (heavy red letters ran together)
-		var why := Ui.display_text(TranslationServer.translate("FELL" if world.death_reason == &"fall" else "CAUGHT"),
-				38, Color("fff6e2"), Color("b81c0c"), Color("ffdcae"))
-		why.outline_width = 5.0
-		why.depth = 3.0
-		why.depth_colour = Color("5a0a04")
-		why.tracking = 3.0
-		why.shadow = Color(0, 0, 0, 0)
-		why.refresh()
+		# what happened: plain deep-red letters, a little spaced: simple (an outline on red ran the
+		# letters together, a cream fill in a red outline was busy)
+		var why := Ui.label(TranslationServer.translate("FELL" if world.death_reason == &"fall" else "CAUGHT"),
+				38, Color("a81408"), Ui.title_font(700, 2))
 		var air := MarginContainer.new()  # air round it (not edge to edge), room for a crown under it
 		air.add_theme_constant_override(&"margin_bottom", 14)
 		air.add_theme_constant_override(&"margin_left", 34)
@@ -51,6 +46,7 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 		body.add_child(air)
 	var well := PanelContainer.new()
 	well.add_theme_stylebox_override(&"panel", _dark_well(won))
+	well.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED  # (its grain tiles)
 	var lines := VBoxContainer.new()
 	lines.add_theme_constant_override(&"separation", 10)
 	well.add_child(lines)
@@ -96,10 +92,15 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 	home_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	home_button.pressed.connect(home)
 	buttons.add_child(home_button)
-	var go := Ui.candy_button(TranslationServer.translate("PLAY_AGAIN"), "arrow-counter-clockwise-bold", Ui.Tone.GREEN, 100, 42)
-	go.custom_minimum_size.x = 340
+	var go := Ui.candy_button(TranslationServer.translate("PLAY_AGAIN"), "arrow-counter-clockwise-bold", Ui.Tone.GREEN,
+			108 if won else 100, 44 if won else 42)
+	go.custom_minimum_size.x = 360 if won else 340
 	go.pressed.connect(again)
-	go.shine(3.2, 1, 0.3)  # one small glint
+	if won:  # the reward screen's call: bigger, a warm light breathing behind it, its glints
+		_glow_behind(go)
+		go.shine(2.6, 2, 0.42)
+	else:
+		go.shine(3.2, 1, 0.3)  # one small glint
 	buttons.add_child(go)
 	var share_button := Ui.icon_button("share-network-fill", Ui.Tone.GOLD, 92.0, 28.0)
 	share_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -123,15 +124,36 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 
 ## The groove under the run's count: cut into the parchment (InsetStyle: shade under its upper
 ## edge, the lit lip of the parchment under it), dark, so the cream numbers stand out on it; warm
-## leather after a win, a deep cool navy after a loss (its gold numbers stand out on it).
+## leather after a win, a deep cool navy after a loss (its gold numbers stand out on it), both with a
+## faint grain (a material, not a flat slab).
 static func _dark_well(won: bool) -> InsetStyle:
 	var s := InsetStyle.new(22.0)
-	s.top = Color("4a2210") if won else Color("161c30")
-	s.bottom = Color("74401e") if won else Color("323e60")
-	s.outline = Card.INK if won else Color("0c1022")
+	s.top = Color("6a2e10") if won else Color("0c1226")  # a win's warmer (dark chocolate dulled the gold)
+	s.bottom = Color("9c5420") if won else Color("3e4e7c")  # a loss's a deep cool gradient
+	s.outline = Card.INK if won else Color("0a0e1e")
+	s.grain = 0.35
 	s.content_margin_top = 12
 	s.content_margin_bottom = 14
 	return s
+
+
+## A warm light breathing behind `b` (the win's Play again: something special about the call).
+static func _glow_behind(b: Control) -> void:
+	var halo := TextureRect.new()
+	halo.texture = Fx.glow_texture()
+	halo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	halo.material = Fx.additive()
+	halo.modulate = Color(1, 0.82, 0.32, 0.55)
+	halo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	halo.show_behind_parent = true
+	b.add_child(halo)
+	b.resized.connect(func() -> void:
+		halo.size = b.size * Vector2(1.35, 2.1)
+		halo.position = b.size / 2 - halo.size / 2)
+	if Prefs.motion():
+		var t := halo.create_tween().set_loops()
+		t.tween_property(halo, "modulate:a", 0.8, 0.9).set_trans(Tween.TRANS_SINE)
+		t.tween_property(halo, "modulate:a", 0.45, 0.9).set_trans(Tween.TRANS_SINE)
 
 
 ## The three stars, placed by hand: the middle one bigger and higher, over a turning sunburst.
@@ -140,7 +162,7 @@ static func _stars_stage(stars: Array[Control]) -> Control:
 	stage.custom_minimum_size = Vector2(0, 214)
 	# the one sunburst of the win: a deep warm orange, soft, so the gold stars stand out on it (a white
 	# glow behind them washed them out)
-	var burst := Rays.new(820, Color(1, 0.5, 0.08, 0.2), 18)
+	var burst := Rays.new(820, Color(1, 0.46, 0.06, 0.32), 18)
 	stage.add_child(burst)
 	if Prefs.motion():
 		var spin := burst.create_tween().set_loops()
@@ -392,7 +414,7 @@ class WayBar extends Control:
 		var need := _label.get_combined_minimum_size()
 		_label.size = need
 		var r := Rect2(Vector2(0, 8), Vector2(size.x - 44.0, size.y - 16))
-		var tip := r.position.x + maxf(r.size.x * _shown, r.size.y)
+		var tip := r.position.x + r.size.x * _shown
 		var x := tip - need.x - 8.0 if tip - r.position.x >= need.x + 16.0 else tip + 6.0
 		_label.position = Vector2(x, (size.y - need.y) / 2)
 
@@ -413,11 +435,8 @@ class WayBar extends Control:
 		GlossStyle.fill_rounded(ci, r, rad, Color("0a0e1c"), Color("1e2640"))  # a groove in the navy well
 		GlossStyle.fill_clipped(ci, r, rad, Rect2(r.position, Vector2(r.size.x, r.size.y * 0.5)),
 				Color(0, 0, 0, 0.5), Color(0, 0, 0, 0))
-		var w := maxf(r.size.x * _shown, r.size.y)
-		var f := Rect2(r.position, Vector2(w, r.size.y))
-		GlossStyle.fill_rounded(ci, f, rad, Color("ffd34a"), Color("e8860e"))
-		GlossStyle.fill_rounded(ci, Rect2(f.position + Vector2(6, 3), Vector2(maxf(w - 12, 0), 5)), 2.5,
-				Color(1, 1, 0.9, 0.7), Color(1, 1, 0.9, 0.4))
+		# the way done: a fill in the groove's own shape, a rounded end, a light inside its top
+		GlossStyle.fill_bar(ci, r, rad, r.position.x + r.size.x * _shown, Color("ffd84e"), Color("e07a0a"), 0.95)
 		# the goal: the house on a gold disc, part of the bar
 		var hc := Vector2(size.x - 28.0, size.y / 2)
 		draw_circle(hc, 29.0, Card.INK, true, -1, true)

@@ -10,6 +10,8 @@ extends Screen
 ## short choreography: the hero rises onto the rock, the logo drops and bounces, the ribbon unrolls,
 ## PLAY pops, the rest fades in. Then the logo catches the light now and then and PLAY breathes.
 
+const RIBBON := preload("res://assets/art/ui/ribbon.png")
+const TAIL_TRIM := 8  ## px cut off each end of the ribbon's tails (its notch is 24 deep)
 const LOGO := "res://assets/art/ui/logo.png"  ## loaded with the menu (a preload held it, 3 MB, all run long)
 const HERO_ART := "res://assets/art/hero/hero_menu.png"  ## the art track's render, when there
 const HERO_STAND := "res://assets/art/ui/hero_stand.png"  ## the fallback crop, loaded only when used
@@ -112,7 +114,7 @@ func enter(_data: Dictionary) -> void:
 		shine.set_shader_parameter(&"offset", 1.2)
 		_logo.material = shine
 	_logo_box.add_child(_logo)
-	_ribbon = ribbon(tr("MENU_SUBTITLE"), 26)
+	_ribbon = ribbon(tr("MENU_SUBTITLE"), 29)
 	_ribbon_fit = Control.new()
 	_ribbon_fit.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ribbon_fit.add_child(_ribbon)
@@ -137,16 +139,14 @@ func enter(_data: Dictionary) -> void:
 
 	_row = HBoxContainer.new()
 	_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	_row.add_theme_constant_override(&"separation", 22)
+	_row.add_theme_constant_override(&"separation", 18)
 	_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if Save.games_played > 0:
 		_row.add_child(_best_plaque())
-	# the gear a gold tile of the kit (the pause's tiles), as tall as the Best plaque beside it
-	var settings := Ui.icon_button("gear-chunky", Ui.Tone.GOLD, 92.0, 28.0)
-	if _row.get_child_count() > 0:
-		var plaque := _row.get_child(0) as Control
-		plaque.resized.connect(func() -> void:
-			settings.custom_minimum_size = Vector2(plaque.size.y, plaque.size.y))
+	# the gear a gold tile of the kit (the pause's tiles), a fixed size: the row's width is known from
+	# the first frame (grown to the plaque's height later, it pushed the row past a French tablet's
+	# safe area while the menu came in)
+	var settings := Ui.icon_button("gear-chunky", Ui.Tone.GOLD, 94.0, 28.0)
 	settings.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	settings.pressed.connect(func() -> void: Nav.go(&"settings", {}, settings.get_global_rect().get_center()))
 	_row.add_child(settings)
@@ -212,11 +212,11 @@ func _best_plaque() -> PanelContainer:
 	row.add_child(bob)
 	# one type style: "Best" and the count in the same dark brown Fredoka, the count bigger
 	var words := VBoxContainer.new()
-	words.add_theme_constant_override(&"separation", -14)  # the two lines tight: a compact plaque
+	words.add_theme_constant_override(&"separation", -10)  # the two lines close, not touching
 	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	words.alignment = BoxContainer.ALIGNMENT_CENTER
 	# a small spaced label over the big number, one brown family (a red "Best" fought the brown count)
-	words.add_child(Ui.label(tr("BEST").to_upper(), 22, Color("8a5a30"), Ui.title_font(700, 3), HORIZONTAL_ALIGNMENT_LEFT))
+	words.add_child(Ui.label(tr("BEST").to_upper(), 26, Color("b0682c"), Ui.title_font(580, 1), HORIZONTAL_ALIGNMENT_LEFT))
 	words.add_child(Ui.label(str(Save.best_bobs), 52, Color("3a1404"), Ui.font_display, HORIZONTAL_ALIGNMENT_LEFT))
 	row.add_child(words)
 	var stars := StarRow.new(Save.best_stars, 44)
@@ -227,13 +227,35 @@ func _best_plaque() -> PanelContainer:
 	return plaque
 
 
-## The subtitle on a red ribbon drawn like the panels' titles (no baked dashed stitch), in spaced
-## capitals: a title's lettering, not the buttons' rounded lower case; straight, as the old one.
+## The subtitle on the beadwork ribbon (its folded ends stay their size: 9-sliced; trimmed a little:
+## round 11's tails were oversized).
 static func ribbon(text: String, font_size: int) -> Control:
-	var b := Banner.new(text.to_upper(), Ui.Tone.CRIMSON, font_size, 0.0, null, roundf(font_size * 0.16))
-	b.size = b.custom_minimum_size
-	b.pivot_offset = b.size / 2
-	return b
+	var holder := Control.new()
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var label := Ui.display_text(text, font_size, Ui.WHITE, Color("5a0c04"), Color("ffe2c6"))
+	label.depth = 2.0
+	label.shadow = Color(0, 0, 0, 0)
+	label.refresh()
+	var h := font_size * 2.5
+	var w := label.get_combined_minimum_size().x + h * 2.0
+	var k := h / RIBBON.get_height()
+	var band := NinePatchRect.new()
+	band.texture = RIBBON
+	band.region_rect = Rect2(TAIL_TRIM, 0, RIBBON.get_width() - TAIL_TRIM * 2, RIBBON.get_height())
+	band.patch_margin_left = 66 - TAIL_TRIM
+	band.patch_margin_right = 66 - TAIL_TRIM
+	band.patch_margin_top = 24
+	band.patch_margin_bottom = 24
+	band.size = Vector2(w, h) / k
+	band.scale = Vector2(k, k)
+	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.add_child(band)
+	label.size = Vector2(w, h * 0.92)
+	holder.add_child(label)
+	holder.custom_minimum_size = Vector2(w, h)
+	holder.size = holder.custom_minimum_size
+	holder.pivot_offset = holder.size / 2
+	return holder
 
 
 func _vignette() -> TextureRect:
