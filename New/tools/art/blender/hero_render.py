@@ -222,6 +222,7 @@ def copy_fingers():
 HANDS = {  # (round 15, "mittens") per hand shape: the bend at each joint (degrees), the spread, the thumb's bend
     "fist": ((88, 100, 75), 0.0, 70.0),  # (key art k3: tighter, the thumb wrapped over, "a mitten")
     "open": ((4, 6, 3), 9.0, -8.0),
+    "release": ((10, 16, 12), 14.0, -24.0),  # (key art k10) the fingers opening as the ring leaves the palm, the thumb out
     "relaxed": ((24, 32, 20), 3.0, 12.0),
     "brace": ((10, 12, 6), 7.0, 0.0),
 }
@@ -937,13 +938,14 @@ def heel_up(side, k=0.5):
 THROW_TWIST = float(os.environ.get("THROW_TWIST", "18"))  ## degrees his shoulders turn against his hips at the release
 THROW_HIPS = float(os.environ.get("THROW_HIPS", "0.05"))  ## metres his hips drive towards the throw
 THROW_STANCE = float(os.environ.get("THROW_STANCE", "0.8"))  ## the lunge's width, a share of the authored one
-THROW_RING = float(os.environ.get("THROW_RING", "0.14"))  ## metres the ring has flown from his hand (the title screen
+THROW_RING = float(os.environ.get("THROW_RING", "0.19"))  ## (key art k10: 0.14, "pinches the chakram at its rim": the ring just left the open hand)  ## metres the ring has flown from his hand (the title screen
 ## keeps it inside its left two fifths, where the close-ups are cut)
 
 
 KEY_BUILD = {  # (key art k9, "a stringy, narrow torso and thin upper arms against heavy thighs and big boots") the key
     # art's build: bone scales across the bone (x, z; y runs along it), the children not inheriting them
-    "Spine2": (1.12, 1.0, 1.05), "Neck": (1.14, 1.0, 1.14), "LeftArm": (1.14, 1.0, 1.14), "RightArm": (1.14, 1.0, 1.14),
+    "Spine2": (1.18, 1.0, 1.08), "Neck": (1.18, 1.0, 1.18), "LeftArm": (1.2, 1.0, 1.2), "RightArm": (1.2, 1.0, 1.2),
+    "LeftForeArm": (1.1, 1.0, 1.1), "RightForeArm": (1.1, 1.0, 1.1),  # (key art k10: chunkier, "commit to one style")
     "LeftUpLeg": (0.92, 1.0, 0.92), "RightUpLeg": (0.92, 1.0, 0.92), "LeftLeg": (0.94, 1.0, 0.94), "RightLeg": (0.94, 1.0, 0.94),
     "LeftFoot": (0.95, 0.95, 0.95), "RightFoot": (0.95, 0.95, 0.95)}
 
@@ -981,7 +983,8 @@ def pose_key_throw():
     _aim_world("LeftArm", Vector((-0.8, 0.25, -0.35)).normalized())  # the free arm back, out from his side
     _aim_world("LeftForeArm", Vector((-0.55, 0.05, 0.1)).normalized())
     hand("Left", "fist")  # (k1's open palm lost: "a flat stop gesture that fights the throw")
-    hand("Right", "open")
+    hand("Right", "release")
+    ARM.pose.bones[P + "RightHand"].scale = (1.25,) * 3  # (key art k10, "the front hand is tiny")
     turn("Spine2", -16.0, (0.0, 0.0, 1.0))  # (key art k9: -10, "the head turns 3/4 on a profile body: the thin neck looks
     # twisted": the chest further to us, the head less)  # (key art k2: the chest a little to us, so the neck doesn't twist)
     turn("Neck", -6.0)  # (key art k1, kept: his face to us, chin up: "a stern profile, the face too small")
@@ -2098,6 +2101,10 @@ def toon_setup():
     fill = add_sun("ToonFill", (1.0, 0.85, 0.7), 0.42 if mode == "day" else 0.3,
                    aim_from=(-0.75, -0.55, 0.15) if mode == "day" else (-0.9, -0.2, 0.3), angle=8.0)
     fill.parent = rig
+    if mode == "sunset" and os.environ.get("KEY_SHADOWS", "0") != "1":  # (key art k10, "blotchy dark-brown patches on the
+        # abs, chest, thighs: dirt": the pictures' light shapes his forms only, no cast-shadow patches)
+        key.data.use_shadow = False
+        fill.data.use_shadow = False
     if mode == "sunset":  # and a small light on his face, placed for each pose (face_light())
         data = bpy.data.lights.new("FaceLight", "POINT")
         data.color = (1.0, 0.78, 0.6)
@@ -2105,6 +2112,7 @@ def toon_setup():
         data.shadow_soft_size = 0.05
         data.use_custom_distance = True
         data.cutoff_distance = 0.32
+        data.use_shadow = os.environ.get("KEY_SHADOWS", "0") == "1"
         ob = bpy.data.objects.new("FaceLight", data)
         SC.collection.objects.link(ob)
     seen = set()

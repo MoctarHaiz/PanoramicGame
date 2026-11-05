@@ -307,7 +307,7 @@ def stripe(cv):
         body = [(x0, y0 + th * 0.5), (x0 + side * 34.0, y0), (x1, y0 - rise), (x1, y0 - rise + th), (x0 + side * 34.0, y0 + th)]
         top = [(x0 - side * 6.0, y0 + th * 0.5 - 4.0), (x0 + side * 30.0, y0 - 11.0), (x1 + side * 2.0, y0 - rise - 11.0),
                (x1 + side * 2.0, y0 - rise + 4.0), (x0 + side * 34.0, y0 + 4.0)]
-        cv.paint(PAINT_WHITE, cv.mask(lambda d, s, q=top: d.polygon([(x * s, y * s) for x, y in q], fill=255)))
+        # (key art k10, "the white paint around the eye reads as a bandage or mask patch; the red stripe works") red only
         cv.paint(PAINT_RED, cv.mask(lambda d, s, q=body: d.polygon([(x * s, y * s) for x, y in q], fill=255)))
 
 

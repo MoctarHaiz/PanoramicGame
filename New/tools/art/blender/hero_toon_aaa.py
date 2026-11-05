@@ -53,7 +53,8 @@ BANDS = {
 ## (linear; sRGB (0.52, 0.31, 0.2)) in three bands: a cool plum shade, a mid, a warm orange light, soft between
 SKIN = (0.237, 0.0757, 0.0331)  ## (key art k4: round 16's warm brown again; k2's cooler one "lit by a different light")  ## (key art k2: deeper and cooler, sRGB (0.45, 0.27, 0.19), "the same orange as the sky")
 SKIN_BANDS = {"day": ((0.62, 0.45, 0.62), (0.9, 0.82, 0.8), (1.16, 1.0, 0.82)),
-              "sunset": ((0.55, 0.5, 0.6), (0.55, 0.5, 0.6), (1.12, 1.07, 1.02))}  ## (k9, the user: "professional, AAA": a clean
+              "sunset": ((0.56, 0.5, 0.6), (1.0, 0.96, 0.92), (1.3, 1.24, 1.15))}  ## (k10: three bands, a soft cool
+## shade, his base and a bright lit plane where the key faces him: "darker and muddier than his surroundings")  ## (k9, the user: "professional, AAA": a clean
 ## key on his true colours: a near-white light, a soft, slightly cool shade, no sunset tint)  ## (k9 first, "no cool shade on the camera side:
 ## pasted on": a mauve shade, the light warm; k7 ((0.62, 0.37, 0.4), (1.14, 0.9, 0.7)))  ## (k7: a warm red-brown shade, "olive,
 ## muddy": was (0.56, 0.4, 0.56))  ## (key art k2: two tones, a plum shade
@@ -89,7 +90,7 @@ BOLD_STOPS = (0.0, 0.155, 0.185, 1.0)
 ## the face small, dark, blank; the ring a flat grey donut") the interface pictures (sunset): the skin and hands one
 ## clean colour (the albedo's mean; the face keeps its painted features), a warm shade (not a muddy purple-brown) and
 ## a slightly softer step, the face lit, the steel ring dark at its core and bright on its polish
-UI_FLAT = {"skin": SKIN, "hand": SKIN, "face": SKIN, "fur": (0.78, 0.7, 0.56), "belt": (0.15, 0.07, 0.033),
+UI_FLAT = {"skin": SKIN, "hand": SKIN, "face": SKIN, "fur": (0.78, 0.7, 0.56), "belt": (0.12, 0.011, 0.012),
            "armour_blue": (0.025, 0.075, 0.3), "armour_silver": (0.36, 0.33, 0.29)}  ## (k2: the blue desaturated, "royal-blue plastic stickers")  ## (round 14: flat, "mottled noise on the boots")  ## (linear: the albedo picture's mean skin, sRGB (0.588, 0.325, 0.189))
 UI_BANDS = {"skin": ((0.62, 0.4, 0.33), (1.12, 0.93, 0.78)), "hand": ((0.64, 0.42, 0.35), (1.12, 0.93, 0.78)),
             "face": ((0.84, 0.66, 0.58), (1.16, 0.98, 0.85)), "chakram": ((0.12, 0.15, 0.3), (1.3, 1.3, 1.36)),
@@ -99,7 +100,7 @@ UI_BANDS = {"skin": ((0.62, 0.4, 0.33), (1.12, 0.93, 0.78)), "hand": ((0.64, 0.4
 DAY_PURPLE = (1.556, 0.717, 2.185)  ## the savanna's evening purple (sRGB (0.6, 0.42, 0.7)) at a luminance of 1 (linear)
 DAY_PURPLE_K = 0.35  ## how far his shade turns to it in the level (round 14)
 UI_MAGENTA = (2.46, 0.61, 0.54)  ## the sunset's warm rose (sRGB (0.85, 0.45, 0.42)) at a luminance of 1 (linear)
-CLEAN_LIT = (1.08, 1.04, 1.0)  ## (key art k9, the user: "light him cleanly": one near-white key, a soft cool shade, the
+CLEAN_LIT = (1.16, 1.12, 1.08)  ## (k10: a brighter key; k9 (1.08, 1.04, 1.0))  ## (key art k9, the user: "light him cleanly": one near-white key, a soft cool shade, the
 CLEAN_SHADE = (0.55, 0.5, 0.6)  ## costume's own colours, no sunset wash)
 CLEAN_REGIONS = ("fur", "armour_blue", "armour_silver", "scarf", "belt")
 UI_MAGENTA_K = 0.0  ## (k9, the user: no sunset colour in his shade)  ## (round 14: "a touch of sunset magenta in his shadows"; round 15, "the sun right behind him, yet no
@@ -140,7 +141,7 @@ COW_DARK = (0.03, 0.018, 0.014)  ## (k9: black-brown; k7 (0.085, 0.032, 0.018)) 
 COW_SPOTS_FRONT = ((-0.058, 0.004, 0.034, 0.028), (0.052, 0.04, 0.026, 0.022), (-0.104, -0.08, 0.022, 0.02))
 COW_SPOTS_BACK = ((0.05, -0.06, 0.03, 0.026), (-0.07, -0.03, 0.026, 0.024))
 WRAP_STRAP = (0.07, 0.032, 0.016)  ## (key art k9, "plastic socks") the shin guards' binding straps, dark leather
-GUARD_CUFF = (0.5, 0.4, 0.26)  ## and their top cuff, a cream hide
+GUARD_CUFF = (0.72, 0.65, 0.52)  ## and their top cuff, white fur (k10; k9 a cream hide (0.5, 0.4, 0.26))
 HEM_BEADS = ((0.62, 0.02, 0.015), (0.85, 0.8, 0.68))  ## red, white (linear; k9: no blue, "no clear 2-3 colour identity")
 SASH_RED = (0.62, 0.025, 0.018)
 BOOT_LEATHER = (0.05, 0.022, 0.011)  ## the foot's leather (sRGB ~ (0.25, 0.16, 0.1)), with a gloss
@@ -350,7 +351,7 @@ def build(m, mode="day"):
         L = g.math("ADD", L, g.math("MULTIPLY", g.smooth(height, 0.0, 0.3), CHEST_LIFT))
     if region == "hair":  # the locks: their own terminator, broken per lock (round 15: big locks, "a fuzzy helmet")
         lock = g.noise(P, (9.0, 9.0, 9.0), 0.0, 0.4)  # (key art k3: 16 -> 9, 5-7 big locks, "a pineapple top")
-        L = g.math("ADD", L, g.math("MULTIPLY", g.math("SUBTRACT", lock, 0.5), 0.12 if mode == "sunset" else 0.3))  # (k9: "noisy highlights")
+        L = g.math("ADD", L, g.math("MULTIPLY", g.math("SUBTRACT", lock, 0.5), 0.3))  # (k10: k7's grouped locks back)
     deep, shade, mid, lit = BANDS[mode][region]
     ramp = g.node("ShaderNodeValToRGB")
     ramp.color_ramp.interpolation = "LINEAR"
@@ -372,7 +373,7 @@ def build(m, mode="day"):
             b3 = SKIN_BANDS[mode]
             lift = 1.08 if region == "face" else 1.0  # (the face a little lighter: it leads)
             cols = tuple(tuple(c * lift for c in b) for b in (b3[0], b3[0], b3[1], b3[1], b3[2], b3[2]))
-            stops = SKIN_STOPS if mode == "day" else (0.0, 0.1, 0.12, 0.2, 0.3, 1.0)  # (k2: one soft turn)
+            stops = SKIN_STOPS if mode == "day" else (0.0, 0.1, 0.13, 0.6, 0.66, 1.0)  # (k10: crisp edges between three bands; k2: one soft turn)
     else:
         stops, cols = STOPS, (deep, deep, shade, shade, mid, mid, lit, lit)
     el[0].position, el[0].color = stops[0], (*cols[0], 1)
@@ -418,16 +419,20 @@ def build(m, mode="day"):
                 sp = g.math("FRACT", g.math("DIVIDE", g.math("ADD", g.math("MULTIPLY", height, 52.0), ang), 6.2832))
                 strap = g.math("MULTIPLY", g.math("MULTIPLY", g.smooth(sp, 0.0, 0.02), g.smooth(sp, 0.16, 0.13)), guard)
                 alb = g.mix("MIX", strap, alb, WRAP_STRAP)
-                edge_l = g.math("MULTIPLY", g.math("MULTIPLY", g.smooth(sp, 0.12, 0.14), g.smooth(sp, 0.17, 0.155)), guard)
-                alb = g.mix("MIX", g.math("MULTIPLY", edge_l, 0.8), alb, GUARD_CUFF)
                 cuff = g.math("MULTIPLY", g.smooth(height, -0.246, -0.24), g.smooth(height, -0.214, -0.22))
                 alb = g.mix("MIX", cuff, alb, GUARD_CUFF)
+                # (key art k10, "laced brown shoes and blue sports socks: football kit, hiking boots") one designed boot:
+                # the foot in the guard's blue, a brass band round the ankle, a dark sole
+                foot = g.smooth(height, -0.405, -0.415)
+                alb = g.mix("MIX", foot, alb, g.mix("MULTIPLY", 1.0, UI_FLAT["armour_blue"], (0.85, 0.85, 0.9)))
+                ankle = g.math("MULTIPLY", g.smooth(height, -0.42, -0.416), g.smooth(height, -0.4, -0.404))
+                alb = g.mix("MIX", ankle, alb, BOOT_BRASS)
                 band = g.math("MULTIPLY", g.smooth(height, -0.253, -0.25), g.smooth(height, -0.243, -0.246))
             else:
                 band = g.math("MULTIPLY", g.smooth(height, -0.252, -0.246), g.smooth(height, -0.226, -0.232))
             alb = g.mix("MIX", band, alb, BOOT_BRASS)
-            sole = g.smooth(height, -0.491, -0.496) if mode == "sunset" else g.smooth(height, -0.466, -0.476)
-            alb = g.mix("MIX", sole, alb, BOOT_SOLE)  # (key art k7: in the pictures only its edge; it tanned half the shoe)
+            sole = g.smooth(height, -0.488, -0.494) if mode == "sunset" else g.smooth(height, -0.466, -0.476)
+            alb = g.mix("MIX", sole, alb, (0.05, 0.025, 0.013) if mode == "sunset" else BOOT_SOLE)  # (key art k7: in the pictures only its edge; it tanned half the shoe)
         if region == "fur":
             alb = g.mix("MULTIPLY", 1.0, albedo, (1.0, 0.97, 0.9))  # warm cream, never grey paper
         if region == "belt" and mode == "sunset" and BOLD and (not flat or m.name.startswith("AAA_underwrap")):
@@ -491,16 +496,16 @@ def build(m, mode="day"):
         # the hem's line: on the front apron a V, highest near the middle (rest: z -0.002 at y 0.02, falling 0.95 a unit
         # sideways); behind, level; the beaded band a little above it, a fringe of strands below the band
         hem_f = g.math("SUBTRACT", -0.002, g.math("MULTIPLY", g.math("ABSOLUTE", g.math("SUBTRACT", sepr.outputs["Y"], 0.02)), 0.95))
-        hem_z = g.math("ADD", g.math("MULTIPLY", hem_f, front_k), g.math("MULTIPLY", -0.125, g.math("SUBTRACT", 1.0, front_k)))
+        hem_z = g.math("ADD", g.math("MULTIPLY", hem_f, front_k), g.math("MULTIPLY", -0.163, g.math("SUBTRACT", 1.0, front_k)))  # (k10: the back cut clean at -0.165)
         rel = g.math("SUBTRACT", height, g.math("ADD", hem_z, 0.028))
         hem = g.math("MULTIPLY", g.smooth(rel, -0.001, 0.001), g.smooth(rel, 0.013, 0.011))
         fringe = g.math("MULTIPLY", g.smooth(rel, 0.0, -0.002), g.smooth(g.math("FRACT", g.math("MULTIPLY", sepr.outputs["Y"], 140.0)), 0.75, 0.85))
         colour = g.mix("MULTIPLY", g.math("MULTIPLY", fringe, 0.6), colour, (0.5, 0.36, 0.3))
-        ang_h = g.math("ARCTAN2", sepr.outputs["Y"], sepr.outputs["X"])
-        cyc = g.math("FRACT", g.math("MULTIPLY", ang_h, 30.0 / 6.2832))
-        for i, bead in enumerate(HEM_BEADS):
-            on = g.math("MULTIPLY", g.smooth(g.math("ABSOLUTE", g.math("SUBTRACT", cyc, (i + 0.5) / len(HEM_BEADS))), 0.5 / len(HEM_BEADS) - 0.02, 0.5 / len(HEM_BEADS) - 0.06), hem)
-            colour = g.mix("MIX", on, colour, g.mix("MULTIPLY", 1.0, g.mix("MULTIPLY", 1.0, ramp.outputs["Color"], (1.1, 1.1, 1.1)), bead))
+        # (key art k10, "the red-and-white candy-cane hem looks like barber tape") a calm band: solid red, one white
+        # line along its lower edge
+        colour = g.mix("MIX", hem, colour, g.mix("MULTIPLY", 1.0, ramp.outputs["Color"], HEM_BEADS[0]))
+        line = g.math("MULTIPLY", g.smooth(rel, -0.0025, -0.001), g.smooth(rel, 0.0012, 0.0002))
+        colour = g.mix("MIX", line, colour, g.mix("MULTIPLY", 1.0, ramp.outputs["Color"], HEM_BEADS[1]))
         sepu = g.node("ShaderNodeSeparateXYZ")
         g.link(geo.outputs["Normal"], sepu.inputs[0])
         colour = g.mix("MULTIPLY", g.math("MULTIPLY", g.smooth(sepu.outputs["Z"], 0.1, -0.5), 0.35), colour, (0.7, 0.62, 0.66))
@@ -533,7 +538,7 @@ def build(m, mode="day"):
         # (round 15, all three judges: "grey, silver-blue: reads aged") black hair: a warm band of light across the
         # big locks (sRGB (0.42, 0.27, 0.17) at its brightest), no blue-grey sheen, no grey third step
         locks = g.smooth(g.noise(P, (9.0, 9.0, 9.0), 0.0, 0.4), 0.4, 0.6)
-        band = g.math("MULTIPLY", band, g.math("ADD", g.math("MULTIPLY", locks, 0.7 if mode == "day" else 0.15), 0.3 if mode == "day" else 0.85))
+        band = g.math("MULTIPLY", band, g.math("ADD", g.math("MULTIPLY", locks, 0.7), 0.3))
         colour = g.mix("ADD", g.math("MULTIPLY", band, 0.85 if mode == "day" else 0.45), colour, (0.15, 0.06, 0.022))  # (k1's 1.2 lost; k5: near-black in the picture)  # (round 17: 0.5, "a smudge")
         sd = BOLD_RIM[mode][2]
         toward_sun = g.math("ADD", g.math("MULTIPLY", sep.outputs["X"], sd[0]), g.math("MULTIPLY", sep.outputs["Y"], sd[1]))
@@ -544,7 +549,7 @@ def build(m, mode="day"):
         g.link(P, cen.inputs[0])
         cen.inputs[1].default_value = HAIR_CENTRE
         tips = g.smooth(cen.outputs["Value"], 0.1, 0.16)
-        colour = g.mix("MIX", g.math("MULTIPLY", tips, 0.6 if mode == "day" else 0.2), colour, HAIR_TIPS)
+        colour = g.mix("MIX", g.math("MULTIPLY", tips, 0.6 if mode == "day" else 0.75), colour, HAIR_TIPS if mode == "day" else (0.13, 0.065, 0.035))  # (k10: "spiky, grouped locks with lighter tips")
     if region == "chakram":
         # engraving: a groove round the blade and a ring of notched marks, darker; a polished outer edge
         oc = uv.outputs["Object"]
@@ -582,15 +587,16 @@ def build(m, mode="day"):
     if region == "scarf" and mode == "sunset" and BOLD and not flat:
         # (key art k8) a red shuka: a check of thin dark lines with a white line beside each, in the cloth's own light;
         # (k9, "two or three folds and a shade tone") two broad diagonal folds across it, each a darker trough
-        fold = g.math("SINE", g.math("MULTIPLY", g.math("ADD", sepr.outputs["Z"], g.math("MULTIPLY", sepr.outputs["Y"], 0.8)), 75.0))
-        trough = g.smooth(fold, 0.35, 0.85)
-        colour = g.mix("MULTIPLY", g.math("MULTIPLY", trough, 0.55), colour, (0.55, 0.32, 0.42))
-        for ax, per in (("X", 38.0), ("Z", 38.0)):
-            v = g.math("FRACT", g.math("MULTIPLY", sepr.outputs[ax], per))
-            dark = g.smooth(g.math("ABSOLUTE", g.math("SUBTRACT", v, 0.5)), 0.43, 0.45)
-            white = g.smooth(g.math("ABSOLUTE", g.math("SUBTRACT", v, 0.38)), 0.035, 0.02)
-            colour = g.mix("MIX", white, colour, g.mix("MULTIPLY", 1.0, ramp.outputs["Color"], SCARF_LINES[1]))
-            colour = g.mix("MIX", dark, colour, g.mix("MULTIPLY", 1.0, ramp.outputs["Color"], SCARF_LINES[0]))
+        # (key art k10, "the fine tartan check turns to noise at phone size: lumberjack flannel") bold red cloth: one
+        # broad black stripe edged in white round it, and big folds, each a darker trough
+        fold = g.math("SINE", g.math("MULTIPLY", g.math("ADD", sepr.outputs["Z"], g.math("MULTIPLY", sepr.outputs["Y"], 0.8)), 42.0))
+        trough = g.smooth(fold, 0.2, 0.9)
+        colour = g.mix("MULTIPLY", g.math("MULTIPLY", trough, 0.6), colour, (0.5, 0.28, 0.38))
+        zz = g.math("ABSOLUTE", g.math("SUBTRACT", sepr.outputs["Z"], 0.279))
+        black = g.smooth(zz, 0.0085, 0.0075)
+        white = g.math("MULTIPLY", g.smooth(zz, 0.0105, 0.0095), g.smooth(zz, 0.0075, 0.0085))
+        colour = g.mix("MIX", white, colour, g.mix("MULTIPLY", 1.0, ramp.outputs["Color"], SCARF_LINES[1]))
+        colour = g.mix("MIX", black, colour, g.mix("MULTIPLY", 1.0, ramp.outputs["Color"], SCARF_LINES[0]))
     if region in ("skin", "hand") and mode == "sunset" and BOLD and not flat:
         # (key art k8) the gold armlet round each upper arm: a band across the arm, a bright line round its middle
         (c0, c1, c2), (d0, d1, d2) = ARM_AXIS
@@ -603,9 +609,15 @@ def build(m, mode="day"):
                                         g.math("MULTIPLY", dz, dz)), g.math("MULTIPLY", t, t))
         band = g.math("MULTIPLY", band, g.smooth(r2, 0.0016, 0.0012))  # (only round the arm: within 4 cm of its axis)
         gold = g.mix("MIX", g.smooth(L, 0.16, 0.24), GOLD_SHADE, GOLD)  # its own two values: brown-gold, gold
+        # (key art k10, "a sticky note or tape: no form, no metal highlight") brass wrapping the arm: darker as it turns
+        # away, a dark line along both edges, one crisp highlight where it faces us
+        gold = g.mix("MULTIPLY", g.math("MULTIPLY", g.smooth(edge, 0.2, 0.75), 0.75), gold, (0.3, 0.16, 0.05))
         colour = g.mix("MIX", band, colour, gold)
-        mid = g.math("MULTIPLY", band, g.smooth(g.math("ABSOLUTE", g.math("SUBTRACT", t, 0.003)), 0.003, 0.0012))
-        colour = g.mix("ADD", g.math("MULTIPLY", g.math("MULTIPLY", mid, g.smooth(L, 0.16, 0.24)), 0.45), colour, (1.0, 0.8, 0.35))
+        rims = g.math("MULTIPLY", band, g.math("MAXIMUM", g.smooth(t, -0.0055, -0.0075), g.smooth(t, 0.0115, 0.0135)))
+        colour = g.mix("MIX", rims, colour, (0.06, 0.025, 0.008))
+        mid = g.math("MULTIPLY", band, g.smooth(g.math("ABSOLUTE", g.math("SUBTRACT", t, 0.003)), 0.0022, 0.001))
+        shine = g.math("MULTIPLY", mid, g.smooth(edge, 0.35, 0.1))
+        colour = g.mix("MIX", g.math("MULTIPLY", shine, 0.9), colour, (1.0, 0.92, 0.7))
     if region == "belt" and BOLD and not flat:
         # (round 16) the belt carries the costume's pattern: a white zigzag round it, a row of blue beads under it
         ang_b = g.math("ARCTAN2", sepr.outputs["Y"], sepr.outputs["X"])
