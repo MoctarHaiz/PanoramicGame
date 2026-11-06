@@ -2077,6 +2077,76 @@ def face_light():
     light.location = mid + forward * 0.16 + Vector((0.0, 0.0, 0.08))  # front and above: brow, eyes
 
 
+KEY_SKIN = os.path.join(os.path.dirname(bpy.data.filepath), "key_skin_proxy.npy")  ## (key art k24) the skin's shading
+## surface (hero3d/scripts/k24/): his rest mesh with the sculpt's small bumps smoothed away, the limbs keeping their big
+## forms, the torso smoothed to its mass and given designed forms (two pec domes over a shelf, six ab cushions, an
+## oblique ridge each side), posed by the same armature
+KEY_SKIN_W = os.path.join(os.path.dirname(bpy.data.filepath), "key_skin_weights.npz")  ## and its skin weights, blurred
+
+
+def key_skin_normals():
+    """(Key art k24, "fuzzy brush-grain skin inside a clean outline": the grain was the sculpt's small bumps, stray
+    skin weights and a crease the waist bend crushes into the belly, all read by the cel bands; not the light, Fast GI
+    or the samples) the pictures' skin (torso, arms, legs) shaded with the normals of a clean copy of his body: the same
+    topology posed by the same rig, so the forms stay where they are and the silhouette is unchanged."""
+    if not (AAA and arg("--light", "day") == "sunset") or os.environ.get("KEY_SKIN", "1") != "1":
+        return
+    path = os.environ.get("KEY_SKIN_NPY", KEY_SKIN)
+    if not os.path.exists(path):
+        return
+    co = np.load(path)
+    if len(co) != len(MESH.data.vertices):
+        print("KEY_SKIN: vertex count differs, skipped")
+        return
+    proxy = MESH.copy()
+    proxy.data = MESH.data.copy()
+    proxy.name = proxy.data.name = "AAA_SkinProxy"
+    SC.collection.objects.link(proxy)
+    proxy.shape_key_clear()
+    proxy.data.vertices.foreach_set("co", co.astype(np.float32).ravel())
+    proxy.data.update()
+    for md in list(proxy.modifiers):
+        if md.type == "CORRECTIVE_SMOOTH":
+            # (its own smoothed rest shape; over the whole body: the rig's kinks where one bone's weight hands over to
+            # the next smoothed out of the posed surface)
+            md.rest_source = "ORCO"
+            md.vertex_group = ""
+            md.iterations = 30
+            md.factor = 0.5
+        elif md.type != "ARMATURE":
+            proxy.modifiers.remove(md)
+    proxy.hide_render = True
+    wpath = os.environ.get("KEY_SKIN_W", KEY_SKIN_W)
+    if os.path.exists(wpath):  # its skin weights blurred: each bend spread wider, no crease crushed into his belly
+        wz = np.load(wpath)
+        idx, wts = wz["idx"], wz["W"].astype(np.float32)
+        rm = idx.tolist()
+        for k, name in enumerate(wz["names"]):
+            vg = proxy.vertex_groups.get(str(name))
+            if vg is None:
+                continue
+            vg.remove(rm)
+            q = np.round(wts[:, k] * 255).astype(np.int32)
+            for level in np.unique(q[q > 0]):
+                vg.add(idx[q == level].tolist(), float(level) / 255.0, "REPLACE")
+        print("KEY_SKIN weights", wpath)
+    mi = np.zeros(len(MESH.data.polygons), np.int64); MESH.data.polygons.foreach_get("material_index", mi)
+    lt = np.zeros(len(MESH.data.polygons), np.int64); MESH.data.polygons.foreach_get("loop_total", lt)
+    lv = np.zeros(len(MESH.data.loops), np.int64); MESH.data.loops.foreach_get("vertex_index", lv)
+    fid = np.repeat(np.arange(len(MESH.data.polygons)), lt)
+    skin = np.zeros(len(MESH.data.vertices), bool); skin[lv[mi[fid] == 0]] = True  # (the skin material only)
+    vg = MESH.vertex_groups.get("AAA_key_skin") or MESH.vertex_groups.new(name="AAA_key_skin")
+    vg.add(np.nonzero(skin)[0].tolist(), 1.0, "REPLACE")
+    md = MESH.modifiers.new("AAA_key_skin", "DATA_TRANSFER")
+    md.object = proxy
+    md.use_loop_data = True
+    md.data_types_loops = {"CUSTOM_NORMAL"}
+    md.loop_mapping = "TOPOLOGY"
+    md.vertex_group = vg.name
+    bpy.context.view_layer.update()
+    print("KEY_SKIN on", int(skin.sum()), path)
+
+
 def toon_setup():
     mode = "sunset" if arg("--light", "day") == "sunset" else "day"
     lift_fringe()
@@ -2245,6 +2315,7 @@ def main():
         table = bandit_anims()
     if arg("--style", "toon") == "toon":
         toon_setup()
+    key_skin_normals()
     wanted = arg("--anims", ",".join(table)).split(",")
     for name in wanted:
         render(name, *table[name])

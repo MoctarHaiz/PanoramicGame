@@ -65,6 +65,11 @@ SKIN_REGIONS = ("skin", "hand", "face")
 # sun's side strongest), no bounce or sheen on the skin, flat red scarf, deeper blue armour: the UI's toy-like
 # language ("semi-realistic anatomy with fine muscle rendering ... pasted in from another game")
 import os as _os
+KEY_SKIN_STOPS = (0.0, 0.26, 0.295, 0.62, 0.65, 1.0)  ## (key art k25, "flat and sticker-like", "no core shadow on the
+## ribcage or under the pecs": a third of the skin in shade, a warm lit plane on the arms, flank and thigh fronts) the
+## pictures' skin (torso, arms, legs): three tones, one crisp terminator and a crisp lit edge over clean designed forms
+## (hero_render.py key_skin_normals()); k24 (0.13, 0.165, 0.745, 0.775) read flat; k11-k23 (0.0, 0.06, 0.24, 0.74, 0.8, 1.0)
+## a soft core-shadow blend over the sculpt's bumps ("fuzzy brush grain"). The face and hands keep k11's.
 BOLD = _os.environ.get("HERO_TOON", "bold") == "bold"
 BOLD_BANDS = {  # shade, lit (albedo multipliers; hair: absolute)
     "day": {"skin": ((0.6, 0.47, 0.5), (1.08, 0.98, 0.88)), "face": ((0.72, 0.58, 0.58), (1.1, 1.0, 0.9)),
@@ -376,7 +381,7 @@ def build(m, mode="day"):
             b3 = SKIN_BANDS[mode]
             lift = 1.08 if region == "face" else 1.0  # (the face a little lighter: it leads)
             cols = tuple(tuple(c * lift for c in b) for b in (b3[0], b3[0], b3[1], b3[1], b3[2], b3[2]))
-            stops = SKIN_STOPS if mode == "day" else (0.0, 0.06, 0.24, 0.74, 0.8, 1.0)  # (k11, "hard-edged blotches that don't
+            stops = SKIN_STOPS if mode == "day" else (KEY_SKIN_STOPS if region == "skin" else (0.0, 0.06, 0.24, 0.74, 0.8, 1.0))  # (k11, "hard-edged blotches that don't
             # follow one light": a soft core-shadow edge, the lit plane only where the key faces him squarely; k10: crisp edges; k2: one soft turn)
     else:
         stops, cols = STOPS, (deep, deep, shade, shade, mid, mid, lit, lit)

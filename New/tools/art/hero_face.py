@@ -263,12 +263,16 @@ def mouth(cv, kind, opened, smile, width):
         tongue = cv.mask(lambda d, s: d.ellipse([(cx - W * 0.26) * s, (cy + Ho * 0.16) * s, (cx + W * 0.26) * s,
                                                  (cy + Ho * 0.56) * s], fill=255))
         cv.paint((0.36, 0.1, 0.12), tongue * m)
-        upper = ((yy < top[None, :] + hgt[None, :] * 0.13) & inner).astype(np.float32)
-        lower = np.zeros_like(upper)
+        # (k23, "a white fleck at the mouth corner, on the lower lip and chin: spit") one bar tucked under the upper lip: a fixed
+        # thickness, only across the middle where the opening is tall, never down the corners
+        tall = (hgt > Ho * 0.62)[None, :]
+        mid = ((cols > cx - W * 0.25) & (cols < cx + W * 0.02))[None, :]  # (it stops at the face's centre line: past it the face turns away
+        # in the key art's three-quarter view and the bar's end smeared down "like spit")
+        # (key art k25, "an irregular white fleck": the straight bar was clipped by the lip's curve into a tapered crescent) one even
+        # band: a constant height, its top edge parallel to the upper lip just under it, square ends, no tooth gaps
+        tc = top[None, :]
+        upper = ((yy >= tc + 2) & (yy < tc + 2 + Ho * 0.12) & mid).astype(np.float32)
         cv.paint(TEETH, ndimage.gaussian_filter(upper, 0.6) * m)
-        xx = np.mgrid[0:N, 0:N][1].astype(np.float32)
-        gaps = (np.abs(((xx - cx) / (W * 0.12)) % 1.0 - 0.5) > 0.46).astype(np.float32)
-        cv.multiply((0.78, 0.74, 0.72), ndimage.gaussian_filter(gaps, 0.7) * m * ndimage.gaussian_filter(upper + lower, 0.8) * 0.4)
     if kind == "cry":
         # the tongue low in the dark, the lower teeth a thin row in front of it, the upper teeth a bold row under the lip
         tongue = cv.mask(lambda d, s: d.ellipse([(cx - W * 0.3) * s, (y1 - (y1 - y0) * 0.42) * s, (cx + W * 0.3) * s,
