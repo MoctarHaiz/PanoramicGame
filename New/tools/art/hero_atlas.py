@@ -122,7 +122,8 @@ INK_MIX = 0.3  ## share of the plain warm near-black ink in it (one family of li
 INK_LIT = 0.45  ## the line's width on the edges towards the sun, a share of its width on the shadow side
 
 
-def inked(arr: np.ndarray, px: float = INK_PX, ink: np.ndarray = INK, lit: float = INK_LIT, mix: float = INK_MIX) -> np.ndarray:
+def inked(arr: np.ndarray, px: float = INK_PX, ink: np.ndarray = INK, lit: float = INK_LIT, mix: float = INK_MIX,
+          calm: float = INK_CALM, strand: float = 0.75) -> np.ndarray:
     """A frame with an ink line round its outer silhouette (anti-aliased), under the figure: the cel look's
     outline reads against the pale sky at phone size, inside lines stay thin. The line follows a calmed contour
     of the silhouette, so it keeps an even width, drawn at INK_SS x and reduced (smooth, no stair steps); round a
@@ -152,9 +153,9 @@ def inked(arr: np.ndarray, px: float = INK_PX, ink: np.ndarray = INK, lit: float
     colour = local * k[..., None] * (1.0 - mix) + ink * mix
     big = np.asarray(Image.fromarray(a, "F").resize((w * ss, h * ss), Image.BILINEAR))
     wide = np.asarray(Image.fromarray(width.astype(np.float32), "F").resize((w * ss, h * ss), Image.BILINEAR))
-    calm = ndimage.gaussian_filter(big, px * INK_CALM * ss)
-    cover = ndimage.distance_transform_edt(calm < 0.5) <= px * ss * wide
-    cover |= ndimage.distance_transform_edt(big < 0.5) <= px * 0.75 * ss * wide
+    calmed = ndimage.gaussian_filter(big, px * calm * ss)
+    cover = ndimage.distance_transform_edt(calmed < 0.5) <= px * ss * wide
+    cover |= ndimage.distance_transform_edt(big < 0.5) <= px * strand * ss * wide
     ring = cover.astype(np.float32).reshape(h, ss, w, ss).mean((1, 3))
     out = np.zeros_like(arr)
     fa = a[..., None]
@@ -293,7 +294,8 @@ def same_import(fn: str) -> None:
 
 def trimmed(path: Path, height: int, sunset: bool = False, under: np.ndarray | None = None,
             over: np.ndarray | None = None, ink_k: float = 1.0, rim=None, clean: bool = False,
-            ink_lit: float = INK_LIT, ink_mix: float = INK_MIX) -> np.ndarray:
+            ink_lit: float = INK_LIT, ink_mix: float = INK_MIX, ink_colour=None, ink_calm: float = INK_CALM,
+            ink_strand: float = 0.75) -> np.ndarray:
     """A render cut to what it shows and reduced to `height` px; `under` and `over` (RGBA 0..1, the render's size):
     layers drawn behind and in front of the figure, cut and reduced with it, with no ink round them (the menu's
     throw trail, the glint on its ring)."""
@@ -331,7 +333,7 @@ def trimmed(path: Path, height: int, sunset: bool = False, under: np.ndarray | N
         pad = sun_rim(pad, RIM_PX_UI * height / 300.0 * rim[2], (rim[0], rim[1]), fall=rim[3])
     else:
         pad = sun_rim(pad, RIM_PX_UI * height / 300.0, RIM_SUNSET if sunset else RIM_DAY)
-    out = inked(pad, ink, lit=ink_lit, mix=ink_mix)
+    out = inked(pad, ink, INK if ink_colour is None else ink_colour, lit=ink_lit, mix=ink_mix, calm=ink_calm, strand=ink_strand)
     if under is not None:
         u = premultiplied_resize(Image.fromarray((under * 255 + 0.5).astype(np.uint8), "RGBA").crop(box), k)
         low = np.zeros_like(out)
@@ -499,6 +501,49 @@ def swoosh_trail(folder: Path) -> np.ndarray:
     return out
 
 
+MENU_INK_COLOUR = np.array([0.17, 0.085, 0.06])  ## (key art k36, "the same heavy black everywhere") the menu's line: a very dark
+## warm brown (sRGB about (43, 22, 15)), dark enough against the sunset sky
+INNER_GAP = 0.015  ## (key art k36) depth (view z) a near form must stand in front of another for an inner line between them
+INNER_GAP_REF = 0.09  ## the depth gap that gets the full inner line (smaller gaps taper it: thin where the forms meet)
+INNER_W = 5.5  ## render px of the inner line at its widest (about two picture px: under half the outer line)
+INNER_ALPHA = 0.92
+
+
+def inner_lines(folder: Path) -> np.ndarray:
+    """(Key art k36, "nearly absent on inner forms: a consistent outer line with tapered inner lines") thin dark lines only
+    where one form overlaps another (the arm over the torso, the kilt over the thigh, the jaw, the armpit, the knee): from
+    the render's depth pass (hero_render.py key_depth_pass(), 000_depth.npz), on the far form along the near one's edge, as
+    wide as the gap between them allows (tapering to nothing where the forms meet), none in or round the hair, none on the
+    ring, none on the outer silhouette (that is the outer ink's). At the render's size."""
+    path = folder / "000_depth.npz"
+    src = np.asarray(Image.open(folder / "000.png"))
+    h, w = src.shape[:2]
+    out = np.zeros((h, w, 4), np.float32)
+    if not path.exists():
+        return out
+    d = np.load(path)
+    z = d["z"].astype(np.float64)
+    idn = d["id"]
+    fig = d["a"] & (idn != 2) & (src[..., 3] > 128)
+    zf = np.where(fig, z, 1e3)
+    zmin = ndimage.minimum_filter(zf, size=5)
+    gap = np.where(fig, z - zmin, 0.0)
+    hair_near = ndimage.binary_dilation((idn == 1) & d["a"], iterations=4)
+    inside = ndimage.binary_erosion(fig, iterations=4)
+    edge = fig & inside & (gap > INNER_GAP) & ~hair_near
+    if not edge.any():
+        return out
+    reach = int(np.ceil(INNER_W)) + 3
+    far = (z - ndimage.minimum_filter(zf, size=2 * reach + 1)) > INNER_GAP * 0.6
+    wpx = np.clip(gap / INNER_GAP_REF, 0.3, 1.0) * INNER_W
+    dist, (iy, ix) = ndimage.distance_transform_edt(~edge, return_indices=True)
+    line = (dist <= wpx[iy, ix]) & far & inside & ~hair_near
+    soft = ndimage.gaussian_filter(line.astype(np.float32), 0.7)
+    out[..., :3] = MENU_INK_COLOUR
+    out[..., 3] = np.clip(soft * 1.15, 0, 1) * INNER_ALPHA
+    return out
+
+
 def save(arr: np.ndarray, name: str, pad: int = 8) -> None:
     h, w = arr.shape[:2]
     out = np.zeros((h + pad * 2, w + pad * 2, 4), np.float32)
@@ -546,7 +591,10 @@ WIN_AIRBORNE = True  ## (hero pass 4: the win is a leap: his shadow on the groun
 WIN_SHADOW = False  ## (round 15) none under the leap
 MENU_RIM = (np.array([1.0, 0.6, 0.2]), 0.8, 1.15, 0.9)  ## (key art k8, "no hot rim on the sun side, the front the brightest
 ## part") a hot band inside his silhouette on the edges towards the sun (upper left): colour, strength, width, fall
-MENU_INK = 0.78  ## (k10: 0.62, "thin or missing along the torso and arm edges")  ## the menu picture's outline, a share of the others' (key art k6: "a sticker outline")
+MENU_INK = 0.68  ## (key art k36: 0.78, "the same heavy black everywhere, very thick round the legs")  ## (k10: 0.62, "thin or missing along the torso and arm edges")  ## the menu picture's outline, a share of the others' (key art k6: "a sticker outline")
+MENU_INK_LIT = 0.55  ## (key art k36) the menu line on the edges towards the light, a share of the shadow side's
+MENU_INK_CALM = 0.9  ## and its contour calmed over this share of its width ("jitters round the hem, the shoes, the fist")
+MENU_INK_STRAND = 0.4  ## a strand too thin for the calmed contour gets this share of the line
 MENU_PIXELS = 550000  ## the menu picture's pixel budget (with its padding and shadow: no more than round 6's 0.61 Mpx)
 
 
@@ -562,7 +610,10 @@ def pictures() -> None:
     # the line went soft and uneven)
     k = min((MENU_PIXELS / (hero.shape[0] * hero.shape[1])) ** 0.5, 1.0)
     menu = trimmed(ui / "menu_hero/000.png", int(round(1100 * k)), sunset=True, under=swoosh_trail(ui / "menu_hero"),
-                   ink_k=MENU_INK, clean=True, ink_lit=1.0, ink_mix=0.85)  # (k10, "the outline flickers": one dark line)  # (key art k9, the user: "remove the sun reflect on the
+                   over=inner_lines(ui / "menu_hero"), ink_k=MENU_INK, clean=True, ink_lit=MENU_INK_LIT, ink_mix=0.85,
+                   ink_colour=MENU_INK_COLOUR, ink_calm=MENU_INK_CALM, ink_strand=MENU_INK_STRAND)
+    # (key art k36) the outer line: dark warm brown, a touch thinner, thinner still on the lit side, calm round the hem, boots,
+    # fist and hair (k10-k35: ink_k 0.78, ink_lit 1.0, the near-black INK, INK_CALM 0.35, every strand inked at 0.75)  # (k10, "the outline flickers": one dark line)  # (key art k9, the user: "remove the sun reflect on the
     # character": no rim band, no glint from the sun on the ring, an even line all round)
     save(grounded(menu, strength=2.0, tight=0.4), "hero_menu.png")  # (k11, "a weak contact shadow": darker, tighter)  # (key art k8, "no contact shadow under either boot": a darker, tighter contact)  # (key art k5: no glow round him, "a dark soft halo"; a firmer contact shadow)  # (k2: "no contact shadow under the boots")
     # the portrait: 660 x 752 from his hair to his hips (round 16: from its own render, standing, his face to us)

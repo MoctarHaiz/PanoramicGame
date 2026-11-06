@@ -162,6 +162,7 @@ WRAP_FOLD_W = 0.0065
 ## language: its surface smoothed (the proxy), lit through the skin's crisp stops, a dark break where one finger meets the next
 ## and round the thumb (hero_render.py key_skin_normals(): the "fist_gap" attribute from the skin weights)
 FIST_BREAK = (0.5, 0.62)
+BACK_KNEE_SHADE = 1.5  ## (key art k36) how far the back knee's light is pushed down: into the shade band
 FIST_BREAK_TONE = (0.34, 0.27, 0.3)
 WRAP_STRAP = (0.07, 0.032, 0.016)  ## (key art k9, "plastic socks") the shin guards' binding straps, dark leather
 GUARD_BLUE = (0.045, 0.12, 0.42)  ## (k11) the shin guard, a lighter blue
@@ -377,6 +378,12 @@ def build(m, mode="day"):
     height = sepr.outputs["Z"]  # (rest shape: -0.5 at his soles, 0.5 at the top of his hair)
     if BOLD and not flat and region in ("skin", "face", "hand"):  # (round 15) his chest and face in the most light
         L = g.math("ADD", L, g.math("MULTIPLY", g.smooth(height, 0.0, 0.3), CHEST_LIFT))
+    if region == "skin" and mode == "sunset" and BOLD and not flat:
+        # (key art k36, "a pale tan patch on the back knee above the sock reads as a hole") his back (rest y < 0) knee and thigh,
+        # behind the kilt and above the guard, in the leg's core-shadow tone: the kilt's shadow over them
+        back_knee = g.math("MULTIPLY", g.math("MULTIPLY", g.smooth(sepr.outputs["Y"], -0.02, -0.035), g.smooth(height, -0.245, -0.235)),
+                           g.smooth(height, -0.1, -0.115))
+        L = g.math("SUBTRACT", L, g.math("MULTIPLY", back_knee, BACK_KNEE_SHADE))
     hem_d = None
     if mode == "sunset" and BOLD and not flat and (region == "skin" or (region == "belt" and m.name == "AAA_belt")):
         # (key art k27) the distance from where the wrap ends on the thigh (hero_render.py key_hem(): + on the skin, - on the cloth)

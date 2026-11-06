@@ -2322,6 +2322,57 @@ def set_face(expression):
     _face[0] = expression
 
 
+def key_depth_pass(folder):
+    """(Key art k36, "the outline the same heavy black everywhere ... nearly absent on inner forms: a consistent outer line
+    with tapered inner lines") a quick second render of the key art's depth (view z) and what each pixel is (hair 1, the
+    ring 2), 000_depth.npz: tools/art/hero_atlas.py draws the inner lines where one form overlaps another from it."""
+    if not (AAA and arg("--light", "day") == "sunset") or os.environ.get("KEY_DEPTH", "1") != "1":
+        return
+    ring = bpy.data.objects.get("AAA_Chakram")
+    ring_mats = {s.material.name for s in ring.material_slots if s.material} if ring is not None else set()
+    swapped = []
+    for m in bpy.data.materials:
+        nt = m.node_tree
+        if nt is None:
+            continue
+        out = nt.get_output_node("EEVEE") or nt.get_output_node("ALL")
+        if out is None:
+            continue
+        old = out.inputs["Surface"].links[0].from_socket if out.inputs["Surface"].links else None
+        cam = nt.nodes.new("ShaderNodeCameraData")
+        comb = nt.nodes.new("ShaderNodeCombineXYZ")
+        nt.links.new(cam.outputs["View Z Depth"], comb.inputs[0])
+        comb.inputs[1].default_value = 2.0 if m.name in ring_mats else (1.0 if "hair" in m.name.lower() else 0.0)
+        em = nt.nodes.new("ShaderNodeEmission")
+        nt.links.new(comb.outputs[0], em.inputs["Color"])
+        nt.links.new(em.outputs[0], out.inputs["Surface"])
+        swapped.append((nt, out, old, (cam, comb, em)))
+    r = SC.render
+    keep = (r.filepath, r.image_settings.file_format, r.image_settings.color_depth, SC.eevee.taa_render_samples)
+    exr = os.path.join(folder, "000_depth.exr")
+    r.image_settings.file_format = "OPEN_EXR"
+    r.image_settings.color_depth = "32"
+    r.filepath = exr
+    SC.eevee.taa_render_samples = 1  # (no anti-aliasing: one depth per pixel)
+    bpy.ops.render.render(write_still=True)
+    r.filepath, r.image_settings.file_format, r.image_settings.color_depth, SC.eevee.taa_render_samples = keep
+    for nt, out, old, added in swapped:
+        if old is not None:
+            nt.links.new(old, out.inputs["Surface"])
+        for n in added:
+            nt.nodes.remove(n)
+    im = bpy.data.images.load(exr)
+    w, h = im.size
+    px = np.empty(w * h * 4, np.float32)
+    im.pixels.foreach_get(px)
+    bpy.data.images.remove(im)
+    os.remove(exr)
+    px = px.reshape(h, w, 4)[::-1]
+    np.savez_compressed(os.path.join(folder, "000_depth.npz"), z=px[..., 0].astype(np.float32), id=np.round(px[..., 1]).astype(np.uint8),
+                        a=(px[..., 3] > 0.5))
+    print("KEY_DEPTH", folder)
+
+
 def render(name, view, frames, lift=0.0, tilt=0.0):
     set_face(FACES.get(name, "determined"))
     SC.camera = camera(view)
@@ -2358,6 +2409,8 @@ def render(name, view, frames, lift=0.0, tilt=0.0):
         face_light()
         SC.render.filepath = os.path.join(folder, f"{i:03d}.png")
         bpy.ops.render.render(write_still=True)
+        if name == "menu_hero" and i == 0:
+            key_depth_pass(folder)
         data["frames"].append(points(SC.camera))
     with open(os.path.join(folder, "points.json"), "w") as fh:
         json.dump(data, fh, indent=1)
