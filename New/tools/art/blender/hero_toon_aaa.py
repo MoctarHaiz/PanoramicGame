@@ -157,6 +157,12 @@ HEM_W = 0.0024
 HEM_SHADOW = 0.0055
 WRAP_FOLD = ((-0.05, -0.035), (0.035, -0.08))
 WRAP_FOLD_W = 0.0065
+## (key art k33, "the back fist a brown lump with fur-like smudges, no finger or knuckle planes: a rock, a mitten"; "four
+## clear finger blocks and a thumb wrap, a crisp shadow under the knuckles") the back (left) fist in the skin's clean
+## language: its surface smoothed (the proxy), lit through the skin's crisp stops, a dark break where one finger meets the next
+## and round the thumb (hero_render.py key_skin_normals(): the "fist_gap" attribute from the skin weights)
+FIST_BREAK = (0.5, 0.62)
+FIST_BREAK_TONE = (0.34, 0.27, 0.3)
 WRAP_STRAP = (0.07, 0.032, 0.016)  ## (key art k9, "plastic socks") the shin guards' binding straps, dark leather
 GUARD_BLUE = (0.045, 0.12, 0.42)  ## (k11) the shin guard, a lighter blue
 BOOT_NAVY = (0.006, 0.016, 0.075)  ## and the boot under it, a dark navy leather
@@ -384,6 +390,22 @@ def build(m, mode="day"):
     if region == "hair":  # the locks: their own terminator, broken per lock (round 15: big locks, "a fuzzy helmet")
         lock = g.noise(P, (9.0, 9.0, 9.0), 0.0, 0.4)  # (key art k3: 16 -> 9, 5-7 big locks, "a pineapple top")
         L = g.math("ADD", L, g.math("MULTIPLY", g.math("SUBTRACT", lock, 0.5), 0.3))  # (k10: k7's grouped locks back)
+    if region == "hand" and mode == "sunset" and BOLD and not flat:
+        # (key art k33) on the back fist only, the light remapped so the hand's own (k11) stops cut it where the skin's crisp
+        # KEY_SKIN_STOPS do (the front hand untouched)
+        left = g.smooth(sepr.outputs["Y"], 0.0, 0.01)
+        s_from, s_to = KEY_SKIN_STOPS, (0.0, 0.06, 0.24, 0.74, 0.8, 1.0)
+        remap = None
+        for i in range(5):
+            seg = g.node("ShaderNodeMapRange")
+            seg.clamp = True
+            seg.inputs["From Min"].default_value = s_from[i]
+            seg.inputs["From Max"].default_value = s_from[i + 1]
+            seg.inputs["To Min"].default_value = 0.0
+            seg.inputs["To Max"].default_value = s_to[i + 1] - s_to[i]
+            g.link(L, seg.inputs["Value"])
+            remap = seg.outputs["Result"] if remap is None else g.math("ADD", remap, seg.outputs["Result"])
+        L = g.math("ADD", L, g.math("MULTIPLY", left, g.math("SUBTRACT", remap, L)))
     deep, shade, mid, lit = BANDS[mode][region]
     ramp = g.node("ShaderNodeValToRGB")
     ramp.color_ramp.interpolation = "LINEAR"
@@ -643,6 +665,12 @@ def build(m, mode="day"):
             colour = g.mix("MIX", white, colour, g.mix("MULTIPLY", 1.0, ramp.outputs["Color"], SCARF_LINES[1]))
             colour = g.mix("MIX", blue, colour, g.mix("MULTIPLY", 1.0, ramp.outputs["Color"], (0.02, 0.08, 0.4)))
             colour = g.mix("MIX", dark, colour, g.mix("MULTIPLY", 1.0, ramp.outputs["Color"], SCARF_LINES[0]))
+    if region == "hand" and mode == "sunset" and BOLD and not flat:
+        # (key art k33) the back fist's finger breaks: a dark line where one finger meets the next and round the thumb
+        att_f = g.node("ShaderNodeAttribute")
+        att_f.attribute_name = "fist_gap"
+        brk = g.math("MULTIPLY", g.smooth(att_f.outputs["Fac"], FIST_BREAK[0], FIST_BREAK[1]), g.smooth(sepr.outputs["Y"], 0.0, 0.01))
+        colour = g.mix("MULTIPLY", g.math("MULTIPLY", brk, 0.85), colour, FIST_BREAK_TONE)
     if region in ("skin", "hand") and mode == "sunset" and BOLD and not flat:
         # (key art k8) the gold armlet round each upper arm: a band across the arm, a bright line round its middle
         (c0, c1, c2), (d0, d1, d2) = ARM_AXIS
@@ -668,6 +696,15 @@ def build(m, mode="day"):
         mid = g.math("MULTIPLY", band, g.smooth(g.math("ABSOLUTE", g.math("SUBTRACT", t, -0.002)), 0.0026, 0.0012))
         shine = g.math("MULTIPLY", mid, g.smooth(edge, 0.4, 0.1))
         colour = g.mix("MIX", g.math("MULTIPLY", shine, 0.95), colour, (1.0, 0.94, 0.75))
+        # (key art k32, "a flat vertical gold rectangle stuck on the bicep like a plaster, no wrap-around") a band round the
+        # cylinder: a bright lip just inside its shoulder-side edge where the light falls on it, and the small shadow it casts on
+        # the skin past its elbow-side edge
+        lip = g.math("MULTIPLY", g.math("MULTIPLY", band, g.math("MULTIPLY", g.smooth(t, -0.0092, -0.0082), g.smooth(t, -0.0058, -0.0068))),
+                     g.smooth(L, 0.3, 0.5))
+        colour = g.mix("MIX", g.math("MULTIPLY", lip, 0.9), colour, (1.0, 0.82, 0.42))
+        near_arm = g.smooth(r2, 0.0016, 0.0012)
+        cast = g.math("MULTIPLY", g.math("MULTIPLY", g.smooth(t, 0.0172, 0.0186), g.smooth(t, 0.0252, 0.0238)), near_arm)
+        colour = g.mix("MULTIPLY", g.math("MULTIPLY", cast, 0.6), colour, (0.42, 0.36, 0.4))
     if region == "belt" and mode == "sunset" and BOLD and hem_d is None:
         # (key art k11, "the maroon shorts one flat block") folds across the cloth under the kilt
         fold_u = g.math("SINE", g.math("MULTIPLY", g.math("ADD", sepr.outputs["Z"], g.math("MULTIPLY", sepr.outputs["Y"], 0.6)), 55.0))

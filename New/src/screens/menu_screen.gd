@@ -20,11 +20,11 @@ const ROCK := "res://assets/art/ui/menu_rock.png"  ## loaded with the menu (7 MB
 const ROCK_STAND := Vector2(1390, 152)  ## where his feet go on the rock, in its pixels (tools/art/ui_hero.py)
 const ROCK_LEDGE := 660.0  ## the rock's flat top his stance spans, boot to boot, in its pixels
 const ROCK_TILT := -0.066  ## the rock turned a little (radians) so its ledge is level under both boots
-const STANCE := 0.629  ## his stance, boot to boot, as a share of the render's width (hero_menu.png; round 15's throw,
+const STANCE := 0.6422  ## (key art k31: the new build's picture is narrower and taller; the rock kept its size)  (k15-k30 0.629)  ## his stance, boot to boot, as a share of the render's width (hero_menu.png; round 15's throw,
 ## its free arm and trail further out: 0.81 -> 0.629, round 17 0.629)
-const FEET_X := 0.424  ## the point between his boots, as a share of its width (round 17: 0.424)
+const FEET_X := 0.4329  ## (key art k31, the same point on screen; k17-k30 0.424)  ## the point between his boots, as a share of its width (round 17: 0.424)
 const HERO_WIDE := 0.36  ## at most this share of the screen's width (round 15: 0.33; the wider throw kept as tall)
-const HERO_TALL := 0.8  ## his height, as a share of the screen's
+const HERO_TALL := 0.8174  ## (key art k31: his longer torso makes the picture taller; his legs and boots kept their size and place on screen; k12-k30 0.8)  ## his height, as a share of the screen's
 const FEET_AT := 0.9  ## where his feet stand, as a share of the screen's height
 const FEET_SINK := 0.008  ## his soles pressed onto the rock's ledge, a share of his height (key art k6: they hovered ~7 px over it,
 ## his contact shadow fell on the grass behind, "no contact shadow on the rock")

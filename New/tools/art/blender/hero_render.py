@@ -944,8 +944,17 @@ THROW_RING = float(os.environ.get("THROW_RING", "0.19"))  ## (key art k10: 0.14,
 
 KEY_BUILD = {  # (key art k9, "a stringy, narrow torso and thin upper arms against heavy thighs and big boots") the key
     # art's build: bone scales across the bone (x, z; y runs along it), the children not inheriting them
-    "Spine1": (1.12, 1.0, 1.05), "Spine2": (1.26, 1.0, 1.1), "Neck": (1.18, 1.0, 1.18),  # (k11: "shoulders narrow for the head": wider, lats) "LeftArm": (1.2, 1.0, 1.2), "RightArm": (1.2, 1.0, 1.2),
-    "LeftForeArm": (1.1, 1.0, 1.1), "RightForeArm": (1.1, 1.0, 1.1),  # (key art k10: chunkier, "commit to one style")
+    # (key art k31, "narrow shoulders barely wider than the head plus hair, a short narrow torso, a pinched waist, very long
+    # legs: a lanky teen, not a warrior"; "no neck") a heroic V: the chest and lats ~20% wider and deeper, the waist less
+    # pinched, the spine 6% longer (the legs read less long; legs and feet where they were), a thicker neck, the collarbones
+    # longer (the throwing side's thicker too: on the fist side a thicker one pushed a jagged edge into the silhouette),
+    # thicker forearms; the hands, head, pose and costume unchanged
+    # (k9-k30: "Spine1": (1.12, 1.0, 1.05), "Spine2": (1.26, 1.0, 1.1), "Neck": (1.18, 1.0, 1.18), forearms (1.1, 1.0, 1.1))
+    "Spine": (1.15, 1.06, 1.08), "Spine1": (1.35, 1.06, 1.18), "Spine2": (1.5, 1.06, 1.25), "Neck": (1.5, 1.3, 1.4),
+    "LeftShoulder": (1.0, 1.35, 1.0), "RightShoulder": (1.25, 1.6, 1.25),
+    # (key art k32, "the armlet a flat vertical gold rectangle stuck on the bicep like a plaster": the upper arms back to their own
+    # thickness (k31 1.2), which keeps k27's curved band; the forearms a little thicker than k27's (k31 1.32: swollen against them))
+    "LeftForeArm": (1.15, 1.0, 1.15), "RightForeArm": (1.15, 1.0, 1.15),
     "LeftUpLeg": (0.92, 1.0, 0.92), "RightUpLeg": (0.92, 1.0, 0.92), "LeftLeg": (0.94, 1.0, 0.94), "RightLeg": (0.94, 1.0, 0.94),
     "LeftFoot": (0.95, 0.95, 0.95), "RightFoot": (0.95, 0.95, 0.95)}
 
@@ -2082,6 +2091,7 @@ KEY_SKIN = os.path.join(os.path.dirname(bpy.data.filepath), "key_skin_proxy.npy"
 ## forms, the torso smoothed to its mass and given designed forms (two pec domes over a shelf, six ab cushions, an
 ## oblique ridge each side), posed by the same armature
 KEY_SKIN_W = os.path.join(os.path.dirname(bpy.data.filepath), "key_skin_weights.npz")  ## and its skin weights, blurred
+KEY_FIST = os.path.join(os.path.dirname(bpy.data.filepath), "key_fist_gap.npy")  ## (key art k33) the back fist's finger breaks
 
 
 def key_skin_normals():
@@ -2140,6 +2150,16 @@ def key_skin_normals():
         rz = np.zeros(len(MESH.data.vertices) * 3, np.float32); MESH.data.attributes["rest_co"].data.foreach_get("vector", rz)
         wrap = np.zeros(len(MESH.data.vertices), bool); wrap[lv[mi[fid] == names.index("AAA_belt")]] = True
         skin |= wrap & (rz.reshape(-1, 3)[:, 2] < 0.03)
+    if "AAA_hand" in names:  # (key art k33, "a brown lump with fur-like smudges") and his back (left, rest y > 0) fist: a clean surface
+        rz = np.zeros(len(MESH.data.vertices) * 3, np.float32); MESH.data.attributes["rest_co"].data.foreach_get("vector", rz)
+        fist = np.zeros(len(MESH.data.vertices), bool); fist[lv[mi[fid] == names.index("AAA_hand")]] = True
+        skin |= fist & (rz.reshape(-1, 3)[:, 1] > 0.0)
+    gpath = os.environ.get("KEY_FIST", KEY_FIST)
+    if os.path.exists(gpath):  # (key art k33) where one finger meets the next on the fist (from the skin weights), for its breaks
+        gap = np.load(gpath)
+        if len(gap) == len(MESH.data.vertices):
+            att = MESH.data.attributes.get("fist_gap") or MESH.data.attributes.new("fist_gap", "FLOAT", "POINT")
+            att.data.foreach_set("value", gap.astype(np.float32))
     vg = MESH.vertex_groups.get("AAA_key_skin") or MESH.vertex_groups.new(name="AAA_key_skin")
     vg.add(np.nonzero(skin)[0].tolist(), 1.0, "REPLACE")
     md = MESH.modifiers.new("AAA_key_skin", "DATA_TRANSFER")
