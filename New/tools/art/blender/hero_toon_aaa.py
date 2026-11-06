@@ -424,7 +424,7 @@ def build(m, mode="day"):
                 strap = g.math("MULTIPLY", g.math("MULTIPLY", g.smooth(sp, 0.0, 0.02), g.smooth(sp, 0.16, 0.13)), guard)
                 alb = g.mix("MIX", strap, alb, WRAP_STRAP)
                 cuff = g.math("MULTIPLY", g.smooth(height, -0.246, -0.24), g.smooth(height, -0.214, -0.22))
-                alb = g.mix("MIX", cuff, alb, GUARD_CUFF)
+                alb = g.mix("MIX", cuff, alb, WRAP_STRAP)  # (key art k17: a dark leather top edge; the white fur cuff read as "a pale blob on the back knee")
                 # (key art k10, "laced brown shoes and blue sports socks: football kit, hiking boots") one designed boot:
                 # the foot in the guard's blue, a brass band round the ankle, a dark sole
                 foot = g.smooth(height, -0.405, -0.415)
