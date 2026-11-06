@@ -181,6 +181,25 @@ BACK_KNEE_SHADE = 1.5  ## (key art k36) how far the back knee's light is pushed 
 FIST_BREAK_TONE = (0.34, 0.27, 0.3)
 WRAP_STRAP = (0.07, 0.032, 0.016)  ## (key art k9, "plastic socks") the shin guards' binding straps, dark leather
 GUARD_BLUE = (0.045, 0.12, 0.42)  ## (k11) the shin guard, a lighter blue
+## (key art k43, both judges: "the royal-blue football knee socks ... the most saturated part of him, they pull the eye to
+## the shins: desaturate them heavily, keep the head and torso the peak"; "flat saturated royal blue with almost no
+## shading: shade the cylinders, core shadow, lit side, a cast shadow under the knee") the guards and the wristbands a deeper
+## indigo blue, about 40% less saturated and a little darker (sRGB about (0.32, 0.36, 0.53) and (0.25, 0.29, 0.44)), shaded as
+## cylinders: one crisp core shadow up the side away from the key, and the knee's shadow under the guard's top
+GUARD_INDIGO = (0.069, 0.138, 0.42)  ## (k44, judge 2 of k43: "slate grey-blue reads dirty and muddy, the legs lose the clean
+## red/white/blue blocking: a deep saturated navy in shadow, not a grey-blue; keep the saturation"; judge 1: "the far leg
+## sinking darker gives the stride depth, but the near sock merges with the purple mesa: one clean lighter value shape on
+## the near shin") k41's hue, about 13% less saturated (k43: 40% less, greyed); the core shadow a deep saturated navy; the far
+## leg and the far wristband one value step darker, the near shin's lit plane one step lighter
+WRIST_INDIGO = (0.042, 0.092, 0.30)
+FAR_STEP = float(_os.environ.get("FAR_STEP", "0.7"))  ## the far (rest y < 0: back) leg's guard and the far wristband, one value step down
+NEAR_HI = (1.5, 1.42, 1.22)  ## the near shin's lit plane, one step up (still the same clean blue)
+NEAR_HI_T = float(_os.environ.get("NEAR_HI_T", "0.56"))  ## where it begins (the light's value)
+BLUE_N_K = float(_os.environ.get("BLUE_N_K", "0.8"))  ## the share of the clean cylinder in their light (the cloth's own: the rest)
+BLUE_TERM = float(_os.environ.get("BLUE_TERM", "0.45"))  ## where the guards' and bands' core shadow begins (the light's value)
+BLUE_SHADE = (0.2, 0.22, 0.36)  ## the core shadow (of the albedo): a deep saturated navy (k43: a grey (0.42, 0.4, 0.56))
+GUARD_CAST = (-0.272, -0.255)  ## (rest height) the knee's shadow under the guard's top, below its brass line
+GUARD_EDGE_K = float(_os.environ.get("GUARD_EDGE_K", "0.45"))  ## the soft darker turn at the guards' edges (k9: 0.45)
 BOOT_NAVY = (0.006, 0.016, 0.075)  ## and the boot under it, a dark navy leather
 GUARD_CUFF = (0.72, 0.65, 0.52)  ## and their top cuff, white fur (k10; k9 a cream hide (0.5, 0.4, 0.26))
 HEM_BEADS = ((0.62, 0.02, 0.015), (0.85, 0.8, 0.68))  ## red, white (linear; k9: no blue, "no clear 2-3 colour identity")
@@ -322,6 +341,8 @@ def build(m, mode="day"):
     if flat:
         rgb = g.node("ShaderNodeRGB")
         rgb.outputs[0].default_value = (*flat, 1.0)
+        if region == "armour_blue" and mode == "sunset" and BOLD:  # (key art k43) the bracer's band indigo too
+            rgb.outputs[0].default_value = (*WRIST_INDIGO, 1.0)
         albedo = rgb.outputs[0]
     elif BOLD and BOLD_ALBEDO.get(region):
         rgb = g.node("ShaderNodeRGB")
@@ -390,6 +411,22 @@ def build(m, mode="day"):
         fnn = g.node("ShaderNodeVectorMath"); fnn.operation = "NORMALIZE"
         g.link(fa.outputs["Vector"], fnn.inputs[0])
         N = fnn.outputs["Vector"]
+    if region == "armour_blue" and mode == "sunset" and BOLD and not flat:  # (key art k43) the guards and the bands lit as
+        # clean cylinders round their limbs (hero_render.py key_blue_normals(): attribute "blue_n", world; zero on the boots)
+        att_bn = g.node("ShaderNodeAttribute")
+        att_bn.attribute_name = "blue_n"
+        bl_ = g.node("ShaderNodeVectorMath"); bl_.operation = "LENGTH"
+        g.link(att_bn.outputs["Vector"], bl_.inputs[0])
+        bk_ = g.math("MULTIPLY", g.math("GREATER_THAN", bl_.outputs["Value"], 0.5), BLUE_N_K)
+        bd_ = g.node("ShaderNodeVectorMath"); bd_.operation = "SUBTRACT"
+        g.link(att_bn.outputs["Vector"], bd_.inputs[0]); g.link(N, bd_.inputs[1])
+        bs_ = g.node("ShaderNodeVectorMath"); bs_.operation = "SCALE"
+        g.link(bd_.outputs["Vector"], bs_.inputs[0]); g.link(bk_, bs_.inputs["Scale"])
+        ba_ = g.node("ShaderNodeVectorMath"); ba_.operation = "ADD"
+        g.link(N, ba_.inputs[0]); g.link(bs_.outputs["Vector"], ba_.inputs[1])
+        bn_ = g.node("ShaderNodeVectorMath"); bn_.operation = "NORMALIZE"
+        g.link(ba_.outputs["Vector"], bn_.inputs[0])
+        N = bn_.outputs["Vector"]
     # the light (key and fill, with cast shadows) as one value
     dif = g.node("ShaderNodeBsdfDiffuse", Color=(1, 1, 1, 1))
     g.link(N, dif.inputs["Normal"])
@@ -493,6 +530,9 @@ def build(m, mode="day"):
             sh, li = CLEAN_SHADE, CLEAN_LIT
         if not flat and region in SOFT_REGIONS:
             stops = SOFT_STOPS[mode]
+        if region == "armour_blue" and mode == "sunset":  # (key art k43) the cylinder's core shadow: one crisp step
+            stops = (0.0, BLUE_TERM, BLUE_TERM + 0.015, 1.0)
+            sh = BLUE_SHADE
         cols = (sh, sh, li, li)
         if not flat and region in SKIN_REGIONS:  # (round 16) three bands
             b3 = SKIN_BANDS[mode]
@@ -538,7 +578,9 @@ def build(m, mode="day"):
                 alb = g.mix("MIX", boot, alb, BOOT_LEATHER)
             else:
                 alb = g.mix("MIX", boot, alb, BOOT_CREAM)
-            alb = g.mix("MIX", shin, alb, UI_FLAT["armour_blue"])
+            far = g.smooth(sepr.outputs["Y"], 0.004, -0.004)  # (k44: his far side, the back leg and the pulled-back arm)
+            wrist_c = g.mix("MIX", far, WRIST_INDIGO, tuple(c * FAR_STEP for c in WRIST_INDIGO)) if mode == "sunset" else UI_FLAT["armour_blue"]
+            alb = g.mix("MIX", shin, alb, wrist_c)  # (k43: the bands indigo)
             if mode == "sunset":  # (key art k9) bound to the shin: two dark straps wound up it, a cream cuff at the top,
                 # a thin brass line under it
                 guard = g.math("MULTIPLY", shin, g.smooth(height, -0.236, -0.244))
@@ -552,7 +594,7 @@ def build(m, mode="day"):
                 foot = g.smooth(height, -0.405, -0.415)
                 # (key art k11, "the same saturated blue: plastic football socks and rubber wellingtons") a lighter guard over
                 # a darker boot
-                alb = g.mix("MIX", g.math("MULTIPLY", guard, 1.0), alb, GUARD_BLUE)
+                alb = g.mix("MIX", g.math("MULTIPLY", guard, 1.0), alb, g.mix("MIX", far, GUARD_INDIGO, tuple(c * FAR_STEP for c in GUARD_INDIGO)))  # (k43; k11-k42 GUARD_BLUE)
                 alb = g.mix("MIX", foot, alb, BOOT_NAVY)
                 ankle = g.math("MULTIPLY", g.smooth(height, -0.42, -0.416), g.smooth(height, -0.4, -0.404))
                 alb = g.mix("MIX", ankle, alb, BOOT_BRASS)
@@ -578,8 +620,30 @@ def build(m, mode="day"):
             # in the light: a little more saturated; in the shade: greyer and cooler (no flat orange)
             lit_s = g.mix("MIX", 1.0 if region in SKIN_REGIONS else sat, grey, alb)
             shade_s = g.mix("MULTIPLY", 1.0, g.mix("MIX", desat, alb, grey), cool)
+            alb_k41 = g.mix("MIX", g.smooth(L, BOLD_STOPS[1], BOLD_STOPS[2]), shade_s, lit_s) if BOLD else None
+            if region == "armour_blue" and mode == "sunset" and BOLD:  # (key art k44) the blue's shade saturated, not greyed
+                shade_s = g.mix("MULTIPLY", 1.0, alb, cool)
             alb = g.mix("MIX", g.smooth(L, stops[1], stops[2]) if BOLD else g.smooth(L, STOPS[3], STOPS[5]), shade_s, lit_s)
         colour = g.mix("MULTIPLY", 1.0, alb, ramp.outputs["Color"])
+        if region == "armour_blue" and mode == "sunset" and BOLD and not flat:  # (key art k43) the boots as they were:
+            # their own light and shade (k41's stops), only the guards and the bands shaded as cylinders
+            r0 = g.node("ShaderNodeValToRGB")
+            r0.color_ramp.interpolation = "LINEAR"
+            e0 = r0.color_ramp.elements
+            sh0, li0 = CLEAN_SHADE, CLEAN_LIT
+            e0[0].position, e0[0].color = BOLD_STOPS[0], (*sh0, 1)
+            e0[1].position, e0[1].color = BOLD_STOPS[-1], (*li0, 1)
+            for pos, col in zip(BOLD_STOPS[1:-1], (sh0, li0)):
+                ee = e0.new(pos)
+                ee.color = (*col, 1)
+            g.link(L, r0.inputs["Fac"])
+            boot_k = g.smooth(height, -0.403, -0.407)
+            colour = g.mix("MIX", boot_k, colour, g.mix("MULTIPLY", 1.0, alb_k41, r0.outputs["Color"]))
+            # (key art k44) one clean lighter plane on the near shin's lit side, so it stands off the purple mesa
+            near_g = g.math("MULTIPLY", g.math("MULTIPLY", g.smooth(sepr.outputs["Y"], -0.004, 0.004), g.smooth(height, -0.236, -0.244)),
+                            g.math("SUBTRACT", 1.0, boot_k))
+            near_hi = g.math("MULTIPLY", near_g, g.math("GREATER_THAN", L, NEAR_HI_T))
+            colour = g.mix("MULTIPLY", near_hi, colour, NEAR_HI)
     # view-space normal: the edge (facing away from us) and where it points on screen
     vt = g.node("ShaderNodeVectorTransform")
     vt.vector_type = "NORMAL"
@@ -596,7 +660,10 @@ def build(m, mode="day"):
         gz = g.math("MULTIPLY", g.smooth(height, -0.415, -0.405), g.smooth(height, -0.215, -0.24))
         grain = g.math("ADD", g.math("MULTIPLY", g.noise(P, (90.0, 90.0, 25.0), 2.0, 0.5), 0.12), 0.94)
         colour = g.mix("MULTIPLY", gz, colour, g.grey(grain))
-        colour = g.mix("MULTIPLY", g.math("MULTIPLY", g.smooth(edge, 0.35, 0.75), g.math("MULTIPLY", gz, 0.45)), colour, (0.4, 0.42, 0.62))
+        colour = g.mix("MULTIPLY", g.math("MULTIPLY", g.smooth(edge, 0.35, 0.75), g.math("MULTIPLY", gz, GUARD_EDGE_K)), colour, (0.4, 0.42, 0.62))
+        if region == "armour_blue":  # (key art k43) the knee's shadow just under the guard's top: crisp
+            cast = g.math("MULTIPLY", g.smooth(height, GUARD_CAST[1], GUARD_CAST[1] - 0.001), g.smooth(height, GUARD_CAST[0], GUARD_CAST[0] + 0.001))
+            colour = g.mix("MULTIPLY", cast, colour, BLUE_SHADE)
     # occlusion: the locks parted, the fur's folds, the armour's seams
     if region in AO:
         dist, k = AO[region]

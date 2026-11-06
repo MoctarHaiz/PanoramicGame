@@ -1108,6 +1108,8 @@ def pose_key_throw():
     key_fringe_lift()
     key_hair_normals()
     key_fringe()
+    key_strip()
+    key_blue_normals()
 
 
 JUMP_LEAN = float(os.environ.get("JUMP_LEAN", "16"))  ## degrees forward his body leans in the flight
@@ -2428,6 +2430,20 @@ FRINGE_Y = 0.028  ## (rest y: beyond it the far temple's locks, at the head's si
 _FRINGE_UNDO = []
 
 
+def _picture_xy(wco):
+    """Where world points fall in the picture, in pixels (bpy_extras' world_to_camera_view, for many points at once)."""
+    n = len(wco)
+    cinv = np.array(SC.camera.matrix_world.normalized().inverted(), np.float64)
+    cl = np.c_[wco, np.ones(n)] @ cinv.T
+    zz = np.maximum(-cl[:, 2], 1e-6) if SC.camera.data.type != "ORTHO" else -np.ones(n)  # (ortho: the frame as it is)
+    fr = [np.array(v[:]) for v in SC.camera.data.view_frame(scene=SC)[:3]]
+    if SC.camera.data.type == "ORTHO":
+        fr = [v * np.array([1.0, 1.0, -1.0]) for v in fr]  # (so -v.x * zz / v.z is v.x)
+    min_x, max_x = -fr[2][0] * zz / fr[2][2], -fr[1][0] * zz / fr[1][2]
+    min_y, max_y = -fr[1][1] * zz / fr[1][2], -fr[0][1] * zz / fr[0][2]
+    return (cl[:, 0] - min_x) / (max_x - min_x) * SIZE, (1.0 - (cl[:, 1] - min_y) / (max_y - min_y)) * SIZE
+
+
 def key_fringe():
     """(Key art k41, judge: "the dark underside of the fringe touches the brow and muddies the eye area: a sliver of lit
     forehead between hair and brow would make the scowl read") the hairline over his brows lifted clear of them, in the
@@ -2477,17 +2493,7 @@ def key_fringe():
     wco = co @ mw[:3, :3].T + mw[:3, 3]
     wn = vn @ mw[:3, :3].T
     wn /= np.maximum(np.linalg.norm(wn, axis=1, keepdims=True), 1e-9)
-    # (bpy_extras' world_to_camera_view, for every vertex at once)
-    cinv = np.array(SC.camera.matrix_world.normalized().inverted(), np.float64)
-    cl = np.c_[wco, np.ones(n)] @ cinv.T
-    zz = np.maximum(-cl[:, 2], 1e-6) if SC.camera.data.type != "ORTHO" else -np.ones(n)  # (ortho: the frame as it is)
-    fr = [np.array(v[:]) for v in SC.camera.data.view_frame(scene=SC)[:3]]
-    if SC.camera.data.type == "ORTHO":
-        fr = [v * np.array([1.0, 1.0, -1.0]) for v in fr]  # (so -v.x * zz / v.z is v.x)
-    min_x, max_x = -fr[2][0] * zz / fr[2][2], -fr[1][0] * zz / fr[1][2]
-    min_y, max_y = -fr[1][1] * zz / fr[1][2], -fr[0][1] * zz / fr[0][2]
-    sx = (cl[:, 0] - min_x) / (max_x - min_x) * SIZE
-    sy = (1.0 - (cl[:, 1] - min_y) / (max_y - min_y)) * SIZE
+    sx, sy = _picture_xy(wco)
     # his drawn brows in the picture: the skin (or skin-hugging hair) under the decal's dark strokes over his eyes
     fy, fz, fs = _aaa_toon().FACE_FRAME
     w, h = dec.size
@@ -2597,7 +2603,122 @@ def key_fringe_lift():
     print("KEY_FRINGE_LIFT", int((dz > 1e-5).sum()), "vertices, up to", round(float(dz.max()), 4))
 
 
+STRIP_Z = float(os.environ.get("STRIP_Z", "-0.1"))  ## (key art k43) the cowhide below this rest height is hidden in the title screen
+
+
+def key_strip():
+    """(Key art k43, both judges: "the torn white strip hanging down the back thigh reads as a bandage or a rendering
+    glitch") the cowhide's trailing strip down his back thigh (and its tip poking out behind the front knee): the kilt
+    below STRIP_Z (rest) hidden in the title screen, so the back thigh reads as wrap and skin. Undone after the picture;
+    the user's file unchanged."""
+    if not (AAA and arg("--light", "day") == "sunset") or STRIP_Z <= -1.0:
+        return
+    me = MESH.data
+    names = [m.name if m else "" for m in me.materials]
+    if "AAA_fur" not in names:
+        return
+    hid = bpy.data.materials.get("AAA_hidden")
+    if hid is None:
+        hid = bpy.data.materials.new("AAA_hidden")
+        hid.use_nodes = True
+        nt = hid.node_tree
+        nt.nodes.clear()
+        out = nt.nodes.new("ShaderNodeOutputMaterial")
+        tr = nt.nodes.new("ShaderNodeBsdfTransparent")
+        nt.links.new(tr.outputs[0], out.inputs["Surface"])
+        if hasattr(hid, "surface_render_method"):
+            hid.surface_render_method = "DITHERED"
+        if hasattr(hid, "blend_method"):
+            hid.blend_method = "HASHED"
+    if "AAA_hidden" not in names:
+        me.materials.append(hid)
+        names.append("AAA_hidden")
+    n = len(me.vertices)
+    mi = np.zeros(len(me.polygons), np.int64); me.polygons.foreach_get("material_index", mi)
+    lt = np.zeros(len(me.polygons), np.int64); me.polygons.foreach_get("loop_total", lt)
+    ls = np.zeros(len(me.polygons), np.int64); me.polygons.foreach_get("loop_start", ls)
+    lv = np.zeros(len(me.loops), np.int64); me.loops.foreach_get("vertex_index", lv)
+    rc = np.zeros(n * 3, np.float32); me.attributes["rest_co"].data.foreach_get("vector", rc); rc = rc.reshape(-1, 3)
+    cen = np.add.reduceat(rc[lv], ls) / lt[:, None]
+    sel = np.nonzero((mi == names.index("AAA_fur")) & (cen[:, 2] < STRIP_Z))[0]
+    _FRINGE_UNDO.append((sel, mi[sel].copy()))
+    mi[sel] = names.index("AAA_hidden")
+    me.polygons.foreach_set("material_index", mi)
+    me.update()
+    bpy.context.view_layer.update()
+    print("KEY_STRIP", len(sel), "polygons hidden")
+
+
+def key_blue_normals():
+    """(Key art k43, "flat saturated royal blue with almost no shading: shade the cylinders, core shadow, lit side") the
+    shin guards and the wristbands lit as clean cylinders round their limbs: each blue vertex (not the boots) gets the
+    normal from its nearest limb's axis (the posed shin or forearm bone) out to it, as the attribute "blue_n" (world), so
+    the toon shader draws one crisp core shadow down each instead of the cloth's wrinkles. Removed after the picture."""
+    if not (AAA and arg("--light", "day") == "sunset"):
+        return
+    axes = []
+    for b in ("LeftLeg", "RightLeg", "LeftForeArm", "RightForeArm"):
+        pb = ARM.pose.bones.get(P + b)
+        if pb is not None:
+            axes.append((np.array(ARM.matrix_world @ pb.head, np.float64), np.array(ARM.matrix_world @ pb.tail, np.float64)))
+    if not axes:
+        return
+    dg = bpy.context.evaluated_depsgraph_get()
+    for ob in (MESH, bpy.data.objects.get("AAA_Bracer")):
+        if ob is None or ob.hide_render:
+            continue
+        me = ob.data
+        names = [m.name if m else "" for m in me.materials]
+        blue = [i for i, nm in enumerate(names) if nm in ("AAA_armour_blue", "AAA_bracer")]
+        if not blue:
+            continue
+        n = len(me.vertices)
+        mi = np.zeros(len(me.polygons), np.int64); me.polygons.foreach_get("material_index", mi)
+        lt = np.zeros(len(me.polygons), np.int64); me.polygons.foreach_get("loop_total", lt)
+        lv = np.zeros(len(me.loops), np.int64); me.loops.foreach_get("vertex_index", lv)
+        on = np.zeros(n, bool); on[lv[np.isin(np.repeat(mi, lt), blue)]] = True
+        if "rest_co" in me.attributes:  # (not the boots: they keep their own shading)
+            rc = np.zeros(n * 3, np.float32); me.attributes["rest_co"].data.foreach_get("vector", rc)
+            on &= rc.reshape(-1, 3)[:, 2] > -0.403
+        subs = [md for md in ob.modifiers if md.type == "SUBSURF" and md.show_viewport]
+        for md in subs:  # (the base vertices, posed: without the smoothing that adds vertices)
+            md.show_viewport = False
+        if subs:
+            bpy.context.view_layer.update()
+            dg = bpy.context.evaluated_depsgraph_get()
+        ev = ob.evaluated_get(dg).data
+        co = np.zeros(len(ev.vertices) * 3, np.float32); ev.vertices.foreach_get("co", co); co = co.reshape(-1, 3)
+        for md in subs:
+            md.show_viewport = True
+        if subs:
+            bpy.context.view_layer.update()
+            dg = bpy.context.evaluated_depsgraph_get()
+        if len(co) != n:
+            print("KEY_BLUE skipped", ob.name, len(co), n)
+            continue
+        mw = np.array(ob.matrix_world, np.float64)
+        w = co[on] @ mw[:3, :3].T + mw[:3, 3]
+        best = np.full(len(w), np.inf); nrm = np.zeros_like(w)
+        for h, t in axes:
+            d = t - h
+            u = np.clip(((w - h) @ d) / max(d @ d, 1e-9), 0.0, 1.0)
+            perp = w - (h + u[:, None] * d[None, :])
+            dist = np.linalg.norm(perp, axis=1)
+            k = dist < best
+            best[k] = dist[k]
+            nrm[k] = perp[k] / np.maximum(dist[k, None], 1e-9)
+        full = np.zeros((n, 3), np.float32); full[on] = nrm
+        att = me.attributes.get("blue_n") or me.attributes.new("blue_n", "FLOAT_VECTOR", "POINT")
+        att.data.foreach_set("vector", full.ravel())
+        me.update()
+        print("KEY_BLUE", ob.name, int(on.sum()))
+    bpy.context.view_layer.update()
+
+
 def key_fringe_undo():
+    for ob in (MESH, bpy.data.objects.get("AAA_Bracer")):  # (key art k43: the guards' cylinder normals, the title screen's only)
+        if ob is not None and ob.data.attributes.get("blue_n") is not None:
+            ob.data.attributes.remove(ob.data.attributes["blue_n"])
     while _FRINGE_UNDO:
         sel, old = _FRINGE_UNDO.pop()
         if isinstance(sel, str):
@@ -2622,7 +2743,7 @@ def key_depth_pass(folder):
     swapped = []
     for m in bpy.data.materials:
         nt = m.node_tree
-        if nt is None:
+        if nt is None or m.name == "AAA_hidden":  # (key art k43: hidden faces stay hidden)
             continue
         out = nt.get_output_node("EEVEE") or nt.get_output_node("ALL")
         if out is None:
