@@ -942,6 +942,10 @@ THROW_RING = float(os.environ.get("THROW_RING", "0.19"))  ## (key art k10: 0.14,
 ## keeps it inside its left two fifths, where the close-ups are cut)
 
 
+## (key art k51, judge 2 of k50: "no neck, the jaw sits directly on the red plaid shawl: a bobblehead") a short neck column
+NECK_LEN = float(os.environ.get("NECK_LEN", "1.75"))  ## the neck bone's length scale (k31-k50: 1.3): his head rises clear of the shawl
+NECK_COLLAR_Z = float(os.environ.get("NECK_COLLAR_Z", "0.315"))  ## (rest height) the shawl's collar above this is his neck and
+## trapezius in the title screen (the shawl sits lower); 1: off
 KEY_BUILD = {  # (key art k9, "a stringy, narrow torso and thin upper arms against heavy thighs and big boots") the key
     # art's build: bone scales across the bone (x, z; y runs along it), the children not inheriting them
     # (key art k31, "narrow shoulders barely wider than the head plus hair, a short narrow torso, a pinched waist, very long
@@ -950,7 +954,7 @@ KEY_BUILD = {  # (key art k9, "a stringy, narrow torso and thin upper arms again
     # longer (the throwing side's thicker too: on the fist side a thicker one pushed a jagged edge into the silhouette),
     # thicker forearms; the hands, head, pose and costume unchanged
     # (k9-k30: "Spine1": (1.12, 1.0, 1.05), "Spine2": (1.26, 1.0, 1.1), "Neck": (1.18, 1.0, 1.18), forearms (1.1, 1.0, 1.1))
-    "Spine": (1.15, 1.06, 1.08), "Spine1": (1.35, 1.06, 1.18), "Spine2": (1.5, 1.06, 1.25), "Neck": (1.5, 1.3, 1.4),
+    "Spine": (1.15, 1.06, 1.08), "Spine1": (1.35, 1.06, 1.18), "Spine2": (1.5, 1.06, 1.25), "Neck": (1.5, NECK_LEN, 1.4),
     "LeftShoulder": (1.0, 1.35, 1.0), "RightShoulder": (1.25, 1.6, 1.25),
     # (key art k32, "the armlet a flat vertical gold rectangle stuck on the bicep like a plaster": the upper arms back to their own
     # thickness (k31 1.2), which keeps k27's curved band; the forearms a little thicker than k27's (k31 1.32: swollen against them))
@@ -1078,11 +1082,47 @@ ARM_ANGLE = float(os.environ.get("ARM_ANGLE", "15.5")) if os.environ.get("ARM_AN
 ## throwing arm rises in the picture after the lean (k48: about 12)
 BACK_ANGLE = float(os.environ.get("BACK_ANGLE", "210")) if os.environ.get("BACK_ANGLE", "210") != "off" else None  ## (k50)
 ## the back arm's angle in the picture, shoulder to fist (k49 swung it up behind his head: "the back fist crowds the hair")
+## (key art k51, both judges of k50) the release: judge 2 "the palm turned up reads as a waiter carrying a tray, catching not
+## throwing: rotate the palm forward and down, fingers spread toward the target, a release follow-through"; judge 1 "the
+## chakram floats away from an open flat palm: put it at the fingertips with a motion arc" (the smear: tools/art/hero_atlas.py)
+RELEASE_ROLL = float(os.environ.get("RELEASE_ROLL", "0"))  ## degrees the throwing hand rolls round its own length (its open
+## palm from up to forward and down; the hand's shape unchanged); 0: k50 (k51 60: "a huge splayed paw, a stop gesture", lost)
+## (k52: with k50's palm-up hand the ring at 0.13 m from the fingertips looked held up on the palm: RING_GAP back to k50's 0.19
+## (from the hand's end) and no smear)
+RELEASE_FLEX = float(os.environ.get("RELEASE_FLEX", "0"))  ## and its wrist flicks down toward the throw (round the view axis)
+## (key art k52, both judges of k51 on k50: "the head pushed forward and down into the shawl, the neck disappears, the chin
+## buried"; "keep the lean in the spine and lift the chin so the face reads in three-quarter view"; judge 1: "the raised
+## throwing upper arm runs right under the jaw: chin, open mouth and arm one knot") his head pitched up round its own
+## side-to-side axis, the face to three-quarters, a skin column between the jaw and the shawl
+CHIN_LIFT = float(os.environ.get("CHIN_LIFT", "-12"))  ## degrees round the head's local x (negative lifts the chin here; 0: k50/k51)
+RING_GAP = float(os.environ.get("RING_GAP", "0.19"))  ## metres the ring has flown from his fingertips (k10-k50: 0.19 from the hand)
 ARM_KEEP = os.environ.get("ARM_KEEP", "1") == "1"  ## (k50) the throwing arm keeps its k48 orientation through the lean
 PUSH_SLIDE = float(os.environ.get("PUSH_SLIDE", "0.044"))  ## (k50) at most this far (metres) the back foot slides back (k49
 ## 0.087: "a stiff fencing lunge, the feet very far apart")
 PUSH_EXT = float(os.environ.get("PUSH_EXT", "0.95"))  ## the back leg's reach, a share of its length (a straight push-off)
 PUSH_HEEL = float(os.environ.get("PUSH_HEEL", "0.72"))  ## and its heel's lift (k48: 0.55)
+
+
+def _roll(bone, deg):
+    """Rolls a bone round its own length (the axis along it, not a world one); its children with it."""
+    pb = ARM.pose.bones[P + bone]
+    m = pb.matrix.copy()
+    r = Matrix.Rotation(math.radians(deg), 3, m.to_3x3().col[1].normalized())
+    new = (r @ m.to_3x3()).to_4x4()
+    new.translation = m.translation
+    pb.matrix = new
+    bpy.context.view_layer.update()
+
+
+def _pitch(bone, deg):
+    """Turns a bone round its own side-to-side axis (its local x), its children with it."""
+    pb = ARM.pose.bones[P + bone]
+    m = pb.matrix.copy()
+    r = Matrix.Rotation(math.radians(deg), 3, m.to_3x3().col[0].normalized())
+    new = (r @ m.to_3x3()).to_4x4()
+    new.translation = m.translation
+    pb.matrix = new
+    bpy.context.view_layer.update()
 
 
 def _push_off(side, ext, k, slide=1.0):
@@ -1174,6 +1214,12 @@ def pose_key_throw():
             now = now - 360.0 if now > 180.0 else now
             turn("RightArm", ARM_ANGLE - now, tuple(view))
             print("KEY_ARM rose %.1f -> %.1f deg" % (now, ARM_ANGLE))
+        if CHIN_LIFT:  # (k52) the chin lifted out of the shawl: the face to three-quarters
+            _pitch("Head", CHIN_LIFT)
+        if RELEASE_ROLL:  # (k51) the open palm turned forward and down, the wrist flicked toward the throw
+            _roll("RightHand", RELEASE_ROLL)
+        if RELEASE_FLEX:
+            turn("RightHand", RELEASE_FLEX, tuple(view))
         if BACK_ANGLE is not None:  # (k50) the back fist low and behind his chest, clear of his hair and face: its arm
             # turned round the view axis to BACK_ANGLE in the picture (180: straight back, more: lower)
             now = ang("LeftArm", "LeftHand")
@@ -1183,7 +1229,11 @@ def pose_key_throw():
     ring = bpy.data.objects.get("AAA_Chakram")
     if ring is not None:  # the ring well ahead of the hand on the throw's line
         fore = (bone_world("RightHand", "tail") - bone_world("RightForeArm")).normalized()
-        at = bone_world("RightHand", "tail") + (fore * 0.8 + Vector((0.0, 0.0, 0.45))).normalized() * THROW_RING
+        tips = bone_world("RightHandMiddle4") if (P + "RightHandMiddle4") in ARM.pose.bones else bone_world("RightHand", "tail")
+        if RING_GAP < THROW_RING:  # (k51) the ring just off his fingertips, on the throw's line
+            at = tips + (fore * 0.8 + Vector((0.0, 0.0, 0.45))).normalized() * RING_GAP
+        else:
+            at = bone_world("RightHand", "tail") + (fore * 0.8 + Vector((0.0, 0.0, 0.45))).normalized() * THROW_RING
         # (round 16) its blades turned to us (edge-on it read as a thin ring), tipped a little up the throw
         face = Vector((0.3, -1.0, 0.35)).normalized()
         rot = Vector((0.0, 0.0, 1.0)).rotation_difference(face).to_matrix().to_4x4()
@@ -1194,6 +1244,7 @@ def pose_key_throw():
     key_hair_normals()
     key_fringe()
     key_strip()
+    key_neck()
     key_blue_normals()
 
 
@@ -2454,7 +2505,8 @@ def toon_setup():
 # ------------------------------------------------------------------ render
 
 POINTS = {"hips": ("Hips", "head"), "head": ("HeadTop_End", "head"), "toe_r": ("RightToe_End", "head"),
-          "toe_l": ("LeftToe_End", "head"), "hand_r": ("RightHand", "head"), "hand_l": ("LeftHand", "head")}
+          "toe_l": ("LeftToe_End", "head"), "hand_r": ("RightHand", "head"), "hand_l": ("LeftHand", "head"),
+          "tips_r": ("RightHandMiddle4", "head")}  ## (key art k51: where the release smear starts)
 
 
 def points(cam):
@@ -2798,6 +2850,32 @@ def key_blue_normals():
         me.update()
         print("KEY_BLUE", ob.name, int(on.sum()))
     bpy.context.view_layer.update()
+
+
+def key_neck():
+    """(Key art k51, judge 2 of k50: "no neck, the jaw sits directly on the red plaid shawl: a bobblehead") the shawl's collar
+    round his neck and over his trapezius (above NECK_COLLAR_Z, rest) is his skin in the title screen, so a neck column and the
+    trapezius slope show above the cloth: the shawl sits lower. Undone after the picture; the user's file unchanged."""
+    if not (AAA and arg("--light", "day") == "sunset") or NECK_COLLAR_Z >= 1.0:
+        return
+    me = MESH.data
+    names = [m.name if m else "" for m in me.materials]
+    if "AAA_scarf" not in names or "AAA_skin" not in names:
+        return
+    n = len(me.vertices)
+    mi = np.zeros(len(me.polygons), np.int64); me.polygons.foreach_get("material_index", mi)
+    lt = np.zeros(len(me.polygons), np.int64); me.polygons.foreach_get("loop_total", lt)
+    ls = np.zeros(len(me.polygons), np.int64); me.polygons.foreach_get("loop_start", ls)
+    lv = np.zeros(len(me.loops), np.int64); me.loops.foreach_get("vertex_index", lv)
+    rc = np.zeros(n * 3, np.float32); me.attributes["rest_co"].data.foreach_get("vector", rc); rc = rc.reshape(-1, 3)
+    cen = np.add.reduceat(rc[lv], ls) / lt[:, None]
+    sel = np.nonzero((mi == names.index("AAA_scarf")) & (cen[:, 2] > NECK_COLLAR_Z))[0]
+    _FRINGE_UNDO.append((sel, mi[sel].copy()))
+    mi[sel] = names.index("AAA_skin")
+    me.polygons.foreach_set("material_index", mi)
+    me.update()
+    bpy.context.view_layer.update()
+    print("KEY_NECK", len(sel), "polygons of collar to skin")
 
 
 def key_fringe_undo():

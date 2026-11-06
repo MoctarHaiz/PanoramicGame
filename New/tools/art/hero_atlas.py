@@ -454,6 +454,10 @@ def throw_trail(folder: Path) -> np.ndarray:
     return out
 
 
+ARC_HAIR_CLEAR = float(os.environ.get("ARC_HAIR_CLEAR", "45"))  ## (key art k52, judge 1 of k50: "the chakram's motion arcs touch the
+## back of the hair") render px the spin arcs keep clear of his hair (they fade out before it); 0: k10-k51
+
+
 def swoosh_trail(folder: Path) -> np.ndarray:
     """(Key art k9, "a flat translucent cyan shard: a rendering glitch") the throw's trail as two spin arcs hugging the
     ring's trailing side: each a curved, tapered stroke, its outer (leading) edge a crisp white-hot line, the light
@@ -467,6 +471,12 @@ def swoosh_trail(folder: Path) -> np.ndarray:
     back = np.arctan2(-d[1], -d[0])  # the side it came from
     h, w = src.shape[:2]
     out = np.zeros((h, w, 4), np.float32)
+    hair_clear = None
+    dp = folder / "000_depth.npz"
+    if ARC_HAIR_CLEAR > 0 and dp.exists():  # (key art k52) a fade to nothing within ARC_HAIR_CLEAR px of his hair
+        hair = np.load(dp)["id"] == 1
+        dist = ndimage.distance_transform_edt(~hair)
+        hair_clear = np.clip((dist - ARC_HAIR_CLEAR) / (ARC_HAIR_CLEAR * 0.5), 0.0, 1.0).astype(np.float32)
     for rk, wk, span, ak in ((1.28, 0.36, 150.0, 1.0), (1.62, 0.2, 110.0, 0.8)):
         th = np.radians(np.linspace(-span * 0.55, span * 0.45, 500)) + back  # tail (k 0) to head (k 1)
         curve = centre + rk * radius * np.stack([np.cos(th), np.sin(th)], -1)
@@ -493,11 +503,77 @@ def swoosh_trail(folder: Path) -> np.ndarray:
         a = np.maximum(a * 0.72, edge * 0.98).reshape(yy.shape) * ak
         hot = edge.reshape(yy.shape)
         a *= np.clip((np.hypot(xx - centre[0], yy - centre[1]) - radius * 0.98) / 3.0, 0.0, 1.0)
+        if hair_clear is not None:  # (key art k52) the arcs off his hair: "the motion arcs touch the back of the hair"
+            a *= hair_clear[y0:y1, x0:x1]
         rgb = TRAIL + (np.array([0.95, 0.99, 1.0]) - TRAIL) * np.clip(hot * 1.2, 0, 1)[..., None]
         old = out[y0:y1, x0:x1]
         al = a + old[..., 3] * (1.0 - a)
         old[..., :3] = (rgb * a[..., None] + old[..., :3] * old[..., 3:4] * (1.0 - a[..., None])) / np.maximum(al, 1e-4)[..., None]
         old[..., 3] = al
+    return out
+
+
+## (key art k51, judge 1 of k50: "the chakram floats away from an open flat palm: put it at the fingertips with a motion arc")
+## a thin tapered smear from his fingertips to the ring, along a shallow arc: faint and hair-thin at the fingers, a little
+## wider and stronger where it meets the ring; a pale cool tint well under the face's value (never a glow)
+SMEAR_ALPHA = float(os.environ.get("SMEAR_ALPHA", "0"))  ## its strongest opacity (0: none, k50 and k52; k51 0.38)
+SMEAR_W = (1.5, 9.0)  ## render px half-width at the fingertips and at the ring
+SMEAR_BOW = 0.06  ## how far the arc bows up, a share of its length
+SMEAR_RGB = np.array([0.98, 0.93, 0.84])  ## (a pale warm cream, under the alpha: a little lighter than the sky, never a glow)
+
+
+def release_smear(folder: Path) -> np.ndarray:
+    src = np.asarray(Image.open(folder / "000.png"))
+    h, w = src.shape[:2]
+    out = np.zeros((h, w, 4), np.float32)
+    frame = json.loads((folder / "points.json").read_text())["frames"][0]
+    if SMEAR_ALPHA <= 0.0 or "tips_r" not in frame:
+        return out
+    from scipy.spatial import cKDTree
+    tips = np.array(frame["tips_r"], np.float64)
+    centre, radius, _ = _ring(folder)
+    dp = folder / "000_depth.npz"
+    if dp.exists():  # (the fingertip as drawn: the body's pixel near his hand closest to the ring)
+        z = np.load(dp)
+        body = z["a"] & (z["id"] == 0)
+        ys_, xs_ = np.nonzero(body)
+        near = np.hypot(xs_ - tips[0], ys_ - tips[1]) < h * 0.08
+        if near.any():
+            dd = np.hypot(xs_[near] - centre[0], ys_[near] - centre[1])
+            j = int(np.argmin(dd))
+            tips = np.array([xs_[near][j], ys_[near][j]], np.float64)
+    d = centre - tips
+    ln = np.hypot(*d)
+    end = centre - d / max(ln, 1e-6) * radius * 0.9  # (to the ring's rim, not its hole)
+    mid = (tips + end) / 2.0 + np.array([d[1], -d[0]]) / max(ln, 1e-6) * ln * SMEAR_BOW * (1 if d[0] >= 0 else -1)
+    t = np.linspace(0.0, 1.0, 400)[:, None]
+    curve = (1 - t) ** 2 * tips + 2 * (1 - t) * t * mid + t ** 2 * end
+    lo = np.floor(curve.min(0) - SMEAR_W[1] - 3).astype(int).clip(0)
+    hi = np.ceil(curve.max(0) + SMEAR_W[1] + 3).astype(int)
+    x0, y0 = lo
+    x1, y1 = min(hi[0], w), min(hi[1], h)
+    yy, xx = np.mgrid[y0:y1, x0:x1]
+    pix = np.stack([xx.ravel(), yy.ravel()], -1).astype(np.float64)
+    dist, i = cKDTree(curve).query(pix)
+    k = i / (len(curve) - 1)
+    width = SMEAR_W[0] + (SMEAR_W[1] - SMEAR_W[0]) * k
+    across = np.clip((width + 1.0 - dist) / 2.0, 0.0, 1.0)  # (crisp, a pixel of softening)
+    along = np.clip(k / 0.15, 0.0, 1.0) * (0.35 + 0.65 * k)  # (from nothing at the fingers to its strongest at the ring)
+    a = (across * along * SMEAR_ALPHA).reshape(yy.shape)
+    a *= np.clip((np.hypot(xx - centre[0], yy - centre[1]) - radius * 0.98) / 3.0, 0.0, 1.0)  # (never over the ring)
+    out[y0:y1, x0:x1, :3] = SMEAR_RGB
+    out[y0:y1, x0:x1, 3] = a
+    return out
+
+
+def menu_trail(folder: Path) -> np.ndarray:
+    """The throw's trail under the menu's hero: the spin arcs round the ring, and (k51) the release smear."""
+    out = swoosh_trail(folder)
+    sm = release_smear(folder)
+    a = sm[..., 3:4]
+    al = a[..., 0] + out[..., 3] * (1.0 - a[..., 0])
+    out[..., :3] = (sm[..., :3] * a + out[..., :3] * out[..., 3:4] * (1.0 - a)) / np.maximum(al, 1e-4)[..., None]
+    out[..., 3] = al
     return out
 
 
@@ -609,7 +685,7 @@ def pictures() -> None:
     # a wide pose: as many pixels as an upright one, its ink drawn at that size (round 11: reduced after inking,
     # the line went soft and uneven)
     k = min((MENU_PIXELS / (hero.shape[0] * hero.shape[1])) ** 0.5, 1.0)
-    menu = trimmed(ui / "menu_hero/000.png", int(round(1100 * k)), sunset=True, under=swoosh_trail(ui / "menu_hero"),
+    menu = trimmed(ui / "menu_hero/000.png", int(round(1100 * k)), sunset=True, under=menu_trail(ui / "menu_hero"),
                    over=inner_lines(ui / "menu_hero"), ink_k=MENU_INK, clean=True, ink_lit=MENU_INK_LIT, ink_mix=0.85,
                    ink_colour=MENU_INK_COLOUR, ink_calm=MENU_INK_CALM, ink_strand=MENU_INK_STRAND)
     # (key art k36) the outer line: dark warm brown, a touch thinner, thinner still on the lit side, calm round the hem, boots,

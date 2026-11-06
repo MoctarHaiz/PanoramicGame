@@ -20,12 +20,13 @@ const ROCK := "res://assets/art/ui/menu_rock.png"  ## loaded with the menu (7 MB
 const ROCK_STAND := Vector2(1390, 152)  ## where his feet go on the rock, in its pixels (tools/art/ui_hero.py)
 const ROCK_LEDGE := 660.0  ## the rock's flat top his stance spans, boot to boot, in its pixels
 const ROCK_TILT := -0.066  ## the rock turned a little (radians) so its ledge is level under both boots
-const STANCE := 0.7143  ## (key art k50: the push-off's narrower stance; k49 0.7443; k31-k48 0.6422)  ## (key art k31: the new build's picture is narrower and taller; the rock kept its size)  (k15-k30 0.629)  ## his stance, boot to boot, as a share of the render's width (hero_menu.png; round 15's throw,
+const STANCE := 0.7147  ## (key art k52: the new picture's boots; k51 0.6603; k50 0.7143; k49 0.7443; k31-k48 0.6422)  ## (key art k31: the new build's picture is narrower and taller; the rock kept its size)  (k15-k30 0.629)  ## his stance, boot to boot, as a share of the render's width (hero_menu.png; round 15's throw,
 ## its free arm and trail further out: 0.81 -> 0.629, round 17 0.629)
-const FEET_X := 0.4646  ## (key art k50, the point between his boots in the new picture; k49 0.4725; k31-k48 0.4329)  ## (key art k31, the same point on screen; k17-k30 0.424)  ## the point between his boots, as a share of its width (round 17: 0.424)
+const FEET_X := 0.4651  ## (key art k52, the point between his boots in the new picture; k51 0.4338; k50 0.4646; k49 0.4725; k31-k48 0.4329)  ## (key art k31, the same point on screen; k17-k30 0.424)  ## the point between his boots, as a share of its width (round 17: 0.424)
 const HERO_WIDE := 0.36  ## at most this share of the screen's width (round 15: 0.33; the wider throw kept as tall)
-const HERO_TALL := 0.8322  ## (key art k50: the raised ring makes the picture taller; his boots kept their size on screen; k49 0.840; k31-k48 0.8174)  ## (key art k31: his longer torso makes the picture taller; his legs and boots kept their size and place on screen; k12-k30 0.8)  ## his height, as a share of the screen's
+const HERO_TALL := 0.8435  ## (key art k52: his boots kept their size on screen in the new picture; k51 0.8484; k50 0.8322; k49 0.840; k31-k48 0.8174)  ## (key art k31: his longer torso makes the picture taller; his legs and boots kept their size and place on screen; k12-k30 0.8)  ## his height, as a share of the screen's
 const FEET_AT := 0.9  ## where his feet stand, as a share of the screen's height
+const SUN_SHIFT := Vector2(-0.075, 0.0)  ## (key art k51, both judges of k50: "the hair edge just touches the sun disc: it looks accidental") the sun slid off his hair, a share of his picture's size (Vector2.ZERO: k7-k50's place); it stays in the sky, no glow on him
 const FEET_SINK := 0.008  ## his soles pressed onto the rock's ledge, a share of his height (key art k6: they hovered ~7 px over it,
 ## his contact shadow fell on the grass behind, "no contact shadow on the rock")
 
@@ -332,7 +333,7 @@ func _layout() -> void:
 	# the sun, low, between him and the title: it rims him and fills the middle with light
 	# the sun right behind him, low: he stands against it, rim-lit, and the title column keeps calm
 	# sky behind it
-	var sun := _hero.position + Vector2(w * 0.32, h * 0.1)  # (key art k7, "the hair edge touches the disc edge": the disc 25 px clear of his silhouette, left of his head at its height)  # (key art k6: the layered halo behind the back of his head, off the ring and the kilt)  # (key art k5: up behind his head and back, a halo; low it lit his crotch)  # (key art k4: low behind his back, clear of his face and the ring)  # (key art k2: off his head, behind the throw, "a white blob that competes with the face")  # (round 17: behind his shoulders; at his belt it "washed out the abs")
+	var sun := _hero.position + Vector2(w * (0.32 + SUN_SHIFT.x), h * (0.1 + SUN_SHIFT.y))  # (key art k7, "the hair edge touches the disc edge": the disc 25 px clear of his silhouette, left of his head at its height)  # (key art k6: the layered halo behind the back of his head, off the ring and the kilt)  # (key art k5: up behind his head and back, a halo; low it lit his crotch)  # (key art k4: low behind his back, clear of his face and the ring)  # (key art k2: off his head, behind the throw, "a white blob that competes with the face")  # (round 17: behind his shoulders; at his belt it "washed out the abs")
 	_backdrop.sun_at = sun / v
 	_halo_glow.size = Vector2(v.y * 1.5, v.y * 1.5)
 	_halo_glow.position = sun - _halo_glow.size / 2
