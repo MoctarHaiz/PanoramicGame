@@ -973,6 +973,78 @@ def key_build():
     bpy.context.view_layer.update()
 
 
+HAIR_LOCKS = int(os.environ.get("HAIR_LOCKS", "6"))  ## (key art k39) the big locks his hair's shading is grouped into
+HAIR_ROUND = float(os.environ.get("HAIR_ROUND", "0.6"))  ## how much each lock shades as a round clump round its own axis (the
+## rest: the head's own roundness)
+
+
+def key_hair_normals():
+    """(Key art k39, "a dark noisy blob with scratchy strands: design it as 5-7 big clumps with a light side, a shadow side
+    and a clean highlight") his hair's shading grouped into HAIR_LOCKS big locks, its geometry and silhouette untouched: the
+    hair's vertices clustered by their way out from the middle of his head (rest), and each given a designed normal in the
+    posed picture, a round clump about its lock's axis blended with the head's roundness. The toon shader lights the hair
+    by it (attribute "hair_n", world space): each lock one clean mass with its own light and shadow side, crisp between."""
+    if not (AAA and arg("--light", "day") == "sunset") or os.environ.get("KEY_HAIR", "1") != "1":
+        return
+    me = MESH.data
+    names = [m.name if m else "" for m in me.materials]
+    if "AAA_hair" not in names:
+        return
+    n = len(me.vertices)
+    mi = np.zeros(len(me.polygons), np.int64); me.polygons.foreach_get("material_index", mi)
+    lt = np.zeros(len(me.polygons), np.int64); me.polygons.foreach_get("loop_total", lt)
+    lv = np.zeros(len(me.loops), np.int64); me.loops.foreach_get("vertex_index", lv)
+    hair = np.zeros(n, bool); hair[lv[np.repeat(mi, lt) == names.index("AAA_hair")]] = True
+    rc = np.zeros(n * 3, np.float32); me.attributes["rest_co"].data.foreach_get("vector", rc); rc = rc.reshape(-1, 3)
+    centre_rest = np.array([0.0, 0.0, 0.4], np.float32)
+    idx = np.nonzero(hair)[0]
+    u = rc[idx] - centre_rest
+    u /= np.maximum(np.linalg.norm(u, axis=1, keepdims=True), 1e-6)
+    # k-means on the directions, seeded spread over them (deterministic)
+    rng = np.random.default_rng(7)
+    cen = u[rng.choice(len(u), HAIR_LOCKS, replace=False)]
+    for _ in range(25):
+        lab = np.argmax(u @ cen.T, 1)
+        for k in range(HAIR_LOCKS):
+            m = lab == k
+            if m.any():
+                c = u[m].mean(0)
+                cen[k] = c / max(np.linalg.norm(c), 1e-6)
+    lab = np.argmax(u @ cen.T, 1)
+    # the posed positions
+    dg = bpy.context.evaluated_depsgraph_get()
+    ev = MESH.evaluated_get(dg).data
+    co = np.zeros(len(ev.vertices) * 3, np.float32); ev.vertices.foreach_get("co", co); co = co.reshape(-1, 3)
+    mw = np.array(MESH.matrix_world, np.float32)
+    wco = co[idx] @ mw[:3, :3].T + mw[:3, 3]
+    hb = ARM.pose.bones[P + "Head"]
+    head = np.array(ARM.matrix_world @ hb.head, np.float32)
+    tail = np.array(ARM.matrix_world @ hb.tail, np.float32)
+    c0 = head + (tail - head) * 0.45  # (the middle of his head, posed)
+    d = wco - c0
+    sph = d / np.maximum(np.linalg.norm(d, axis=1, keepdims=True), 1e-6)
+    out = np.zeros_like(wco)
+    for k in range(HAIR_LOCKS):
+        m = lab == k
+        if not m.any():
+            continue
+        a = sph[m].mean(0)
+        a /= max(np.linalg.norm(a), 1e-6)
+        perp = d[m] - (d[m] @ a)[:, None] * a[None, :]
+        perp /= np.maximum(np.linalg.norm(perp, axis=1, keepdims=True), 1e-6)
+        out[m] = HAIR_ROUND * perp + (1.0 - HAIR_ROUND) * sph[m]
+    out /= np.maximum(np.linalg.norm(out, axis=1, keepdims=True), 1e-6)
+    full = np.zeros((n, 3), np.float32)
+    full[idx] = out
+    att = me.attributes.get("hair_n") or me.attributes.new("hair_n", "FLOAT_VECTOR", "POINT")
+    att.data.foreach_set("vector", full.ravel())
+    lk = me.attributes.get("hair_lock") or me.attributes.new("hair_lock", "FLOAT", "POINT")
+    lock_full = np.zeros(n, np.float32); lock_full[idx] = (lab + 1) / float(HAIR_LOCKS)
+    lk.data.foreach_set("value", lock_full)
+    bpy.context.view_layer.update()
+    print("KEY_HAIR locks", np.bincount(lab).tolist())
+
+
 def pose_key_throw():
     """The title screen (round 15): the release with the body behind it: the hips driven over the bent front knee,
     the back heel up, the shoulders turned through against the hips, the free arm pulled back hard (his armoured fist
@@ -1011,6 +1083,7 @@ def pose_key_throw():
         m = Matrix.Translation(at) @ rot @ Matrix.Diagonal((*ring.matrix_world.to_scale(), 1.0))
         ring.matrix_world = m
         bpy.context.view_layer.update()
+    key_hair_normals()
 
 
 JUMP_LEAN = float(os.environ.get("JUMP_LEAN", "16"))  ## degrees forward his body leans in the flight

@@ -137,6 +137,14 @@ FACE_TO_SKIN = (0.777, 0.876, 1.11)  ## the face picture's mean skin to SKIN (bo
 HAIR_RIM = (0.55, 0.2, 0.05)  ## (round 16, "a solid black blob") a warm rim on the sun side of every clump (linear)
 HAIR_TIPS = (0.05, 0.022, 0.012)  ## and the locks' ends a warm dark brown
 HAIR_CENTRE = (0.0, 0.0, 0.4)  ## the middle of his head in the rest shape (the tips lie furthest from it)
+## (key art k39, "a dark noisy blob with scratchy strands, a jagged fuzzy edge: 5-7 big clumps with a light side, a shadow side
+## and a few clean highlights") in the pictures the hair is lit by its designed lock normals (hero_render.py
+## key_hair_normals(): attribute "hair_n"): each big lock one mass, a crisp light and shadow side, one clean warm-brown
+## highlight band along it, no strand noise (no lock noise, normal map or deep occlusion)
+HAIR_LOCK_K = float(_os.environ.get("HAIR_LOCK_K", "0.55"))  ## the share of the lock's normal in the hair's light
+HAIR_HI = (0.11, 0.05, 0.026)  ## the highlight band: his hair's own warm brown (linear), never cool or glossy
+HAIR_HI_CUT = (0.5, 0.56)  ## where the lock's sheen turns into the band (a crisp edge)
+HAIR_AO_K = 0.3  ## the occlusion kept in the pictures (deep gaps only; was 0.9)
 ## (key art k7, "the lower body melts into the background: one orange-tan value"; "a generic fighter: one signature
 ## colour") the kilt a white Nguni cowhide with bold dark patches (the logo shield's hide) and a beaded hem, a red sash
 ## round his waist, the leather under the kilt dark; the boots: clean blue shin guards over dark glossy leather
@@ -331,7 +339,7 @@ def build(m, mode="day"):
             albedo = g.mix("MIX", DAY_FLAT_K, albedo, UI_FLAT[region])
     geo = g.node("ShaderNodeNewGeometry")
     N = geo.outputs["Normal"]
-    if nm_img is not None and region in NORMAL_MAP and not (mode == "sunset" and BOLD and region in ("armour_blue", "armour_silver", "fur", "belt")):
+    if nm_img is not None and region in NORMAL_MAP and not (mode == "sunset" and BOLD and region in ("armour_blue", "armour_silver", "fur", "belt", "hair")):
         # (key art k27: and none on the cowhide and the wrap: "grey speckles in the white", "muddy smears")
         # (key art k11: no painted normal map on the guards and boots in the pictures: "glossy white streaks")
         nt_tex = g.node("ShaderNodeTexImage")
@@ -394,7 +402,39 @@ def build(m, mode="day"):
         if region == "skin":  # a crisp shadow cast by the hem on the skin just below it
             cast = g.math("MULTIPLY", g.math("MULTIPLY", g.smooth(hem_d, HEM_SHADOW, HEM_SHADOW * 0.85), g.math("GREATER_THAN", hem_d, 0.0)), legs)
             L = g.math("SUBTRACT", L, g.math("MULTIPLY", cast, 1.5))
-    if region == "hair":  # the locks: their own terminator, broken per lock (round 15: big locks, "a fuzzy helmet")
+    hair_n = None
+    if region == "hair" and mode == "sunset" and BOLD:  # (key art k39) the light of its big locks, not of every strand
+        att_hn = g.node("ShaderNodeAttribute")
+        att_hn.attribute_name = "hair_n"
+        hn = g.node("ShaderNodeVectorMath")
+        hn.operation = "NORMALIZE"
+        g.link(att_hn.outputs["Vector"], hn.inputs[0])
+        # the lock's normal blended with each spike's own (HAIR_LOCK_K of the lock): the big masses lead, the spikes keep a
+        # little form inside them
+        bl = g.node("ShaderNodeVectorMath")
+        bl.operation = "SCALE"
+        g.link(hn.outputs["Vector"], bl.inputs[0])
+        bl.inputs["Scale"].default_value = HAIR_LOCK_K
+        bg_ = g.node("ShaderNodeVectorMath")
+        bg_.operation = "SCALE"
+        g.link(geo.outputs["Normal"], bg_.inputs[0])
+        bg_.inputs["Scale"].default_value = 1.0 - HAIR_LOCK_K
+        sm_ = g.node("ShaderNodeVectorMath")
+        sm_.operation = "ADD"
+        g.link(bl.outputs["Vector"], sm_.inputs[0])
+        g.link(bg_.outputs["Vector"], sm_.inputs[1])
+        hn2 = g.node("ShaderNodeVectorMath")
+        hn2.operation = "NORMALIZE"
+        g.link(sm_.outputs["Vector"], hn2.inputs[0])
+        hair_n = hn2.outputs["Vector"]
+        dif_h = g.node("ShaderNodeBsdfDiffuse", Color=(1, 1, 1, 1))
+        g.link(hair_n, dif_h.inputs["Normal"])
+        s2h = g.node("ShaderNodeShaderToRGB")
+        g.link(dif_h.outputs[0], s2h.inputs[0])
+        bwh = g.node("ShaderNodeRGBToBW")
+        g.link(s2h.outputs["Color"], bwh.inputs[0])
+        L = bwh.outputs[0]
+    elif region == "hair":  # the locks: their own terminator, broken per lock (round 15: big locks, "a fuzzy helmet")
         lock = g.noise(P, (9.0, 9.0, 9.0), 0.0, 0.4)  # (key art k3: 16 -> 9, 5-7 big locks, "a pineapple top")
         L = g.math("ADD", L, g.math("MULTIPLY", g.math("SUBTRACT", lock, 0.5), 0.3))  # (k10: k7's grouped locks back)
     if region == "hand" and mode == "sunset" and BOLD and not flat:
@@ -538,6 +578,8 @@ def build(m, mode="day"):
         dist, k = AO[region]
         if region == "fur" and mode == "sunset" and BOLD:  # (key art k7) the white hide clean, not grey with dirt
             k = 0.5
+        if region == "hair" and mode == "sunset" and BOLD:  # (key art k39) deep gaps only, not every strand's crevice
+            k = HAIR_AO_K
         ao = g.node("ShaderNodeAmbientOcclusion", Distance=dist)
         ao.samples = 48  # (round 17: 16 left a "watercolour noise")
         ao.only_local = True
@@ -600,7 +642,23 @@ def build(m, mode="day"):
         root = g.math("MULTIPLY", g.smooth(sepp.outputs["Z"], 0.0, 0.075), 0.14)
         v = g.math("MULTIPLY", v, g.math("SUBTRACT", 1.0, g.math("ADD", under, root)))
         colour = g.mix("MULTIPLY", 1.0, colour, g.grey(v))
-    if region == "hair":
+    if region == "hair" and hair_n is not None:
+        # (key art k39) one clean warm-brown band along each lock where its sheen faces the light and us (crisp), and its tips
+        gl_h = g.node("ShaderNodeBsdfGlossy", Roughness=0.35)
+        g.link(hair_n, gl_h.inputs["Normal"])
+        s2gh = g.node("ShaderNodeShaderToRGB")
+        g.link(gl_h.outputs[0], s2gh.inputs[0])
+        bwg = g.node("ShaderNodeRGBToBW")
+        g.link(s2gh.outputs["Color"], bwg.inputs[0])
+        hi = g.smooth(bwg.outputs[0], HAIR_HI_CUT[0], HAIR_HI_CUT[1])
+        colour = g.mix("MIX", g.math("MULTIPLY", hi, 0.95), colour, HAIR_HI)
+        cen = g.node("ShaderNodeVectorMath")
+        cen.operation = "DISTANCE"
+        g.link(P, cen.inputs[0])
+        cen.inputs[1].default_value = HAIR_CENTRE
+        tips = g.smooth(cen.outputs["Value"], 0.11, 0.16)
+        colour = g.mix("MIX", g.math("MULTIPLY", tips, 0.6), colour, (0.13, 0.065, 0.035))  # (k10's warm tips, kept)
+    elif region == "hair":
         # a broken highlight band (an angel ring split into strand groups), only in the light
         off = g.math("MULTIPLY", g.math("SUBTRACT", g.noise(P, (70.0, 70.0, 70.0), 2.0, 0.5), 0.5), 0.5 if mode == "day" else 0.08)
         y = g.math("ADD", sep.outputs["Y"], off)
