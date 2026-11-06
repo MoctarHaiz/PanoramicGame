@@ -40,6 +40,13 @@ MARGIN = 8  # px kept around the figure
 HEAD_BOX = (438, 92, 598, 252)  # his face in the standing render (head.png)
 ROCK_SIZE = (2000, 720)
 ROCK_STAND = (660, 150)  # where his feet stand on the rock before the mirroring, in its pixels
+## (key art k54, the judges: "no contact shadow under either boot" (the dark pools under his soles had nothing to read against
+## on the dark rock); "a lit top face, a dark front face and hard edges") a lit top plane on the ledge where he stands: a
+## lighter, neutral stone band under his boots with a hard edge to a darker front face below it
+LEDGE_LIT = 0.6  ## how far the top plane goes to its stone colour (0: k6-k53's rock)
+LEDGE_HALF = 430  ## px either side of his stance the plane runs (it fades over 80 px at its ends)
+LEDGE_DEPTH = 30  ## px the top plane reaches down from the rock's edge
+LEDGE_RGB = "b39d8e"  ## a light neutral sandstone (not the sunset's orange)
 
 
 def bleed(img: Image.Image) -> Image.Image:
@@ -161,11 +168,23 @@ def rock() -> Image.Image:
     ao = np.clip((blur(height, 18.0) - height) / 14.0, 0, 1)
     col = mix(col, hexc("12060c"), ao * 0.7)
     col = mix(col, hexc("1c0c16"), smooth(0.42, 1.0, yy / h) * 0.8)
+    if LEDGE_LIT > 0.0:  # (key art k54) the lit top plane where he stands, a hard edge to a darker front face
+        along = np.clip((LEDGE_HALF - np.abs(xx - sx)) / 80.0, 0.0, 1.0)
+        plane = ((below >= 0) & (below < LEDGE_DEPTH)).astype(float) * along * inside
+        plane = blur(plane, 0.8)
+        col = mix(col, hexc(LEDGE_RGB) * (0.88 + 0.12 * lit[..., None]), plane * LEDGE_LIT)
+        front = ((below >= LEDGE_DEPTH) & (below < LEDGE_DEPTH + 46)).astype(float) * along * inside
+        col = mix(col, col * 0.78, blur(front, 0.8) * LEDGE_LIT)
     return dither_rgba(np.clip(col, 0, 255), mask, rng)
 
 
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
+    if "--rock" in sys.argv:  # (key art k54) the menu's rock only
+        r = rock().transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+        r.save(OUT / "menu_rock.png", optimize=True)
+        print(f"menu_rock.png {r.size}")
+        return
     for name, rel in SOURCES.items():
         out = cut(MAKING / rel)
         out.save(OUT / f"{name}.png", optimize=True)

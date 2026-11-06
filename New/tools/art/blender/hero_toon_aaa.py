@@ -177,6 +177,9 @@ COW_SPOTS_KEY = ((-0.1, -0.046, 0.023, 0.027), (-0.127, -0.083, 0.012, 0.015), (
 WRAP_HEM = (0.028, 0.0028, 0.004)
 HEM_W = 0.0024
 HEM_SHADOW = 0.0055
+SKIN_MID_FLOOR = float(_os.environ.get("SKIN_MID_FLOOR", "0.42"))  ## (key art k54) on the big form's lit side the small forms' grooves
+## never go below this light (the mid band: a soft lower shadow, not a dark cut line)
+SKIN_BIG_LIT = (0.3, 0.5)  ## where the big form turns from its shadow side to its lit side (the definition fades in over it)
 WRAP_FOLD = ((-0.05, -0.035), (0.035, -0.08))
 WRAP_FOLD_W = 0.0065
 ## (key art k33, "the back fist a brown lump with fur-like smudges, no finger or knuckle planes: a rock, a mitten"; "four
@@ -451,6 +454,24 @@ def build(m, mode="day"):
     sepr = g.node("ShaderNodeSeparateXYZ")
     g.link(P, sepr.inputs[0])
     height = sepr.outputs["Z"]  # (rest shape: -0.5 at his soles, 0.5 at the top of his hair)
+    if region == "skin" and mode == "sunset" and BOLD and not flat:  # (key art k54) the small forms lit only on the big form's
+        # lit side, their grooves held up in the mid band; the big form alone on its shadow side (hero_render.py key_skin_big())
+        att_sb = g.node("ShaderNodeAttribute")
+        att_sb.attribute_name = "skin_big"
+        sbl = g.node("ShaderNodeVectorMath"); sbl.operation = "LENGTH"
+        g.link(att_sb.outputs["Vector"], sbl.inputs[0])
+        has_big = g.math("GREATER_THAN", sbl.outputs["Value"], 0.5)
+        sbn = g.node("ShaderNodeVectorMath"); sbn.operation = "NORMALIZE"
+        g.link(att_sb.outputs["Vector"], sbn.inputs[0])
+        dif_b = g.node("ShaderNodeBsdfDiffuse", Color=(1, 1, 1, 1))
+        g.link(sbn.outputs["Vector"], dif_b.inputs["Normal"])
+        s2b = g.node("ShaderNodeShaderToRGB"); g.link(dif_b.outputs[0], s2b.inputs[0])
+        bwb = g.node("ShaderNodeRGBToBW"); g.link(s2b.outputs["Color"], bwb.inputs[0])
+        Lb = bwb.outputs[0]
+        lit_side = g.smooth(Lb, SKIN_BIG_LIT[0], SKIN_BIG_LIT[1])
+        held = g.math("MAXIMUM", L, SKIN_MID_FLOOR)
+        L_new = g.math("ADD", Lb, g.math("MULTIPLY", g.math("SUBTRACT", held, Lb), lit_side))
+        L = g.math("ADD", L, g.math("MULTIPLY", g.math("SUBTRACT", L_new, L), has_big))
     if BOLD and not flat and region in ("skin", "face", "hand"):  # (round 15) his chest and face in the most light
         L = g.math("ADD", L, g.math("MULTIPLY", g.smooth(height, 0.0, 0.3), CHEST_LIFT))
     if region == "skin" and mode == "sunset" and BOLD and not flat:

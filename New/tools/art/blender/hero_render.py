@@ -1246,6 +1246,7 @@ def pose_key_throw():
     key_strip()
     key_neck()
     key_blue_normals()
+    key_skin_big()
 
 
 JUMP_LEAN = float(os.environ.get("JUMP_LEAN", "16"))  ## degrees forward his body leans in the flight
@@ -2329,6 +2330,47 @@ KEY_SKIN_W = os.path.join(os.path.dirname(bpy.data.filepath), "key_skin_weights.
 KEY_FIST = os.path.join(os.path.dirname(bpy.data.filepath), "key_fist_gap.npy")  ## (key art k33) the back fist's finger breaks
 
 
+SKIN_SMOOTH_IT = int(os.environ.get("SKIN_SMOOTH_IT", "30"))  ## the skin proxy's smoothing (k24-k52: 30)
+## (key art k53, all four judges of k51 and k52: "scratchy dark-brown hatching on the abs, ribs and forearm over flat cel, like a
+## filter over a 3D render, reads as dirt or stretch marks: 2-3 clean cel value bands with hard designed shapes per muscle
+## group") the strokes are the cel bands cutting the shading surface's small forms (k25's sculpted ab blocks, serratus and
+## creases, a few cm across): that surface smoothed on his torso and arms, so the bands follow the big forms (chest, ribcage,
+## arm) in a few large shapes, and the designed shadow shapes drawn on them in the toon shader
+SKIN_FORM_IT = int(os.environ.get("SKIN_FORM_IT", "20"))  ## Laplacian passes over the shading surface (torso, arms); 0: k25-k52
+SKIN_FORM_Z = 0.03  ## (rest height) above this: torso and arms (the legs and the wrap kept)
+## (key art k54, both judges of k53: k53's 200 passes "a soft, flat brown slab, no abdominal, oblique or serratus planes", and
+## of k52: "give each ab block a light upper plane and a soft lower shadow instead of a dark cut line, and fade the definition
+## toward the shadow side") the middle ground (k53: 200; k52: 0), and the light read off two surfaces: where the body's big
+## form (the surface smoothed SKIN_BIG_IT passes: attribute "skin_big") is lit, the small forms show as lit upper planes with
+## their grooves held up in the mid tone (never a dark cut); where it turns away, the big form alone (the definition fades)
+SKIN_BIG_IT = int(os.environ.get("SKIN_BIG_IT", "200"))  ## passes for the big form; 0: off (the small forms alone, as k52/k53)
+
+
+def _skin_forms_smoothed(co, its=None):
+    its = SKIN_FORM_IT if its is None else its
+    me = MESH.data
+    n = len(me.vertices)
+    rc = np.zeros(n * 3, np.float32); me.attributes["rest_co"].data.foreach_get("vector", rc); rc = rc.reshape(-1, 3)
+    mi = np.zeros(len(me.polygons), np.int64); me.polygons.foreach_get("material_index", mi)
+    lt = np.zeros(len(me.polygons), np.int64); me.polygons.foreach_get("loop_total", lt)
+    lv = np.zeros(len(me.loops), np.int64); me.loops.foreach_get("vertex_index", lv)
+    skin = np.zeros(n, bool); skin[lv[np.repeat(mi, lt) == 0]] = True
+    move = skin & (rc[:, 2] > SKIN_FORM_Z)
+    ev = np.zeros(len(me.edges) * 2, np.int64); me.edges.foreach_get("vertices", ev); ev = ev.reshape(-1, 2)
+    ev = ev[skin[ev[:, 0]] & skin[ev[:, 1]]]
+    deg = np.bincount(ev.ravel(), minlength=n).astype(np.float64)
+    out = co.astype(np.float64).copy()
+    for _ in range(its):
+        acc = np.zeros_like(out)
+        np.add.at(acc, ev[:, 0], out[ev[:, 1]])
+        np.add.at(acc, ev[:, 1], out[ev[:, 0]])
+        avg = acc / np.maximum(deg, 1.0)[:, None]
+        m = move & (deg > 0)
+        out[m] = out[m] * 0.5 + avg[m] * 0.5
+    print("KEY_SKIN forms smoothed", int(move.sum()), its)
+    return out.astype(co.dtype)
+
+
 def key_skin_normals():
     """(Key art k24, "fuzzy brush-grain skin inside a clean outline": the grain was the sculpt's small bumps, stray
     skin weights and a crease the waist bend crushes into the belly, all read by the cel bands; not the light, Fast GI
@@ -2343,6 +2385,9 @@ def key_skin_normals():
     if len(co) != len(MESH.data.vertices):
         print("KEY_SKIN: vertex count differs, skipped")
         return
+    co_raw = co
+    if SKIN_FORM_IT > 0:  # (key art k53) the torso's and arms' small forms smoothed out of the shading surface
+        co = _skin_forms_smoothed(co)
     proxy = MESH.copy()
     proxy.data = MESH.data.copy()
     proxy.name = proxy.data.name = "AAA_SkinProxy"
@@ -2356,24 +2401,33 @@ def key_skin_normals():
             # the next smoothed out of the posed surface)
             md.rest_source = "ORCO"
             md.vertex_group = ""
-            md.iterations = 30
+            md.iterations = SKIN_SMOOTH_IT
             md.factor = 0.5
         elif md.type != "ARMATURE":
             proxy.modifiers.remove(md)
     proxy.hide_render = True
+    if SKIN_BIG_IT > 0:  # (key art k54) and its big form: the same proxy smoothed further, read in the pose (key_skin_big())
+        big = proxy.copy()
+        big.data = proxy.data.copy()
+        big.name = big.data.name = "AAA_SkinBig"
+        SC.collection.objects.link(big)
+        big.data.vertices.foreach_set("co", _skin_forms_smoothed(co_raw, SKIN_BIG_IT).astype(np.float32).ravel())
+        big.data.update()
+        big.hide_render = True
     wpath = os.environ.get("KEY_SKIN_W", KEY_SKIN_W)
     if os.path.exists(wpath):  # its skin weights blurred: each bend spread wider, no crease crushed into his belly
         wz = np.load(wpath)
         idx, wts = wz["idx"], wz["W"].astype(np.float32)
         rm = idx.tolist()
-        for k, name in enumerate(wz["names"]):
-            vg = proxy.vertex_groups.get(str(name))
-            if vg is None:
-                continue
-            vg.remove(rm)
-            q = np.round(wts[:, k] * 255).astype(np.int32)
-            for level in np.unique(q[q > 0]):
-                vg.add(idx[q == level].tolist(), float(level) / 255.0, "REPLACE")
+        for ob_ in [proxy] + [o_ for o_ in (bpy.data.objects.get("AAA_SkinBig"),) if o_ is not None]:
+            for k, name in enumerate(wz["names"]):
+                vg = ob_.vertex_groups.get(str(name))
+                if vg is None:
+                    continue
+                vg.remove(rm)
+                q = np.round(wts[:, k] * 255).astype(np.int32)
+                for level in np.unique(q[q > 0]):
+                    vg.add(idx[q == level].tolist(), float(level) / 255.0, "REPLACE")
         print("KEY_SKIN weights", wpath)
     mi = np.zeros(len(MESH.data.polygons), np.int64); MESH.data.polygons.foreach_get("material_index", mi)
     lt = np.zeros(len(MESH.data.polygons), np.int64); MESH.data.polygons.foreach_get("loop_total", lt)
@@ -2876,6 +2930,29 @@ def key_neck():
     me.update()
     bpy.context.view_layer.update()
     print("KEY_NECK", len(sel), "polygons of collar to skin")
+
+
+def key_skin_big():
+    """(Key art k54) the body's big form's normals (the AAA_SkinBig proxy, posed with him), world, as the attribute
+    "skin_big" on his skin: the toon shader lights the small forms only where the big form is lit."""
+    big = bpy.data.objects.get("AAA_SkinBig")
+    if big is None:
+        return
+    dg = bpy.context.evaluated_depsgraph_get()
+    ev = big.evaluated_get(dg).data
+    if len(ev.vertices) != len(MESH.data.vertices):
+        print("KEY_SKIN_BIG skipped", len(ev.vertices))
+        return
+    vn = np.zeros(len(ev.vertices) * 3, np.float32); ev.vertex_normals.foreach_get("vector", vn); vn = vn.reshape(-1, 3)
+    mw = np.array(big.matrix_world, np.float32)
+    wn = vn @ mw[:3, :3].T
+    wn /= np.maximum(np.linalg.norm(wn, axis=1, keepdims=True), 1e-9)
+    rc = np.zeros(len(wn) * 3, np.float32); MESH.data.attributes["rest_co"].data.foreach_get("vector", rc)
+    wn[rc.reshape(-1, 3)[:, 2] <= SKIN_FORM_Z] = 0.0  # (torso and arms only)
+    att = MESH.data.attributes.get("skin_big") or MESH.data.attributes.new("skin_big", "FLOAT_VECTOR", "POINT")
+    att.data.foreach_set("vector", wn.ravel())
+    MESH.data.update()
+    print("KEY_SKIN_BIG", int((np.abs(wn).sum(1) > 0).sum()))
 
 
 def key_fringe_undo():

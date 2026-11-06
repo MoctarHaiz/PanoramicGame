@@ -629,7 +629,48 @@ def save(arr: np.ndarray, name: str, pad: int = 8) -> None:
     print(name, out.shape[1], out.shape[0])
 
 
-def grounded(arr: np.ndarray, airborne: bool = False, strength: float = 1.0, tight: float = 1.0) -> np.ndarray:
+## (key art k53, every judge: "no contact shadow under either boot, so the feet float"; the k27 band under both is drawn at
+## the lowest sole's line, so the higher sole's contact fell below it) under each boot its own small dark occlusion pool,
+## tight under the sole, darkest where it touches the rock, fainter under a lifted heel; neutral dark (no sunset tint)
+SOLE_SHADOW = float(os.environ.get("SOLE_SHADOW", "1.0"))  ## the pools' darkest opacity; 0: none (k27-k52)
+SOLE_RGB = np.array([0.05, 0.045, 0.045])
+
+
+def _sole_pools(a: np.ndarray, out_h: int, strength: float) -> np.ndarray:
+    """Per-boot contact pools for a figure's alpha `a` (h x w): an alpha (out_h x w)."""
+    h, w = a.shape
+    pool = np.zeros((out_h, w), np.float32)
+    rows = np.nonzero(a.max(1) > 0.5)[0]
+    if not rows.size or strength <= 0.0:
+        return pool
+    bottom = rows.max()
+    zone = slice(max(0, bottom - int(h * 0.06)), bottom + 1)
+    solid = a[zone] > 0.5
+    cols = np.nonzero(solid.any(0))[0]
+    if not cols.size:
+        return pool
+    breaks = np.nonzero(np.diff(cols) > 6)[0]
+    groups = np.split(cols, breaks + 1)
+    z0 = zone.start
+    for g in groups:
+        if len(g) < 8:
+            continue
+        sole = np.array([z0 + np.nonzero(solid[:, x])[0].max() for x in g], np.float64)
+        yc = sole.max()  # where this boot touches the rock
+        gap = yc - sole  # (0 under the touching part; the lifted heel above it)
+        lift = np.exp(-(gap / (h * 0.014)) ** 2)  # (fainter under a lifted heel)
+        yy = np.arange(out_h)[:, None]
+        dy = yy - yc  # (from the sole's bottom: a hair above it, more below it)
+        prof = np.where(dy < 0, np.exp(-(dy / (h * 0.004)) ** 2), np.exp(-(dy / (h * 0.011)) ** 2))  # (tight under the sole)
+        col = np.zeros((out_h, w), np.float32)
+        col[:, g] = (prof * (0.35 + 0.65 * lift)[None, :]).astype(np.float32)
+        pool = np.maximum(pool, col)
+    pool = ndimage.gaussian_filter(pool, (h * 0.0015 + 0.6, h * 0.006 + 1.2))
+    pool = np.clip(pool / max(pool.max(), 1e-6), 0, 1) * strength
+    return pool
+
+
+def grounded(arr: np.ndarray, airborne: bool = False, strength: float = 1.0, tight: float = 1.0, soles: float = 0.0) -> np.ndarray:
     """A figure on the ground (hero pass 2: "floats, no contact shadow"): a wide soft pool of warm-dark
     shade under him and a tight dark contact where his boots (or his seat) touch the ground."""
     h, w = arr.shape[:2]
@@ -656,6 +697,13 @@ def grounded(arr: np.ndarray, airborne: bool = False, strength: float = 1.0, tig
     shade = 1.0 - (1.0 - pool) * (1.0 - contact)
     out[..., :3] = np.array([0.1, 0.045, 0.04])
     out[..., 3] = shade
+    if soles > 0.0 and not airborne:  # (key art k53) each boot's own contact pool, neutral dark, over the wide band (the
+        # band's single contact line, at the lowest sole's height, left the higher boot floating over it: dropped)
+        shade = pool
+        sp = _sole_pools(a, out.shape[0], soles)
+        tot = 1.0 - (1.0 - shade) * (1.0 - sp)
+        out[..., :3] = (np.array([0.1, 0.045, 0.04]) * (shade * (1.0 - sp))[..., None] + SOLE_RGB * sp[..., None]) / np.maximum(tot, 1e-6)[..., None]
+        out[..., 3] = tot
     fa = a[..., None]
     top = out[:h]
     top[..., :3] = arr[..., :3] * fa + top[..., :3] * (1 - fa)
@@ -691,7 +739,7 @@ def pictures() -> None:
     # (key art k36) the outer line: dark warm brown, a touch thinner, thinner still on the lit side, calm round the hem, boots,
     # fist and hair (k10-k35: ink_k 0.78, ink_lit 1.0, the near-black INK, INK_CALM 0.35, every strand inked at 0.75)  # (k10, "the outline flickers": one dark line)  # (key art k9, the user: "remove the sun reflect on the
     # character": no rim band, no glint from the sun on the ring, an even line all round)
-    save(grounded(menu, strength=2.0, tight=0.4), "hero_menu.png")  # (k11, "a weak contact shadow": darker, tighter)  # (key art k8, "no contact shadow under either boot": a darker, tighter contact)  # (key art k5: no glow round him, "a dark soft halo"; a firmer contact shadow)  # (k2: "no contact shadow under the boots")
+    save(grounded(menu, strength=2.0, tight=0.4, soles=SOLE_SHADOW), "hero_menu.png")  # (k11, "a weak contact shadow": darker, tighter)  # (key art k8, "no contact shadow under either boot": a darker, tighter contact)  # (key art k5: no glow round him, "a dark soft halo"; a firmer contact shadow)  # (k2: "no contact shadow under the boots")
     # the portrait: 660 x 752 from his hair to his hips (round 16: from its own render, standing, his face to us)
     if (ui / "portrait/000.png").exists():
         hero = trimmed(ui / "portrait/000.png", 1100, sunset=True)

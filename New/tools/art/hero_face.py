@@ -37,6 +37,14 @@ WHITE = (0.96, 0.94, 0.89)
 IRIS = ((0.07, 0.035, 0.025), (0.22, 0.11, 0.06), (0.58, 0.31, 0.12))  ## the iris: its ring, its top, its warm lower half
 MOUTH_IN = (0.2, 0.045, 0.045)
 TEETH = (0.97, 0.95, 0.9)
+## (key art k54, both judges, several rounds: "one white triangle tooth reads as a fang, a tusk or a spit blob") the war cry's
+## upper teeth one clean row across the top of the open mouth, a darker tongue shape below
+MOUTH_ROW = 1  ## 0: k23-k53's short bar on the near half
+ROW_SPAN = (-0.46, -0.1)  ## the row's ends, shares of the mouth's width from its centre (its far half wraps round the turning face: past
+## the centre line the row rose into a peak, the "fang" again)
+ROW_H = 0.21  ## its height, a share of the opening
+ROW_TEETH = 4  ## teeth across the row (thin breaks between them); 1: one band
+TONGUE_ROW = (0.46, 0.13, 0.15)  ## the tongue (k21-k53: (0.36, 0.1, 0.12), lost in the dark)
 TONGUE = (0.72, 0.27, 0.27)
 LIP = (0.32, 0.12, 0.08)
 
@@ -260,9 +268,14 @@ def mouth(cv, kind, opened, smile, width):
         inner = (np.abs(cols - cx) < W * 0.43)[None, :]
         # (k21, "at phone size the open mouth reads as a larger white patch") mostly dark: one thin crisp upper teeth bar,
         # no lower row, a dark tongue tone in the bottom third
-        tongue = cv.mask(lambda d, s: d.ellipse([(cx - W * 0.26) * s, (cy + Ho * 0.16) * s, (cx + W * 0.26) * s,
-                                                 (cy + Ho * 0.56) * s], fill=255))
-        cv.paint((0.36, 0.1, 0.12), tongue * m)
+        if MOUTH_ROW:  # (k54) a clear tongue shape low in the opening
+            tongue = cv.mask(lambda d, s: d.ellipse([(cx - W * 0.3) * s, (cy + Ho * 0.1) * s, (cx + W * 0.3) * s,
+                                                     (cy + Ho * 0.62) * s], fill=255))
+            cv.paint(TONGUE_ROW, tongue * m)
+        else:
+            tongue = cv.mask(lambda d, s: d.ellipse([(cx - W * 0.26) * s, (cy + Ho * 0.16) * s, (cx + W * 0.26) * s,
+                                                     (cy + Ho * 0.56) * s], fill=255))
+            cv.paint((0.36, 0.1, 0.12), tongue * m)
         # (k23, "a white fleck at the mouth corner, on the lower lip and chin: spit") one bar tucked under the upper lip: a fixed
         # thickness, only across the middle where the opening is tall, never down the corners
         tall = (hgt > Ho * 0.62)[None, :]
@@ -272,6 +285,14 @@ def mouth(cv, kind, opened, smile, width):
         # band: a constant height, its top edge parallel to the upper lip just under it, square ends, no tooth gaps
         tc = top[None, :]
         upper = ((yy >= tc + 2) & (yy < tc + 2 + Ho * 0.12) & mid).astype(np.float32)
+        if MOUTH_ROW:  # (k54) one clean row across the top of the opening (a constant height under the lip, square ends)
+            row = ((cols > cx + W * ROW_SPAN[0]) & (cols < cx + W * ROW_SPAN[1]))[None, :]
+            upper = ((yy >= tc + 2) & (yy < tc + 2 + Ho * ROW_H) & row & tall).astype(np.float32)
+            if ROW_TEETH > 1:  # a few separate teeth in the row (thin warm-grey breaks): a row of teeth, not one tusk
+                span = W * (ROW_SPAN[1] - ROW_SPAN[0])
+                ph = ((cols - (cx + W * ROW_SPAN[0])) / (span / ROW_TEETH))[None, :]
+                brk = (np.abs(ph - np.round(ph)) * (span / ROW_TEETH) < 2.2) & (ph > 0.5) & (ph < ROW_TEETH - 0.5)
+                upper = upper * np.where(brk, 0.0, 1.0)
         cv.paint(TEETH, ndimage.gaussian_filter(upper, 0.6) * m)
     if kind == "cry":
         # the tongue low in the dark, the lower teeth a thin row in front of it, the upper teeth a bold row under the lip
