@@ -1067,6 +1067,56 @@ def key_hair_normals():
     print("KEY_HAIR locks", np.bincount(lab).tolist())
 
 
+## (key art k49, both judges, many rounds: "the torso nearly vertical while the legs are in a full sprint lunge: running while
+## waving; lean the torso 15-25 degrees into the throw, drive the throwing shoulder through, pull the back fist further back";
+## "the back shin almost horizontal behind him, the knee low: kneeling or sliding, not pushing off: straighten the back leg
+## into a push-off line, the heel lifted") one line of action: the spine leant into the throw (k35's 16 read upright behind
+## the shoulders), the straight throwing arm and its hand as they were, carried by the lean onto the line from the back foot
+## through his chest to the ring, the back fist pulled further back, the back leg straightened onto its toe
+KEY_LEAN = float(os.environ.get("KEY_LEAN", "18"))  ## degrees more the spine leans into the throw (with the 5 before: 23)
+ARM_ANGLE = float(os.environ.get("ARM_ANGLE", "15.5")) if os.environ.get("ARM_ANGLE", "15.5") != "off" else None  ## degrees the
+## throwing arm rises in the picture after the lean (k48: about 12)
+BACK_ANGLE = float(os.environ.get("BACK_ANGLE", "210")) if os.environ.get("BACK_ANGLE", "210") != "off" else None  ## (k50)
+## the back arm's angle in the picture, shoulder to fist (k49 swung it up behind his head: "the back fist crowds the hair")
+ARM_KEEP = os.environ.get("ARM_KEEP", "1") == "1"  ## (k50) the throwing arm keeps its k48 orientation through the lean
+PUSH_SLIDE = float(os.environ.get("PUSH_SLIDE", "0.044"))  ## (k50) at most this far (metres) the back foot slides back (k49
+## 0.087: "a stiff fencing lunge, the feet very far apart")
+PUSH_EXT = float(os.environ.get("PUSH_EXT", "0.95"))  ## the back leg's reach, a share of its length (a straight push-off)
+PUSH_HEEL = float(os.environ.get("PUSH_HEEL", "0.72"))  ## and its heel's lift (k48: 0.55)
+
+
+def _push_off(side, ext, k, slide=1.0):
+    """(Key art k49) the back leg straightened into a push-off: its heel lifted by k (as heel_up), its foot slid back along the
+    ground away from his hips until the leg reaches ext of its length; the ball of the foot on the ground."""
+    ball0 = bone_world(side + "ToeBase")
+    foot = bone_world(side + "Foot", "tail") - bone_world(side + "Foot")
+    flen = foot.length
+    level = Vector((foot.x, foot.y, 0.0)).normalized()
+    d = (level * (1.0 - k) + Vector((0.0, 0.0, -1.0)) * k).normalized()
+    hip, knee = bone_world(side + "UpLeg"), bone_world(side + "Leg")
+    l1 = (knee - hip).length
+    l2 = (bone_world(side + "Foot") - knee).length
+    back = Vector((ball0.x - hip.x, ball0.y - hip.y, 0.0)).normalized()
+    want = ext * (l1 + l2)
+    lo, hi = 0.0, 1.0
+    if ((ball0 - d * flen) - hip).length < want:
+        for _ in range(40):
+            t = (lo + hi) / 2.0
+            if ((ball0 + back * t - d * flen) - hip).length < want:
+                lo = t
+            else:
+                hi = t
+    lo = min(lo, slide)  # (k50: a push-off, not a fencing lunge; the knee keeps a little bend)
+    ball = ball0 + back * lo
+    ankle = ball - d * flen
+    u = (ankle - hip).normalized()
+    pole = (knee - hip) - u * (knee - hip).dot(u)
+    ik_leg(side, ankle, pole if pole.length > 1e-4 else Vector((0.0, 0.0, 1.0)))
+    _aim_world(side + "Foot", d)
+    _aim_world(side + "ToeBase", level)
+    print("KEY_PUSH", side, "slid %.3f m" % lo)
+
+
 def pose_key_throw():
     """The title screen (round 15): the release with the body behind it: the hips driven over the bent front knee,
     the back heel up, the shoulders turned through against the hips, the free arm pulled back hard (his armoured fist
@@ -1094,6 +1144,41 @@ def pose_key_throw():
     turn("Neck", -6.0)  # (key art k1, kept: his face to us, chin up: "a stern profile, the face too small")
     turn("Head", -10.0)
     turn("Head", -9.0, (0.0, 0.0, 1.0))
+    if KEY_LEAN > 0.0:  # (key art k49/k50) the line of action
+        view = SC.camera.matrix_world.to_3x3().col[2].normalized()
+
+        def pic(bones):
+            xs_, ys_ = _picture_xy(np.array([tuple(bone_world(b_)) for b_ in bones]))
+            return xs_, ys_
+
+        def ang(a_, b_):
+            xs_, ys_ = pic((a_, b_))
+            return math.degrees(math.atan2(-(ys_[1] - ys_[0]), xs_[1] - xs_[0])) % 360.0
+        # (k50, judge 1 of k49: "the throwing hand a flat fused-finger paddle pointing up-right, a karate chop"; k48's "hand
+        # is better, thumb separated, open palm on release") the lean carried the arm round in depth too, turning the open
+        # palm edge-on: the throwing arm keeps its k48 orientation (its shoulder carried by the lean) and is only tilted in
+        # the picture below
+        arm_pb = ARM.pose.bones[P + "RightArm"]
+        arm_m = arm_pb.matrix.copy()
+        for b, k in (("Spine", 0.4), ("Spine1", 0.35), ("Spine2", 0.25)):  # the torso into the throw, the head with it
+            turn(b, -KEY_LEAN * k, (0.0, 1.0, 0.0))  # (in the menu's view a negative turn about y leans him to picture right)
+        if ARM_KEEP:
+            kept = arm_m.copy()
+            kept.translation = arm_pb.matrix.translation
+            arm_pb.matrix = kept
+            bpy.context.view_layer.update()
+        _push_off("Right", PUSH_EXT, PUSH_HEEL, PUSH_SLIDE)  # the back leg (his right, picture left) onto its toe
+        if ARM_ANGLE is not None:  # the throwing arm, as it is (its hand too), turned round the view axis so it rises at
+            # ARM_ANGLE in the picture: his line runs from the back foot up his leant back and out along the arm to the ring
+            now = ang("RightArm", "RightHand")
+            now = now - 360.0 if now > 180.0 else now
+            turn("RightArm", ARM_ANGLE - now, tuple(view))
+            print("KEY_ARM rose %.1f -> %.1f deg" % (now, ARM_ANGLE))
+        if BACK_ANGLE is not None:  # (k50) the back fist low and behind his chest, clear of his hair and face: its arm
+            # turned round the view axis to BACK_ANGLE in the picture (180: straight back, more: lower)
+            now = ang("LeftArm", "LeftHand")
+            turn("LeftArm", BACK_ANGLE - now, tuple(view))
+            print("KEY_BACK arm %.1f -> %.1f deg" % (now, BACK_ANGLE))
     key_build()
     ring = bpy.data.objects.get("AAA_Chakram")
     if ring is not None:  # the ring well ahead of the hand on the throw's line
