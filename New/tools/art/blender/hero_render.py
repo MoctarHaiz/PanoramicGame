@@ -2135,6 +2135,11 @@ def key_skin_normals():
     lv = np.zeros(len(MESH.data.loops), np.int64); MESH.data.loops.foreach_get("vertex_index", lv)
     fid = np.repeat(np.arange(len(MESH.data.polygons)), lt)
     skin = np.zeros(len(MESH.data.vertices), bool); skin[lv[mi[fid] == 0]] = True  # (the skin material only)
+    names = [m_.name if m_ else "" for m_ in MESH.data.materials]
+    if "AAA_belt" in names:  # (key art k27, "muddy smears") and the wrap on his thighs: its shading surface smoothed too
+        rz = np.zeros(len(MESH.data.vertices) * 3, np.float32); MESH.data.attributes["rest_co"].data.foreach_get("vector", rz)
+        wrap = np.zeros(len(MESH.data.vertices), bool); wrap[lv[mi[fid] == names.index("AAA_belt")]] = True
+        skin |= wrap & (rz.reshape(-1, 3)[:, 2] < 0.03)
     vg = MESH.vertex_groups.get("AAA_key_skin") or MESH.vertex_groups.new(name="AAA_key_skin")
     vg.add(np.nonzero(skin)[0].tolist(), 1.0, "REPLACE")
     md = MESH.modifiers.new("AAA_key_skin", "DATA_TRANSFER")
@@ -2145,6 +2150,41 @@ def key_skin_normals():
     md.vertex_group = vg.name
     bpy.context.view_layer.update()
     print("KEY_SKIN on", int(skin.sum()), path)
+
+
+def key_hem():
+    """(Key art k27, "the maroon underwrap merges with the thigh skin in value") the distance along his surface from where the
+    wrap (AAA_belt) meets the skin, as the attribute "hem_d" (rest units: + on the skin, - on the cloth, 0 elsewhere): the toon
+    shader draws the wrap's dark hem and the shadow the hem casts on the thigh from it."""
+    if not (AAA and arg("--light", "day") == "sunset"):
+        return
+    me = MESH.data
+    names = [m.name if m else "" for m in me.materials]
+    if "AAA_belt" not in names or "AAA_skin" not in names:
+        return
+    n = len(me.vertices)
+    rc = np.zeros(n * 3, np.float32); me.attributes["rest_co"].data.foreach_get("vector", rc); rc = rc.reshape(-1, 3)
+    ev = np.zeros(len(me.edges) * 2, np.int64); me.edges.foreach_get("vertices", ev); ev = ev.reshape(-1, 2)
+    mi = np.zeros(len(me.polygons), np.int64); me.polygons.foreach_get("material_index", mi)
+    lt = np.zeros(len(me.polygons), np.int64); me.polygons.foreach_get("loop_total", lt)
+    lv = np.zeros(len(me.loops), np.int64); me.loops.foreach_get("vertex_index", lv)
+    fm = np.repeat(mi, lt)
+    on_s = np.zeros(n, bool); on_s[lv[fm == names.index("AAA_skin")]] = True
+    on_b = np.zeros(n, bool); on_b[lv[fm == names.index("AAA_belt")]] = True
+    inside = on_s | on_b
+    e = ev[inside[ev[:, 0]] & inside[ev[:, 1]]]
+    ln = np.linalg.norm(rc[e[:, 0]] - rc[e[:, 1]], axis=1)
+    d = np.full(n, 1.0, np.float64)
+    d[on_s & on_b] = 0.0
+    for _ in range(16):  # (about 1.7 cm along the surface: enough for the hem and its shadow)
+        np.minimum.at(d, e[:, 1], d[e[:, 0]] + ln)
+        np.minimum.at(d, e[:, 0], d[e[:, 1]] + ln)
+    val = np.where(on_b & ~on_s, -d, d)
+    val[on_s & on_b] = -1e-5
+    val[~inside] = 0.0
+    att = me.attributes.get("hem_d") or me.attributes.new("hem_d", "FLOAT", "POINT")
+    att.data.foreach_set("value", val.astype(np.float32))
+    print("KEY_HEM seam", int((on_s & on_b).sum()))
 
 
 def toon_setup():
@@ -2316,6 +2356,7 @@ def main():
     if arg("--style", "toon") == "toon":
         toon_setup()
     key_skin_normals()
+    key_hem()
     wanted = arg("--anims", ",".join(table)).split(",")
     for name in wanted:
         render(name, *table[name])

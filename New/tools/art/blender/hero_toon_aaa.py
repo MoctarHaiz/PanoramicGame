@@ -145,6 +145,18 @@ COW_DARK = (0.03, 0.018, 0.014)  ## (k9: black-brown; k7 (0.085, 0.032, 0.018)) 
 ## front apron, two on the back)
 COW_SPOTS_FRONT = ((-0.062, 0.006, 0.042, 0.032), (0.055, 0.045, 0.028, 0.024))  ## (k11: two big designed shapes, "random
 COW_SPOTS_BACK = ((0.04, -0.07, 0.04, 0.032),)  ## black blobs")
+## (key art k27, "the big black spot sits at the crotch and reads as a hole or stain", "a diaper") the pictures' front
+## apron: three irregular spots of different sizes, off the groin, toward the hip edge and the panel's lower half (rest y, z,
+## radius y, radius z; no automatic satellites), each with a soft fur edge
+COW_SPOTS_KEY = ((-0.1, -0.046, 0.023, 0.027), (-0.127, -0.083, 0.012, 0.015), (-0.093, 0.013, 0.014, 0.011))
+## (key art k27, "the maroon underwrap merges with the thigh skin in value: a stain") the wrap's maroon kept, drawn apart from
+## the thigh: a dark rolled hem where it ends (HEM_W rest units wide), a crisp cast shadow from it on the skin (HEM_SHADOW wide),
+## one clean fold inside it (rest: from x -0.05, z -0.035 to x 0.035, z -0.08 across the thigh, at most WRAP_FOLD_W wide)
+WRAP_HEM = (0.028, 0.0028, 0.004)
+HEM_W = 0.0024
+HEM_SHADOW = 0.0055
+WRAP_FOLD = ((-0.05, -0.035), (0.035, -0.08))
+WRAP_FOLD_W = 0.0065
 WRAP_STRAP = (0.07, 0.032, 0.016)  ## (key art k9, "plastic socks") the shin guards' binding straps, dark leather
 GUARD_BLUE = (0.045, 0.12, 0.42)  ## (k11) the shin guard, a lighter blue
 BOOT_NAVY = (0.006, 0.016, 0.075)  ## and the boot under it, a dark navy leather
@@ -312,7 +324,8 @@ def build(m, mode="day"):
             albedo = g.mix("MIX", DAY_FLAT_K, albedo, UI_FLAT[region])
     geo = g.node("ShaderNodeNewGeometry")
     N = geo.outputs["Normal"]
-    if nm_img is not None and region in NORMAL_MAP and not (mode == "sunset" and BOLD and region in ("armour_blue", "armour_silver")):
+    if nm_img is not None and region in NORMAL_MAP and not (mode == "sunset" and BOLD and region in ("armour_blue", "armour_silver", "fur", "belt")):
+        # (key art k27: and none on the cowhide and the wrap: "grey speckles in the white", "muddy smears")
         # (key art k11: no painted normal map on the guards and boots in the pictures: "glossy white streaks")
         nt_tex = g.node("ShaderNodeTexImage")
         nt_tex.image = nm_img
@@ -347,7 +360,8 @@ def build(m, mode="day"):
     bw = g.node("ShaderNodeRGBToBW")
     g.link(s2r.outputs["Color"], bw.inputs[0])
     L = bw.outputs[0]
-    if region == "fur":  # strands: the light itself broken along them (a stepped terminator)
+    if region == "fur" and not (mode == "sunset" and BOLD):  # strands: the light itself broken along them (a stepped terminator)
+        # (key art k27: not in the pictures, "grey speckles in the white")
         strand = g.noise(P, (38.0, 38.0, 4.0), 1.0, 0.4)  # (round 14: tufts, not scratchy strands)
         L = g.math("ADD", L, g.math("MULTIPLY", g.math("SUBTRACT", strand, 0.5), 0.18))
     if region == "face" and mode == "sunset":  # (round 13) out of the hair's shadow
@@ -357,6 +371,16 @@ def build(m, mode="day"):
     height = sepr.outputs["Z"]  # (rest shape: -0.5 at his soles, 0.5 at the top of his hair)
     if BOLD and not flat and region in ("skin", "face", "hand"):  # (round 15) his chest and face in the most light
         L = g.math("ADD", L, g.math("MULTIPLY", g.smooth(height, 0.0, 0.3), CHEST_LIFT))
+    hem_d = None
+    if mode == "sunset" and BOLD and not flat and (region == "skin" or (region == "belt" and m.name == "AAA_belt")):
+        # (key art k27) the distance from where the wrap ends on the thigh (hero_render.py key_hem(): + on the skin, - on the cloth)
+        att_h = g.node("ShaderNodeAttribute")
+        att_h.attribute_name = "hem_d"
+        legs = g.smooth(height, 0.0, -0.012)  # (the thighs only, not the sash on his belly)
+        hem_d = att_h.outputs["Fac"]
+        if region == "skin":  # a crisp shadow cast by the hem on the skin just below it
+            cast = g.math("MULTIPLY", g.math("MULTIPLY", g.smooth(hem_d, HEM_SHADOW, HEM_SHADOW * 0.85), g.math("GREATER_THAN", hem_d, 0.0)), legs)
+            L = g.math("SUBTRACT", L, g.math("MULTIPLY", cast, 1.5))
     if region == "hair":  # the locks: their own terminator, broken per lock (round 15: big locks, "a fuzzy helmet")
         lock = g.noise(P, (9.0, 9.0, 9.0), 0.0, 0.4)  # (key art k3: 16 -> 9, 5-7 big locks, "a pineapple top")
         L = g.math("ADD", L, g.math("MULTIPLY", g.math("SUBTRACT", lock, 0.5), 0.3))  # (k10: k7's grouped locks back)
@@ -497,12 +521,18 @@ def build(m, mode="day"):
         wob = g.math("MULTIPLY", g.math("SUBTRACT", g.noise(P, (14.0, 14.0, 14.0), 0.0, 0.5), 0.5), 0.9)  # (k11: smooth lobes, designed, not ragged)
         front_k = g.smooth(sepr.outputs["X"], -0.005, 0.01)
         spots = None
-        for side_k, table in ((front_k, COW_SPOTS_FRONT), (g.math("SUBTRACT", 1.0, front_k), COW_SPOTS_BACK)):
-            for cy_, cz_, ry_, rz_ in [sp_ for c in table for sp_ in (c, (c[0] + c[2] * 0.75, c[1] - c[3] * 0.55, c[2] * 0.55, c[3] * 0.6))]:
+        # (key art k27) the soft fur edge: fine tufts breaking the outline, a narrow soft step, not a hard decal oval
+        fur_e = g.math("MULTIPLY", g.math("SUBTRACT", g.noise(P, (160.0, 160.0, 160.0), 1.0, 0.5), 0.5), 0.35)
+        fur_e = g.math("ADD", fur_e, g.math("MULTIPLY", g.math("SUBTRACT", g.noise(P, (42.0, 42.0, 42.0), 0.0, 0.5), 0.5), 0.9))  # (lobes: irregular, not round)
+        back_table = [sp_ for c in COW_SPOTS_BACK for sp_ in (c, (c[0] + c[2] * 0.75, c[1] - c[3] * 0.55, c[2] * 0.55, c[3] * 0.6))]
+        for side_k, table, edge_ in ((front_k, list(COW_SPOTS_KEY), True), (g.math("SUBTRACT", 1.0, front_k), back_table, False)):
+            for cy_, cz_, ry_, rz_ in table:
                 dy = g.math("DIVIDE", g.math("SUBTRACT", sepr.outputs["Y"], cy_), ry_)
                 dz = g.math("DIVIDE", g.math("SUBTRACT", height, cz_), rz_)
                 d = g.math("ADD", g.math("ADD", g.math("MULTIPLY", dy, dy), g.math("MULTIPLY", dz, dz)), wob)
-                one = g.math("MULTIPLY", g.smooth(d, 1.04, 0.96), side_k)
+                if edge_:
+                    d = g.math("ADD", d, fur_e)
+                one = g.math("MULTIPLY", g.smooth(d, 1.1, 0.9) if edge_ else g.smooth(d, 1.04, 0.96), side_k)
                 spots = one if spots is None else g.math("MAXIMUM", spots, one)
         colour = g.mix("MIX", spots, colour, g.mix("MULTIPLY", 1.0, ramp.outputs["Color"], COW_DARK))
         # the hem's line: on the front apron a V, highest near the middle (rest: z -0.002 at y 0.02, falling 0.95 a unit
@@ -512,7 +542,7 @@ def build(m, mode="day"):
         rel = g.math("SUBTRACT", height, g.math("ADD", hem_z, 0.028))
         hem = g.math("MULTIPLY", g.smooth(rel, -0.001, 0.001), g.smooth(rel, 0.013, 0.011))
         fringe = g.math("MULTIPLY", g.smooth(rel, 0.0, -0.002), g.smooth(g.math("FRACT", g.math("MULTIPLY", sepr.outputs["Y"], 140.0)), 0.75, 0.85))
-        colour = g.mix("MULTIPLY", g.math("MULTIPLY", fringe, 0.6), colour, (0.5, 0.36, 0.3))
+        colour = g.mix("MULTIPLY", g.math("MULTIPLY", fringe, 0.0), colour, (0.5, 0.36, 0.3))  # (key art k27: no strand lines, "torn tissue paper")
         # (key art k10, "the red-and-white candy-cane hem looks like barber tape") a calm band: solid red, one white
         # line along its lower edge
         colour = g.mix("MIX", hem, colour, g.mix("MULTIPLY", 1.0, ramp.outputs["Color"], HEM_BEADS[0]))
@@ -638,11 +668,27 @@ def build(m, mode="day"):
         mid = g.math("MULTIPLY", band, g.smooth(g.math("ABSOLUTE", g.math("SUBTRACT", t, -0.002)), 0.0026, 0.0012))
         shine = g.math("MULTIPLY", mid, g.smooth(edge, 0.4, 0.1))
         colour = g.mix("MIX", g.math("MULTIPLY", shine, 0.95), colour, (1.0, 0.94, 0.75))
-    if region == "belt" and mode == "sunset" and BOLD:
+    if region == "belt" and mode == "sunset" and BOLD and hem_d is None:
         # (key art k11, "the maroon shorts one flat block") folds across the cloth under the kilt
         fold_u = g.math("SINE", g.math("MULTIPLY", g.math("ADD", sepr.outputs["Z"], g.math("MULTIPLY", sepr.outputs["Y"], 0.6)), 55.0))
         under = g.smooth(height, 0.075, 0.065)
         colour = g.mix("MULTIPLY", g.math("MULTIPLY", g.math("MULTIPLY", g.smooth(fold_u, 0.2, 0.9), under), 0.55), colour, (0.45, 0.3, 0.4))
+    if region == "belt" and hem_d is not None:
+        # (key art k27, "muddy smears") one clean fold across the thigh: a lens of shadow, pointed at both ends, crisp
+        (fx0, fz0), (fx1, fz1) = WRAP_FOLD
+        flen = ((fx1 - fx0) ** 2 + (fz1 - fz0) ** 2) ** 0.5
+        ux, uz = (fx1 - fx0) / flen, (fz1 - fz0) / flen
+        px_ = g.math("SUBTRACT", sepr.outputs["X"], fx0)
+        pz_ = g.math("SUBTRACT", height, fz0)
+        along = g.math("DIVIDE", g.math("ADD", g.math("MULTIPLY", px_, ux), g.math("MULTIPLY", pz_, uz)), flen)
+        across = g.math("ABSOLUTE", g.math("SUBTRACT", g.math("MULTIPLY", pz_, ux), g.math("MULTIPLY", px_, uz)))
+        half = g.math("MULTIPLY", g.math("SINE", g.math("MULTIPLY", g.math("MINIMUM", g.math("MAXIMUM", along, 0.0), 1.0), 3.14159)), WRAP_FOLD_W)
+        fold = g.math("MULTIPLY", g.math("LESS_THAN", across, half), g.smooth(height, 0.0, -0.012))
+        colour = g.mix("MULTIPLY", g.math("MULTIPLY", fold, 0.6), colour, (0.45, 0.3, 0.4))
+        # the hem: a dark rolled edge where the cloth ends on the thigh
+        hem = g.math("MULTIPLY", g.math("MULTIPLY", g.smooth(g.math("MULTIPLY", hem_d, -1.0), HEM_W, HEM_W * 0.8),
+                                        g.math("LESS_THAN", hem_d, 0.0)), g.smooth(height, 0.0, -0.012))  # (0: no attribute)
+        colour = g.mix("MIX", hem, colour, g.mix("MULTIPLY", 1.0, ramp.outputs["Color"], WRAP_HEM))
     if region == "belt" and BOLD and not flat:
         # (round 16) the belt carries the costume's pattern: a white zigzag round it, a row of blue beads under it
         ang_b = g.math("ARCTAN2", sepr.outputs["Y"], sepr.outputs["X"])
