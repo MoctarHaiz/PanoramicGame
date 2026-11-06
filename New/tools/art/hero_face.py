@@ -54,7 +54,10 @@ EXPRESSIONS = {
     # lifted lip, the lower teeth and the tongue in the dark below, snarl lines at the corners; no squared corners
     # (key art k7, "the heavy black anime lid and the gritted teeth read as a pained grimace": the eye opened, a lighter
     # lash and lid shadow; "the three-bar paint is tiny and right under the eye: noise": one bold stripe)
-    "warcry": dict(brow=(-0.14, -0.72), lids=((0.1, 0.08), (0.1, 0.08)), gaze=(0.12, 0.0), mouth=("cry", 1.3, -0.05, 1.16),
+    # (key art k20, "shock, not fierceness: the round open mouth and wide eyes say 'surprised'") the eyes narrowed (the lids
+    # lower and higher), the brows driven hard down at the centre, a squared wide shout with both rows of teeth, its
+    # corners pulled out and down
+    "warcry": dict(brow=(-0.24, -1.3), lids=((0.34, 0.24), (0.34, 0.24)), gaze=(0.12, 0.0), mouth=("roar", 1.22, -0.45, 1.55),  # (k21: a harder V brow)
                    lash=0.62, lid_shade=0.35, paint="stripe"),
     "focus": dict(brow=(-0.02, -0.38), lids=((0.16, 0.12), (0.16, 0.12)), gaze=(0.2, -0.22), mouth=("open", 0.28, -0.1, 0.9)),
     "effort": dict(brow=(-0.02, -0.5), lids=((0.25, 0.2), (0.25, 0.2)), gaze=(0.12, 0.08), mouth=("teeth", 0.32, -0.2, 1.08)),
@@ -224,6 +227,13 @@ def mouth(cv, kind, opened, smile, width):
         top = _pts(lambda t: lip(t, -Ho * 0.5, -Ho * 0.25 * sq), 40)
         bot = _pts(lambda t: lip(t, Ho * 0.6, Ho * (0.35 + 0.3 * (1 - sq))), 40)
         shape = top + bot[::-1]
+    elif kind == "roar":  # (k20) a squared shout: a rounded box, its corners pulled out and down
+        droop = -smile * Ho * 0.75
+        def roar_pt(a):
+            c, sn = math.cos(a), math.sin(a)
+            xr = math.copysign(abs(c) ** 0.45, c)
+            return (cx + xr * W / 2, cy + math.copysign(abs(sn) ** 0.45, sn) * Ho / 2 + droop * xr * xr)
+        shape = [roar_pt(math.pi + 2 * math.pi * i / 80) for i in range(80)]
     elif kind == "cry":  # the war cry: the top lip lifted in the middle, the jaw dropped (a U, narrower below)
         top = _pts(lambda t: (cx + (t - 0.5) * W, cy - Ho * 0.22 - Ho * 0.26 * math.sin(math.pi * t) ** 0.7), 40)
         bot = _pts(lambda t: (cx + (t - 0.5) * W * (0.9 + 0.1 * abs(2 * t - 1) ** 3),
@@ -234,10 +244,31 @@ def mouth(cv, kind, opened, smile, width):
         bot = _pts(lambda t: lip(t, -Ho * 0.3, Ho * 1.0), 40)
         shape = top + bot[::-1]
     m = cv.mask(lambda d, s: d.polygon([(x * s, y * s) for x, y in shape], fill=255))
-    cv.paint(MOUTH_IN if kind != "cry" else (0.07, 0.02, 0.03), m)  # (key art k9: the cry's inside near-black, "one flat orange-red")
+    cv.paint(MOUTH_IN if kind not in ("cry", "roar") else (0.07, 0.02, 0.03), m)  # (key art k9: the cry's inside near-black, "one flat orange-red")
     ys = np.array([p[1] for p in shape])
     y0, y1 = ys.min(), ys.max()
     yy = np.mgrid[0:N, 0:N][0].astype(np.float32)
+    if kind == "roar":
+        xs_ = np.array([p_[0] for p_ in shape]); ys_ = np.array([p_[1] for p_ in shape])
+        cols = np.arange(N, dtype=np.float32)
+        top = np.full(N, 1e9, np.float32); bot = np.full(N, -1e9, np.float32)
+        mm = m > 0.5
+        any_col = mm.any(0)
+        top[any_col] = np.argmax(mm[:, any_col], 0)
+        bot[any_col] = N - 1 - np.argmax(mm[::-1, any_col], 0)
+        hgt = np.maximum(bot - top, 1.0)
+        inner = (np.abs(cols - cx) < W * 0.43)[None, :]
+        # (k21, "at phone size the open mouth reads as a larger white patch") mostly dark: one thin crisp upper teeth bar,
+        # no lower row, a dark tongue tone in the bottom third
+        tongue = cv.mask(lambda d, s: d.ellipse([(cx - W * 0.26) * s, (cy + Ho * 0.16) * s, (cx + W * 0.26) * s,
+                                                 (cy + Ho * 0.56) * s], fill=255))
+        cv.paint((0.36, 0.1, 0.12), tongue * m)
+        upper = ((yy < top[None, :] + hgt[None, :] * 0.13) & inner).astype(np.float32)
+        lower = np.zeros_like(upper)
+        cv.paint(TEETH, ndimage.gaussian_filter(upper, 0.6) * m)
+        xx = np.mgrid[0:N, 0:N][1].astype(np.float32)
+        gaps = (np.abs(((xx - cx) / (W * 0.12)) % 1.0 - 0.5) > 0.46).astype(np.float32)
+        cv.multiply((0.78, 0.74, 0.72), ndimage.gaussian_filter(gaps, 0.7) * m * ndimage.gaussian_filter(upper + lower, 0.8) * 0.4)
     if kind == "cry":
         # the tongue low in the dark, the lower teeth a thin row in front of it, the upper teeth a bold row under the lip
         tongue = cv.mask(lambda d, s: d.ellipse([(cx - W * 0.3) * s, (y1 - (y1 - y0) * 0.42) * s, (cx + W * 0.3) * s,
