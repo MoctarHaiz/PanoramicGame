@@ -974,6 +974,8 @@ def key_build():
 
 
 HAIR_LOCKS = int(os.environ.get("HAIR_LOCKS", "6"))  ## (key art k39) the big locks his hair's shading is grouped into
+HAIR_SMOOTH_IT = int(os.environ.get("HAIR_SMOOTH_IT", "200"))  ## (key art k41) how far the hair's own normals are smoothed
+## for its highlight (iterations over its edges)
 HAIR_ROUND = float(os.environ.get("HAIR_ROUND", "0.6"))  ## how much each lock shades as a round clump round its own axis (the
 ## rest: the head's own roundness)
 
@@ -1041,6 +1043,26 @@ def key_hair_normals():
     lk = me.attributes.get("hair_lock") or me.attributes.new("hair_lock", "FLOAT", "POINT")
     lock_full = np.zeros(n, np.float32); lock_full[idx] = (lab + 1) / float(HAIR_LOCKS)
     lk.data.foreach_set("value", lock_full)
+    # (key art k41, judge: "the highlights are radial streaks ... painterly and smudged: each big lock one crisp hard-edged
+    # highlight shape") the hair's own normals smoothed across each spike (never through it: only between vertices facing
+    # the same way), so its highlight band is one clean shape per spike group, not a streak per strand: attribute "hair_s"
+    if HAIR_SMOOTH_IT > 0:
+        vn = np.zeros(len(ev.vertices) * 3, np.float32); ev.vertex_normals.foreach_get("vector", vn); vn = vn.reshape(-1, 3)
+        wn = vn[idx] @ mw[:3, :3].T
+        wn /= np.maximum(np.linalg.norm(wn, axis=1, keepdims=True), 1e-9)
+        loc = np.full(n, -1, np.int64); loc[idx] = np.arange(len(idx))
+        ed = np.zeros(len(me.edges) * 2, np.int64); me.edges.foreach_get("vertices", ed); ed = loc[ed.reshape(-1, 2)]
+        ed = ed[(ed[:, 0] >= 0) & (ed[:, 1] >= 0)]
+        ed = ed[np.einsum("ij,ij->i", wn[ed[:, 0]], wn[ed[:, 1]]) > 0.3]
+        sn = wn.copy()
+        for _ in range(HAIR_SMOOTH_IT):
+            acc = sn.copy()
+            np.add.at(acc, ed[:, 0], sn[ed[:, 1]])
+            np.add.at(acc, ed[:, 1], sn[ed[:, 0]])
+            sn = acc / np.maximum(np.linalg.norm(acc, axis=1, keepdims=True), 1e-9)
+        full_s = np.zeros((n, 3), np.float32); full_s[idx] = sn
+        hs = me.attributes.get("hair_s") or me.attributes.new("hair_s", "FLOAT_VECTOR", "POINT")
+        hs.data.foreach_set("vector", full_s.ravel())
     bpy.context.view_layer.update()
     print("KEY_HAIR locks", np.bincount(lab).tolist())
 
@@ -1083,7 +1105,9 @@ def pose_key_throw():
         m = Matrix.Translation(at) @ rot @ Matrix.Diagonal((*ring.matrix_world.to_scale(), 1.0))
         ring.matrix_world = m
         bpy.context.view_layer.update()
+    key_fringe_lift()
     key_hair_normals()
+    key_fringe()
 
 
 JUMP_LEAN = float(os.environ.get("JUMP_LEAN", "16"))  ## degrees forward his body leans in the flight
@@ -2395,6 +2419,198 @@ def set_face(expression):
     _face[0] = expression
 
 
+FRINGE_GAP = float(os.environ.get("FRINGE_GAP", "20"))  ## (key art k41) picture pixels (2048) of lit forehead kept clear
+## above his drawn brows
+FRINGE_GAP_FAR = float(os.environ.get("FRINGE_GAP_FAR", "14"))  ## and this many more between his eyes and over the far brow
+FRINGE_ON = float(os.environ.get("FRINGE_ON", "0.008"))  ## hair this close to his skin lies on it (the hairline), not a lock
+## standing off it (rest units)
+FRINGE_Y = 0.028  ## (rest y: beyond it the far temple's locks, at the head's silhouette, stay)
+_FRINGE_UNDO = []
+
+
+def key_fringe():
+    """(Key art k41, judge: "the dark underside of the fringe touches the brow and muddies the eye area: a sliver of lit
+    forehead between hair and brow would make the scowl read") the hairline over his brows lifted clear of them, in the
+    picture: the hair lying on his skin (not the locks standing off it) over his drawn brows and up to FRINGE_GAP pixels
+    above them becomes his forehead (the face's material, lit by the skin's own normal there: attribute "fringe_n"), so a
+    thin strip of lit skin shows between the fringe and his brows. The locks, the hair's silhouette and the far temple
+    are untouched; undone after the picture; the user's file unchanged."""
+    if not (AAA and arg("--light", "day") == "sunset") or FRINGE_GAP <= 0.0:
+        return
+    from mathutils.kdtree import KDTree
+    me = MESH.data
+    names = [m.name if m else "" for m in me.materials]
+    fm = bpy.data.materials.get("AAA_face")
+    dec = bpy.data.images.get(fm.get("decal", "")) if fm is not None else None
+    if "AAA_hair" not in names or "AAA_face" not in names or dec is None:
+        return
+    hi, fi = names.index("AAA_hair"), names.index("AAA_face")
+    n = len(me.vertices)
+    mi = np.zeros(len(me.polygons), np.int64); me.polygons.foreach_get("material_index", mi)
+    lt = np.zeros(len(me.polygons), np.int64); me.polygons.foreach_get("loop_total", lt)
+    ls = np.zeros(len(me.polygons), np.int64); me.polygons.foreach_get("loop_start", ls)
+    lv = np.zeros(len(me.loops), np.int64); me.loops.foreach_get("vertex_index", lv)
+    rc = np.zeros(n * 3, np.float32); me.attributes["rest_co"].data.foreach_get("vector", rc); rc = rc.reshape(-1, 3)
+    lm = np.repeat(mi, lt)
+    hair_v = np.zeros(n, bool); hair_v[lv[lm == hi]] = True
+    skin_v = np.zeros(n, bool); skin_v[lv[lm != hi]] = True
+    skin_v &= ~hair_v
+    head = (rc[:, 0] > 0.02) & (rc[:, 2] > 0.33) & (rc[:, 2] < 0.44) & (rc[:, 1] < FRINGE_Y + 0.02)
+    # how far each vertex of the front of his head lies off his skin
+    near = np.nonzero(skin_v & head)[0]
+    kd = KDTree(len(near))
+    for i in near:
+        kd.insert(rc[i].tolist(), int(i))
+    kd.balance()
+    dist = np.full(n, 1.0, np.float32)
+    nearest = np.arange(n)
+    for v in np.nonzero(head & hair_v)[0]:
+        _co, j, dd = kd.find(rc[v].tolist())
+        dist[v], nearest[v] = dd, j
+    dist[skin_v & head] = 0.0
+    # where they fall in the picture
+    dg = bpy.context.evaluated_depsgraph_get()
+    ev = MESH.evaluated_get(dg).data
+    co = np.zeros(len(ev.vertices) * 3, np.float32); ev.vertices.foreach_get("co", co); co = co.reshape(-1, 3)
+    vn = np.zeros(len(ev.vertices) * 3, np.float32); ev.vertex_normals.foreach_get("vector", vn); vn = vn.reshape(-1, 3)
+    mw = np.array(MESH.matrix_world, np.float32)
+    wco = co @ mw[:3, :3].T + mw[:3, 3]
+    wn = vn @ mw[:3, :3].T
+    wn /= np.maximum(np.linalg.norm(wn, axis=1, keepdims=True), 1e-9)
+    # (bpy_extras' world_to_camera_view, for every vertex at once)
+    cinv = np.array(SC.camera.matrix_world.normalized().inverted(), np.float64)
+    cl = np.c_[wco, np.ones(n)] @ cinv.T
+    zz = np.maximum(-cl[:, 2], 1e-6) if SC.camera.data.type != "ORTHO" else -np.ones(n)  # (ortho: the frame as it is)
+    fr = [np.array(v[:]) for v in SC.camera.data.view_frame(scene=SC)[:3]]
+    if SC.camera.data.type == "ORTHO":
+        fr = [v * np.array([1.0, 1.0, -1.0]) for v in fr]  # (so -v.x * zz / v.z is v.x)
+    min_x, max_x = -fr[2][0] * zz / fr[2][2], -fr[1][0] * zz / fr[1][2]
+    min_y, max_y = -fr[1][1] * zz / fr[1][2], -fr[0][1] * zz / fr[0][2]
+    sx = (cl[:, 0] - min_x) / (max_x - min_x) * SIZE
+    sy = (1.0 - (cl[:, 1] - min_y) / (max_y - min_y)) * SIZE
+    # his drawn brows in the picture: the skin (or skin-hugging hair) under the decal's dark strokes over his eyes
+    fy, fz, fs = _aaa_toon().FACE_FRAME
+    w, h = dec.size
+    px = np.empty(w * h * 4, np.float32); dec.pixels.foreach_get(px); px = px.reshape(h, w, 4)  # (row 0: the bottom)
+    zrow = fz + (np.arange(h) + 0.5) / h * fs
+    dark = ((px[..., :3] @ np.array([0.3, 0.59, 0.11], np.float32)) < 0.3) & (px[..., 3] > 0.5)  # (the picture's own sRGB values)
+    dark &= ((zrow > 0.345) & (zrow < 0.42))[:, None]
+    stroke = np.zeros_like(dark)  # (each column's topmost dark run only: the brow, not the eye under it)
+    for j in np.nonzero(dark.any(0))[0]:
+        c = dark[::-1, j]
+        r0 = int(np.argmax(c))
+        r1 = r0 + (int(np.argmin(c[r0:])) if not c[r0:].all() else len(c) - r0)
+        stroke[h - r1:h - r0, j] = True
+    dark = stroke
+    u = np.clip(((rc[:, 1] - fy) / fs * w).astype(np.int64), 0, w - 1)
+    vv = np.clip(((rc[:, 2] - fz) / fs * h).astype(np.int64), 0, h - 1)
+    face_v = np.zeros(n, bool); face_v[lv[lm == fi]] = True
+    brow = head & (face_v | (hair_v & (dist < FRINGE_ON))) & dark[vv, u] & (rc[:, 2] > 0.345) & (rc[:, 2] < 0.42)
+    if not brow.any():
+        return
+    bx = np.round(sx[brow]).astype(np.int64)
+    by = sy[brow]
+    lo, hi_x = bx.min(), bx.max()
+    top = np.full(hi_x - lo + 1, np.inf); bot = np.full(hi_x - lo + 1, -np.inf)
+    np.minimum.at(top, bx - lo, by)
+    np.maximum.at(bot, bx - lo, by)
+    r = 4
+    top = np.array([top[max(0, i - r):i + r + 1].min() for i in range(len(top))])
+    bot = np.array([bot[max(0, i - r):i + r + 1].max() for i in range(len(bot))])
+    # the hair on his skin over the brows and FRINGE_GAP above them
+    cs = np.add.reduceat(np.c_[sx, sy][lv], ls) / lt[:, None]
+    pmax = np.maximum.reduceat(dist[lv], ls)
+    cen = np.add.reduceat(rc[lv], ls) / lt[:, None]
+    ci = np.round(cs[:, 0]).astype(np.int64) - lo
+    inside = (ci >= 0) & (ci < len(top))
+    ci = np.clip(ci, 0, len(top) - 1)
+    sel = (mi == hi) & inside & (pmax < FRINGE_ON) & (cen[:, 0] > 0.03) & (cen[:, 1] < FRINGE_Y) & np.isfinite(top[ci])
+    gap = FRINGE_GAP + FRINGE_GAP_FAR * np.clip(cen[:, 1] / 0.012 + 1.0, 0.0, 1.0)  # (more between his eyes and over the far brow)
+    sel &= (cs[:, 1] > top[ci] - gap) & (cs[:, 1] < bot[ci] + 1.0)
+    sel = np.nonzero(sel)[0]
+    if not len(sel):
+        return
+    # lit as the skin it lies on: the nearest skin vertex's normal (world)
+    fn = np.zeros((n, 3), np.float32)
+    vs = np.unique(lv[np.repeat(np.isin(np.arange(len(mi)), sel), lt)])
+    fn[vs] = wn[nearest[vs]]
+    att = me.attributes.get("fringe_n") or me.attributes.new("fringe_n", "FLOAT_VECTOR", "POINT")
+    att.data.foreach_set("vector", fn.ravel())
+    _FRINGE_UNDO.append((sel, mi[sel].copy()))
+    mi[sel] = fi
+    me.polygons.foreach_set("material_index", mi)
+    me.update()
+    bpy.context.view_layer.update()
+    print("KEY_FRINGE", len(sel), "polygons; brow columns", lo, hi_x)
+
+
+FRINGE_LIFT = float(os.environ.get("FRINGE_LIFT", "0.45"))  ## (key art k41) the share of their drop the locks hanging over his
+## brows are drawn up by, towards FRINGE_TOP (their roots stay)
+FRINGE_TOP = float(os.environ.get("FRINGE_TOP", "0.42"))
+FRINGE_SIDE = (-0.015, 0.021)  ## (rest y: the locks between his eyes and over the far brow, not the far temple's)
+
+
+def key_fringe_lift():
+    """(Key art k41) the locks standing off his forehead over his brows (the wedge between his eyes and over the far brow)
+    drawn up towards their roots, so they end above his brows: a shape key for the title screen (undone after it). The
+    hair lying on his skin and the vertices it shares with his face stay, so his skin never stretches."""
+    if not (AAA and arg("--light", "day") == "sunset") or FRINGE_LIFT <= 0.0:
+        return
+    from mathutils.kdtree import KDTree
+    me = MESH.data
+    names = [m.name if m else "" for m in me.materials]
+    if me.shape_keys is None or "AAA_hair" not in names:
+        return
+    hi = names.index("AAA_hair")
+    n = len(me.vertices)
+    mi = np.zeros(len(me.polygons), np.int64); me.polygons.foreach_get("material_index", mi)
+    lt = np.zeros(len(me.polygons), np.int64); me.polygons.foreach_get("loop_total", lt)
+    lv = np.zeros(len(me.loops), np.int64); me.loops.foreach_get("vertex_index", lv)
+    rc = np.zeros(n * 3, np.float32); me.attributes["rest_co"].data.foreach_get("vector", rc); rc = rc.reshape(-1, 3)
+    lm = np.repeat(mi, lt)
+    hair_v = np.zeros(n, bool); hair_v[lv[lm == hi]] = True
+    skin_v = np.zeros(n, bool); skin_v[lv[lm != hi]] = True
+    cand = hair_v & ~skin_v & (rc[:, 0] > 0.035) & (rc[:, 1] > FRINGE_SIDE[0] - 0.01) & (rc[:, 1] < FRINGE_SIDE[1] + 0.01) & (rc[:, 2] < FRINGE_TOP)
+    near = np.nonzero(skin_v & (rc[:, 0] > 0.02) & (rc[:, 2] > 0.33) & (rc[:, 2] < 0.45))[0]
+    kd = KDTree(len(near))
+    for i in near:
+        kd.insert(rc[i].tolist(), int(i))
+    kd.balance()
+    dist = np.zeros(n, np.float32)
+    for v in np.nonzero(cand)[0]:
+        dist[v] = kd.find(rc[v].tolist())[2]
+
+    def sm(v, a, b):
+        t = np.clip((v - a) / (b - a), 0.0, 1.0)
+        return t * t * (3.0 - 2.0 * t)
+    w = cand * sm(dist, 0.006, 0.012) * sm(rc[:, 0], 0.035, 0.05) * sm(rc[:, 1], FRINGE_SIDE[0] - 0.01, FRINGE_SIDE[0]) \
+        * sm(rc[:, 1], FRINGE_SIDE[1] + 0.01, FRINGE_SIDE[1])
+    dz = w * np.maximum(FRINGE_TOP - rc[:, 2], 0.0) * FRINGE_LIFT / 1.106  # (rest height to the mesh's: 1.106)
+    co = np.zeros(n * 3, np.float32); me.shape_keys.key_blocks["Basis"].data.foreach_get("co", co); co = co.reshape(-1, 3)
+    co[:, 2] += dz
+    kb = me.shape_keys.key_blocks.get("KEY_fringe") or MESH.shape_key_add(name="KEY_fringe", from_mix=False)
+    kb.data.foreach_set("co", co.ravel())
+    kb.value = 1.0
+    me.update()
+    bpy.context.view_layer.update()
+    _FRINGE_UNDO.append(("key", None))
+    print("KEY_FRINGE_LIFT", int((dz > 1e-5).sum()), "vertices, up to", round(float(dz.max()), 4))
+
+
+def key_fringe_undo():
+    while _FRINGE_UNDO:
+        sel, old = _FRINGE_UNDO.pop()
+        if isinstance(sel, str):
+            kb = MESH.data.shape_keys.key_blocks.get("KEY_fringe")
+            if kb is not None:
+                kb.value = 0.0
+            continue
+        mi = np.zeros(len(MESH.data.polygons), np.int64); MESH.data.polygons.foreach_get("material_index", mi)
+        mi[sel] = old
+        MESH.data.polygons.foreach_set("material_index", mi)
+        MESH.data.update()
+
+
 def key_depth_pass(folder):
     """(Key art k36, "the outline the same heavy black everywhere ... nearly absent on inner forms: a consistent outer line
     with tapered inner lines") a quick second render of the key art's depth (view z) and what each pixel is (hair 1, the
@@ -2487,6 +2703,7 @@ def render(name, view, frames, lift=0.0, tilt=0.0):
         data["frames"].append(points(SC.camera))
     with open(os.path.join(folder, "points.json"), "w") as fh:
         json.dump(data, fh, indent=1)
+    key_fringe_undo()  # (key art k41: the hairline over his brows, the title screen's only)
     if view == "other_side":
         mirror_user_lights()
     SC.camera.rotation_euler.x = level

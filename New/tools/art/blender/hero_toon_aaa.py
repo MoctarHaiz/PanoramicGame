@@ -143,7 +143,14 @@ HAIR_CENTRE = (0.0, 0.0, 0.4)  ## the middle of his head in the rest shape (the 
 ## highlight band along it, no strand noise (no lock noise, normal map or deep occlusion)
 HAIR_LOCK_K = float(_os.environ.get("HAIR_LOCK_K", "0.55"))  ## the share of the lock's normal in the hair's light
 HAIR_HI = (0.11, 0.05, 0.026)  ## the highlight band: his hair's own warm brown (linear), never cool or glossy
-HAIR_HI_CUT = (0.5, 0.56)  ## where the lock's sheen turns into the band (a crisp edge)
+## (key art k41, judge: "the highlights are radial streaks from the crown that look painterly and smudged next to the hard
+## cel body: each big lock one crisp hard-edged highlight shape, no brush streaks") the band's sheen from the lock's normal
+## and the hair's own smoothed across each spike (hero_render.py: attribute "hair_s"), not its raw strand-level normal, cut
+## in one hard step and only on the lock's lit side: one clean shape along each big lock
+HAIR_HI_K = float(_os.environ.get("HAIR_HI_K", "0.45"))  ## the share of the lock's normal in the band's sheen
+HAIR_HI_C = float(_os.environ.get("HAIR_HI_C", "0.5"))  ## the band's cut (k39: a soft 0.5-0.56)
+HAIR_HI_W = 0.012  ## its softening (a pixel)
+HAIR_TIPS_K = 0.6  ## the warm tips (k10)
 HAIR_AO_K = 0.3  ## the occlusion kept in the pictures (deep gaps only; was 0.9)
 ## (key art k7, "the lower body melts into the background: one orange-tan value"; "a generic fighter: one signature
 ## colour") the kilt a white Nguni cowhide with bold dark patches (the logo shield's hide) and a beaded hem, a red sash
@@ -367,6 +374,22 @@ def build(m, mode="day"):
         front = g.smooth(sepd.outputs["X"], -0.01, 0.01)  # the face's front only, never through to the back
         albedo = g.mix("MIX", g.math("MULTIPLY", dt.outputs["Alpha"], front), albedo, dt.outputs["Color"])
     # (key art k2: the face is SKIN flat, its old picture's warm-up no longer needed)
+    if region == "face" and mode == "sunset" and BOLD:  # (key art k41) the hairline over his brows lifted (hero_render.py
+        # key_fringe()): that skin lit by the normal of the skin it lies on (attribute "fringe_n", world; zero elsewhere)
+        att_fn = g.node("ShaderNodeAttribute")
+        att_fn.attribute_name = "fringe_n"
+        fl = g.node("ShaderNodeVectorMath"); fl.operation = "LENGTH"
+        g.link(att_fn.outputs["Vector"], fl.inputs[0])
+        fk = g.math("GREATER_THAN", fl.outputs["Value"], 0.5)
+        fd = g.node("ShaderNodeVectorMath"); fd.operation = "SUBTRACT"
+        g.link(att_fn.outputs["Vector"], fd.inputs[0]); g.link(N, fd.inputs[1])
+        fsc = g.node("ShaderNodeVectorMath"); fsc.operation = "SCALE"
+        g.link(fd.outputs["Vector"], fsc.inputs[0]); g.link(fk, fsc.inputs["Scale"])
+        fa = g.node("ShaderNodeVectorMath"); fa.operation = "ADD"
+        g.link(N, fa.inputs[0]); g.link(fsc.outputs["Vector"], fa.inputs[1])
+        fnn = g.node("ShaderNodeVectorMath"); fnn.operation = "NORMALIZE"
+        g.link(fa.outputs["Vector"], fnn.inputs[0])
+        N = fnn.outputs["Vector"]
     # the light (key and fill, with cast shadows) as one value
     dif = g.node("ShaderNodeBsdfDiffuse", Color=(1, 1, 1, 1))
     g.link(N, dif.inputs["Normal"])
@@ -427,6 +450,7 @@ def build(m, mode="day"):
         hn2.operation = "NORMALIZE"
         g.link(sm_.outputs["Vector"], hn2.inputs[0])
         hair_n = hn2.outputs["Vector"]
+        hair_lock_n = hn.outputs["Vector"]
         dif_h = g.node("ShaderNodeBsdfDiffuse", Color=(1, 1, 1, 1))
         g.link(hair_n, dif_h.inputs["Normal"])
         s2h = g.node("ShaderNodeShaderToRGB")
@@ -643,21 +667,34 @@ def build(m, mode="day"):
         v = g.math("MULTIPLY", v, g.math("SUBTRACT", 1.0, g.math("ADD", under, root)))
         colour = g.mix("MULTIPLY", 1.0, colour, g.grey(v))
     if region == "hair" and hair_n is not None:
-        # (key art k39) one clean warm-brown band along each lock where its sheen faces the light and us (crisp), and its tips
+        # (key art k39) one clean warm-brown band along each lock where its sheen faces the light and us (k41: hard), and its tips
+        # the band's normal: the lock's with the hair's own smoothed across each spike (attribute "hair_s")
+        att_hs = g.node("ShaderNodeAttribute")
+        att_hs.attribute_name = "hair_s"
+        hb1 = g.node("ShaderNodeVectorMath"); hb1.operation = "SCALE"
+        g.link(hair_lock_n, hb1.inputs[0]); hb1.inputs["Scale"].default_value = HAIR_HI_K
+        hb2 = g.node("ShaderNodeVectorMath"); hb2.operation = "SCALE"
+        g.link(att_hs.outputs["Vector"], hb2.inputs[0]); hb2.inputs["Scale"].default_value = 1.0 - HAIR_HI_K
+        hb3 = g.node("ShaderNodeVectorMath"); hb3.operation = "ADD"
+        g.link(hb1.outputs["Vector"], hb3.inputs[0]); g.link(hb2.outputs["Vector"], hb3.inputs[1])
+        hb4 = g.node("ShaderNodeVectorMath"); hb4.operation = "NORMALIZE"
+        g.link(hb3.outputs["Vector"], hb4.inputs[0])
+        hi_n = hb4.outputs["Vector"]
         gl_h = g.node("ShaderNodeBsdfGlossy", Roughness=0.35)
-        g.link(hair_n, gl_h.inputs["Normal"])
+        g.link(hi_n, gl_h.inputs["Normal"])
         s2gh = g.node("ShaderNodeShaderToRGB")
         g.link(gl_h.outputs[0], s2gh.inputs[0])
         bwg = g.node("ShaderNodeRGBToBW")
         g.link(s2gh.outputs["Color"], bwg.inputs[0])
-        hi = g.smooth(bwg.outputs[0], HAIR_HI_CUT[0], HAIR_HI_CUT[1])
+        hi = g.smooth(bwg.outputs[0], HAIR_HI_C, HAIR_HI_C + HAIR_HI_W)
+        hi = g.math("MULTIPLY", hi, g.smooth(L, 0.17, 0.18))  # (on the lock's lit side only: never over its shadow side)
         colour = g.mix("MIX", g.math("MULTIPLY", hi, 0.95), colour, HAIR_HI)
         cen = g.node("ShaderNodeVectorMath")
         cen.operation = "DISTANCE"
         g.link(P, cen.inputs[0])
         cen.inputs[1].default_value = HAIR_CENTRE
         tips = g.smooth(cen.outputs["Value"], 0.11, 0.16)
-        colour = g.mix("MIX", g.math("MULTIPLY", tips, 0.6), colour, (0.13, 0.065, 0.035))  # (k10's warm tips, kept)
+        colour = g.mix("MIX", g.math("MULTIPLY", tips, HAIR_TIPS_K), colour, (0.13, 0.065, 0.035))  # (k10's warm tips, kept)
     elif region == "hair":
         # a broken highlight band (an angel ring split into strand groups), only in the light
         off = g.math("MULTIPLY", g.math("SUBTRACT", g.noise(P, (70.0, 70.0, 70.0), 2.0, 0.5), 0.5), 0.5 if mode == "day" else 0.08)
