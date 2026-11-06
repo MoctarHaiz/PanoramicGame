@@ -155,6 +155,13 @@ HAIR_AO_K = 0.3  ## the occlusion kept in the pictures (deep gaps only; was 0.9)
 ## (key art k7, "the lower body melts into the background: one orange-tan value"; "a generic fighter: one signature
 ## colour") the kilt a white Nguni cowhide with bold dark patches (the logo shield's hide) and a beaded hem, a red sash
 ## round his waist, the leather under the kilt dark; the boots: clean blue shin guards over dark glossy leather
+## (key art k48, both judges of k44, judge 1 again of k47: "the white cowhide apron is the highest-value, highest-contrast
+## shape on the figure and pulls the eye to the hips instead of the face: knock the white down to warm cream or ivory, add a
+## shadow under the belt") the hide's white one value step down to a warm cream, and the belt's crisp shadow on it
+COW_CREAM = (0.55, 0.47, 0.32)  ## (linear; lit about sRGB (0.82, 0.75, 0.62); k7-k47 (0.78, 0.68, 0.5), lit near white)
+BELT_SHADOW = tuple(float(v) for v in _os.environ.get("BELT_SHADOW", "0.045,0.068").split(","))  ## (rest height) the belt's shadow on
+## the apron right under its roll (the apron's top edge is at about 0.065 at his front; the band folded over the belt's top,
+## above 0.075, stays lit)
 COW_DARK = (0.03, 0.018, 0.014)  ## (k9: black-brown; k7 (0.085, 0.032, 0.018)) the spots, lit by the fur's bands
 ## (key art k9, "random hard-edged blobs": a few designed spots, (y, z, radius y, radius z) in the rest shape: three on the
 ## front apron, two on the back)
@@ -462,6 +469,10 @@ def build(m, mode="day"):
         if region == "skin":  # a crisp shadow cast by the hem on the skin just below it
             cast = g.math("MULTIPLY", g.math("MULTIPLY", g.smooth(hem_d, HEM_SHADOW, HEM_SHADOW * 0.85), g.math("GREATER_THAN", hem_d, 0.0)), legs)
             L = g.math("SUBTRACT", L, g.math("MULTIPLY", cast, 1.5))
+    if mode == "sunset" and BOLD and not flat and region == "fur":  # (key art k48) the belt's shadow on the hide right under it:
+        # the hide's own shade tone, one crisp cel band along the belt
+        cast_b = g.math("MULTIPLY", g.smooth(height, BELT_SHADOW[0], BELT_SHADOW[0] + 0.001), g.smooth(height, BELT_SHADOW[1], BELT_SHADOW[1] - 0.001))
+        L = g.math("SUBTRACT", L, g.math("MULTIPLY", cast_b, 1.5))
     hair_n = None
     if region == "hair" and mode == "sunset" and BOLD:  # (key art k39) the light of its big locks, not of every strand
         att_hn = g.node("ShaderNodeAttribute")
@@ -606,6 +617,10 @@ def build(m, mode="day"):
             alb = g.mix("MIX", sole, alb, (0.05, 0.025, 0.013) if mode == "sunset" else BOOT_SOLE)  # (key art k7: in the pictures only its edge; it tanned half the shoe)
         if region == "fur":
             alb = g.mix("MULTIPLY", 1.0, albedo, (1.0, 0.97, 0.9))  # warm cream, never grey paper
+            if mode == "sunset" and BOLD and not flat:  # (key art k48) one value step down, a warm cream
+                rgb_c = g.node("ShaderNodeRGB")
+                rgb_c.outputs[0].default_value = (*COW_CREAM, 1.0)
+                alb = rgb_c.outputs[0]
         if region == "belt" and mode == "sunset" and BOLD and (not flat or m.name.startswith("AAA_underwrap")):
             # (the underwrap's waistband is the sash too; under the kilt it is the dark leather)
             low = UI_FLAT["belt"] if flat else alb
