@@ -2,11 +2,18 @@
 
 importer="texture"
 type="CompressedTexture2D"
-valid=false
+uid="uid://cxmlhx5sb6lxu"
+path.s3tc="res://.godot/imported/bandit_strong.png-982ad34616e5d41724770fcac181fb82.s3tc.ctex"
+path.etc2="res://.godot/imported/bandit_strong.png-982ad34616e5d41724770fcac181fb82.etc2.ctex"
+metadata={
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
+}
 
 [deps]
 
 source_file="res://assets/art/bandit/bandit_strong.png"
+dest_files=["res://.godot/imported/bandit_strong.png-982ad34616e5d41724770fcac181fb82.s3tc.ctex", "res://.godot/imported/bandit_strong.png-982ad34616e5d41724770fcac181fb82.etc2.ctex"]
 
 [params]
 
