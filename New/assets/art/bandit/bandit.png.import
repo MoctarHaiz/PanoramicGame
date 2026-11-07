@@ -3,17 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cp2y4mjpvfynf"
-path.s3tc="res://.godot/imported/bandit.png-ff58733edca37e138990cc8ed9b75c45.s3tc.ctex"
-path.etc2="res://.godot/imported/bandit.png-ff58733edca37e138990cc8ed9b75c45.etc2.ctex"
-metadata={
-"imported_formats": ["s3tc_bptc", "etc2_astc"],
-"vram_texture": true
-}
+valid=false
 
 [deps]
 
 source_file="res://assets/art/bandit/bandit.png"
-dest_files=["res://.godot/imported/bandit.png-ff58733edca37e138990cc8ed9b75c45.s3tc.ctex", "res://.godot/imported/bandit.png-ff58733edca37e138990cc8ed9b75c45.etc2.ctex"]
 
 [params]
 

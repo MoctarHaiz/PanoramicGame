@@ -1,10 +1,12 @@
 class_name BanditView
 extends Node2D
-## A bandit (World.Bandit): the 2017 bandit, the user's own drawing (a tall teal crest of hair, a red scarf,
-## a golden vest with its round steel emblem, golden shin guards), redrawn clean at high resolution with
-## kie.ai from the 2017 frames (tools/art/bandit_sheet.py packs them into assets/art/bandit/).
-## Placed at its feet. It waits crouched and breathing until it enters the play window, then runs its 2017
-## run (10 frames, at the pace that keeps the planted boot on the ground). As it closes on Panoramic it
+## A bandit (World.Bandit), one of two kinds that come at random (kind_of(): about 3 in 10 are strong; the rules
+## are the same for both): the user's bandit (spiky teal hair, a torn red scarf, a yellow shirt with its round
+## steel emblem, golden shin guards) and the strong one, their leader (muscular, bright-blue hair, a dark-red
+## cape-scarf, the black-and-white emblem, blue wraps), drawn bigger. Both drawn with kie.ai from the user's
+## pictures, their runs from Seedance clips (tools/art/bandit_sheet.py packs assets/art/bandit/<kind>.png).
+## Placed at its feet. It waits crouched and breathing until it enters the play window, then runs (its clip's
+## loop, at the pace that keeps the planted boot on the ground). As it closes on Panoramic it
 ## draws its fist back and punches (the rules' reach in front of it), so the blow is seen coming. A ring
 ## makes it flash white and recoil; after the first one it runs dazed (rocking, stars circling its head).
 ## The second knocks it out and it disappears as it did in 2017 (banditMort1-10): it keeps running while a
@@ -28,8 +30,8 @@ const VAULT_HEIGHT := 150.0  ## units: over his head
 const STAR_COUNT := 3
 const STAR_RISE := 30.0  ## units the dazed stars circle above the middle of its hair
 
-static var _data: Dictionary
-static var _sheet: Texture2D
+const KINDS: Array[StringName] = [&"bandit", &"bandit_strong"]
+static var _kinds := {}  # kind -> [its bandit.json data, its sheet]
 static var _shade: Texture2D
 
 ## How far a running bandit's body reaches ahead of its centre (units): pressed on a wall, its crest
@@ -39,6 +41,9 @@ const REACH := 42.0
 var world: World
 var wall_shift := 0.0  ## held off a wall face it is pressed on (units, >= 0; WorldView eases it)
 var bandit: World.Bandit
+var kind: StringName
+var _d: Dictionary  # this kind's sheet data
+var _tex: Texture2D  # this kind's sheet
 var _sprite: Sprite2D
 var _material: ShaderMaterial
 var _front: Node2D  # what is drawn over the sprite (the stars in front of its head)
@@ -69,10 +74,10 @@ var _vault := -1.0  # 0..1 through the vault over him (-1: not vaulting)
 
 
 static func load_art() -> void:
-	if _sheet:
+	if not _kinds.is_empty():
 		return
-	_data = JSON.parse_string(FileAccess.get_file_as_string(DIR + "bandit.json"))
-	_sheet = load(DIR + "bandit.png")
+	for k in KINDS:
+		_kinds[k] = [JSON.parse_string(FileAccess.get_file_as_string(DIR + k + ".json")), load(DIR + k + ".png")]
 	var g := GradientTexture2D.new()
 	g.width = 64
 	g.height = 64
@@ -85,14 +90,22 @@ static func load_art() -> void:
 	_shade = g
 
 
+## The kind of the bandit with this id: about 3 in 10 strong, scattered along the level (the same in every run).
+static func kind_of(id: int) -> StringName:
+	return &"bandit_strong" if posmod(id * 7 + 3, 10) < 3 else &"bandit"
+
+
 func _init(w: World, b: World.Bandit) -> void:
 	world = w
 	bandit = b
 	load_art()
-	_run_frames = int(_data.run_frames)
-	_scale = DRAW_SCALE / float(_data.texture_scale)
+	kind = kind_of(b.id)
+	_d = _kinds[kind][0]
+	_tex = _kinds[kind][1]
+	_run_frames = int(_d.run_frames)
+	_scale = DRAW_SCALE / float(_d.texture_scale)
 	_sprite = Sprite2D.new()
-	_sprite.texture = _sheet
+	_sprite.texture = _tex
 	_sprite.region_enabled = true  # the frames are packed, each its own rectangle: bandit.json
 	_sprite.centered = false
 	_sprite.scale = Vector2.ONE * _scale
@@ -112,7 +125,7 @@ func _init(w: World, b: World.Bandit) -> void:
 	_run = float(b.id * 3 % _run_frames)
 	_breath = b.id * 0.7
 	_star_turn = b.id * 1.3
-	_show(int(_data.run) + int(_run))
+	_show(int(_d.run) + int(_run))
 
 
 ## Called by WorldView every frame while the bandit is in the game. `grounded`: not hopping a wall.
@@ -133,7 +146,7 @@ func hit(knocked_out: bool) -> void:
 		_sprite.rotation = 0.0
 	else:
 		_hit_left = HIT_TIME
-		_show(int(_data.hit))
+		_show(int(_d.hit))
 
 
 ## Ran off the left of the screen: fades away.
@@ -162,24 +175,24 @@ func _process(delta: float) -> void:
 	if not bandit.active:  # waiting to pounce: crouched, breathing
 		_breath += dt
 		var k := 0.5 + 0.5 * sin(_breath * 3.4)
-		frame = int(_data.wait)
+		frame = int(_d.wait)
 		_sprite.scale = Vector2(_scale * (1.0 - 0.012 * k), _scale * (1.0 + 0.02 * k))
 	else:
 		# dazed, it runs a little slower and rocks on its feet
-		_run = fposmod(_run + dt * float(_data.run_fps) * (0.85 if bandit.hurt else 1.0), _run_frames)
-		frame = int(_data.run) + int(_run)
+		_run = fposmod(_run + dt * float(_d.run_fps) * (0.85 if bandit.hurt else 1.0), _run_frames)
+		frame = int(_d.run) + int(_run)
 		if bandit.hurt:
 			rock = DAZE_ROCK * sin(_star_turn * 0.8)
 		if not _grounded:  # hopping a wall: the leap
-			frame = int(_data.leap)
+			frame = int(_d.leap)
 		var swing := _swing_frame()
 		if swing >= 0 and _grounded:
-			frame = int(_data.swing) + swing
+			frame = int(_d.swing) + swing
 		if _hit_left > 0.0:
-			frame = int(_data.hit)
+			frame = int(_d.hit)
 			rock = 0.0
 		_sprite.scale = Vector2.ONE * _scale
-	var head: Array = _data.head[frame]
+	var head: Array = _d.head[frame]
 	_head = Vector2(head[0], head[1]) * _scale
 	var lift := 0.0
 	if bandit.touched_hero and _vault < 1.0:
@@ -188,7 +201,7 @@ func _process(delta: float) -> void:
 			_squash = Vector2(0.86, 1.14)
 		_vault = minf(_vault + dt / VAULT_TIME, 1.0)
 		lift = VAULT_HEIGHT * 4.0 * _vault * (1.0 - _vault)
-		frame = int(_data.leap)  # the leap over him
+		frame = int(_d.leap)  # the leap over him
 		rotation = -0.35 * sin(_vault * PI)
 	elif _vault >= 1.0:
 		rotation = 0.0
@@ -260,11 +273,11 @@ static func _star(target: CanvasItem, at: Vector2, r: float, turn: float, colour
 
 ## Shows a frame of the sheet, placed so the node sits on its pivot (the ground under its body).
 func _show(index: int) -> void:
-	var f: Array = _data.frames[index]
+	var f: Array = _d.frames[index]
 	_sprite.region_rect = Rect2(f[0], f[1], f[2], f[3])
 	_sprite.offset = -Vector2(f[4], f[5])
 	if _ko:  # the disappearance turns this frame about its own middle (bandit.gdshader)
-		var size := Vector2(_sheet.get_width(), _sheet.get_height())
+		var size := Vector2(_tex.get_width(), _tex.get_height())
 		_material.set_shader_parameter(&"region", Vector4(f[0] / size.x, f[1] / size.y, f[2] / size.x, f[3] / size.y))
 		_material.set_shader_parameter(&"aspect", float(f[2]) / float(f[3]))
 
@@ -289,6 +302,6 @@ func _disappear(delta: float) -> void:
 	var k := 1.0 - pow(1.0 - t, 3.0)
 	position.x += KO_PUSH * (k - _pushed)
 	_pushed = k
-	var frames: Array = _data.vanish
-	_show(int(_data.run) + int(frames[mini(int(t * frames.size()), frames.size() - 1)]))
+	var frames: Array = _d.vanish
+	_show(int(_d.run) + int(frames[mini(int(t * frames.size()), frames.size() - 1)]))
 	_material.set_shader_parameter(&"vanish", maxf(t, 0.001))

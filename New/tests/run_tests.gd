@@ -30,6 +30,7 @@ const FOLDED := {
 	&"_test_ux": "the tutorial, the comfort options, the touch areas, French typography",
 	&"_test_audio": "sounds, music, buses, settings, haptics, footsteps",
 	&"_test_art": "the hero's frames: every animation, inside its page, the run's pace, a pose for each state",
+	&"_test_shine_sweeps": "the buttons' sweep of light: no slice Godot can't draw",
 }
 
 
@@ -38,14 +39,14 @@ func _ready() -> void:
 	var tests := [_test_scripts_compile, _test_speeds, _test_level, _test_landing, _test_jump_height, _test_jump_buffer, _test_climb_wall,
 			_test_hang, _test_fall, _test_landing_weight, _test_bandits, _test_club_reach, _test_mercy, _test_calm_start, _test_swipes, _test_rings, _test_home_door, _test_run_home, _test_step_cap, _test_frame_rates, _test_idle,
 			_test_stars, _test_save, _test_translations, _test_config, _test_preload, _test_debug_silent,
-			_test_translation_formats, _test_sounds, _test_save_round_trip, _test_determinism, _test_screens, _test_no_leaks,
+			_test_translation_formats, _test_sounds, _test_save_round_trip, _test_determinism, _test_screens, _test_shine_sweeps, _test_no_leaks,
 			_test_pause_anywhere, _test_replay_home, _test_contracts, _test_hud_band, _test_audio, _test_gameplay]
 	tests.append(_test_ux)
 	tests.append(_test_art)
 	if "--bot" in OS.get_cmdline_user_args():
 		tests.append(_test_bot)
 	if "--quick" in OS.get_cmdline_user_args():  # without the screens (seconds instead of ~40 s)
-		tests = tests.filter(func(t: Callable) -> bool: return t not in [_test_screens, _test_no_leaks, _test_pause_anywhere,
+		tests = tests.filter(func(t: Callable) -> bool: return t not in [_test_screens, _test_shine_sweeps, _test_no_leaks, _test_pause_anywhere,
 				_test_replay_home, _test_contracts, _test_hud_band])
 	for test: Callable in tests:  # (the release checks wait for frames)
 		if FOLDED.has(test.get_method()):
@@ -817,6 +818,45 @@ func _test_screens() -> void:
 	Save.language = ""
 	Save.apply_language()
 	print("  %d screens checked (%d buttons, texts and lists), %d frames a second" % [shown, _layout_checked, Engine.get_frames_per_second()])
+
+
+## The buttons' sweep of light at every moment of its way across: no slice Godot cannot draw (at random moments of
+## the screen checks it logged "Invalid polygon data, triangulation failed" from juicy_button.gd), and the band still
+## lights the face, on faces where the clipped band leaves such slivers. (The per-device sweep of every shining
+## button was left out when the tests were cut to the 100 most important.)
+func _test_shine_sweeps() -> void:
+	for spec in [[Rect2(0, 0, 300, 80), 40.0], [Rect2(4, 3, 236, 62), 31.0], [Rect2(0, 0, 200, 60), 18.0]]:
+		var bad := _sweep_problems(spec[0], spec[1])
+		_check(bad.is_empty(), "the sweep of light leaves out the slivers on a %s face %s" % [spec[0].size, bad])
+
+
+## What is wrong with the sweep of light on a face: a slice Godot cannot triangulate, or (almost) no light. Tried every
+## 1000th of the way, and where a slice's edge crosses a point of the face's rounded outline, and a hair either side
+## (the slivers, about 0.05 px wide, were there).
+func _sweep_problems(face: Rect2, radius: float) -> PackedStringArray:
+	var ks := PackedFloat64Array()
+	for i in 1000:
+		ks.append(i / 1000.0)
+	var w := face.size.y * 1.1  # (the band's width, slant and travel, as JuicyButton._Shine.sweep())
+	var start := face.position.x - w * 2
+	var span := face.end.x + w - start
+	for v in GlossStyle.rounded_points(face, radius):
+		for edge in 7:
+			var x := v.x - w * edge / 6.0 - face.size.y * 0.5 * (face.end.y - v.y) / face.size.y
+			for e in [0.0, 1e-7, -1e-7, 1e-5, -1e-5, 1e-3, -1e-3]:
+				var k: float = (x - start) / span + e
+				if k >= 0.0 and k < 1.0:
+					ks.append(k)
+	var bad := PackedStringArray()
+	var lit := 0
+	for k in ks:
+		for poly in JuicyButton._Shine.sweep(face, radius, k):
+			if Geometry2D.triangulate_polygon(poly).is_empty():
+				bad.append("k=%.9f" % k)
+			lit += 1
+	if lit < 100:
+		bad.append("only %d slices of light" % lit)
+	return bad
 
 
 ## Back on the menu after a run (paused, resumed, lost) nothing of it is left: not a node, not an

@@ -139,7 +139,22 @@ class _Shine extends Control:
 		var w := face.size.y * 1.1
 		var x := lerpf(face.position.x - w * 2, face.end.x + w, k)
 		var slant := face.size.y * 0.5
-		var clip := GlossStyle.rounded_points(face, style.face_radius(rect))
+		for poly in sweep(face, style.face_radius(rect), k):
+			var colours := PackedColorArray()
+			for p in poly:  # across the band: where this point lies once the slant is taken out
+				var u := (p.x - x - slant * (face.end.y - p.y) / face.size.y) / w
+				colours.append(Color(1, 1, 1, sin(clampf(u, 0.0, 1.0) * PI) * PEAK))
+			draw_polygon(poly, colours)
+
+	## The band's slices at `k` (0 to 1 of its way across), clipped to the rounded face: only the ones Godot can
+	## draw. (Where a slice's edge just grazes the face's curve the clip can be a sliver Godot cannot triangulate:
+	## draw_polygon() then logs "Invalid polygon data", seen at random moments of the screen checks.)
+	static func sweep(face: Rect2, radius: float, k: float) -> Array[PackedVector2Array]:
+		var w := face.size.y * 1.1
+		var x := lerpf(face.position.x - w * 2, face.end.x + w, k)
+		var slant := face.size.y * 0.5
+		var clip := GlossStyle.rounded_points(face, radius)
+		var out: Array[PackedVector2Array] = []
 		# slices only so the vertex colours can follow the sine; each slice is shaded smoothly
 		var slices := 6
 		for i in slices:
@@ -148,11 +163,9 @@ class _Shine extends Control:
 			var band := PackedVector2Array([Vector2(a + slant, face.position.y), Vector2(b + slant, face.position.y),
 					Vector2(b, face.end.y), Vector2(a, face.end.y)])
 			for poly in Geometry2D.intersect_polygons(clip, band):
-				var colours := PackedColorArray()
-				for p in poly:  # across the band: where this point lies once the slant is taken out
-					var u := (p.x - x - slant * (face.end.y - p.y) / face.size.y) / w
-					colours.append(Color(1, 1, 1, sin(clampf(u, 0.0, 1.0) * PI) * PEAK))
-				draw_polygon(poly, colours)
+				if not Geometry2D.triangulate_polygon(poly).is_empty():  # (the test draw_polygon() makes)
+					out.append(poly)
+		return out
 
 	## Glints on the brass ring (its top left corner, then its bottom right) twinkling out of step: the
 	## sparkle of top games' main buttons, there between two sweeps.

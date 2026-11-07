@@ -1,24 +1,22 @@
 #!/usr/bin/env python3
-"""The bandit's sheet (assets/art/bandit/bandit.png + bandit.json): the 2017 bandit, the user's own drawing
-(Old/app/src/main/assets/bandit/bandit1-10.png: teal crest of hair, red scarf, golden vest with its round
-steel emblem, charcoal trousers, golden shin guards), redrawn clean at high resolution with kie.ai
-(Nano Banana 2) from those frames: his 10-frame run exactly as he ran in 2017, plus five poses the new
-rules need (waiting to pounce, the punch drawn back and thrown, hit, the leap) drawn in the same hand.
-The prompts and the inputs are in ROOT/_agents/kie/bandit/ (p/, in/); the ledger in ROOT/_agents/kie/.
+"""The bandits' sheets (assets/art/bandit/<kind>.png + <kind>.json), two kinds that attack at random (BanditView):
+  bandit         the user's bandit sheet (~/Downloads/bandit.png, 2026-11-07): spiky teal hair, torn red scarf,
+                 yellow shirt with the round steel emblem, grey sash, black trousers, golden shin guards;
+  bandit_strong  the user's strong bandit (~/Downloads/strong_bandit.png): the leader, muscular, bright-blue hair,
+                 dark-red cape-scarf, mustard shirt with the black-and-white emblem and straps, blue wraps.
+Both drawn with kie.ai from the user's pictures: six poses on one Nano Banana 2 sheet each (cut by
+ROOT/_agents/kie/bandit2/cut_cells.py into bandit2/cells*/: 0 the run pose, 1 waiting, 2 the fist drawn back,
+3 the punch, 4 hit, 5 the leap, all facing left), and the run from a Seedance 2.0 Mini clip started on the run
+pose (video/vframes.py keys it into video/<clip>_keyed/; the loop is video/loop_find.py's: its start, its length).
 
-The source is one 5 x 3 sheet on chroma green. Each cell is keyed here (the ink kept: the generator's
-dark outline is tinted green), scaled to PX_PER_UNIT and trimmed; the frames are packed into the
-smallest sheet that holds them. bandit.json lists each frame's rectangle and its pivot (the ground under
-his body), in this order:
-  run      the 2017 run (10 frames), drawn as the 2017 frames were: his head steady, the feet lifting
-  wait     waiting to pounce (1)
-  swing    the punch: drawn back, thrown (2)
-  hit      a ring's blow (1)
-  leap     the leap (1: over a wall, or over Panoramic once he has struck)
-and `vanish`, the run frames his 2017 disappearance played (banditMort1-10 are bandit 1, 2, 4, 6, 7, 8,
-7, 8, 7, 8 glazed, then twirled away: BanditView draws the glaze and the twirl, bandit.gdshader).
+The run's frames keep the clip's framing (its camera is locked): one pivot for the whole cycle, his body's middle
+over the lowest boot, so he bobs as filmed. The poses stand on their own lowest pixel (the leap lifted), their
+middle (the shirt's) over the same x, each brought to the run pose's head size (the hair's area). Everything at PX_PER_UNIT, the run pose STAND units tall. bandit.json:
+frames [x, y, w, h, pivot x, pivot y], the marks (run, wait, swing, hit, leap), run_frames, swing_frames, run_fps
+(the pace that keeps the planted boot on the ground at the rules' speed), head (the middle of his hair: the dazed
+stars), vanish (the run frames the 2017 disappearance plays under its glaze: bandit.gdshader).
 
-    python3 tools/art/bandit_sheet.py [SHEET]   # default ROOT/_agents/kie/bandit/gen/bandit_poses_0.png
+    python3 tools/art/bandit_sheet.py
 """
 import json
 import sys
@@ -26,50 +24,57 @@ from pathlib import Path
 
 import numpy as np
 from PIL import Image
-from scipy import ndimage as ndi
 
 sys.path.insert(0, str(Path(__file__).parent))
 from hero_atlas import bleed, premultiplied_resize  # noqa: E402
 
 NEW = Path(__file__).resolve().parents[2]
 ROOT = next(p for p in NEW.parents if (p / "_agents/kie").is_dir())  # (the main checkout, from a worktree too)
-SRC = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "_agents/kie/bandit/gen/bandit_poses_0.png"
+KIE = ROOT / "_agents/kie"
 OUT = NEW / "assets/art/bandit"
-COLS, ROWS = 5, 3
-## cells in the order of bandit.json: the run (cells 0-9), wait (10), swing (11, 12), hit (14), leap (13)
-CELLS = list(range(10)) + [10, 11, 12, 14, 13]
-MARKS = {"run": 0, "wait": 10, "swing": 11, "hit": 13, "leap": 14}
-VANISH = [0, 1, 3, 5, 6, 7, 6, 7, 6, 7]  ## banditMort1-10: the run frames under the glaze, then the twirl
-STAND_UNITS = 120.0  ## on screen, game units from the tip of his crest to his lowest boot in the run
-PX_PER_UNIT = 2.2  ## sheet px per unit (the hero's atlas: 2.3)
-PAD = 3  ## transparent pixels round each frame
-RUN_X = 234.0  ## cell x of his body's middle in the run (the 2017 frames' middle: the rules' box)
-BOB = 0.35  ## of each run frame's lift off the ground drawn as a drop of the body (the rest: the feet lift)
-LEAP_LIFT = 30.0  ## cell px his boots are drawn above the ground in the leap
-## where the action poses stand (cell x of his body's middle): his vest over the run's
-POSE_X = {10: 255.0, 11: 244.0, 12: 262.0, 13: 262.0, 14: 236.0}
+## kind -> (pose cells, keyed run clip, loop start, loop length, the clip's start picture, units tall)
+KINDS = {
+    "bandit": ("bandit2/cells", "video/bandit_run_keyed", 19, 13, "bandit2/run_start.png", 120.0),
+    "bandit_strong": ("bandit2/cells_strong", "video/strong_run_keyed", 47, 12, "bandit2/strong_run_start.png", 138.0),
+}
+POSES = [1, 2, 3, 4, 5]  ## wait, swing (drawn back, thrown), hit, leap: the cells after the run pose
+PX_PER_UNIT = 2.2  ## sheet px a unit (the hero's atlas: 2.3)
+PAD = 3
+LEAP_LIFT = 24.0  ## canvas px his boots are drawn above the ground in the leap
+VANISH = [0, 1, 3, 5, 6, 7, 6, 7, 6, 7]  ## banditMort1-10: run frames under the glaze, then the twirl
 BANDIT_SPEED = 10.0 * 960.0 / 1320.0 * 40.0  ## units a second against the ground (World.BANDIT_RUN)
-STEP_UNITS = 19.0  ## units his planted boot moves back a frame in the 2017 run (a stride of ~95 in 5 frames)
 
 
-def keyed(cell: np.ndarray) -> np.ndarray:
-    """RGBA 0..1 from a cell on chroma green: alpha from how green a pixel is beyond its red and blue, the
-    colour unmixed from the green, dark ink kept whole (the generator tints it green)."""
-    rgb = cell.astype(np.float32)
-    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
-    d = g - np.maximum(r, b)
-    a = 1.0 - np.clip((d - 40.0) / 190.0, 0.0, 1.0)
-    solid = a > 0.5
-    lab, n = ndi.label(solid)
-    if n:
-        sizes = ndi.sum(solid, lab, range(1, n + 1))
-        keep = np.isin(lab, 1 + np.where(sizes >= sizes.max() * 0.004)[0])
-        a = np.where(ndi.binary_dilation(keep, iterations=2), a, 0.0)
-    am = np.maximum(a, 1e-3)[..., None]
-    bg = np.array([0.0, 255.0, 0.0])
-    out = (rgb - (1.0 - a[..., None]) * bg) / am
-    out[..., 1] = np.minimum(out[..., 1], np.maximum(out[..., 0], out[..., 2]) + 18.0)  # no green fringe
-    return np.concatenate([np.clip(out / 255.0, 0, 1), a[..., None]], -1)
+def rgba(path) -> np.ndarray:
+    return np.asarray(Image.open(path).convert("RGBA")).astype(np.float32) / 255.0
+
+
+def middle_x(a: np.ndarray) -> float:
+    """His body's middle: the shirt's (yellow) columns, else the opaque ones."""
+    r, g, b, al = a[..., 0], a[..., 1], a[..., 2], a[..., 3]
+    shirt = (al > 0.5) & (r > 0.55) & (g > 0.4) & (b < 0.35) & (r - b > 0.3)
+    xs = np.nonzero(shirt)[1] if shirt.sum() > 200 else np.nonzero(al > 0.5)[1]
+    return float(np.median(xs))
+
+
+def head(a: np.ndarray) -> tuple:
+    """The middle of his hair (teal or blue, in the top 40 % of the figure)."""
+    r, g, b, al = a[..., 0], a[..., 1], a[..., 2], a[..., 3]
+    ys = np.nonzero(al > 0.5)[0]
+    top = ys.min() + (ys.max() - ys.min()) * 0.4
+    hair = (al > 0.5) & (b > r + 0.15) & (g > r + 0.1)
+    hair[int(top):] = False
+    hy, hx = np.nonzero(hair)
+    return float(hx.mean()), float(hy.mean())
+
+
+def hair_area(a: np.ndarray) -> float:
+    """Pixels of his hair (teal or blue, in the top 40 % of the figure): the measure of his head's size."""
+    r, g, b, al = a[..., 0], a[..., 1], a[..., 2], a[..., 3]
+    ys = np.nonzero(al > 0.5)[0]
+    hair = (al > 0.5) & (b > r + 0.15) & (g > r + 0.1)
+    hair[int(ys.min() + (ys.max() - ys.min()) * 0.4):] = False
+    return float(max(hair.sum(), 1))
 
 
 def trimmed(arr: np.ndarray, pivot: np.ndarray):
@@ -80,7 +85,6 @@ def trimmed(arr: np.ndarray, pivot: np.ndarray):
 
 
 def shelf(sizes, width):
-    """Shelf packing (tallest first) `width` wide: ([(x, y)] in the sizes' order, height)."""
     order = sorted(range(len(sizes)), key=lambda i: -sizes[i][1])
     at = [None] * len(sizes)
     x = y = row = 0
@@ -94,32 +98,60 @@ def shelf(sizes, width):
     return at, y + row
 
 
-def main() -> None:
-    sheet = np.asarray(Image.open(SRC).convert("RGB"))
-    H, W = sheet.shape[:2]
-    cw, ch = W / COLS, H / ROWS
-    cells = []
-    for c in range(COLS * ROWS):
-        x0, y0 = round((c % COLS) * cw), round((c // COLS) * ch)
-        cells.append(keyed(sheet[y0:round(y0 + ch), x0:round(x0 + cw)]))
-    bottoms = [np.nonzero(cells[c][..., 3] > 0.5)[0].max() for c in range(15)]
-    tops = [np.nonzero(cells[c][..., 3] > 0.5)[0].min() for c in range(10)]
-    ground = float(max(bottoms[:10]))
-    units_per_cell_px = STAND_UNITS / (ground - min(tops))
-    k = PX_PER_UNIT * units_per_cell_px
-    frames, heads = [], []
-    for c in CELLS:
-        a = cells[c]
-        if c < 10:
-            pivot = np.array([RUN_X, ground - BOB * (ground - bottoms[c])])
+def planted_step(run: list, ground: float) -> float:
+    """Canvas px the planted boot moves back (to the right: he runs left) a frame: over each stance (frames with a
+    boot on the ground in a row), from its first contact to its last; the median of the stances."""
+    xs_at = []
+    for a in run:
+        ys, xs = np.nonzero(a[..., 3] > 0.5)
+        sel = ys >= ground - 12
+        xs_at.append(float(xs[sel].mean()) if sel.sum() > 20 else None)
+    stances, cur = [], []
+    for x in xs_at + xs_at:  # (twice round: a stance across the loop's seam)
+        if x is None:
+            if len(cur) > 1:
+                stances.append((cur[-1] - cur[0]) / (len(cur) - 1))
+            cur = []
         else:
-            pivot = np.array([POSE_X[c], bottoms[c] + (LEAP_LIFT if c == 13 else 0.0)])
-        # the middle of his hair: the dazed stars circle over it
-        r, g, b, al = a[..., 0], a[..., 1], a[..., 2], a[..., 3]
-        hy, hx = np.nonzero((al > 0.5) & (b > r + 0.1) & (g > r + 0.1))
-        heads.append([round(float((hx.mean() - pivot[0]) * k), 1), round(float((hy.mean() - pivot[1]) * k), 1)])
+            cur.append(x)
+    good = [v for v in stances if v > 0]
+    return float(np.median(good)) if good else 0.0
+
+def build(kind: str) -> None:
+    cells, clip, start, length, start_png, stand = KINDS[kind]
+    run_pose = rgba(KIE / cells / "0.png")
+    ys = np.nonzero(run_pose[..., 3] > 0.5)[0]
+    # the clip's canvas: its start picture holds the run pose at a known height
+    sp = rgba(KIE / start_png)
+    sp_fig = 1.0 - np.clip((sp[..., 1] - np.maximum(sp[..., 0], sp[..., 2]) - 0.1) / 0.3, 0, 1)
+    sys_ = np.nonzero(sp_fig > 0.5)[0]
+    canvas_h = float(sys_.max() - sys_.min())
+    cell_to_canvas = canvas_h / float(ys.max() - ys.min())
+    k = PX_PER_UNIT * stand / canvas_h  # canvas px -> sheet px
+    files = sorted((KIE / clip).glob("*.png"))
+    run = [rgba(files[start + i]) for i in range(length)]
+    ground = float(max(np.nonzero(a[..., 3] > 0.5)[0].max() for a in run))
+    mid = float(np.mean([middle_x(a) for a in run]))
+    frames, heads = [], []
+
+    def add(a: np.ndarray, pivot: np.ndarray) -> None:
+        hx, hy = head(a)
+        heads.append([round((hx - pivot[0]) * k, 1), round((hy - pivot[1]) * k, 1)])
         small = premultiplied_resize(Image.fromarray((a * 255 + 0.5).astype(np.uint8), "RGBA"), k)
         frames.append(trimmed(small, pivot * k))
+
+    for a in run:
+        add(a, np.array([mid, ground]))
+    ref_hair = hair_area(run_pose)
+    for c in POSES:
+        img = Image.open(KIE / cells / f"{c}.png").convert("RGBA")
+        # the generator drew some poses bigger than the run pose (the strong one's crouch): those are brought down to
+        # the run pose's head size (only down: a pose's hair shows less than the run's, so the measure overshoots up)
+        fit = float(np.clip(np.sqrt(ref_hair / hair_area(np.asarray(img).astype(np.float32) / 255.0)), 0.8, 1.0))
+        img = img.resize((round(img.width * cell_to_canvas * fit), round(img.height * cell_to_canvas * fit)), Image.LANCZOS)
+        a = np.asarray(img).astype(np.float32) / 255.0
+        bottom = float(np.nonzero(a[..., 3] > 0.5)[0].max())
+        add(a, np.array([middle_x(a), bottom + (LEAP_LIFT if c == 5 else 0.0)]))
     sizes = [(f.shape[1], f.shape[0]) for f, _ in frames]
     best = None
     for width in range((max(s[0] for s in sizes) + 3) // 4 * 4, 2049, 4):  # (blocks of 4 for VRAM compression)
@@ -135,15 +167,21 @@ def main() -> None:
         page[y:y + h, x:x + w] = arr
         rects.append([x, y, w, h, round(float(pivot[0]), 2), round(float(pivot[1]), 2)])
     out = bleed(np.concatenate([np.clip(page[..., :3], 0, 1), page[..., 3:4]], -1))
-    Image.fromarray((np.clip(out, 0, 1) * 255 + 0.5).astype(np.uint8), "RGBA").save(OUT / "bandit.png", optimize=True)
-    fps = BANDIT_SPEED / STEP_UNITS
-    reach = (RUN_X - min(np.nonzero(cells[c][..., 3] > 0.5)[1].min() for c in range(10))) * units_per_cell_px
-    data = {"texture_scale": PX_PER_UNIT, "frames": rects, **MARKS, "run_frames": 10, "swing_frames": 2,
-            "run_fps": round(fps, 2), "head": heads, "vanish": VANISH}
-    (OUT / "bandit.json").write_text(json.dumps(data, indent=1))
-    print(f"bandit.png {width} x {height}: {len(frames)} frames, {STAND_UNITS:.0f} units tall at {PX_PER_UNIT} px a unit "
-          f"(source x {k:.3f}), run {fps:.1f} frames/s, his front {reach:.0f} units ahead of his middle")
+    Image.fromarray((np.clip(out, 0, 1) * 255 + 0.5).astype(np.uint8), "RGBA").save(OUT / f"{kind}.png", optimize=True)
+    step = planted_step(run, ground) * stand / canvas_h  # units a frame
+    fps = BANDIT_SPEED / step if step > 0 else 24.0
+    n = length
+    data = {"texture_scale": PX_PER_UNIT, "frames": rects, "run": 0, "wait": n, "swing": n + 1, "hit": n + 3,
+            "leap": n + 4, "run_frames": n, "swing_frames": 2, "run_fps": round(fps, 2), "head": heads,
+            "vanish": [v % n for v in VANISH]}
+    (OUT / f"{kind}.json").write_text(json.dumps(data, indent=1))
+    print(f"{kind}.png {width} x {height}: {len(frames)} frames ({n} run), {stand:.0f} units tall, "
+          f"planted boot {step:.1f} units a frame -> run {fps:.1f} frames/s (the clip: 24)")
 
 
 if __name__ == "__main__":
-    main()
+    for kind in sys.argv[1:] or KINDS:
+        if KINDS[kind][3] > 0:
+            build(kind)
+        else:
+            print(kind, ": no run loop yet (KINDS)")
