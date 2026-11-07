@@ -1,49 +1,49 @@
 {
- "prop_stump": {
+ "prop_aloe": {
   "size": [
-   60.0,
-   50.0
+   62.0,
+   96.0
   ]
  },
  "prop_bush_a": {
   "size": [
-   72.0,
+   71.5,
    46.0
   ]
  },
  "prop_bush_b": {
   "size": [
-   54.0,
+   56.0,
    36.0
   ]
  },
  "prop_reeds": {
   "size": [
-   96.0,
+   101.0,
    80.0
   ]
  },
  "prop_rock_a": {
   "size": [
-   46.0,
+   49.5,
    28.0
   ]
  },
  "prop_rock_b": {
   "size": [
-   30.0,
+   30.5,
    18.0
   ]
  },
- "prop_aloe": {
+ "prop_stump": {
   "size": [
-   70.0,
-   96.0
+   58.5,
+   50.0
   ]
  },
  "prop_termite": {
   "size": [
-   90.0,
+   74.0,
    130.0
   ]
  }

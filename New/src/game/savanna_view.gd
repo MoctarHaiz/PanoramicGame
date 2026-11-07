@@ -1,8 +1,10 @@
 class_name SavannaView
 extends Node2D
-## The level's sky and the savanna behind the play, at golden hour, from pictures painted by
-## tools/art/savanna.py and tools/art/trees.py. Back to front:
-##   sky, sun glow (additive), clouds drifting, far escarpments, far hills with tiny acacias,
+## The level's sky and the savanna behind the play, at golden hour. World redraw: the sky, the
+## strips, the trees and the animals are painted with kie.ai in the menu key art's style (from the
+## old pictures of tools/art/savanna.py and tools/art/trees.py as layouts). Back to front:
+##   sky (one painted panorama, its clouds drifting), sun glow (additive), far escarpments, far
+##   hills with tiny acacias,
 ##   god rays (additive), mid hills, acacias and baobabs at three depths (warm haze laid over the
 ##   farther ones), tall golden grass, pollen motes in the light, a few birds.
 ## Farther layers scroll slower; the trees are placed from the level's x with a fixed hash, so the
@@ -23,6 +25,11 @@ const SUN_DISC := 15.0  ## round 12: units, the radius of its crisp disc
 const SUN_STREAK := Vector2(420, 7)  ## round 12: units, the streak of light across it
 const RAYS_ORIGIN := Vector2(80, 80)  ## where the sun is in the rays, in units (tools/art/savanna.py)
 const RAYS_SIZE := Vector2(1280, 820)  ## drawn size of rays.png in units (stored at half that)
+## World redraw: the painted sky (sky.png): top y and height it is drawn at (units), how much it
+## moves with the run, and its drift with the wind (units a second).
+const SKY_RECT := Vector2(-30.0, 600.0)
+const SKY_SCROLL := 0.02
+const SKY_DRIFT := 2.5
 
 ## Strips that repeat left to right: texture, scroll factor, bottom y, units per texture pixel.
 const STRIPS := {
@@ -49,7 +56,6 @@ const TREE_TINT := [Color(1, 1, 1), Color(0.76, 0.7, 0.6), Color(0.72, 0.66, 0.5
 ## animals.png (tools/art/savanna.py): two giraffes, an elephant, a herd of wildebeest (px regions)
 const ANIMALS := [Rect2(0, 0, 140, 220), Rect2(140, 12, 128, 208), Rect2(268, 68, 220, 152), Rect2(488, 132, 300, 88)]
 const CLOUD_SHADOW_GAP := 700.0  ## round 10: units of the plain between two clouds' shadows
-const CLOUD_SCALE := 2.0  ## cloud_N.png are stored at half size (soft, no detail to lose)
 const FRONT_SCROLL := 1.35  ## the foreground grass moves faster than the ground
 const FRONT_PROP_SCROLL := 1.6  ## round 9: the big things in front, nearer still
 const FRONT_PROP := Vector2(260, 190)  ## one piece of fg_props.png (units, 1 px a unit)
@@ -80,7 +86,7 @@ class Painter extends Node2D:
 
 func _ready() -> void:
 	for name in ["sky", "sun", "sun_halo", "rays", "far_mesas", "far_hills", "mid_hills", "near_grass", "haze",
-			"mote", "bird", "cloud_1", "cloud_2", "cloud_3", "cloud_4"]:
+			"mote", "bird"]:
 		_tex[StringName(name)] = load(DIR + name + ".png")
 	var info: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(DIR + "tree_info.json"))
 	for name: String in info:
@@ -90,15 +96,16 @@ func _ready() -> void:
 	_tex[&"animals"] = load(DIR + "animals.png")
 	var add := CanvasItemMaterial.new()
 	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
-	_painter(_draw_sky)
+	_painter(_draw_sky, true)
 	_painter(_draw_sun.bind(false))  # (round 9: its halo laid over the blue, warm, not added to it:
 	_painter(_draw_sun.bind(true)).material = add  # added, orange on blue made it a grey-white disc)
-	_painter(_draw_clouds)
+	# (world redraw: the clouds are painted in the sky now, the drifting cloud sprites are gone)
 	# (round 9: the mesas' feet in cool air, not pale milk: the middle of the screen read washed out)
 	_painter(_draw_strip.bind(&"far_mesas"), true).material = _haze([0, 0, 0, 0, 0.0, 0.22, 0, Color(0.5, 0.5, 0.68)])  # (round 12: lighter: "washed by haze")
 	_painter(_draw_band.bind(470.0, 110.0, 0.035))  # (round 4: haze only around the far layers; round 9: fainter)
 	# (round 9: the far hills slate blue and darker: they were the pale milky band)
-	_painter(_draw_strip.bind(&"far_hills"), true).material = _haze([0, 0, 0, 0, 0.42, 0.0, 0, Color(0.42, 0.46, 0.64)], Color(0.78, 0.8, 0.92))
+	# (world redraw: the new far plain is painted pale: a little darker and cooler, not a milky band)
+	_painter(_draw_strip.bind(&"far_hills"), true).material = _haze([0, 0, 0, 0, 0.5, 0.0, 0, Color(0.42, 0.46, 0.64)], Color(0.7, 0.72, 0.84))
 	_painter(_draw_trees.bind(0)).material = _haze(TREE_ROWS[0], TREE_TINT[0])
 	_painter(_draw_rays).material = add  # (round 11: under the midground again: over it they washed it to beige)
 	_painter(_draw_strip.bind(&"mid_hills"), true).material = _haze([0, 0, 0, 0, 0.0, 0.0, 0, Color(0.96, 0.76, 0.52)], Color(0.66, 0.56, 0.42))  # (round 6: the darker, warmer mid-ground)
@@ -166,12 +173,25 @@ func _sun() -> Vector2:
 	return Vector2(_x0() + (_x1() - _x0()) * SUN_AT.x - scroll * 0.004, SUN_AT.y)
 
 
+## World redraw: the sky is a painted panorama (kie.ai, from the menu's key art) that repeats left to
+## right, its clouds sliding slowly with the wind and a little with the run. Above its top (the
+## camera drew back) it goes on mirrored (more clouds, no streaks); below its bottom (behind the
+## hills) its last row reaches on.
 func _draw_sky(ci: CanvasItem) -> void:
 	var sky: Texture2D = _tex[&"sky"]
-	if view_top < 0.0:  # the camera drew back (GameScreen): the top of the sky reaches up
-		ci.draw_texture_rect_region(sky, Rect2(_x0(), view_top - 2.0, _x1() - _x0(), 4.0 - view_top),
-				Rect2(0, 0, sky.get_width(), 1))
-	ci.draw_texture_rect(sky, Rect2(_x0(), 0, _x1() - _x0(), World.VIEW_H + 4.0), false)
+	var k := SKY_RECT.y / sky.get_height()  # units per texture pixel
+	var x0 := _x0()
+	var w := _x1() - x0
+	var src := Rect2(fposmod((scroll * SKY_SCROLL + _clock * SKY_DRIFT + x0) / k, sky.get_width()), 0, w / k, sky.get_height())
+	if view_top - 2.0 < SKY_RECT.x:  # mirrored about its top edge
+		ci.draw_set_transform(Vector2(0.0, 2.0 * SKY_RECT.x + 1.0), 0.0, Vector2(1.0, -1.0))
+		ci.draw_texture_rect_region(sky, Rect2(x0, SKY_RECT.x, w, SKY_RECT.y), src)
+		ci.draw_set_transform_matrix(Transform2D.IDENTITY)
+	ci.draw_texture_rect_region(sky, Rect2(x0, SKY_RECT.x, w, SKY_RECT.y), src)
+	var bottom := SKY_RECT.x + SKY_RECT.y
+	if bottom < World.VIEW_H + 4.0:
+		ci.draw_texture_rect_region(sky, Rect2(x0, bottom - 1.0, w, World.VIEW_H + 5.0 - bottom),
+				Rect2(src.position.x, sky.get_height() - 1, src.size.x, 1))
 
 
 ## The sun: its golden halo laid over the sky (`bloom` false), then its hot disc and bloom added.
@@ -198,30 +218,6 @@ func _draw_rays(ci: CanvasItem) -> void:
 	var k := 1.2
 	var a := 0.12 + 0.04 * sin(_clock * 0.45) + 0.02 * sin(_clock * 1.13)
 	ci.draw_texture_rect(tex, Rect2(_sun() - RAYS_ORIGIN * k, RAYS_SIZE * k), false, Color(1, 1, 1, a))
-
-
-func _draw_clouds(ci: CanvasItem) -> void:
-	var x0 := _x0()
-	var x1 := _x1()
-	var offset := scroll * 0.03 + _clock * 5.0
-	var spacing := 420.0
-	var first := floori((x0 + offset) / spacing) - 2
-	for i in range(first, first + int((x1 - x0) / spacing) + 4):
-		if _hash(i * 5 + 11) < 0.3:
-			continue
-		var cx := i * spacing + _hash(i * 3 + 1) * 220.0 - offset
-		var cy := 110.0 + _hash(i * 7 + 2) * 200.0
-		var tex: Texture2D = _tex[StringName("cloud_%d" % (posmod(i, 4) + 1))]
-		var k := (0.55 + _hash(i * 5 + 3) * 0.5) * (1.2 - cy / 520.0) * CLOUD_SCALE
-		var size := tex.get_size() * k
-		# lower clouds are farther: paler, taken by the haze
-		var fade := clampf((cy - 110.0) / 200.0, 0.0, 1.0)
-		var flip := _hash(i * 11 + 4) < 0.5
-		var rect := Rect2(Vector2(cx - size.x / 2, cy - size.y), size)
-		if flip:  # a negative width mirrors the picture in place
-			rect.size.x = -size.x
-		# (round 2: quieter, and lit by the low sun: warm, not white blobs over the play)
-		ci.draw_texture_rect(tex, rect, false, Color(1.0, 0.96, 0.92, 0.78 - fade * 0.32))  # (round 4: warm in the picture)
 
 
 func _draw_strip(ci: CanvasItem, name: StringName) -> void:
