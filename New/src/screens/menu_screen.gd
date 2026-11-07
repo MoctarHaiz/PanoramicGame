@@ -16,6 +16,9 @@ const TAIL_TRIM := 8  ## px cut off each end of the ribbon's tails (its notch is
 const LOGO := "res://assets/art/ui/logo.png"  ## loaded with the menu (a preload held it, 3 MB, all run long)
 const HERO_ART := "res://assets/art/hero/hero_menu.png"  ## the art track's render, when there
 const HERO_STAND := "res://assets/art/ui/hero_stand.png"  ## the fallback crop, loaded only when used
+const KEYART := "res://assets/art/ui/menu_keyart.png"  ## the painted title key art (hero + scene in one picture), when there
+const HERO_ART_SIZE := Vector2(718, 854)  ## hero_menu.png and menu_rock.png sizes: they place the UI column when the key art
+const ROCK_SIZE := Vector2(2000, 720)  ## hides them (their textures are then not loaded: 9 MB less on the menu)
 const ROCK := "res://assets/art/ui/menu_rock.png"  ## loaded with the menu (7 MB: not held during play)
 const ROCK_STAND := Vector2(1390, 152)  ## where his feet go on the rock, in its pixels (tools/art/ui_hero.py)
 const ROCK_LEDGE := 660.0  ## the rock's flat top his stance spans, boot to boot, in its pixels
@@ -67,7 +70,12 @@ func enter(_data: Dictionary) -> void:
 	_backdrop.sun_glow = 0.42  # (k11: 0.5)  # (key art k6: the two blooms added up clipped the haze to a pale wash, no corona)
 	add_child(_backdrop)
 	_lit_crop = not ResourceLoader.exists(HERO_ART)
-	_hero_tex = load(HERO_STAND if _lit_crop else HERO_ART)
+	var painted := ResourceLoader.exists(KEYART)
+	if painted:  # the key art carries hero and rock: their textures aren't loaded, only their sizes kept for the layout
+		_lit_crop = false
+		_hero_tex = _sized(HERO_ART_SIZE)
+	else:
+		_hero_tex = load(HERO_STAND if _lit_crop else HERO_ART)
 	# the bloom around the low sun
 	_halo_glow = ColorRect.new()  # worked out per pixel (a small gradient stretched stepped into rings)
 	_halo_glow.color = Color(1, 0.6, 0.32, 0.32)  # (key art k6: 0.6, a wash; warmer: an orange haze round the gold)
@@ -92,7 +100,7 @@ func enter(_data: Dictionary) -> void:
 	_backing = _picture(Fx.glow_texture())
 	_backing.modulate = Color(0.2, 0.09, 0.26, 0.34)
 	add_child(_backing)
-	_rock_tex = load(ROCK)
+	_rock_tex = _sized(ROCK_SIZE) if painted else load(ROCK)
 	_rock = _picture(_rock_tex)
 	add_child(_rock)
 	_shadow = _picture(Fx.glow_texture())
@@ -107,6 +115,17 @@ func enter(_data: Dictionary) -> void:
 	add_child(_hero)
 	add_child(_front)
 	add_child(_vignette())
+	if painted:  # one painted key art (hero + scene) replaces the layered backdrop and the hero
+		var art := TextureRect.new()
+		art.texture = load(KEYART)
+		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		add_child(art)
+		move_child(art, _backdrop.get_index() + 1)
+		for n: CanvasItem in [_halo_glow, _backing, _rock, _shadow, _hero, _front]:
+			n.visible = false
 
 	var area := safe_area(true, 18.0)
 	add_child(area)
@@ -209,6 +228,12 @@ static func _backlit() -> ShaderMaterial:
 func _exit_tree() -> void:
 	if Device.changed.is_connected(_layout):
 		Device.changed.disconnect(_layout)
+
+
+static func _sized(size: Vector2) -> PlaceholderTexture2D:
+	var t := PlaceholderTexture2D.new()
+	t.size = size
+	return t
 
 
 func _picture(texture: Texture2D) -> TextureRect:
