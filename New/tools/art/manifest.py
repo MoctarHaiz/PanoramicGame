@@ -36,7 +36,11 @@ def authored(tool: str) -> dict:
 FAMILIES = [
     ("hero/hero_atlas_", "Panoramic's animation frames: the user's 3D model (Making/Animation.blend) re-lit and posed by tools/art/blender/hero_render.py, packed by tools/art/hero_atlas.py (hero_frames.json)", USER_3D, True, "per hero_frames.json (ground origin / hips / hands)", ["identity", "proportions", "palette", "facing", "light-direction"]),
     ("hero/", "Panoramic for the interface (portrait, full-length menu hero, win pose, stands): renders of the user's 3D model (tools/art/hero_atlas.py)", USER_3D, True, "bottom-centre", ["identity", "palette"]),
-    ("bandit/", "masked raider sheet (run, dazed run, knock-out, waiting, the club's swing, the leap) and its studded club: the AAA hero's 3D mesh and rig in his bold cel look, a hooded cowl, a red mask band, a cold cyan rim", authored("tools/art/blender/hero_render.py --character bandit (ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend) + tools/art/bandit_sheet.py (Blender)"), True, "bottom-centre at the boots", ["silhouette", "palette", "facing"]),
+    ("bandit/", "the 2017 bandit's sheet (his 10-frame run, waiting, the punch drawn back and thrown, hit, the leap): the user's own drawing (Old/app/src/main/assets/bandit/bandit1-10.png) redrawn clean with kie.ai, packed by tools/art/bandit_sheet.py",
+     {"kind": "user-generated", "url_or_tool": "kie.ai Nano Banana 2 from the user's 2017 frames (prompts and inputs: ROOT/_agents/kie/bandit/), packed by tools/art/bandit_sheet.py",
+      "creator": "Haiz Studio", "license": "owned by Haiz Studio",
+      "prompt_or_source_record": "Old/app/src/main/assets/bandit/bandit1-10.png; ROOT/_agents/kie/bandit/p/run.txt, poses.txt; ROOT/_agents/kie/ledger.jsonl (tags bandit_*)"},
+     True, "per bandit.json (the ground under his body)", ["identity", "silhouette", "palette", "facing"]),
     ("bob/", "Red Bob collectible faces (smile, blink, joy, wink): a translucent ruby painted in crisp cel shapes with the 2017 face drawn on", authored("tools/art/bob_sheet.py (numpy)"), True, "centre", ["palette", "silhouette"]),
     ("ui/logo", "CHAKA ZULU logo: letters drawn for it (chiselled polished gold, an assegai-point A) locked up with a Zulu shield, its stick and an assegai", authored("tools/art/ui_logo.py"), True, "centre", ["palette"]),
     ("ui/ribbon_plain", "the menu's subtitle ribbon without its dashed stitch (from ui/ribbon.png)", authored("tools/art/ui_kit.py"), True, "9-sliced: tails 58 px", ["palette"]),

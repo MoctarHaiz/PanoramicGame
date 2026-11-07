@@ -1,23 +1,24 @@
 #!/usr/bin/env python3
-"""The masked raider's sheet (assets/art/bandit/bandit.png + bandit.json, club.png) from his 3D renders
-(tools/art/blender/hero_render.py --character bandit, from the AAA hero file): the hero's mesh and rig in
-his bold cel look, a dark hooded cowl, a red mask band with two tails and glowing eyes, a studded club.
-Round 9 ("an indigo blob, unreadable as a threat"): the hero's ink weight on screen round his outline and,
-inside it on the sun's side, a cold cyan band (the hero's is hot orange): he reads as a dark, sharp shape
-against the warm savanna, and never as Panoramic.
+"""The bandit's sheet (assets/art/bandit/bandit.png + bandit.json): the 2017 bandit, the user's own drawing
+(Old/app/src/main/assets/bandit/bandit1-10.png: teal crest of hair, red scarf, golden vest with its round
+steel emblem, charcoal trousers, golden shin guards), redrawn clean at high resolution with kie.ai
+(Nano Banana 2) from those frames: his 10-frame run exactly as he ran in 2017, plus five poses the new
+rules need (waiting to pounce, the punch drawn back and thrown, hit, the leap) drawn in the same hand.
+The prompts and the inputs are in ROOT/_agents/kie/bandit/ (p/, in/); the ledger in ROOT/_agents/kie/.
 
-The frames, each trimmed to what it shows, are packed into the sheet (round 9: they were in a grid of
-200 x 260 cells, mostly empty; packed, the same sheet holds him about 1.4 times sharper, one texel to a
-pixel on an iPhone 15 like the hero). bandit.json lists each frame's rectangle and where the ground under
-his hips (the render's origin) falls in it, in this order:
-  run      the run (16 frames, at the pace that keeps the planted boot on the ground)
-  daze     the dazed run after a ring (16)
-  ko       the blow and the flight back when knocked out (2)
-  wait     waiting to pounce (2)
-  swing    the swing of the club (8: drawn back 0-3, the blow smeared 4-5, the follow-through 6-7)
+The source is one 5 x 3 sheet on chroma green. Each cell is keyed here (the ink kept: the generator's
+dark outline is tinted green), scaled to PX_PER_UNIT and trimmed; the frames are packed into the
+smallest sheet that holds them. bandit.json lists each frame's rectangle and its pivot (the ground under
+his body), in this order:
+  run      the 2017 run (10 frames), drawn as the 2017 frames were: his head steady, the feet lifting
+  wait     waiting to pounce (1)
+  swing    the punch: drawn back, thrown (2)
+  hit      a ring's blow (1)
   leap     the leap (1: over a wall, or over Panoramic once he has struck)
+and `vanish`, the run frames his 2017 disappearance played (banditMort1-10 are bandit 1, 2, 4, 6, 7, 8,
+7, 8, 7, 8 glazed, then twirled away: BanditView draws the glaze and the twirl, bandit.gdshader).
 
-    python3 tools/art/bandit_sheet.py [RENDER_DIR]   # default ROOT/_agents/AAA/blender/bandit_r9
+    python3 tools/art/bandit_sheet.py [SHEET]   # default ROOT/_agents/kie/bandit/gen/bandit_poses_0.png
 """
 import json
 import sys
@@ -25,143 +26,123 @@ from pathlib import Path
 
 import numpy as np
 from PIL import Image
+from scipy import ndimage as ndi
 
 sys.path.insert(0, str(Path(__file__).parent))
-from hero_atlas import bleed, inked, premultiplied_resize, sun_rim  # noqa: E402
+from hero_atlas import bleed, premultiplied_resize  # noqa: E402
 
 NEW = Path(__file__).resolve().parents[2]
-ROOT = next(p for p in NEW.parents if (p / "Making").is_dir())
-RENDER = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "_agents/AAA/blender/bandit_r9"
+ROOT = next(p for p in NEW.parents if (p / "_agents/kie").is_dir())  # (the main checkout, from a worktree too)
+SRC = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "_agents/kie/bandit/gen/bandit_poses_0.png"
 OUT = NEW / "assets/art/bandit"
-SHEET = (3200, 780)  ## the sheet's size (kept: round 8's grid)
+COLS, ROWS = 5, 3
+## cells in the order of bandit.json: the run (cells 0-9), wait (10), swing (11, 12), hit (14), leap (13)
+CELLS = list(range(10)) + [10, 11, 12, 14, 13]
+MARKS = {"run": 0, "wait": 10, "swing": 11, "hit": 13, "leap": 14}
+VANISH = [0, 1, 3, 5, 6, 7, 6, 7, 6, 7]  ## banditMort1-10: the run frames under the glaze, then the twirl
+STAND_UNITS = 120.0  ## on screen, game units from the tip of his crest to his lowest boot in the run
+PX_PER_UNIT = 2.2  ## sheet px per unit (the hero's atlas: 2.3)
 PAD = 3  ## transparent pixels round each frame
-RENDER_STAND = 690.0  ## his standing height in a 1024 render
-STAND_UNITS = 121.6  ## his standing height on screen, in game units (round 8: 160 sheet px x 1.52 / 2.0)
+RUN_X = 234.0  ## cell x of his body's middle in the run (the 2017 frames' middle: the rules' box)
+BOB = 0.35  ## of each run frame's lift off the ground drawn as a drop of the body (the rest: the feet lift)
+LEAP_LIFT = 30.0  ## cell px his boots are drawn above the ground in the leap
+## where the action poses stand (cell x of his body's middle): his vest over the run's
+POSE_X = {10: 255.0, 11: 244.0, 12: 262.0, 13: 262.0, 14: 236.0}
 BANDIT_SPEED = 10.0 * 960.0 / 1320.0 * 40.0  ## units a second against the ground (World.BANDIT_RUN)
-DRAW_SCALE = 1.52  ## BanditView.DRAW_SCALE
-RIM = (np.array([0.35, 0.95, 1.0]), 0.8)  ## colour, strength: cold cyan (the hero's is hot orange)
-ANIMS = [("run", "b_run", 16), ("daze", "b_daze", 16), ("ko", "b_ko", 2), ("wait", "b_wait", 2),
-         ("swing", "b_swing", 8), ("leap", "b_leap", 1)]
-_points = {}
+STEP_UNITS = 19.0  ## units his planted boot moves back a frame in the 2017 run (a stride of ~95 in 5 frames)
 
 
-def points(anim: str) -> dict:
-    if anim not in _points:
-        _points[anim] = json.loads((RENDER / anim / "points.json").read_text())
-    return _points[anim]
+def keyed(cell: np.ndarray) -> np.ndarray:
+    """RGBA 0..1 from a cell on chroma green: alpha from how green a pixel is beyond its red and blue, the
+    colour unmixed from the green, dark ink kept whole (the generator tints it green)."""
+    rgb = cell.astype(np.float32)
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    d = g - np.maximum(r, b)
+    a = 1.0 - np.clip((d - 40.0) / 190.0, 0.0, 1.0)
+    solid = a > 0.5
+    lab, n = ndi.label(solid)
+    if n:
+        sizes = ndi.sum(solid, lab, range(1, n + 1))
+        keep = np.isin(lab, 1 + np.where(sizes >= sizes.max() * 0.004)[0])
+        a = np.where(ndi.binary_dilation(keep, iterations=2), a, 0.0)
+    am = np.maximum(a, 1e-3)[..., None]
+    bg = np.array([0.0, 255.0, 0.0])
+    out = (rgb - (1.0 - a[..., None]) * bg) / am
+    out[..., 1] = np.minimum(out[..., 1], np.maximum(out[..., 0], out[..., 2]) + 18.0)  # no green fringe
+    return np.concatenate([np.clip(out / 255.0, 0, 1), a[..., None]], -1)
 
 
-def frame(anim: str, i: int, stand_px: float):
-    """A render at the sheet's scale, its cold rim and ink (the hero's weights on screen), its origin and points."""
-    pts = points(anim)
-    k = stand_px / RENDER_STAND * 1024.0 / pts["size"]
-    units_px = STAND_UNITS / stand_px  # game units per sheet px (the hero's atlas: 0.543)
-    ink_px = 2.8 * 0.543 / units_px  # hero_atlas.INK_PX on screen
-    rim_px = 3.4 * 0.543 / units_px  # hero_atlas.RIM_PX on screen
-    img = Image.open(RENDER / anim / f"{i:03d}.png")
-    arr = inked(sun_rim(premultiplied_resize(img, k), rim_px, RIM, dark=1.0), ink_px)  # (the dark cowl takes it all)
-    origin = np.array(pts["origin"]) * k
-    p = {key: np.array(v) * k for key, v in pts["frames"][i].items()}
-    return arr, origin, p
-
-
-def smeared(now: np.ndarray, ghost: np.ndarray) -> np.ndarray:
-    """The blow over the pose before it, fainter (both rendered by the same camera: the same origin)."""
-    a, ga = now[..., 3:4], ghost[..., 3:4] * 0.45
-    out_a = a + ga * (1.0 - a)
-    rgb = (now[..., :3] * a + ghost[..., :3] * ga * (1.0 - a)) / np.maximum(out_a, 1e-4)
-    return np.concatenate([rgb, out_a], -1)
-
-
-def trimmed(arr: np.ndarray, origin: np.ndarray):
+def trimmed(arr: np.ndarray, pivot: np.ndarray):
     ys, xs = np.nonzero(arr[..., 3] > 0.004)
     y0, y1 = max(ys.min() - PAD, 0), ys.max() + PAD + 1
     x0, x1 = max(xs.min() - PAD, 0), xs.max() + PAD + 1
-    return arr[y0:y1, x0:x1], origin - np.array([x0, y0])
+    return arr[y0:y1, x0:x1], pivot - np.array([x0, y0])
 
 
-def pack(sizes):
-    """Shelf packing (tallest first) into SHEET, or None if they don't fit: [(x, y)] in the sizes' order."""
+def shelf(sizes, width):
+    """Shelf packing (tallest first) `width` wide: ([(x, y)] in the sizes' order, height)."""
     order = sorted(range(len(sizes)), key=lambda i: -sizes[i][1])
     at = [None] * len(sizes)
-    x = y = shelf = 0
+    x = y = row = 0
     for i in order:
         w, h = sizes[i]
-        if x + w > SHEET[0]:
-            x, y, shelf = 0, y + shelf, 0
-        if y + h > SHEET[1]:
-            return None
+        if x + w > width:
+            x, y, row = 0, y + row, 0
         at[i] = (x, y)
         x += w
-        shelf = max(shelf, h)
-    return at
-
-
-def build(stand_px: float):
-    frames, marks = [], {}
-    for name, anim, n in ANIMS:
-        marks[name] = len(frames)
-        made = [frame(anim, i, stand_px) for i in range(n)]
-        for i, (arr, origin, p) in enumerate(made):
-            if name == "swing" and i in (4, 5):  # the blow, smeared
-                arr = smeared(arr, made[i - 1][0])
-            frames.append((name, i, *trimmed(arr, origin), p, origin))
-    return frames, marks
+        row = max(row, h)
+    return at, y + row
 
 
 def main() -> None:
-    # the largest scale whose frames fit the sheet (sized from the renders' bounds, then built once)
-    bounds = []
-    for _, anim, n in ANIMS:
-        for i in range(n):
-            ys, xs = np.nonzero(np.asarray(Image.open(RENDER / anim / f"{i:03d}.png"))[..., 3] > 2)
-            bounds.append((xs.max() - xs.min() + 1, ys.max() - ys.min() + 1, points(anim)["size"]))
-    stand_px = 260.0
-    while stand_px > 100.0:
-        k = stand_px / RENDER_STAND * 1024.0
-        ink = 2.8 * 0.543 * stand_px / STAND_UNITS + 1.0
-        sizes = [(int(w * k / sz + 2 * (ink + PAD)) + 2, int(h * k / sz + 2 * (ink + PAD)) + 2) for w, h, sz in bounds]
-        if pack(sizes) is not None:
-            break
-        stand_px -= 2.0
-    while True:
-        frames, marks = build(stand_px)
-        at = pack([(f[2].shape[1], f[2].shape[0]) for f in frames])
-        if at is not None:
-            break
-        stand_px -= 2.0
-    sheet = np.zeros((SHEET[1], SHEET[0], 4), np.float32)
+    sheet = np.asarray(Image.open(SRC).convert("RGB"))
+    H, W = sheet.shape[:2]
+    cw, ch = W / COLS, H / ROWS
+    cells = []
+    for c in range(COLS * ROWS):
+        x0, y0 = round((c % COLS) * cw), round((c // COLS) * ch)
+        cells.append(keyed(sheet[y0:round(y0 + ch), x0:round(x0 + cw)]))
+    bottoms = [np.nonzero(cells[c][..., 3] > 0.5)[0].max() for c in range(15)]
+    tops = [np.nonzero(cells[c][..., 3] > 0.5)[0].min() for c in range(10)]
+    ground = float(max(bottoms[:10]))
+    units_per_cell_px = STAND_UNITS / (ground - min(tops))
+    k = PX_PER_UNIT * units_per_cell_px
+    frames, heads = [], []
+    for c in CELLS:
+        a = cells[c]
+        if c < 10:
+            pivot = np.array([RUN_X, ground - BOB * (ground - bottoms[c])])
+        else:
+            pivot = np.array([POSE_X[c], bottoms[c] + (LEAP_LIFT if c == 13 else 0.0)])
+        # the middle of his hair: the dazed stars circle over it
+        r, g, b, al = a[..., 0], a[..., 1], a[..., 2], a[..., 3]
+        hy, hx = np.nonzero((al > 0.5) & (b > r + 0.1) & (g > r + 0.1))
+        heads.append([round(float((hx.mean() - pivot[0]) * k), 1), round(float((hy.mean() - pivot[1]) * k), 1)])
+        small = premultiplied_resize(Image.fromarray((a * 255 + 0.5).astype(np.uint8), "RGBA"), k)
+        frames.append(trimmed(small, pivot * k))
+    sizes = [(f.shape[1], f.shape[0]) for f, _ in frames]
+    best = None
+    for width in range((max(s[0] for s in sizes) + 3) // 4 * 4, 2049, 4):  # (blocks of 4 for VRAM compression)
+        at, height = shelf(sizes, width)
+        height = (height + 3) // 4 * 4
+        if best is None or width * height < best[0] * best[1]:
+            best = (width, height, at)
+    width, height, at = best
+    page = np.zeros((height, width, 4), np.float32)
     rects = []
-    for (name, i, arr, origin, p, _), (x, y) in zip(frames, at):
+    for (arr, pivot), (x, y) in zip(frames, at):
         h, w = arr.shape[:2]
-        sheet[y:y + h, x:x + w] = arr
-        rects.append([x, y, w, h, round(float(origin[0]), 2), round(float(origin[1]), 2)])
-    run = [f for f in frames if f[0] == "run"]
-    heads = [[round(float(v), 1) for v in f[4]["head"] - f[5]] for f in run]
-    ko = [[round(float(v), 1) for v in f[4]["hips"] - f[5]] for f in frames if f[0] == "ko"]
-    # the pace: the lower toe's travel while it is on the ground (faces left: it moves right)
-    steps = [(f[4], f[5]) for f in run]
-    ground = max(max(p["toe_r"][1], p["toe_l"][1]) - o[1] for p, o in steps)
-    moves = []
-    for i in range(16):
-        (a, oa), (b, ob) = steps[i], steps[(i + 1) % 16]
-        for toe in ("toe_r", "toe_l"):
-            if a[toe][1] - oa[1] > ground - 2 and b[toe][1] - ob[1] > ground - 2:
-                moves.append(abs((b[toe][0] - ob[0]) - (a[toe][0] - oa[0])))
-    texture_scale = stand_px * DRAW_SCALE / STAND_UNITS
-    fps = BANDIT_SPEED / (sum(moves) / len(moves) * DRAW_SCALE / texture_scale)
-    out = bleed(np.concatenate([np.clip(sheet[..., :3], 0, 1), sheet[..., 3:4]], -1))
+        page[y:y + h, x:x + w] = arr
+        rects.append([x, y, w, h, round(float(pivot[0]), 2), round(float(pivot[1]), 2)])
+    out = bleed(np.concatenate([np.clip(page[..., :3], 0, 1), page[..., 3:4]], -1))
     Image.fromarray((np.clip(out, 0, 1) * 255 + 0.5).astype(np.uint8), "RGBA").save(OUT / "bandit.png", optimize=True)
-    data = {"texture_scale": round(texture_scale, 4), "frames": rects, **marks, "run_frames": 16, "swing_frames": 8,
-            "run_fps": round(fps, 2), "head": heads, "ko_centres": ko}
+    fps = BANDIT_SPEED / STEP_UNITS
+    reach = (RUN_X - min(np.nonzero(cells[c][..., 3] > 0.5)[1].min() for c in range(10))) * units_per_cell_px
+    data = {"texture_scale": PX_PER_UNIT, "frames": rects, **MARKS, "run_frames": 10, "swing_frames": 2,
+            "run_fps": round(fps, 2), "head": heads, "vanish": VANISH}
     (OUT / "bandit.json").write_text(json.dumps(data, indent=1))
-    # the club alone, trimmed, for its flight when he is knocked out
-    arr, _, _ = frame("b_club", 0, stand_px)
-    ys, xs = np.nonzero(arr[..., 3] > 0.01)
-    club = bleed(arr[max(ys.min() - 3, 0):ys.max() + 4, max(xs.min() - 3, 0):xs.max() + 4])
-    Image.fromarray((club * 255 + 0.5).astype(np.uint8), "RGBA").save(OUT / "club.png", optimize=True)
-    print(f"bandit.png {SHEET[0]} x {SHEET[1]}: {len(frames)} frames, he stands {stand_px:.0f} px "
-          f"(texture scale {texture_scale:.3f}), run {fps:.1f} frames/s, club {club.shape[1]} x {club.shape[0]}")
+    print(f"bandit.png {width} x {height}: {len(frames)} frames, {STAND_UNITS:.0f} units tall at {PX_PER_UNIT} px a unit "
+          f"(source x {k:.3f}), run {fps:.1f} frames/s, his front {reach:.0f} units ahead of his middle")
 
 
 if __name__ == "__main__":

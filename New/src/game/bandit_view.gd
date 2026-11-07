@@ -1,56 +1,53 @@
 class_name BanditView
 extends Node2D
-## A bandit (World.Bandit): the masked raider, rendered in 3D from Panoramic's own mesh and rig in his
-## bold cel look (a dark hooded cowl, a red mask band with two tails and glowing eyes, a studded club, a
-## cold cyan rim on the sun's side: tools/art/blender/hero_render.py --character bandit, packed by
-## tools/art/bandit_sheet.py into assets/art/bandit/).
-## Placed at its feet. It waits crouched and breathing until it enters the play window, then runs
-## (16 frames played at the speed that keeps the planted boot still on the ground). As it closes on
-## Panoramic it draws its club back over its head and swings it (a smeared blow), so the hit is
-## seen coming. A ring makes it flash white and jolt back; after the first one it runs dazed (head
-## lolling, stars circling it). The second knocks it out: it freezes on the blow, is flung back and up
-## in one readable shape (back first, arms and legs thrown forward, tilting back: no cartwheel) while
-## its club flies off on its own, and fades out as it falls.
+## A bandit (World.Bandit): the 2017 bandit, the user's own drawing (a tall teal crest of hair, a red scarf,
+## a golden vest with its round steel emblem, golden shin guards), redrawn clean at high resolution with
+## kie.ai from the 2017 frames (tools/art/bandit_sheet.py packs them into assets/art/bandit/).
+## Placed at its feet. It waits crouched and breathing until it enters the play window, then runs its 2017
+## run (10 frames, at the pace that keeps the planted boot on the ground). As it closes on Panoramic it
+## draws its fist back and punches (the rules' reach in front of it), so the blow is seen coming. A ring
+## makes it flash white and recoil; after the first one it runs dazed (rocking, stars circling its head).
+## The second knocks it out and it disappears as it did in 2017 (banditMort1-10): it keeps running while a
+## liquid-chrome glaze runs over it, then it twirls into a ring of chrome and is gone (bandit.gdshader).
 ##
 ## Animation runs on the world's clock, so pause and hit-stop freeze it too.
 
 const DIR := "res://assets/art/bandit/"
 const FLASH_TIME := Fx.FLASH_TIME  ## New (audio): the shared impact's white, 2 frames, then the reaction shows
-const KO_HOLD := 0.09  ## seconds frozen on the blow before the tumble
-const KO_VELOCITY := Vector2(400, -660)  ## units/s on screen: thrown back (right) and up
-const KO_GRAVITY := 2600.0
-## (round 9: "an indigo blob mid-cartwheel": no spin) it tilts back this far (radians) over KO_TILT_TIME
-const KO_TILT := 0.55
-const KO_TILT_TIME := 0.4
-const KO_FADE := Vector2(0.36, 0.2)  ## seconds into the flight it starts fading, and how long it takes
+const KO_HOLD := 0.09  ## seconds frozen on the blow before it disappears
+const VANISH_TIME := 0.7  ## seconds: the 2017 disappearance's 10 frames
+const KO_PUSH := 34.0  ## units the blow slides it back (right) while the glaze runs
+## It disappears where it was hit, as in 2017: it never tilts or tumbles (round 9: no cartwheel).
+const KO_TILT := 0.0
+const HIT_TIME := 0.2  ## seconds the first ring's recoil shows
+const DAZE_ROCK := 0.08  ## radians it rocks on its feet while dazed
 ## Once it has struck him it can't again: it vaults over him (drawn only) instead of running
 ## through his body.
 const VAULT_TIME := 0.46  ## seconds
 const VAULT_HEIGHT := 150.0  ## units: over his head
 const STAR_COUNT := 3
+const STAR_RISE := 30.0  ## units the dazed stars circle above the middle of its hair
 
 static var _data: Dictionary
 static var _sheet: Texture2D
-static var _club: Texture2D
 static var _shade: Texture2D
 
-## How far a running bandit's body reaches ahead of its centre (units): the club may touch a wall.
-const REACH := 44.0  ## (round 8: drawn bigger)
+## How far a running bandit's body reaches ahead of its centre (units): pressed on a wall, its crest
+## touches the face.
+const REACH := 42.0
 
 var world: World
 var wall_shift := 0.0  ## held off a wall face it is pressed on (units, >= 0; WorldView eases it)
 var bandit: World.Bandit
 var _sprite: Sprite2D
 var _material: ShaderMaterial
-var _front: Node2D  # what is drawn over the sprite (the stars in front of the hood)
+var _front: Node2D  # what is drawn over the sprite (the stars in front of its head)
 var _ground_shadow: Node2D
-var _run_frames := 16
-var _pivot := Vector2.ZERO  # the point of the frame the node sits on, from the ground under its hips (sheet px)
-var _ko_frame := -1
-## The raider is drawn a quarter larger than its sheet (from the feet up): about three quarters of
-## Panoramic's height, an adult rather than a child next to him. Its hit box (World.BANDIT_SIZE, the
-## 2017 rules) is unchanged; rings meet it at chest height either way.
-const DRAW_SCALE := 1.52  ## (round 8: 10 % bigger on screen than before (bandit_sheet.py draws him a little smaller in the sheet); its box for the rules is unchanged)
+var _run_frames := 10
+## The sheet is drawn at its own scale (bandit.json: px a unit, the hero's atlas' density); the drawing is
+## about 120 units from its crest to its boots, four fifths of Panoramic's height. Its hit box
+## (World.BANDIT_SIZE, the 2017 rules) is unchanged; rings meet it at chest height either way.
+const DRAW_SCALE := 1.0
 
 var _scale := 0.5
 var _last_time := -1.0
@@ -61,12 +58,13 @@ var _jolt := 0.0  # units pushed back by the last ring, springing to 0
 var _squash := Vector2.ONE
 var _stars := 0.0  # 0..1: dazed stars showing
 var _star_turn := 0.0
+var _hit_left := 0.0  # seconds of the recoil still to show
 var _grounded := true
-var _head := Vector2.ZERO  # the hood's middle in this frame, local units
+var _head := Vector2.ZERO  # the middle of its hair in this frame, local units
 # knocked out
 var _ko := false
 var _ko_time := 0.0
-var _velocity := Vector2.ZERO
+var _pushed := 0.0  # 0..1 of KO_PUSH done
 var _vault := -1.0  # 0..1 through the vault over him (-1: not vaulting)
 
 
@@ -75,7 +73,6 @@ static func load_art() -> void:
 		return
 	_data = JSON.parse_string(FileAccess.get_file_as_string(DIR + "bandit.json"))
 	_sheet = load(DIR + "bandit.png")
-	_club = load(DIR + "club.png")
 	var g := GradientTexture2D.new()
 	g.width = 64
 	g.height = 64
@@ -96,18 +93,12 @@ func _init(w: World, b: World.Bandit) -> void:
 	_scale = DRAW_SCALE / float(_data.texture_scale)
 	_sprite = Sprite2D.new()
 	_sprite.texture = _sheet
-	_sprite.region_enabled = true  # (round 9: the frames are packed, each its own rectangle: bandit.json)
+	_sprite.region_enabled = true  # the frames are packed, each its own rectangle: bandit.json
 	_sprite.centered = false
 	_sprite.scale = Vector2.ONE * _scale
 	_material = ShaderMaterial.new()
-	_material.shader = preload("res://src/game/actor.gdshader")
-	# as on Panoramic: the ink and the rim are drawn into the sheet (round 9: its cold cyan band); none here
-	_material.set_shader_parameter(&"rim", 0.0)
-	_material.set_shader_parameter(&"rim_px", 2.0)
-	_material.set_shader_parameter(&"rim_colour", Color(1.0, 0.8, 0.55))
-	_material.set_shader_parameter(&"rim_dir", Vector2(-0.6, -0.8))
-	_material.set_shader_parameter(&"outline_px", 0.0)
-	_material.set_shader_parameter(&"outline_colour", Color(0.08, 0.03, 0.1, 0.85))
+	_material.shader = preload("res://src/game/bandit.gdshader")
+	_material.set_shader_parameter(&"seed", fmod(b.id * 1.7, 13.0))
 	_sprite.material = _material
 	add_child(_sprite)
 	_front = Node2D.new()
@@ -133,14 +124,16 @@ func show_state(grounded: bool) -> void:
 func hit(knocked_out: bool) -> void:
 	_flash = 1.0
 	_jolt = 9.0
-	_squash = Vector2(1.22, 0.82)
+	_squash = Vector2(1.18, 0.86)
 	if knocked_out:
 		_ko = true
 		_ko_time = 0.0
-		# it tumbles in the level, which scrolls toward him: add the scroll so it flies away on screen
-		_velocity = KO_VELOCITY + Vector2(0.0 if world.blocked else World.SCROLL_SPEED / World.TICK, 0.0)
 		_stars = 0.0
-		_ko_pose(0)
+		rotation = 0.0
+		_sprite.rotation = 0.0
+	else:
+		_hit_left = HIT_TIME
+		_show(int(_data.hit))
 
 
 ## Ran off the left of the screen: fades away.
@@ -152,7 +145,7 @@ func leave() -> void:
 
 func _process(delta: float) -> void:
 	if _ko:
-		_tumble(delta)
+		_disappear(delta)
 		return
 	# the world's clock: frozen when the game is paused or held for a hit-stop
 	var now := (world.ticks + world.alpha) * World.TICK
@@ -163,24 +156,31 @@ func _process(delta: float) -> void:
 	_squash = _squash.lerp(Vector2.ONE, 1.0 - exp(-dt * 13.0))
 	_stars = move_toward(_stars, 1.0 if bandit.hurt else 0.0, dt * 4.0)
 	_star_turn += dt * TAU * 1.4
+	_hit_left = maxf(_hit_left - dt, 0.0)
 	var frame: int
+	var rock := 0.0
 	if not bandit.active:  # waiting to pounce: crouched, breathing
 		_breath += dt
 		var k := 0.5 + 0.5 * sin(_breath * 3.4)
-		frame = int(_data.wait) + (1 if k > 0.5 else 0)
+		frame = int(_data.wait)
 		_sprite.scale = Vector2(_scale * (1.0 - 0.012 * k), _scale * (1.0 + 0.02 * k))
 	else:
-		_run = fposmod(_run + dt * float(_data.run_fps), _run_frames)
-		var f := int(_run)
-		frame = int(_data.daze if bandit.hurt else _data.run) + f
+		# dazed, it runs a little slower and rocks on its feet
+		_run = fposmod(_run + dt * float(_data.run_fps) * (0.85 if bandit.hurt else 1.0), _run_frames)
+		frame = int(_data.run) + int(_run)
+		if bandit.hurt:
+			rock = DAZE_ROCK * sin(_star_turn * 0.8)
 		if not _grounded:  # hopping a wall: the leap
 			frame = int(_data.leap)
 		var swing := _swing_frame()
 		if swing >= 0 and _grounded:
 			frame = int(_data.swing) + swing
+		if _hit_left > 0.0:
+			frame = int(_data.hit)
+			rock = 0.0
 		_sprite.scale = Vector2.ONE * _scale
-		var head: Array = _data.head[f]
-		_head = Vector2(head[0], head[1]) * _scale
+	var head: Array = _data.head[frame]
+	_head = Vector2(head[0], head[1]) * _scale
 	var lift := 0.0
 	if bandit.touched_hero and _vault < 1.0:
 		if _vault < 0.0:  # the blow: it rears back, then leaps
@@ -195,23 +195,22 @@ func _process(delta: float) -> void:
 	_show(frame)
 	_sprite.scale *= _squash
 	_sprite.position = Vector2(_jolt, -lift)
+	_sprite.rotation = rock
 	_material.set_shader_parameter(&"amount", _flash * 0.85)
 	queue_redraw()
 	_front.queue_redraw()
 	_ground_shadow.queue_redraw()
 
 
-## The frame of the club's swing (0..7): drawn back then the blow over gameplay's strike() (its
-## last World.STRIKE_TICKS before the club reaches him), the follow-through once it has; or -1.
+## The frame of the punch (0: drawn back, 1: thrown) over gameplay's strike() (its last
+## World.STRIKE_TICKS before the fist reaches him), or -1. Once it has struck, it vaults and runs on.
 func _swing_frame() -> int:
-	if bandit.hurt or not bandit.active or world.state != World.State.RUNNING:
+	if bandit.hurt or not bandit.active or bandit.touched_hero or world.state != World.State.RUNNING:
 		return -1
-	if bandit.touched_hero:
-		return 6 + (1 if _vault > 0.3 else 0)
 	var k := world.strike(bandit)
 	if k < 0.0:
 		return -1
-	return mini(int(k * 6.0), 5)
+	return 0 if k < 0.45 else 1
 
 
 func _draw() -> void:
@@ -229,19 +228,19 @@ func _draw_shadow() -> void:
 	_ground_shadow.draw_set_transform(Vector2.ZERO)
 
 
-## Dazed stars on a ring above the hood: those behind it drawn under the sprite, the rest over it.
+## Dazed stars on a ring above its hair: those behind it drawn under the sprite, the rest over it.
 func _draw_stars(front: bool) -> void:
 	if _stars <= 0.01 or _ko:
 		return
 	var target: CanvasItem = _front if front else self
-	var centre := _head + Vector2(_jolt + 4.0, -26.0)
+	var centre := _head.rotated(_sprite.rotation) + Vector2(_jolt + 4.0, -STAR_RISE)
 	for i in STAR_COUNT:
 		var a := _star_turn + i * TAU / STAR_COUNT
 		var depth := sin(a)  # > 0: in front
 		if (depth > 0.0) != front:
 			continue
-		var p := centre + Vector2(cos(a) * 17.0, depth * 5.0)
-		var size := (3.6 + 1.2 * depth) * _stars
+		var p := centre + Vector2(cos(a) * 19.0, depth * 5.0)
+		var size := (3.8 + 1.2 * depth) * _stars
 		_star(target, p, size, a * 0.6, Color(1, 0.86, 0.3, _stars * (0.75 + 0.25 * depth)))
 
 
@@ -259,61 +258,37 @@ static func _star(target: CanvasItem, at: Vector2, r: float, turn: float, colour
 	target.draw_polyline(outline, ink, 1.0, true)
 
 
-## Shows a frame of the sheet, placed so the node sits on its pivot (the ground under its hips, or the hips).
+## Shows a frame of the sheet, placed so the node sits on its pivot (the ground under its body).
 func _show(index: int) -> void:
 	var f: Array = _data.frames[index]
 	_sprite.region_rect = Rect2(f[0], f[1], f[2], f[3])
-	_sprite.offset = -Vector2(f[4], f[5]) - _pivot
+	_sprite.offset = -Vector2(f[4], f[5])
+	if _ko:  # the disappearance turns this frame about its own middle (bandit.gdshader)
+		var size := Vector2(_sheet.get_width(), _sheet.get_height())
+		_material.set_shader_parameter(&"region", Vector4(f[0] / size.x, f[1] / size.y, f[2] / size.x, f[3] / size.y))
+		_material.set_shader_parameter(&"aspect", float(f[2]) / float(f[3]))
 
 
-func _ko_pose(index: int) -> void:
-	_ko_frame = index
-	var centre: Array = _data.ko_centres[index]
-	# turn around the middle of the pose: the node moves there
-	var pivot := Vector2(centre[0], centre[1])
-	position += (pivot - _pivot) * _scale
-	_pivot = pivot
-	_sprite.scale = Vector2.ONE * _scale
-	_show(int(_data.ko) + index)
-
-
-func _tumble(delta: float) -> void:
+## Knocked out: frozen on the blow, then the 2017 disappearance: still running, glazed in liquid chrome
+## from its middle out, then twirled into a ring that fades (bandit.json's vanish: banditMort1-10's frames).
+func _disappear(delta: float) -> void:
 	_ko_time += delta
 	_flash = maxf(_flash - delta / FLASH_TIME, 0.0)
-	_material.set_shader_parameter(&"amount", _flash)
-	if _ko_time < KO_HOLD:
-		_sprite.position = Vector2(randf_range(-1.5, 1.5), randf_range(-1.5, 1.5))  # the blow shakes him
-		return
-	if _ko_frame == 0:
-		_ko_pose(1)
-		_sprite.position = Vector2.ZERO
-		_throw_club()
-	_velocity.y += KO_GRAVITY * delta
-	position += _velocity * delta
-	var t := _ko_time - KO_HOLD
-	var k := clampf(t / KO_TILT_TIME, 0.0, 1.0)
-	rotation = KO_TILT * k * (2.0 - k)  # leaning back (its back leads), easing out
-	_squash = _squash.lerp(Vector2.ONE, 1.0 - exp(-delta * 10.0))
+	_material.set_shader_parameter(&"amount", _flash * 0.85)
+	_squash = _squash.lerp(Vector2.ONE, 1.0 - exp(-delta * 12.0))
 	_sprite.scale = Vector2.ONE * _scale * _squash
-	modulate.a = 1.0 - clampf((t - KO_FADE.x) / KO_FADE.y, 0.0, 1.0)
-	if position.y > World.VIEW_H + 160.0 or modulate.a <= 0.0:
+	if _ko_time < KO_HOLD:
+		_sprite.position = Vector2(randf_range(-1.5, 1.5), randf_range(-1.5, 1.5))  # the blow shakes it
+		return
+	var t := (_ko_time - KO_HOLD) / VANISH_TIME
+	if t >= 1.0:
 		queue_free()
-
-
-## The club flies off on its own, spinning the other way.
-func _throw_club() -> void:
-	var club := Sprite2D.new()
-	club.texture = _club
-	club.scale = Vector2.ONE * _scale
-	club.position = position + Vector2(-6, -30)
-	club.rotation = -2.3
-	get_parent().add_child(club)
-	var v := Vector2(-90, -560)
-	var y0 := club.position.y
-	var t := club.create_tween().set_parallel(true)
-	t.tween_property(club, "position:x", club.position.x + v.x * 0.9, 0.9)
-	t.tween_method(func(k: float) -> void:
-		club.position.y = y0 + v.y * k + 0.5 * KO_GRAVITY * k * k, 0.0, 0.9, 0.9)
-	t.tween_property(club, "rotation", club.rotation - TAU * 2.2, 0.9)
-	t.tween_property(club, "modulate:a", 0.0, 0.25).set_delay(0.65)
-	t.chain().tween_callback(club.queue_free)
+		return
+	_sprite.position = Vector2.ZERO
+	# it is in the level now (WorldView): the slide back is added a step at a time
+	var k := 1.0 - pow(1.0 - t, 3.0)
+	position.x += KO_PUSH * (k - _pushed)
+	_pushed = k
+	var frames: Array = _data.vanish
+	_show(int(_data.run) + int(frames[mini(int(t * frames.size()), frames.size() - 1)]))
+	_material.set_shader_parameter(&"vanish", maxf(t, 0.001))
