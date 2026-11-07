@@ -325,7 +325,15 @@ func _test_bandits() -> void:
 			s.throw()
 		s.tick()
 	_check(outs == [false, false, true], "a strong bandit takes 3 rings (%s)" % [outs])
-	var j := _standing_world()
+	var open := Level.load_default().copy()  # (open sky over the start: no leap under a ledge's roof)
+	for c in range(8, 45):
+		for row in 18:
+			open.clear(c, row)
+	var j := World.new(open)
+	for b in j.bandits:
+		b.gone = true
+	for t in 30:
+		j.tick()
 	var jb := _bandit_ahead(j, 500.0)
 	jb.jumper = true
 	jb.dodges = World.DODGES
@@ -333,12 +341,16 @@ func _test_bandits() -> void:
 	j.bandit_hit.connect(func(_b: World.Bandit, _out: bool) -> void: struck.append(j.ticks))
 	var leapt := false
 	j.throw()
-	for t in 40:
+	for t in 60:
 		j.tick()
 		leapt = leapt or jb.vy < -World.BANDIT_HOP
+		if leapt and j.rings.is_empty():
+			break
 	var dodged := leapt and struck.is_empty() and j.rings.is_empty()
+	for t in 10:  # (it lands)
+		j.tick()
 	j.throw()
-	for t in 20:
+	for t in 30:
 		j.tick()
 	_check(dodged and struck.size() == 1, "a jumper leaps over the first ring and the next one hits it (leapt %s, hits %s)" % [leapt, struck])
 
@@ -1400,6 +1412,7 @@ func _test_gameplay() -> void:
 	await _folded("taps, swipes, flicks and two thumbs read right", _gp_touches)
 	await _folded("a move asked twice counts once; a swipe shows within 2 frames", _gp_input_rules)
 	await _folded("the level's fixes (the roof, the last screen, the pools)", _gp_level_fixes)
+	await _folded("what is drawn touching is what counts: rings, rock, blows", _gp_collisions)
 	await _folded("what the views read: phases, the landing foreseen, progress in the air", _gp_view_hooks)
 	await _folded("the game screen: dying, home, pausing at any moment", _gp_flow)
 	if "--quick" not in OS.get_cmdline_user_args():
@@ -1594,6 +1607,54 @@ func _gp_input_rules() -> void:
 			g.advance(1.0 / hz, input)
 		results.append(seen)
 	_check(results[0] == results[1] and results[0].size() == 1, "the same game at 90 Hz")
+
+
+## New (collision pass): rings and blows meet the bodies as drawn (CollisionOverlay, F3, draws the boxes). A ring at
+## a strong bandit's face, over its 2017 box, hits it; one over the tips of its hair doesn't. A ring stops at the
+## grass top of a step (it flew through). A blow lands as its fist reaches his body, not 20 units short; a hop as
+## its fist reaches his legs no longer clears it (2017: his chest rose out of its box, fist and head through his legs).
+func _gp_collisions() -> void:
+	var hits := []
+	for over: float in [16.0, -24.0]:  # the ring's middle that far under the top of its body (its face; over its hair)
+		var w := _standing_world()
+		var b := _bandit_ahead(w, 300.0)
+		b.strong = true
+		b.health = World.STRONG_HEALTH
+		b.y = w.y + World.HERO_SIZE.y / 2 - World.BANDIT_SIZE.y / 2  # on his grass
+		var struck := [false]
+		w.bandit_hit.connect(func(_b: World.Bandit, _o: bool) -> void: struck[0] = true)
+		w.throw()
+		w.tick()
+		w.rings[-1].y = b.y + World.STRONG_BODY.position.y + over - World.RING_CENTRE.y
+		for t in 30:
+			w.tick()
+		hits.append(struck[0])
+	_check(hits == [true, false], "a ring at a strong bandit's face hits it, one over its hair doesn't (%s)" % [hits])
+	var s := _standing_world()
+	s.scroll = 151 * 32.0 - s.x  # before the steps up out of the river (each two tiles up, columns 157-167)
+	s.throw()
+	var far := 0.0
+	for t in 30:
+		s.tick()
+		for r in s.rings:
+			far = maxf(far, s.scroll + r.x + World.RING_CENTRE.x)
+	_check(far > 155 * 32.0 and far < 157 * 32.0, "a ring stops at the grass top of a step, not through it (to x %.0f)" % far)
+	var gap := [INF]
+	var f := _standing_world()
+	var fb := _bandit_ahead(f, 300.0)
+	f.hurt.connect(func(_b: World.Bandit, _l: int) -> void: gap[0] = fb.x - f.scroll - f.x)
+	for t in 40:
+		f.tick()
+	_check(gap[0] < -World.BANDIT_FIST.position.x + 24.0, "a blow lands as its fist (drawn 50 ahead) reaches his body (drawn 24 ahead of his middle; gap %.0f)" % gap[0])
+	var h := _standing_world()
+	var hb := _bandit_ahead(h, 75.0)  # (its fist on his knees: 2017's hop lifted his chest out of its box)
+	hb.y = h.y + World.HERO_SIZE.y / 2 - World.BANDIT_SIZE.y / 2
+	var lost := [0]
+	h.hurt.connect(func(_b: World.Bandit, _l: int) -> void: lost[0] += 1)
+	h.jump()
+	for t in 30:
+		h.tick()
+	_check(lost[0] == 1, "a hop as its fist reaches his legs doesn't clear a bandit: a blow (%d)" % lost[0])
 
 
 ## The tunnel's roof stops a jump; no kneeling or hanging for good on the last screen; no bandit

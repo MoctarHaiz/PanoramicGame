@@ -4,7 +4,8 @@ extends Node
 ## are repeatable.
 ##
 ## Godot --path . --fixed-fps 60 --resolution 200x200 --always-on-top res://tests/capture.tscn -- \
-##     --out=DIR [--devices=a,b] [--shots=x,y] [--lang=fr|en,fr] [--ads=off]
+##     --out=DIR [--devices=a,b] [--shots=x,y] [--lang=fr|en,fr] [--ads=off] [--boxes=on]
+## --boxes=on draws the collision boxes over the level (CollisionOverlay: what the rules test).
 ## Each picture is drawn on demand (_draw_now): macOS skips drawing covered windows.
 ## --lang=en,fr takes every picture in each language, into DIR/en/ and DIR/fr/.
 ##
@@ -55,6 +56,7 @@ func _ready() -> void:
 	var out: String = args.get("out", "user://captures")
 	var langs: PackedStringArray = String(args.get("lang", "")).split(",", false)
 	_ads = args.get("ads", "on") != "off"
+	CollisionOverlay.shown = args.get("boxes", "off") == "on"  # (QA) the rules' boxes over the level shots
 	var devices: Array = args.get("devices", ",".join(DEVICES.keys())).split(",")
 	var shots: Array = args.get("shots", ",".join(SHOTS)).split(",")
 	var needed := {}

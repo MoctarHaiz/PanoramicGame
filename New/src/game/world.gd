@@ -91,16 +91,36 @@ const STRONG_HEALTH := 3
 const BANDIT_JUMP := 28.0 * KY  ## a jumper's leap: its feet rise ~87 units, over a ring thrown from his middle
 const DODGES := 1
 const DODGE_LOOK := 14  ## ticks ahead a jumper on the ground looks for a ring that would hit it
-## New: the bandits and Panoramic are drawn a quarter larger than their 2017 boxes, the club held
-## out in front: a bandit that only hurt with its old box was seen running into him for 0.13 s
-## before the blow. It now hurts with its club's reach in front of it (to its left, the way it
-## runs), on first contact with his drawn body; its body (walls, ground, rings) keeps the old box.
-const CLUB_REACH := 56.0
+## New (collision pass, 2026-11-07): rings and blows meet the bodies as they are drawn now. The 2017 box sat on the
+## back half of a bandit's picture (it leans into its run: its head, chest and fists are drawn up to 50 units
+## ahead of its centre, the strong one's hair 55 units over the box), so rings flew into its face before they
+## counted; its club reach (56 units out, the box's whole height) struck ~20 units before its fist was drawn
+## touching him; and his legs never counted from in front (a hop of 22 units "cleared" a bandit whose head was
+## drawn running through them). Each body is a little inside its picture (measured on BanditView's sheets and
+## HeroView's atlas round the rules' centres): forgiving to him, and his rings a little generous. Relative to a
+## bandit's centre, by kind (it runs left: its front is at negative x); its 2017 box (BANDIT_SIZE, bandit_rect)
+## still meets the ground and the walls:
+const BANDIT_BODY := Rect2(-42.0, -68.0, 56.0, 110.67)  ## its hair (not the spikes' tips) to its feet, chest to back
+const STRONG_BODY := Rect2(-45.0, -90.0, 65.0, 132.67)  ## the strong one, drawn 23 units taller
+const BLOW_BACK := 4.0  ## its blow comes from its body only up to the back of its head (its back, cape and trailing
+## leg behind that, under him as he drops or hops over it, are forgiven; rings hit all of it)
+const BANDIT_FIST := Rect2(-50.0, -30.0, 10.0, 30.0)  ## its fist out in front (its punch), never through a wall
+const STRONG_FIST := Rect2(-64.0, -42.0, 20.0, 34.0)
+## His body for the blows, relative to his centre (hurt_rect): his forehead to his knees, his back to the front of
+## his chest (drawn leaning into his run, his face 37 units ahead of his centre). His shins and boots don't count:
+## forgiving, and in the air they are drawn hanging up to 50 units lower than the rules' box. A jump clears a
+## running bandit from 0.375 s of take-off moments (a strong one 0.325 s; 2017: 0.4 s, its head through his legs).
+const HURT_BOX := Rect2(-16.0, -56.0, 38.0, 96.0)
 
 const RING_SPEED := 20.0 * KX  ## old: Projectile speedX = 20 px/tick (582 u/s)
 const RING_OFFSET := 40.0 * KX  ## old: thrown from centerX + 40
-const RING_HIT_SIZE := Vector2(34.0 * KX, 50.0 * KY)  ## old: r.set(x, y, x + 34, y + 50)
-const RING_WALL_SIZE := 64.0 / 5.0  ## old: RECT_FIRE = hero width / 5
+## New (collision pass): a ring's boxes are round its drawn middle, RING_CENTRE from its corner x, y (WorldView
+## draws it there, 36 units across): what hits bandits (2017: 25 x 44 from the corner, 12 units below the picture),
+## and what stops at rock, walls and grass tops alike (2017: 13 units at its top left corner, walls only, so rings
+## flew through the grass tops of steps and ledges).
+const RING_CENTRE := Vector2(12.0, 14.0)
+const RING_HIT_SIZE := Vector2(36.0, 36.0)
+const RING_WALL_SIZE := 24.0
 const SIDE_SHRINK := 10.0 * KX  ## old: wall tiles are tested 10 px smaller on the right and bottom
 
 const SURFACE_Y := (Level.ROWS - 2) * TILE + 6.0  ## the water line of the pools (play y)
@@ -173,6 +193,7 @@ class Bandit:
 	var jumper := false  ## New: leaps over a ring coming at it (dodges times)
 	var dodges := 0
 	var leap := false  ## New: leaps on its next move
+	var leaping := false  ## New: in the air from a leap (until it lands)
 	var hurt := false  ## hit once: drawn hurt
 	var touched_hero := false  ## each bandit can take only one life
 	var gone := false
@@ -185,7 +206,7 @@ class Bandit:
 	func copy() -> Bandit:
 		var b := Bandit.new()
 		b.x = x; b.y = y; b.prev_x = prev_x; b.prev_y = prev_y; b.vy = vy; b.health = health; b.hurt = hurt
-		b.strong = strong; b.jumper = jumper; b.dodges = dodges; b.leap = leap
+		b.strong = strong; b.jumper = jumper; b.dodges = dodges; b.leap = leap; b.leaping = leaping
 		b.touched_hero = touched_hero; b.gone = gone; b.active = active; b.id = id
 		b.wait_x = wait_x; b.wait_y = wait_y
 		return b
@@ -487,9 +508,9 @@ func _update_rings() -> void:
 		if r.x > VIEW_W:
 			rings.erase(r)
 			continue
-		var box := Rect2(r.x, r.y, RING_HIT_SIZE.x, RING_HIT_SIZE.y)
+		var box := ring_box(r.x, r.y)
 		for b in bandits:
-			if b.gone or not b.active or not _hits(box, bandit_rect(b)):
+			if b.gone or not b.active or not _hits(box, bandit_hit_rect(b)):
 				continue
 			rings.erase(r)
 			b.hurt = true
@@ -563,8 +584,7 @@ func water_at(level_x: float) -> bool:
 
 
 func _update_bandits() -> void:
-	var hero_chest := chest_rect()
-	var hero_feet := feet_rect()
+	var hero := hurt_rect()
 	for b in bandits:
 		if b.gone:
 			continue
@@ -579,12 +599,9 @@ func _update_bandits() -> void:
 			b.leap = true
 		if not _move_bandit(b):
 			continue
-		r = bandit_rect(b)
-		var club := Rect2(r.position.x - CLUB_REACH, r.position.y, CLUB_REACH, r.size.y)
-		if _find(club, Level.Kind.SIDE, SIDE_SHRINK).x < 0:  # (never through a wall)
-			r = r.merge(club)
-		# old isCollidingWith: the chest, or the feet when Panoramic is behind and below its centre
-		var touches := _hits(r, hero_chest) or (_hits(r, hero_feet) and x >= b.x - scroll and y >= b.y)
+		# New (collision pass): its drawn body or fist meets his drawn body (old isCollidingWith: its box and club
+		# met his chest, or his feet when he was behind and below its centre)
+		var touches := _blow_hits(b, hero)
 		if touches and not b.touched_hero:
 			b.touched_hero = true
 			if mercy > 0:
@@ -604,15 +621,19 @@ func _update_bandits() -> void:
 func _move_bandit(b: Bandit) -> bool:
 	var r := bandit_rect(b)
 	var top := _find(r, Level.Kind.TOP)
-	if top.x >= 0:
+	if top.x >= 0 and b.leaping and b.y + BANDIT_SIZE.y / 2 > top.y * TILE + TILE / 2.0:
+		b.vy = maxf(b.vy, 0.0)  # New: a leap into a ledge from below bumps its head (no snap up onto it)
+	elif top.x >= 0:
 		b.vy = 0.0
 		b.y = top.y * TILE - BANDIT_SIZE.y / 2
+		b.leaping = false
 	var wall := _find(r, Level.Kind.SIDE, SIDE_SHRINK)
 	if wall.x >= 0:  # old: pushed back to the right of the wall, with a hop
 		b.x = wall.x * TILE + TILE - SIDE_SHRINK + BANDIT_SIZE.x
 		b.vy = -BANDIT_HOP
 	if b.leap:  # New: a jumper's leap over a ring
 		b.leap = false
+		b.leaping = true
 		b.vy = -BANDIT_JUMP
 	r = bandit_rect(b)
 	if r.end.x < 0.0 or r.position.y > VIEW_H:
@@ -640,7 +661,8 @@ func _ring_coming(b: Bandit) -> bool:
 
 ## Whether a ring flying now meets bandit `b` in the next DODGE_LOOK ticks, if it makes this tick's move from
 ## `ground` with vertical speed `vy0` (0: running on along the ground). In the rules' order: it moves now; each
-## tick after, the rings move and hit, the scroll moves on (as it did this tick), then it moves.
+## tick after, the rings move and hit, the scroll moves on (as it did this tick), then it moves. A leap that a
+## ledge overhead would stop counts as met (it can't leap there).
 func _ring_meets(b: Bandit, ground: float, vy0: float) -> bool:
 	var ds := scroll - prev_scroll
 	var sc := scroll
@@ -654,8 +676,8 @@ func _ring_meets(b: Bandit, ground: float, vy0: float) -> bool:
 		if k > 0:
 			for i in rings.size():
 				xs[i] += RING_SPEED
-				var box := Rect2(bx - sc - BANDIT_SIZE.x / 2, by - BANDIT_SIZE.y / 2, BANDIT_SIZE.x, BANDIT_SIZE.y)
-				if xs[i] <= VIEW_W and _hits(Rect2(xs[i], rings[i].y, RING_HIT_SIZE.x, RING_HIT_SIZE.y), box):
+				var box := _bandit_body_at(b, bx, by, sc)
+				if xs[i] <= VIEW_W and _hits(ring_box(xs[i], rings[i].y), box):
 					return true
 			sc += ds
 		bx -= BANDIT_RUN
@@ -665,6 +687,11 @@ func _ring_meets(b: Bandit, ground: float, vy0: float) -> bool:
 			if by >= ground:
 				by = ground
 				vy = 0.0
+			# a ledge over it (its grass reached from below) would stop the leap: no leap under a low roof
+			var body := Rect2(bx - sc - BANDIT_SIZE.x / 2, by - BANDIT_SIZE.y / 2, BANDIT_SIZE.x, BANDIT_SIZE.y)
+			var roof := _find(body, Level.Kind.TOP, 0.0, sc)
+			if roof.x >= 0 and by + BANDIT_SIZE.y / 2 > roof.y * TILE + TILE / 2.0:
+				return true
 	return false
 
 
@@ -707,7 +734,8 @@ func _collide_hero() -> void:
 		bob_collected.emit(bob.x, bob.y)
 
 	for r in rings.duplicate():
-		if _find(Rect2(r.x, r.y, RING_WALL_SIZE, RING_WALL_SIZE), Level.Kind.SIDE, SIDE_SHRINK).x >= 0:
+		var rock := ring_wall_rect(r)  # New: grass tops are rock too, as drawn (whole cells)
+		if _find(rock, Level.Kind.SIDE).x >= 0 or _find(rock, Level.Kind.TOP).x >= 0:
 			rings.erase(r)
 
 	if at_end and x >= HOME_X and on_ground:
@@ -739,13 +767,14 @@ func _die(reason: StringName) -> void:
 
 
 # ------------------------------------------------------------------ geometry
-## His boxes (the 2017 ones, in play units; x, y is his centre). Views must draw him around them:
-## - body_rect, 64 x 128: stands on grass (its bottom is his feet, y + 64), picks up Red Bobs,
+## His boxes (in play units; x, y is his centre). Views must draw him around them:
+## - body_rect, 64 x 128 (2017): stands on grass (its bottom is his feet, y + 64), picks up Red Bobs,
 ##   climbs ledges. Generous: a Red Bob anywhere in it is his.
-## - chest_rect and feet_rect, 32 x 64 each, the middle half of the body: walls stop them, bandits
-##   hurt them (the feet only from behind and below a bandit's centre, old isCollidingWith). Half
-##   as wide as the body: a club that only brushes his drawn arm, staff or back foot doesn't count.
-## - bandit_rect, 35 x 85 (+ CLUB_REACH in front of it, never through a wall).
+## - chest_rect and feet_rect, 32 x 64 each (2017), the middle half of the body: walls stop them.
+## - hurt_rect (New, HURT_BOX): what a bandit's blow hurts, his drawn body a little inside.
+## - bandit_rect, 35 x 85 (2017): a bandit's ground and walls; bandit_hit_rect and bandit_fist_rect (New,
+##   by kind): its drawn body and fist, what rings hit and its blow comes from (the overlay draws them all:
+##   CollisionOverlay, F3 in a debug build).
 ## Drawn: his feet on the bottom of the body box, his torso over the chest box. Drawn bigger than
 ## the box (HeroView.DRAW_SCALE 1.25: ~160 tall) is fine and fair as long as the torso stays within
 ## about 24 units of x: what touches a bandit on screen is what the rules count, give or take the
@@ -768,9 +797,72 @@ func bandit_rect(b: Bandit) -> Rect2:
 	return Rect2(b.x - scroll - BANDIT_SIZE.x / 2, b.y - BANDIT_SIZE.y / 2, BANDIT_SIZE.x, BANDIT_SIZE.y)
 
 
-## Strict overlap, like Android's RectF.intersects (touching edges don't count).
+## New (collision pass): his body for the blows (HURT_BOX).
+func hurt_rect() -> Rect2:
+	return Rect2(x + HURT_BOX.position.x, y + HURT_BOX.position.y, HURT_BOX.size.x, HURT_BOX.size.y)
+
+
+## New: a bandit's drawn body, by kind (BANDIT_BODY, STRONG_BODY: the one place the kinds' sizes are kept).
+static func bandit_body(b: Bandit) -> Rect2:
+	return STRONG_BODY if b.strong else BANDIT_BODY
+
+
+## New: a bandit's drawn body in the play window: what rings hit and what its blow comes from.
+func bandit_hit_rect(b: Bandit) -> Rect2:
+	return _bandit_body_at(b, b.x, b.y, scroll)
+
+
+## Its body with its centre at level x `level_x`, y `at_y`, at scroll `at_scroll`; cut at the face of a wall in
+## front of it (pressed on one, it is drawn on the face, never in the rock: WorldView), so neither rings nor
+## its blow reach through a pillar.
+func _bandit_body_at(b: Bandit, level_x: float, at_y: float, at_scroll: float) -> Rect2:
+	var k := bandit_body(b)
+	var r := Rect2(level_x - at_scroll + k.position.x, at_y + k.position.y, k.size.x, k.size.y)
+	var face := wall_behind(level_x - at_scroll, at_y, BANDIT_SIZE.y / 2, -k.position.x, at_scroll)
+	if face > r.position.x:
+		r = Rect2(face, r.position.y, maxf(r.end.x - face, 0.0), r.size.y)
+	return r
+
+
+## New: its fist out in front in the play window (BANDIT_FIST, STRONG_FIST); empty when it is in a wall (the
+## 2017 club never reached through one).
+func bandit_fist_rect(b: Bandit) -> Rect2:
+	var k := STRONG_FIST if b.strong else BANDIT_FIST
+	var r := Rect2(b.x - scroll + k.position.x, b.y + k.position.y, k.size.x, k.size.y)
+	return Rect2() if _find(r, Level.Kind.SIDE, SIDE_SHRINK).x >= 0 else r
+
+
+## New: what of a bandit's body its blow comes from: its body up to the back of its head (BLOW_BACK).
+func bandit_blow_rect(b: Bandit) -> Rect2:
+	var r := bandit_hit_rect(b)
+	return Rect2(r.position, Vector2(clampf(b.x - scroll + BLOW_BACK - r.position.x, 0.0, r.size.x), r.size.y))
+
+
+## New: whether a bandit's blow (its body, or its fist) reaches his body `hero` (hurt_rect()).
+func _blow_hits(b: Bandit, hero: Rect2) -> bool:
+	return _hits(bandit_blow_rect(b), hero) or _hits(bandit_fist_rect(b), hero)
+
+
+## New: what a ring with its corner at x, y hits: its drawn ring (RING_HIT_SIZE round RING_CENTRE).
+static func ring_box(at_x: float, at_y: float) -> Rect2:
+	return Rect2(at_x + RING_CENTRE.x - RING_HIT_SIZE.x / 2, at_y + RING_CENTRE.y - RING_HIT_SIZE.y / 2, RING_HIT_SIZE.x, RING_HIT_SIZE.y)
+
+
+func ring_hit_rect(r: Ring) -> Rect2:
+	return ring_box(r.x, r.y)
+
+
+## New: what of a ring stops at rock (walls and grass tops): the middle of its drawn ring.
+func ring_wall_rect(r: Ring) -> Rect2:
+	var c := Vector2(r.x, r.y) + RING_CENTRE
+	return Rect2(c.x - RING_WALL_SIZE / 2, c.y - RING_WALL_SIZE / 2, RING_WALL_SIZE, RING_WALL_SIZE)
+
+
+## Strict overlap, like Android's RectF.intersects (touching edges don't count). New: an empty box (a bandit's
+## body cut away at a wall, a fist in one) meets nothing (with strict edges a box 0 wide still met one across it).
 static func _hits(a: Rect2, b: Rect2) -> bool:
-	return a.position.x < b.end.x and b.position.x < a.end.x and a.position.y < b.end.y and b.position.y < a.end.y
+	return a.position.x < b.end.x and b.position.x < a.end.x and a.position.y < b.end.y and b.position.y < a.end.y \
+			and a.size.x > 0.0 and a.size.y > 0.0 and b.size.x > 0.0 and b.size.y > 0.0
 
 
 ## The tile of `kind` that `rect` (play window) overlaps, as the old code found it: the last one in
@@ -1094,12 +1186,16 @@ func _ground_ahead() -> float:
 func strike(b: Bandit) -> float:
 	if b.gone or not b.active or b.touched_hero or b.health <= 0 or state != State.RUNNING:
 		return -1.0
-	var r := bandit_rect(b)
-	var body := body_rect()
+	var r := bandit_hit_rect(b)
+	var body := hurt_rect()
 	if r.end.y <= body.position.y or r.position.y >= body.end.y or b.x - scroll < x:
 		return -1.0
+	var front := r.position.x  # (New: what of it reaches him first, its fist when it is at his height)
+	var fist := bandit_fist_rect(b)
+	if fist.has_area() and fist.end.y > body.position.y and fist.position.y < body.end.y:
+		front = minf(front, fist.position.x)
 	var closing := BANDIT_RUN + (0.0 if blocked or at_end else SCROLL_SPEED)
-	var left := (r.position.x - CLUB_REACH - chest_rect().end.x) / closing - alpha
+	var left := (front - body.end.x) / closing - alpha
 	if left > STRIKE_TICKS:
 		return -1.0
 	return clampf(1.0 - left / STRIKE_TICKS, 0.0, 1.0)

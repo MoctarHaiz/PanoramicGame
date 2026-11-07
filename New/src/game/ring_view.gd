@@ -52,6 +52,12 @@ func _process(delta: float) -> void:
 	_glow.queue_redraw()
 
 
+## (collision pass) It met a bandit or rock (WorldView): drawn where it met it, no longer easing out of his hand
+## (a ring stopped in its first tenth of a second was drawn up to 30 units short of what it hit).
+func met() -> void:
+	_clock = maxf(_clock, WIND_UP + HAND_TIME)
+
+
 ## How wide the ring shows as it turns (with ring_spin.png's frames: 1 face-on, ~0.2 edge-on).
 func _turn() -> float:
 	return 0.2 + 0.8 * absf(cos(_clock * SPIN_FPS / SPIN_FRAMES * PI))

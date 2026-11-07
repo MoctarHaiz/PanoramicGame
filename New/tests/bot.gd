@@ -54,16 +54,18 @@ func act(w: World) -> void:
 ## A bandit ahead that a ring thrown now would meet (at his height, within 600 units) and that the
 ## rings already flying won't finish: worth a ring. (Not a ring every few ticks: no spray of rings.)
 static func _bandit_ahead(w: World) -> bool:
-	var ring_y := (World.VINE_DRAW_Y if w.hanging else w.y) + World.RING_HIT_SIZE.y / 2
+	var ring := World.ring_box(0.0, World.VINE_DRAW_Y if w.hanging else w.y)
 	for b in w.bandits:
 		if not b.active or b.gone or b.health <= 0:
 			continue
 		var ahead := b.x - w.scroll - w.x
-		if ahead <= 0.0 or ahead > 600.0 or absf(ring_y - b.y) > (World.RING_HIT_SIZE.y + World.BANDIT_SIZE.y) / 2:
+		var body := w.bandit_hit_rect(b)
+		if ahead <= 0.0 or ahead > 600.0 or ring.end.y <= body.position.y or ring.position.y >= body.end.y:
 			continue
 		var flying := 0
 		for r in w.rings:
-			if r.x < b.x - w.scroll and absf(r.y + World.RING_HIT_SIZE.y / 2 - b.y) < (World.RING_HIT_SIZE.y + World.BANDIT_SIZE.y) / 2:
+			var box := World.ring_box(r.x, r.y)
+			if r.x < b.x - w.scroll and box.end.y > body.position.y and box.position.y < body.end.y:
 				flying += 1
 		if flying < b.health:
 			return true

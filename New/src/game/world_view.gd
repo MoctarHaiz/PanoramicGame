@@ -36,6 +36,7 @@ var _actors: Node2D
 var _bobs := {}  # Vector2i -> BobView
 var _bandits := {}  # bandit id -> BanditView
 var _rings := {}  # ring id -> RingView
+var _ring_of := {}  # ring id -> [its World.Ring, the tick it was last flying at] (_place_rings)
 var _hero: HeroView
 ## Effects layer: the Fx kit is sized for a 1280-tall design, so it draws at half scale here.
 var fx: Node2D
@@ -90,6 +91,8 @@ func setup(w: World) -> void:
 	# (over everything in the level by its place, the last child: round 4: no z_index, which put the
 	# effects over the HUD too)
 	add_child(fx)
+	if OS.is_debug_build():  # the rules' boxes over everything, off until F3 (never in a release)
+		add_child(CollisionOverlay.new(w))
 
 	w.bob_collected.connect(_on_bob)
 	w.bandit_hit.connect(_on_bandit_hit)
@@ -373,11 +376,24 @@ func _on_bandit_hit(b: World.Bandit, knocked_out: bool) -> void:
 		v.hit(knocked_out)
 	if knocked_out:
 		_hero.cheer()
-	var at := Vector2(b.x - world.scroll - 6.0, b.y - 10.0)
+	var at := _ring_contact(b)
 	if knocked_out:
-		Fx.knock_out(fx, _fx(at), _fx(Vector2(at.x + 6.0, b.y + World.BANDIT_SIZE.y / 2 + GameArt.FEET_SINK)))
+		Fx.knock_out(fx, _fx(at), _fx(Vector2(b.x - world.scroll, b.y + World.BANDIT_SIZE.y / 2 + GameArt.FEET_SINK)))
 	else:
 		Fx.ring_hit(fx, _fx(at))
+
+
+## (collision pass) Where the ring that just hit bandit `b` met its drawn body: at the ring, on the front of its
+## body (the burst was at its 2017 box, on the back of its picture, ~35 units behind where the ring hits).
+func _ring_contact(b: World.Bandit) -> Vector2:
+	var body := world.bandit_hit_rect(b)
+	var at := Vector2(body.position.x + 8.0, body.get_center().y - 12.0)
+	for id: int in _ring_of:
+		var r: World.Ring = _ring_of[id][0]
+		var box := World.ring_box(r.x, r.y)
+		if not world.rings.has(r) and box.intersects(body):
+			at = Vector2(maxf(box.get_center().x, body.position.x + 4.0), clampf(box.get_center().y, body.position.y + 8.0, body.end.y - 8.0))
+	return at
 
 
 ## Home: confetti bursting out of the doorway as he goes in.
@@ -452,18 +468,30 @@ func _place_rings() -> void:
 	var seen := {}
 	for r in world.rings:
 		seen[r.id] = true
+		_ring_of[r.id] = [r, world.ticks]
 		var s: RingView = _rings.get(r.id)
 		if not s:
 			s = RingView.new()
 			_actors.add_child(s)
 			_rings[r.id] = s
-		s.position = Vector2(lerpf(r.prev_x, r.x, world.alpha) + 12.0, r.y + 14.0)
+		s.position = Vector2(lerpf(r.prev_x, r.x, world.alpha), r.y) + World.RING_CENTRE
 		if world.state == World.State.WON:  # home: rings still flying fade away (none lies about the yard)
 			s.modulate.a = move_toward(s.modulate.a, 0.0, 0.08)
 	for id: int in _rings.keys():
-		if not seen.has(id):
-			_rings[id].queue_free()
-			_rings.erase(id)
+		if seen.has(id):
+			continue
+		# (collision pass) a ring that met a bandit or rock in the last tick is drawn where it met it while that tick
+		# is drawn (and held through the hit-stop): the rules met it there against the bandit as it is drawn then (its
+		# place before this tick's run); interpolated, it vanished a tick short of what it hit
+		var last: Array = _ring_of.get(id, [])
+		if not last.is_empty() and world.ticks == last[1] + 1 and world.state == World.State.RUNNING:
+			var r: World.Ring = last[0]
+			_rings[id].position = Vector2(r.x, r.y) + World.RING_CENTRE
+			_rings[id].met()
+			continue
+		_rings[id].queue_free()
+		_rings.erase(id)
+		_ring_of.erase(id)
 
 
 ## A Red Bob taken: a puff of warm light and sparks where it was; the game screen flies a copy of
