@@ -312,6 +312,35 @@ func _test_bandits() -> void:
 	for i in 10:
 		w.tick()
 	_check(hits == [2], "a bandit takes one life, once (%s)" % [hits])
+	# New (the user, 2026-11-07): the strong kind takes 3 rings; a jumper leaps over the first ring coming at it,
+	# and the next one hits it
+	var s := _standing_world()
+	var sb := _bandit_ahead(s, 420.0)
+	sb.strong = true
+	sb.health = World.STRONG_HEALTH
+	var outs := []
+	s.bandit_hit.connect(func(_b: World.Bandit, out: bool) -> void: outs.append(out))
+	for t in 40:
+		if t % 4 == 0:
+			s.throw()
+		s.tick()
+	_check(outs == [false, false, true], "a strong bandit takes 3 rings (%s)" % [outs])
+	var j := _standing_world()
+	var jb := _bandit_ahead(j, 500.0)
+	jb.jumper = true
+	jb.dodges = World.DODGES
+	var struck := []
+	j.bandit_hit.connect(func(_b: World.Bandit, _out: bool) -> void: struck.append(j.ticks))
+	var leapt := false
+	j.throw()
+	for t in 40:
+		j.tick()
+		leapt = leapt or jb.vy < -World.BANDIT_HOP
+	var dodged := leapt and struck.is_empty() and j.rings.is_empty()
+	j.throw()
+	for t in 20:
+		j.tick()
+	_check(dodged and struck.size() == 1, "a jumper leaps over the first ring and the next one hits it (leapt %s, hits %s)" % [leapt, struck])
 
 
 ## A bandit's club (drawn out in front of it) hurts him as it reaches him, not once its body is in
@@ -569,6 +598,9 @@ func _bandit_ahead(w: World, ahead: float, index := 10) -> World.Bandit:
 	b.gone = false
 	b.active = true
 	b.health = World.BANDIT_HEALTH
+	b.strong = false  # (the plain kind, no leap: the tests of other things)
+	b.jumper = false
+	b.dodges = 0
 	b.x = w.scroll + w.x + ahead
 	b.y = w.y + 10.0
 	return b

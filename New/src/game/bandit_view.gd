@@ -1,9 +1,10 @@
 class_name BanditView
 extends Node2D
-## A bandit (World.Bandit), one of two kinds that come at random (kind_of(): about 3 in 10 are strong; the rules
-## are the same for both): the user's bandit (spiky teal hair, a torn red scarf, a yellow shirt with its round
-## steel emblem, golden shin guards) and the strong one, their leader (muscular, bright-blue hair, a dark-red
-## cape-scarf, the black-and-white emblem, blue wraps), drawn bigger. Both drawn with kie.ai from the user's
+## A bandit (World.Bandit), one of two kinds that come at random (World.is_strong(): about 3 in 10 are strong
+## and take 3 rings; jumpers leap over a ring coming at them, drawn in the leap pose): the user's bandit (spiky
+## teal hair, a torn red scarf, a yellow shirt with its round steel emblem, golden shin guards) and the strong
+## one, their leader (muscular, bright-blue hair, a dark-red cape-scarf, the black-and-white emblem, blue wraps),
+## drawn bigger. Both drawn with kie.ai from the user's
 ## pictures, their runs from Seedance clips (tools/art/bandit_sheet.py packs assets/art/bandit/<kind>.png).
 ## Placed at its feet. It waits crouched and breathing until it enters the play window, then runs (its clip's
 ## loop, at the pace that keeps the planted boot on the ground). As it closes on Panoramic it
@@ -90,16 +91,11 @@ static func load_art() -> void:
 	_shade = g
 
 
-## The kind of the bandit with this id: about 3 in 10 strong, scattered along the level (the same in every run).
-static func kind_of(id: int) -> StringName:
-	return &"bandit_strong" if posmod(id * 7 + 3, 10) < 3 else &"bandit"
-
-
 func _init(w: World, b: World.Bandit) -> void:
 	world = w
 	bandit = b
 	load_art()
-	kind = kind_of(b.id)
+	kind = &"bandit_strong" if b.strong else &"bandit"  # (World.is_strong)
 	_d = _kinds[kind][0]
 	_tex = _kinds[kind][1]
 	_run_frames = int(_d.run_frames)

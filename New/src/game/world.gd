@@ -84,6 +84,13 @@ const BANDIT_RUN := 10.0 * KX  ## old: vitesseDeMouvement = 10 px/tick against t
 const BANDIT_GRAVITY := 4.0 * KY  ## old: EnemyPesanteur = 4
 const BANDIT_HOP := 10.0 * KY  ## old: EnemyJumpSpeed = -10 when a wall stops them
 const BANDIT_HEALTH := 2  ## old: sante = 2, one ring takes one
+## New (the user, 2026-11-07): two kinds of bandit, and bandits that jump. About 3 in 10 are strong (their leader,
+## drawn bigger: is_strong()), and take STRONG_HEALTH rings. Jumpers (every strong one, and one in three of the
+## others) see a ring coming and leap over it, DODGES times each: the player throws again, or as it lands.
+const STRONG_HEALTH := 3
+const BANDIT_JUMP := 28.0 * KY  ## a jumper's leap: its feet rise ~87 units, over a ring thrown from his middle
+const DODGES := 1
+const DODGE_LOOK := 14  ## ticks ahead a jumper on the ground looks for a ring that would hit it
 ## New: the bandits and Panoramic are drawn a quarter larger than their 2017 boxes, the club held
 ## out in front: a bandit that only hurt with its old box was seen running into him for 0.13 s
 ## before the blow. It now hurts with its club's reach in front of it (to its left, the way it
@@ -162,6 +169,10 @@ class Bandit:
 	var prev_y := 0.0
 	var vy := 0.0
 	var health := BANDIT_HEALTH
+	var strong := false  ## New: the strong kind (STRONG_HEALTH rings)
+	var jumper := false  ## New: leaps over a ring coming at it (dodges times)
+	var dodges := 0
+	var leap := false  ## New: leaps on its next move
 	var hurt := false  ## hit once: drawn hurt
 	var touched_hero := false  ## each bandit can take only one life
 	var gone := false
@@ -174,6 +185,7 @@ class Bandit:
 	func copy() -> Bandit:
 		var b := Bandit.new()
 		b.x = x; b.y = y; b.prev_x = prev_x; b.prev_y = prev_y; b.vy = vy; b.health = health; b.hurt = hurt
+		b.strong = strong; b.jumper = jumper; b.dodges = dodges; b.leap = leap
 		b.touched_hero = touched_hero; b.gone = gone; b.active = active; b.id = id
 		b.wait_x = wait_x; b.wait_y = wait_y
 		return b
@@ -269,8 +281,17 @@ func _init(map: Level = null, with_bandits := true) -> void:
 		b.prev_x = b.x
 		b.prev_y = b.y
 		b.id = i
+		b.strong = is_strong(i)
+		b.jumper = b.strong or posmod(i, 3) == 0
+		b.dodges = DODGES if b.jumper else 0
+		b.health = STRONG_HEALTH if b.strong else BANDIT_HEALTH
 		bandits.append(b)
 	_place_bandits()
+
+
+## New: whether the bandit with this id is of the strong kind: about 3 in 10, scattered along the level.
+static func is_strong(id: int) -> bool:
+	return posmod(id * 7 + 3, 10) < 3
 
 
 ## New: the old rules placed every bandit 3 tiles above the bottom of the screen and sorted it out
@@ -553,6 +574,9 @@ func _update_bandits() -> void:
 				b.active = true
 			else:
 				continue
+		if b.dodges > 0 and _ring_coming(b):  # New: a jumper leaps over the ring (on this move)
+			b.dodges -= 1
+			b.leap = true
 		if not _move_bandit(b):
 			continue
 		r = bandit_rect(b)
@@ -587,6 +611,9 @@ func _move_bandit(b: Bandit) -> bool:
 	if wall.x >= 0:  # old: pushed back to the right of the wall, with a hop
 		b.x = wall.x * TILE + TILE - SIDE_SHRINK + BANDIT_SIZE.x
 		b.vy = -BANDIT_HOP
+	if b.leap:  # New: a jumper's leap over a ring
+		b.leap = false
+		b.vy = -BANDIT_JUMP
 	r = bandit_rect(b)
 	if r.end.x < 0.0 or r.position.y > VIEW_H:
 		b.gone = true
@@ -598,6 +625,47 @@ func _move_bandit(b: Bandit) -> bool:
 	if feet < SURFACE_Y and b.y + BANDIT_SIZE.y / 2 >= SURFACE_Y and water_at(b.x):
 		splashed.emit(b.x, false)
 	return true
+
+
+## New: a jumper on the ground, with a ring coming that would hit it if it ran on, and that a leap now would clear.
+func _ring_coming(b: Bandit) -> bool:
+	if rings.is_empty():
+		return false
+	var top := _find(bandit_rect(b), Level.Kind.TOP)
+	if top.x < 0:  # (in the air already)
+		return false
+	var ground := top.y * TILE - BANDIT_SIZE.y / 2
+	return _ring_meets(b, ground, 0.0) and not _ring_meets(b, ground, -BANDIT_JUMP)
+
+
+## Whether a ring flying now meets bandit `b` in the next DODGE_LOOK ticks, if it makes this tick's move from
+## `ground` with vertical speed `vy0` (0: running on along the ground). In the rules' order: it moves now; each
+## tick after, the rings move and hit, the scroll moves on (as it did this tick), then it moves.
+func _ring_meets(b: Bandit, ground: float, vy0: float) -> bool:
+	var ds := scroll - prev_scroll
+	var sc := scroll
+	var bx := b.x
+	var by := ground
+	var vy := vy0
+	var xs: Array[float] = []
+	for r in rings:
+		xs.append(r.x)
+	for k in DODGE_LOOK + 1:
+		if k > 0:
+			for i in rings.size():
+				xs[i] += RING_SPEED
+				var box := Rect2(bx - sc - BANDIT_SIZE.x / 2, by - BANDIT_SIZE.y / 2, BANDIT_SIZE.x, BANDIT_SIZE.y)
+				if xs[i] <= VIEW_W and _hits(Rect2(xs[i], rings[i].y, RING_HIT_SIZE.x, RING_HIT_SIZE.y), box):
+					return true
+			sc += ds
+		bx -= BANDIT_RUN
+		if vy != 0.0 or by < ground:
+			by += vy
+			vy += BANDIT_GRAVITY
+			if by >= ground:
+				by = ground
+				vy = 0.0
+	return false
 
 
 func _collide_hero() -> void:
