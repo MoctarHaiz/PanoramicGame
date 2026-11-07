@@ -1,8 +1,9 @@
 class_name HeroView
 extends Node2D
-## Panoramic: the user's 3D model (ROOT/Making/Animation.blend), re-lit for the savanna's low sun
-## and rendered frame by frame (tools/art/blender/hero_render.py), packed into atlases
-## (tools/art/hero_atlas.py, assets/art/hero/hero_frames.json) and played by the state of the rules:
+## Panoramic: drawn with kie.ai from the user's target picture and a turnaround of their 3D model
+## (ROOT/Making/Animation.blend): Nano Banana 2 stills, animated with Seedance clips (2.0 Mini; the throw 2.5) and
+## resampled to the game's slots, packed into atlases (tools/art/hero_atlas_ai.py, assets/art/hero/hero_frames.json;
+## the earlier 3D renders: tools/art/hero_atlas.py) and played by the state of the rules:
 ## - the run: 16 frames at the pace that keeps his planted foot on the scrolling ground;
 ## - the jump: the push-off, then the rise, the top and the fall picked by his vertical speed (the
 ##   rules decide how high and how far), the landing played out into the run;
@@ -17,13 +18,14 @@ const DIR := "res://assets/art/hero/"
 ## His drawn size is the atlas' (GameArt.HERO_DRAW_HEIGHT standing): kept for the views that size
 ## things after him.
 const DRAW_SCALE := 1.0
-## The run: atlas frames a second at the ground's speed (233 units/s), measured from the render so
-## the planted boot moves back exactly with the ground (tools/art/hero_atlas.py prints it).
-const RUN_FPS := 26.0
+## The run: atlas frames a second. 16, the user's choice (2026-11-07): the pace the Seedance sprint was filmed at
+## (16 slots out of 24 video frames, a second of it). The boot pace that would match the ground (233 units/s) is
+## lower (tools/art/hero_atlas_ai.py prints it); at 16 the planted boot moves back faster than the ground.
+const RUN_FPS := 16.0
 const RUN_FRAMES := 16
 const TAKEOFF := 0.07  ## seconds of the push-off (the rules have already left the ground)
-const THROW_TIME := 0.2  ## the throw: the arm drawn back, then the release
-const THROW_BACK := 0.3  ## share of the throw spent drawing the arm back
+const THROW_TIME := 0.3  ## the throw: the chakram cocked overhead, then the arm thrown forward (legs running on)
+const THROW_BACK := 0.3  ## share of the throw spent with the chakram cocked
 const MANTLE := 0.16  ## seconds standing up after a climb over a ledge
 const BLINK_HZ := 8.0  ## the mercy pulse after a hit (smooth, not a strobe)
 const VINE_Y := 6.0  ## where his hands grip the vine

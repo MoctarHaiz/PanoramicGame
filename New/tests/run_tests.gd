@@ -12,9 +12,25 @@ extends Node
 ## real game screen (when the recording is in build/qa/; --bot records it). About 40 s; -- --quick
 ## leaves out the ones that open screens (a few seconds: for quick checks while working; the full
 ## run is the release gate).
+## About 100 checks (the user's call, 2026-11-07: the 100 most important): the rules, saves and release
+## checks one by one; the bigger groups (FOLDED, the gameplay groups) as one check each.
 
 var _failures := 0
 var _checks := 0
+var _batch: Variant = null  # the failures gathered by _folded() (null: checks count one by one)
+
+## The bigger groups count as ONE check each, naming their first failures (the rules count one by one).
+const FOLDED := {
+	&"_test_scripts_compile": "every script compiles",
+	&"_test_translations": "the texts in English and French",
+	&"_test_config": "the settings file",
+	&"_test_screens": "every screen at every device size, in English and French",
+	&"_test_home_door": "on the run home he can't pass the doorway, even jumping",
+	&"_test_hud_band": "the HUD fits in its band on every device",
+	&"_test_ux": "the tutorial, the comfort options, the touch areas, French typography",
+	&"_test_audio": "sounds, music, buses, settings, haptics, footsteps",
+	&"_test_art": "the hero's frames: every animation, inside its page, the run's pace, a pose for each state",
+}
 
 
 func _ready() -> void:
@@ -26,23 +42,38 @@ func _ready() -> void:
 			_test_pause_anywhere, _test_replay_home, _test_contracts, _test_hud_band, _test_audio, _test_gameplay]
 	tests.append(_test_ux)
 	tests.append(_test_art)
-	tests.append(_test_env)
 	if "--bot" in OS.get_cmdline_user_args():
 		tests.append(_test_bot)
 	if "--quick" in OS.get_cmdline_user_args():  # without the screens (seconds instead of ~40 s)
 		tests = tests.filter(func(t: Callable) -> bool: return t not in [_test_screens, _test_no_leaks, _test_pause_anywhere,
 				_test_replay_home, _test_contracts, _test_hud_band])
-	for test: Callable in tests:
-		await test.call()  # the release checks wait for frames
+	for test: Callable in tests:  # (the release checks wait for frames)
+		if FOLDED.has(test.get_method()):
+			await _folded(FOLDED[test.get_method()], test)
+		else:
+			await test.call()
 	print("%d checks, %d failed" % [_checks, _failures])
 	get_tree().quit(1 if _failures > 0 else 0)
 
 
 func _check(ok: bool, what: String) -> void:
+	if _batch != null:
+		if not ok:
+			(_batch as Array).append(what)
+		return
 	_checks += 1
 	if not ok:
 		_failures += 1
 		printerr("FAIL: ", what)
+
+
+## Runs a group of checks as one check: it fails when any of them fails, and names the first three.
+func _folded(what: String, test: Callable) -> void:
+	_batch = []
+	await test.call()
+	var failed: Array = _batch
+	_batch = null
+	_check(failed.is_empty(), what + ("" if failed.is_empty() else ": " + " | ".join(failed.slice(0, 3))))
 
 
 func _near(a: float, b: float, tolerance := 0.01) -> bool:
@@ -994,6 +1025,7 @@ func _open(shot: String, data := {}) -> void:
 			game.autopilot = Scripted.new()
 			await _wait(1.0)
 			Save.best_bobs = 0  # a new best: its stamp is part of the panel to check
+			game.world.bobs = maxi(game.world.bobs, 5)  # (however few the autopilot took in its second: a slow machine)
 			game.world._die(&"bandit")
 			await _wait(World.DYING_TIME + Capture.REVEAL)  # his death, then the panel and its whole reveal
 		"win":
@@ -1172,8 +1204,10 @@ func _test_audio() -> void:
 	Audio.play_music(&"game")
 	_check(Audio._after_stinger.is_empty() and Audio._current == &"game", "playing again cancels the music after the stinger")
 	# footsteps follow the run animation's foot contacts
-	_check(Footsteps.CONTACTS.size() == 2 and absf(Footsteps.CONTACTS[1] - Footsteps.CONTACTS[0] - Footsteps.RUN_FRAMES / 2.0) < 0.01,
-			"the run's two foot contacts are half a loop apart")
+	var even := Footsteps.CONTACTS.size() == 4
+	for i in Footsteps.CONTACTS.size() - 1:
+		even = even and absf(Footsteps.CONTACTS[i + 1] - Footsteps.CONTACTS[i] - Footsteps.RUN_FRAMES / 4.0) < 0.01
+	_check(even, "the run's four foot contacts are a quarter loop apart")
 	_check(Footsteps.crossed(4.0, 6.0, 5.0) and not Footsteps.crossed(6.0, 12.0, 5.0) and Footsteps.crossed(12.5, 1.0, 13.0)
 			and not Footsteps.crossed(15.5, 1.0, 5.0), "a contact counts once as the frame passes it, across the loop")
 	var w := _standing_world()
@@ -1192,10 +1226,10 @@ func _test_audio() -> void:
 	var run3d := _FakeRun3D.new()
 	var feet3d := Footsteps.new(w, run3d)
 	before = Audio.sfx_count
-	for f in [3.0, 4.5, 5.5, 9.0, 12.9, 13.2, 15.8, 0.4, 5.0]:
+	for f in [0.5, 1.5, 4.5, 5.5, 9.0, 12.9, 13.2, 15.8, 0.4]:
 		run3d.frame = f
 		feet3d._process(0.0)
-	_check(Audio.sfx_count == before + 3, "the 3D run sounds a step at frames 5 and 13 (%d)" % (Audio.sfx_count - before))
+	_check(Audio.sfx_count == before + 4, "the drawn run sounds a step at slots 1, 5, 9 and 13 (%d)" % (Audio.sfx_count - before))
 	for n: Node in [hero, run3d, feet, feet3d]:
 		n.free()
 	# haptics: off when the setting is off; a light one never cuts into a heavy one
@@ -1276,144 +1310,28 @@ func _test_audio() -> void:
 	var hero3d := _FakeHeroClock.new()
 	var feet2 := Footsteps.new(w2, hero3d)
 	before = Audio.sfx_count
-	for f in [3.0, 4.5, 5.5, 9.0, 12.9, 13.2]:
+	for f in [3.0, 4.5, 5.5, 9.0, 12.9, 13.2]:  # (steps at 5 and 9 running, 13 throwing)
 		hero3d._run = f
 		hero3d.anim = &"throw" if f > 9.0 else &"run"
 		feet2._process(0.0)
-	_check(Audio.sfx_count == before + 2, "footsteps follow the 3D hero's run clock, through a throw too")
+	_check(Audio.sfx_count == before + 3, "footsteps follow the hero's run clock, through a throw too")
 	for n: Node in [hero3d, feet2]:
 		n.free()
 	# round 3: fireworks have a sound; the confetti has streamers
 	_check(Audio.has_sfx(&"firework") and Confetti.SIZES.has(Confetti.Shape.STREAMER), "fireworks sound; the confetti has streamers")
-	await _audio_round9()
 	for p: AudioStreamPlayer in Audio._sfx + Audio._ui + [Audio._music, Audio._music_out, Audio._drive, Audio._ambience]:
 		p.stop()
 
 
-## Rounds 9-10: one atlas for the confetti and its light, warm paper, the "+1" never without its
-## burst, crisp fireworks of several kinds.
-func _audio_round9() -> void:
-	var atlas := Confetti.atlas()
-	var keys: Array = Confetti.Shape.values() + [&"flare", &"glow", &"streak", &"dot"]
-	var apart := true
-	for i in keys.size():
-		for j in range(i + 1, keys.size()):
-			apart = apart and not Confetti.region(keys[i]).grow(Confetti.PAD / 2.0 - 0.5).intersects(Confetti.region(keys[j]))
-	var inside := keys.all(func(k: Variant) -> bool: return Rect2(Vector2.ZERO, atlas.get_size()).encloses(Confetti.region(k)))
-	_check(apart and inside, "every confetti piece and light is its own region of one atlas (one batch a node)")
-	_check(atlas.get_width() * atlas.get_height() <= 256 * 256, "the confetti atlas stays small (%s px)" % atlas.get_size())
-	# the boot's warm-up reads nothing from the screen (that keeps a window-sized back buffer for good)
-	var boot := Control.new()
-	add_child(boot)
-	Fx.warm_up(boot)
-	var reads := 0
-	for n: Node in boot.find_children("*", "CanvasItem", true, false):
-		var m: Material = (n as CanvasItem).material
-		if n is CanvasGroup or (m is ShaderMaterial and (m as ShaderMaterial).shader
-				and "screen_texture" in (m as ShaderMaterial).shader.code):
-			reads += 1
-	_check(reads == 0, "the boot's warm-up reads nothing from the screen (%d pieces do)" % reads)
-	boot.free()
-	var warm := true
-	for col: Color in Fx.PAPER_COLOURS + Array(Confetti.TWO_TONE.values()):
-		warm = warm and (col.h < 0.17 or col.h > 0.95) and col.v > 0.9
-	_check(warm, "the confetti is bright gold, cream and coral, front and back: no cool or dull colours")
-	var lit := Confetti.new()
-	var dark := Confetti.Piece.new()
-	dark.shape = Confetti.Shape.PAPER
-	dark.colour = Fx.PAPER_COLOURS[0]
-	dark.back = Confetti.TWO_TONE[dark.colour.to_html(false)]
-	dark.flip = PI * 0.5 + 0.01  # edge-on, its back just turning to us: the darkest it gets
-	dark.life = 2.0
-	_check(lit._shade(dark).v > 0.75, "a paper piece stays bright as it tumbles (%.2f)" % lit._shade(dark).v)
-	lit.spray(1, [Confetti.Shape.PAPER], [Fx.PAPER_COLOURS[5].lerp(Color.WHITE, 0.2)], Vector2(1, 2))  # a colour not in TWO_TONE
-	_check(lit._pieces[0].back.v >= lit._pieces[0].colour.v - 0.01, "a piece's back is never a darker shade of it")
-	lit.free()
-	var c := Confetti.new()
-	c.avoid = Rect2(0, 0, 100, 100)
-	var piece := Confetti.Piece.new()
-	piece.size = Vector2(40, 24)
-	piece.pos = Vector2(50, 50)
-	var hidden := c._clear(piece)
-	piece.pos = Vector2(110, 50)
-	var edge := c._clear(piece)
-	piece.pos = Vector2(200, 50)
-	_check(hidden == 0.0 and edge > 0.0 and edge < 1.0 and c._clear(piece) == 1.0,
-			"a piece fades behind the card's edge (no pop): %.2f %.2f" % [hidden, edge])
-	c.free()
-	# the "+1" pops out of a burst that stays where the ring struck, drawn behind it
-	var fx := Node2D.new()
-	add_child(fx)
-	Fx.plus_one(fx, Vector2(300, 200))
-	var kids := fx.get_children()
-	_check(kids.size() == 2 and kids[0].position.distance_to(Vector2(300, 200)) < 16.0 and kids[0].material == Fx.additive()
-			and kids[1].material == Fx.badge_material(), "the \"+1\" pops out of a soft burst of light at the hit point, behind it")
-	var pop: Node2D = kids[0]
-	var number: Node2D = kids[1]
-	var alone := 0
-	var start := Time.get_ticks_msec()
-	while is_instance_valid(number) and Time.get_ticks_msec() - start < 3000:
-		if number.scale.x >= 0.95 and number.modulate.a > 0.5 and not (is_instance_valid(pop) and pop.scale.x > 0.5):
-			alone += 1
-		await get_tree().process_frame
-	await get_tree().process_frame
-	_check(alone == 0 and not is_instance_valid(pop), "the \"+1\" is never seen without its burst; they go together (%d frames alone)" % alone)
-	# the fireworks: crisp sparks flung out evenly, then gone
-	var show := Fx.FireworkShow.new()
-	fx.add_child(show)
-	show.burst(Vector2(500, 300), 0.0, 0)
-	show._process(1.0 / 60.0)
-	var count := show._sparks.size()
-	for i in 23:
-		show._process(1.0 / 60.0)
-	var reach := 0.0
-	for s: Vector4 in show._sparks:
-		reach = maxf(reach, Vector2(s.x, s.y).distance_to(Vector2(500, 300)))
-	_check(count == Fx.FireworkShow.KINDS[Fx.FireworkShow.Kind.CHRYSANTHEMUM].sparks and reach > show.radius * 0.6
-			and reach < show.radius * 1.3,
-			"a burst flings its sparks out to about its radius (%d sparks, %.0f of %.0f px)" % [count, reach, show.radius])
-	for i in 140:
-		show._process(1.0 / 60.0)
-	_check(show.is_queued_for_deletion(), "a firework show frees itself once its sparks are gone")
-	var hues := true
-	for col: Color in Fx.FIREWORK_HUES:
-		hues = hues and (col.h < 0.17 or col.h > 0.95)
-	_check(hues, "the fireworks are the sunset's warm colours (no purple or teal)")
-	var near := Fx.FireworkShow.new()  # a burst beside the card shrinks to stay off it; one on it doesn't go off
-	fx.add_child(near)
-	near.keep_off.append(Rect2(600, 0, 400, 600))
-	near.burst(Vector2(450, 300), 0.0, 0)
-	near.burst(Vector2(700, 300), 0.0, 1)
-	var on_card := 0
-	for i in 60:
-		near._process(1.0 / 60.0)
-		for sp: Vector4 in near._sparks:
-			if near.keep_off[0].has_point(Vector2(sp.x, sp.y)):
-				on_card += 1
-	_check(on_card == 0, "a burst beside the card never reaches it, one on it doesn't go off (%d sparks on it)" % on_card)
-	Fx.fireworks(fx, Vector2(900, 1200), -1.0)
-	var shells: Fx.FireworkShow = fx.get_child(fx.get_child_count() - 1)
-	var kinds := {}
-	for k: Vector2 in shells._shell_kind:
-		kinds[int(k.x)] = true
-	_check(kinds.size() == shells._shell_kind.size() and kinds.size() == 3, "a show's shells are each a different kind of burst")
-	fx.free()
-
-
-# ------------------------------------------------------------------ gameplay track
-
-## The gameplay track's checks: saves, input, game flow and the rules' fixes (tests/run_tests.gd
-## belongs to QA; this function and its helpers are the gameplay track's).
 func _test_gameplay() -> void:
-	_gp_saves()
-	_gp_touches()
-	_gp_input_rules()
-	_gp_level_fixes()
-	_gp_view_hooks()
-	_gp_flow()
-	_gp_staging()
+	await _folded("saves survive a killed app, a damaged file and an older version", _gp_saves)
+	await _folded("taps, swipes, flicks and two thumbs read right", _gp_touches)
+	await _folded("a move asked twice counts once; a swipe shows within 2 frames", _gp_input_rules)
+	await _folded("the level's fixes (the roof, the last screen, the pools)", _gp_level_fixes)
+	await _folded("what the views read: phases, the landing foreseen, progress in the air", _gp_view_hooks)
+	await _folded("the game screen: dying, home, pausing at any moment", _gp_flow)
 	if "--quick" not in OS.get_cmdline_user_args():
-		await _gp_camera()
+		await _folded("the camera shows what the player must see, on every device", _gp_camera)
 
 
 ## The camera's limits on every device (tests/capture.gd): through the real game screen, from moments
@@ -2020,7 +1938,9 @@ func _test_art() -> void:
 			var r: Array = f.region
 			inside = inside and r[0] >= 0 and r[1] >= 0 and r[0] + r[2] <= page.get_width() and r[1] + r[3] <= page.get_height()
 	_check(inside, "every hero frame lies inside its atlas page")
-	# the planted boot moves back at the ground's speed (within 12 %)
+	# the planted boot moves back with the ground: the drawn run plays at the user's choice, 16 frames a second
+	# (2026-11-07), the pace the sprint was filmed at, where its boot moves back up to twice the ground's speed
+	# (the pace matching the ground, about 8 frames a second, looked choppy)
 	var steps: Array[float] = []
 	var run: Array = anims.run.frames
 	var ground := 0.0
@@ -2037,7 +1957,10 @@ func _test_art() -> void:
 	for d in steps:
 		mean += d / steps.size()
 	var boot := mean * float(data.units_per_px) * float(data.run_fps)
-	_check(_near(boot, World.SCROLL_SPEED / World.TICK, 0.12), "the planted boot keeps pace with the ground (%.0f units/s)" % boot)
+	var ground_speed := World.SCROLL_SPEED / World.TICK
+	_check(boot >= ground_speed * 0.95 and boot <= ground_speed * 2.1,
+			"the planted boot moves back with the ground, at most twice its speed (%.0f units/s, ground %.0f)" % [boot, ground_speed])
+	_check(is_equal_approx(float(data.run_fps), HeroView.RUN_FPS), "the atlas' run pace is HeroView's (%.1f fps)" % float(data.run_fps))
 	# each state of the rules shows its animation (gameplay's move_phase(): set as a tick would)
 	var holder := Node2D.new()
 	add_child(holder)
@@ -2095,444 +2018,8 @@ func _test_art() -> void:
 			river += 1 if span % 100 == Level.ROWS else 0
 	_check(stacks >= 5 and river >= 5, "the poles are drawn as stacks (%d, %d standing in the river)" % [stacks, river])
 	terrain.free()
-	_test_art_round9()
-	_test_art_round10()
-	_test_art_round11()
-	_test_art_round12()
-	_test_art_round13()
 
 
-## Round 9: the hero's boots on the ground in every grounded frame; the bandit reads in every moment (its sheet
-## keeps its size, a leap frame, a knock-out with no cartwheel); a Red Bob is a ruby that glows, not a tomato.
-func _test_art_round9() -> void:
-	# QA ART-1: no grounded frame's boot sinks into the ground (the win was 32 units in: a stale camera origin)
-	var anims: Dictionary = HeroView.frames_data().anims
-	var sunk := ""
-	for name: String in ["idle", "run", "win", "jump"]:
-		var frames: Array = anims[name].frames
-		for i in frames.size():
-			if name == "jump" and (i < HeroView.JUMP_LAND[0] or i > HeroView.JUMP_LAND[1]):
-				continue
-			var f: Dictionary = frames[i]
-			if maxf(f.toe_r[1], f.toe_l[1]) - f.origin[1] > 2.0:
-				sunk += " %s %d" % [name, i]
-	_check(sunk.is_empty(), "no grounded hero frame's boot sinks into the ground (idle, run, win, the landing)%s" % sunk)
-	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(BanditView.DIR + "bandit.json"))
-	var sheet := Image.load_from_file(ProjectSettings.globalize_path(BanditView.DIR + "bandit.png"))
-	_check(sheet.get_size() == Vector2i(3200, 780), "the bandit's sheet keeps its size (%s)" % sheet.get_size())
-	var inside := true
-	for f: Array in data.frames:
-		inside = inside and f[0] >= 0 and f[1] >= 0 and f[0] + f[2] <= sheet.get_width() and f[1] + f[3] <= sheet.get_height()
-	_check(inside and (data.frames as Array).size() == int(data.leap) + 1, "every bandit frame lies inside its sheet, the leap last (%d frames)" % (data.frames as Array).size())
-	var leap: Array = data.frames[int(data.leap)]
-	var drawn := 0
-	for y in range(0, int(leap[3]), 4):
-		for x in range(0, int(leap[2]), 4):
-			drawn += 1 if sheet.get_pixel(int(leap[0]) + x, int(leap[1]) + y).a > 0.5 else 0
-	_check(drawn > 100, "the bandit's leap frame is drawn (%d samples)" % drawn)
-	# knocked out: flung back tilting, never past KO_TILT (no cartwheel), and gone within a second
-	var holder := Node2D.new()
-	add_child(holder)
-	var w := _standing_world()
-	var b := World.Bandit.new()
-	b.active = true
-	var v := BanditView.new(w, b)
-	holder.add_child(v)
-	v.hit(true)
-	var widest := 0.0
-	var t := 0.0
-	while is_instance_valid(v) and not v.is_queued_for_deletion() and t < 2.0:
-		v._process(1.0 / 60.0)
-		widest = maxf(widest, absf(v.rotation))
-		t += 1.0 / 60.0
-	_check(widest <= BanditView.KO_TILT + 0.01, "a knocked-out bandit tilts back, no cartwheel (%.2f rad at most)" % widest)
-	_check(t < 1.0, "it is gone %.2f s after the blow" % t)
-	holder.queue_free()
-	# a Red Bob: ruby crimson (its blue over its green, not a tomato's orange-red), a bright rim inside its ink on
-	# the sun's side, and (round 10) no glow round it: along a row the halos merged into one pink smear
-	var bob := Image.load_from_file(ProjectSettings.globalize_path(BobView.DIR + "bob.png"))
-	var sum := Color(0, 0, 0, 0)
-	for y in range(44, 100, 2):
-		for x in range(60, 100, 2):
-			sum += bob.get_pixel(x, y)
-	_check(sum.r > sum.b * 2.0 and sum.b > sum.g, "a Red Bob is ruby crimson, not tomato orange (%.2f %.2f %.2f)" % [sum.r, sum.g, sum.b])
-	var rim := bob.get_pixel(31, 23)  # 92 % of the way out towards the sun
-	_check(rim.r > 0.9 and rim.g > 0.45, "a bright rim inside its ink on the sun's side (%s)" % rim)
-	# (round 15, "red dots in a tight row": a soft glow round each, kept tight and clear inside the ball, so a row
-	# never merges into one smear as round 10's did, and a steady spark on its glint)
-	var one := BobView.new(3, 5)
-	var glow: Sprite2D = one._glow
-	var halo := glow.texture.get_image()
-	var mid := halo.get_pixel(halo.get_width() / 2, halo.get_height() / 2).a
-	_check(glow.get_index() < one._sprite.get_index() and mid < 0.05,
-		"a Red Bob's glow is behind it and clear inside the ball (%.2f in its middle)" % mid)
-	_check(BobView.GLOW_R < 0.9, "its glow stays tight (out to %.2f of its size from the middle)" % BobView.GLOW_R)
-	_check(one._sprite.get_child_count() == 1, "a steady spark on its glint (%d)" % one._sprite.get_child_count())
-	one.free()
-
-
-## Round 10: at the vine the hero's ink keeps the run's weight on screen (the camera pulls out there); at home the
-## lit hut rims him from behind; the menu's ring leaves a trail from his hand.
-func _test_art_round10() -> void:
-	var holder := Node2D.new()
-	add_child(holder)
-	var hero := HeroView.new()
-	holder.add_child(hero)
-	var w := _standing_world()
-	w.hanging = true
-	w.y = 0.0
-	w.prev_y = 0.0
-	for i in 40:
-		hero.show_state(w, w.draw_hero(), 1.0 / 60.0)
-	var ink: float = hero._material.get_shader_parameter(&"outline_px")
-	_check(_near(ink, HeroView.VINE_INK_PX, 0.02), "hanging, his ink thickens for the vine's framing (%.2f px)" % ink)
-	w.hanging = false
-	w.state = World.State.WON
-	w._phase = &"home"
-	w.end_time = World.HOME_LAND + 0.4
-	for i in 4:
-		hero.show_state(w, w.draw_hero(), 1.0 / 60.0)
-	var rim: float = hero._material.get_shader_parameter(&"back_rim")
-	_check(rim > 0.3, "at home the lit hut rims him from behind (%.2f)" % rim)
-	holder.queue_free()
-	var menu := Image.load_from_file(ProjectSettings.globalize_path(HeroView.DIR + "hero_menu.png"))
-	var trail := 0
-	for y in range(0, menu.get_height() / 3, 3):
-		for x in range(menu.get_width() / 2, menu.get_width(), 3):
-			var c := menu.get_pixel(x, y)
-			trail += 1 if c.a > 0.15 and c.a < 0.9 and c.b > c.r else 0  # the cold, half-clear streak (round 17: cyan again)
-	# (round 16: the trail sunset-hot and fading to nothing at its tail, partly behind his hair: fewer half-clear pixels)
-	_check(trail > 40, "the menu's ring leaves a trail from his hand (%d samples)" % trail)
-
-
-## Round 11: the interface pictures' ink line is whole (it was cut flat where he touched the trimmed edge).
-func _test_art_round11() -> void:
-	var cut := ""
-	for name in ["hero_menu", "hero_win", "hero_defeat"]:
-		var img := Image.load_from_file(ProjectSettings.globalize_path(HeroView.DIR + name + ".png"))
-		var w := img.get_width()
-		var h := img.get_height()
-		var edge := 0
-		for y in range(0, h, 2):
-			for x in [0, 1, w - 2, w - 1]:
-				edge += 1 if img.get_pixel(x, y).a > 0.5 else 0
-		for x in range(0, w, 2):
-			for y in [0, 1, h - 2, h - 1]:
-				edge += 1 if img.get_pixel(x, y).a > 0.5 else 0
-		if edge > 0:
-			cut += " %s (%d)" % [name, edge]
-	_check(cut.is_empty(), "the interface pictures' ink line stays inside them, never cut at their edge%s" % cut)
-
-
-## Round 12: in play he is lit brightest on screen (his lit colours raised, the ink kept).
-func _test_art_round12() -> void:
-	var hero := HeroView.new()
-	var gain: float = hero._material.get_shader_parameter(&"light_gain")
-	_check(gain > 1.15, "in play his lit colours are raised (light_gain %.2f)" % gain)
-	hero.free()
-
-
-## Round 13-14: the Red Bobs on beats of their own (no smooth wave along a row) at round 12's 28 units, and at home
-## his front keeps its light (round 13's backlit front lost).
-func _test_art_round13() -> void:
-	_check(BobView.SIZE == 28.0, "Red Bobs drawn 28 units (round 13's 24 read small and pale) (%.0f)" % BobView.SIZE)
-	var phases: Array[float] = []
-	for c in 8:
-		var b := BobView.new(100 + c, 6)
-		phases.append(b._phase)
-		b.free()
-	var steps := 0.0
-	var mean := 0.0
-	var gaps: Array[float] = []
-	for i in 7:
-		var d := fposmod(phases[i + 1] - phases[i], TAU)
-		gaps.append(d)
-		mean += d / 7.0
-	for d in gaps:
-		steps += absf(d - mean) / 7.0
-	_check(steps > 0.4, "neighbouring Red Bobs keep beats of their own, not one wave (spread %.2f rad)" % steps)
-	var holder := Node2D.new()
-	add_child(holder)
-	var hero := HeroView.new()
-	holder.add_child(hero)
-	var w := _standing_world()
-	w.state = World.State.WON
-	w.end_time = World.HOME_LAND + 0.4
-	for i in 4:
-		hero.show_state(w, w.draw_hero(), 1.0 / 60.0)
-	var gain: float = hero._material.get_shader_parameter(&"light_gain")
-	_check(gain > 1.15, "at home his front keeps the level's light (round 14; light_gain %.2f)" % gain)
-	holder.queue_free()
-
-
-## The staging hooks for the views (the rules unchanged): a bandit's blow is seen coming (its swing
-## grows over its last 6 ticks and lands with the hit), a blow says where it came from and how hard,
-## a fall into a pit is known for certain before he is out of the picture (the camera holds), the
-## vine counts as within reach from the high ledges, and the Red Bobs out of reach are listed.
-func _gp_staging() -> void:
-	var w := _standing_world()
-	var b := _bandit_ahead(w, 300.0)
-	var swings := []
-	var hit_at := [-1]
-	w.hurt.connect(func(_b: World.Bandit, _l: int) -> void: hit_at[0] = w.ticks)
-	for i in 40:
-		swings.append(w.strike(b))
-		w.tick()
-		if hit_at[0] >= 0:
-			break
-	var wind := swings.filter(func(v: float) -> bool: return v >= 0.0)
-	var growing := true
-	for i in range(1, wind.size()):
-		growing = growing and wind[i] >= wind[i - 1]
-	_check(hit_at[0] > 0 and wind.size() >= World.STRIKE_TICKS - 1 and wind.size() <= World.STRIKE_TICKS + 2 and growing and wind[-1] > 0.8,
-			"a bandit's swing is seen over its last %d ticks before the blow (%s)" % [World.STRIKE_TICKS, wind])
-	_check(w.strike(b) == -1.0 and w.hit_dir.x < 0.0 and w.hit_dir.y < 0.0 and _near(w.hit_strength, 0.6),
-			"the blow knocks him back from the bandit (%s, %.1f), and no swing after it" % [w.hit_dir, w.hit_strength])
-	var j := _standing_world()
-	var jb := _bandit_ahead(j, 300.0)
-	j.y = 100.0  # well above it: no swing at him
-	j.on_ground = false
-	_check(j.strike(jb) == -1.0, "no swing at him when he is above it")
-	var p := _standing_world()
-	p.scroll = 76 * 32.0 - p.x  # over the first pool, falling, his jump used
-	p.y = 420.0
-	p.vy = 4.0
-	p.on_ground = false
-	p.jumping = true
-	var known := -1
-	for i in 30:
-		if known < 0 and p.falling_to_death():
-			known = i
-		p.tick()
-		if p.state != World.State.RUNNING:
-			_check(known >= 0 and i - known >= 3, "a fall into a pit is known %d ticks before he is out of the picture" % (i - known))
-			break
-	var s := _standing_world()
-	s.scroll = 76 * 32.0 - s.x
-	s.y = 420.0
-	s.vy = 4.0
-	s.on_ground = false
-	s.jumping = false  # a fall that still has its jump: a jump may yet save him
-	_check(not s.falling_to_death() or s._look_for_landing(90, -World.JUMP_SPEED) == World.OUT, "a fall that a jump can still save isn't doomed")
-	var q: Node = GameScreenScript().new()  # moves during that drop are ignored
-	q.world = _standing_world()
-	q.world.scroll = 76 * 32.0 - q.world.x  # as above: over the pool, falling, his jump used
-	q.world.y = 420.0
-	q.world.vy = 4.0
-	q.world.jumping = true
-	q.world.on_ground = false
-	q._move(&"jump")
-	q._move(&"throw")
-	_check(q.world.falling_to_death() and q.world._actions.is_empty(), "swipes and taps are ignored while he drops into a pit he can't leave")
-	q.free()
-	var e := _standing_world()  # what must be seen reaches up to what a jump can go for, not empty sky
-	var at_start := e.camera_must_see().position.y
-	e.scroll = 50 * 32.0 - e.x  # the Red Bobs at row 7 over the block at columns 59-71 are a jump away
-	_check(_near(at_start, e.y - 64.0 - World.SEE_ABOVE) and e.camera_must_see().position.y <= 7 * 32.0 - World.SEE_ABOVE,
-			"the camera must show the Red Bobs a jump can reach (%.0f), only his head under empty sky (%.0f)" % [e.camera_must_see().position.y, at_start])
-	var v := _standing_world()
-	v.scroll = 180 * 32.0 - v.x
-	v.y = 6 * 32 - 64.0
-	_check(v.vine_catchable() and not _standing_world().vine_catchable(), "from the high platform the vine is within reach, from the ground not")
-	_check(World.RISKY_BOBS.size() == Level.load_default().bobs_total - World.BOBS_REACHABLE and World.is_risky_bob(610, 12)
-			and Level.load_default().kind_at(610, 12) == Level.Kind.BOB, "the %d Red Bobs out of reach are listed for the views" % World.RISKY_BOBS.size())
-
-
-## Environment, light and camera (env track, round 2).
-func _test_env() -> void:
-	var cam: GDScript = load("res://src/game/game_screen.gd")
-	# the camera: on every screen at least the 2017 game's 960 units, 1040 where it fits (a bandit
-	# starts running as it crosses 960); a 4:3 iPad shows the whole 960
-	for width: float in [853.3, 960.0, 1137.8, 1291.5, 1352.0, 1490.0]:
-		var z: float = cam.base_zoom(width)
-		_check(width / z >= World.VIEW_W - 0.01, "the camera shows the 2017 width at %d units (%.0f)" % [width, width / z])
-		_check(width < cam.VIEW_AHEAD or width / z >= cam.VIEW_AHEAD - 0.01,
-				"and %d units where they fit (%.0f at %d)" % [cam.VIEW_AHEAD, width / z, width])
-	_check(cam.base_zoom(1291.5) > 1.2, "an iPhone 15 closes in on him (%.2f)" % cam.base_zoom(1291.5))
-	var w := _standing_world()
-	var on_ground: float = cam.follow_zoom(w, w.draw_hero())
-	_check(on_ground >= cam.base_zoom(1291.5), "running on the ground the camera stays in (%.2f)" % on_ground)
-	w.on_ground = false
-	w.vy = -World.JUMP_SPEED
-	var jump: float = cam.follow_zoom(w, w.draw_hero())
-	var head: float = cam._jump_top(w.y, w.vy) - cam.HEAD
-	_check(World.VIEW_H - (World.VIEW_H - head) * minf(jump, cam.ZOOM_MAX) >= cam.HEAD_ROOM - 0.5,
-			"a jump from the ground keeps his head under the top of the screen")
-	w.hanging = true
-	var vine: float = cam.follow_zoom(w, w.draw_hero())
-	_check(World.VIEW_H - (World.VIEW_H - cam.VINE_TOP) * vine >= cam.HUD_BAND - 0.5,
-			"hanging, the vine is drawn under the HUD (zoom %.2f)" % vine)
-	_check(World.VIEW_H * vine <= World.VIEW_H, "hanging, the ground stays in view (the bottom on the bottom)")
-	w.hanging = false
-	w.on_ground = true
-	w.vy = 0.0
-	w.ground_y = 8 * Level.TILE - World.HERO_SIZE.y / 2  # on a ledge from which a jump reaches the vine
-	w.y = w.ground_y
-	w.scroll = 170 * Level.TILE - w.x
-	_check(cam.follow_zoom(w, w.draw_hero()) <= vine + 0.001, "where a jump reaches the vine, it is in view")
-	# the ground: the depth picture (rewritten as running counts) matches the cell-by-cell count
-	var terrain := TerrainView.new()
-	add_child(terrain)
-	terrain.build(Level.load_default(), -12, Level.COLS + 70)
-	var img := (terrain._depth_texture(-12, Level.COLS + 70) as ImageTexture).get_image()
-	var same := true
-	for c in range(20, 90):  # (the climb wall, the pillar at 60, pools)
-		for r in Level.ROWS:
-			var depth := 0  # solid cells above, not stacks; the ground runs on under a wall's foot
-			if not terrain._wall_foot(c, r):
-				while depth < 15 and terrain.solid(c, r - depth - 1) and not terrain._in_pole(c, r - depth - 1):
-					depth += 1
-					if terrain._wall_foot(c, r - depth):
-						break
-			var left := 0
-			while left < 15 and terrain.solid(c - left - 1, r):
-				left += 1
-			var right := 0
-			while right < 15 and terrain.solid(c + right + 1, r):
-				right += 1
-			var foot := 0  # (round 9: inside a pillar too, as on its sides)
-			while foot < 15 and terrain.solid(c, r + foot + 1) and (not terrain.solid(c - 1, r + foot + 1) \
-					or not terrain.solid(c + 1, r + foot + 1) or _row_run(terrain, c, r + foot + 1) <= TerrainView.NARROW_CELLS):
-				foot += 1
-			var open_below := r < Level.ROWS - 1 and not terrain.solid(c, r + 1)
-			var px := img.get_pixel(c + 12, r)
-			same = same and px.r8 == depth and px.g8 == left and px.b8 == right and px.a8 == foot + (128 if open_below else 0)
-	_check(same, "the ground's depth picture matches a cell-by-cell count")
-	_check(terrain._wall_foot(62, 18), "the grass runs on across the foot of the pillar at column 60")
-	var cast := 0.0
-	var masses := 0
-	terrain.ensure(1800, 6400)
-	for b: Node in terrain._layers[&"cast"].get_children():
-		for it: Array in b.items:
-			if (it[0] as Rect2).position.x > 2100 and (it[0] as Rect2).position.x < 2120:
-				cast = (it[0] as Rect2).size.x
-	for b: Node in terrain._layers[&"mass"].get_children():
-		for it: Array in b.items:
-			var r: Rect2 = it[0]
-			if r.position.y > 7 * Level.TILE and r.position.y < 8 * Level.TILE and r.get_center().x > 167 * Level.TILE and r.get_center().x < 197 * Level.TILE:
-				masses += 1
-	_check(cast >= 120.0, "the pillar casts a long shadow along the ground (%.0f units)" % cast)
-	_check(masses >= 4, "earth and rock hang under the floating ledge at column 167 (%d)" % masses)
-	terrain.queue_free()
-	# the vine gives under him, bounces, settles; springs back when he lets go
-	var v := VineView.new()
-	v.hold(true, 300.0, 0.0)
-	v.caught()
-	var deepest := 0.0
-	for i in 90:
-		v.hold(true, 300.0, 1.0 / 60.0)
-		deepest = maxf(deepest, v.dip)
-	_check(deepest > VineView.HOLD_DIP + 3.0 and absf(v.dip - VineView.HOLD_DIP) < 1.0,
-			"the vine dips on the catch (%.1f) and settles (%.1f)" % [deepest, v.dip])
-	var held := [v.sag_at(300.0), v.sag_at(500.0)]
-	var settled_dip := v.dip
-	v.dip = 0.0  # (the same moment without his weight's dip: what the dip alone does, here and further)
-	var bend := [held[0] - v.sag_at(300.0), held[1] - v.sag_at(500.0)]
-	v.dip = settled_dip
-	_check(bend[0] > bend[1] + 3.0, "it bends where he hangs, not along its whole length")
-	# (round 12: his weight pulls it nearly taut about his hands; away from them it hangs deep)
-	_check(v.slack_at(300.0) < VineView.SAG_MAX * 0.15 * (1.0 + 2.0 * VineView.KNOT_SHIFT) + 0.1,
-			"it is pulled taut at his hands (%.1f units of sag)" % v.slack_at(300.0))
-	for i in 120:
-		v.hold(false, 300.0, 1.0 / 60.0)
-	_check(absf(v.dip) < 0.5, "it springs back when he lets go (%.2f)" % v.dip)
-	var deep := 0.0
-	for x in range(0, 960, 20):
-		deep = maxf(deep, v.slack_at(float(x)))
-	_check(deep > VineView.SAG_MIN, "away from his hands it hangs deep (%.1f units)" % deep)
-	var line := []
-	for x in range(0, 800, 40):
-		line.append(v.sag_at(float(x)))
-	_check(line.max() - line.min() > 6.0, "it hangs between its knots: not a straight stripe (%.1f units)" % (line.max() - line.min()))
-	v.free()
-	# home: the doorway is taller than him and he stops inside it
-	var info: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(HomeView.DIR + "home.json")).home_hut
-	var door_x := HomeView.DOOR_RIGHT - float(info.door_w) / 2.0
-	_check(float(info.door_h) >= GameArt.HERO_DRAW_HEIGHT + 15.0, "the doorway is taller than him (%d)" % info.door_h)
-	_check(absf(World.HOME_X - door_x) + 35.0 <= float(info.door_w) / 2.0, "he stops inside the doorway (nothing of the hut over him)")
-	# round 3: props are made a chunk at a time as the camera gets there; reeds mirrored in the pools
-	var props := PropView.new()
-	add_child(props)
-	props.build(Level.load_default(), func(c: int, r: int) -> bool: return Level.load_default().kind_at(clampi(c, 0, Level.COLS - 1), mini(r, Level.ROWS - 1)) in [Level.Kind.TOP, Level.Kind.SIDE], -12, Level.COLS + 70)
-	_check(props.get_child_count() == 0, "no props are made when the level opens")
-	props.ensure(0.0, 1400.0)
-	var first := props.get_child_count()
-	props.ensure(5200.0, 6600.0)  # the long pool from column 160
-	var reflected := 0
-	for chunk: Node in props.get_children():
-		for it: Array in chunk.items:
-			reflected += 1 if (it[1] as Rect2).size.y < 0.0 else 0
-	_check(first > 0 and first <= 6, "the first screen's props: a few chunks (%d)" % first)
-	_check(reflected >= 2, "reeds are mirrored in the water (%d)" % reflected)
-	props.queue_free()
-	# the ground is worked out on the frame after the level opens (both under the wipe)
-	var view := WorldView.new()
-	add_child(view)
-	var wv := World.new()
-	wv.stand_at_start()
-	view.setup(wv)
-	var built_at_once: bool = view._ground.is_built()
-	await get_tree().process_frame
-	await get_tree().process_frame
-	_check(not built_at_once and view._ground.is_built(), "the ground is built the frame after the rest")
-	# home: a fire and people at it; the doorway's jamb goes over him only from his walk in
-	_check(view._home._fire != null, "a cooking fire at home")
-	_check(not view._home.front.visible, "the jamb is not drawn over him before he walks in")
-	wv.state = World.State.WON
-	wv.end_time = World.HOME_CHEER + 0.1
-	view.refresh(0.0)
-	_check(view._home.front.visible, "it is from his walk in (World.HOME_CHEER)")
-	_check(not FileAccess.file_exists(SavannaView.DIR + "canopy.png"), "no boughs smudge the top edge (round 9)")
-	view.queue_free()
-	# round 10 (QA ENV-1): at the start card a waiting bandit cut by the screen's right edge is not
-	# drawn; it fades in once the run starts
-	var view2 := WorldView.new()
-	add_child(view2)
-	var w2 := World.new()
-	w2.stand_at_start()
-	view2.setup(w2)
-	view2.start_hold = true
-	view2.safe_right = 1040.0
-	view2.refresh(0.0)
-	var first_bandit: BanditView = null
-	for id: int in view2._bandits:
-		var bv: BanditView = view2._bandits[id]
-		if bv.position.x + WorldView.BANDIT_RIGHT > 1040.0 and bv.position.x - 64.0 < 1040.0:
-			first_bandit = bv
-	_check(first_bandit != null and first_bandit.modulate.a == 0.0, "the start card shows no bandit cut by the right edge")
-	view2.start_hold = false
-	view2.refresh(0.5)
-	_check(first_bandit != null and first_bandit.modulate.a == 1.0, "it fades in once the run starts")
-	view2.queue_free()
-	# the world's shaders are compiled before the level opens, then the drawing that did it goes
-	WorldView.warm_up()
-	await get_tree().process_frame  # (added deferred: the root may be busy when the menu calls it)
-	_check(get_tree().root.has_node(^"ShaderWarmUp"), "the shader warm-up draws once")
-	await get_tree().create_timer(0.7).timeout
-	_check(not get_tree().root.has_node(^"ShaderWarmUp"), "and leaves nothing behind")
-	# round 4: the walls' shadows fade in from the wall (the seam the judge saw was a hard edge there);
-	# the camera rises with him only on a high ledge, never on the ground
-	var shade_img := TerrainView.cast_shade().get_image()
-	_check(shade_img.get_pixel(0, 16).a < 0.05 and shade_img.get_pixel(12, 16).a > 0.3, "a wall's shadow has no hard edge at the wall")
-	_check(smoothstep(cam.HIGH_FROM, cam.HIGH_FULL, World.VIEW_H - 2 * Level.TILE) == 0.0 \
-			and smoothstep(cam.HIGH_FROM, cam.HIGH_FULL, 8 * Level.TILE) == 1.0, "the camera rises on the high ledges only")
-	# no timer outlives the level screen (QA ENV-2)
-	_check(not FileAccess.get_file_as_string("res://src/game/world_view.gd").contains("create_timer("),
-			"the world view's delayed calls are tied to its nodes")
-
-
-## Round 9: the run of solid cells across row r through column c (each side counted up to 15).
-func _row_run(terrain: TerrainView, c: int, r: int) -> int:
-	var left := 0
-	while left < 15 and terrain.solid(c - left - 1, mini(r, Level.ROWS - 1)):
-		left += 1
-	var right := 0
-	while right < 15 and terrain.solid(c + right + 1, mini(r, Level.ROWS - 1)):
-		right += 1
-	return left + right + 1
-
-
-## A canvas item's z as drawn: its z_index plus its parents' while relative.
 func _absolute_z(item: CanvasItem) -> int:
 	var z := 0
 	var n: Node = item
