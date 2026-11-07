@@ -1,0 +1,17 @@
+Image 1 is a sprite sheet: 20 frames (5 columns x 4 rows) of one death animation of a game hero, rendered in 3D on a flat chroma-green background.
+Image 2 is the same hero in his finished anime key art: this is the ART STYLE and LOOK to match exactly.
+Image 3 is a larger view of the 3D hero, for his costume details.
+
+Repaint ALL 20 frames of Image 1 in the exact art style of Image 2, as one polished 2D mobile game sprite sheet that plays back as a smooth, consistent animation.
+
+KEEP EXACTLY, in every frame:
+- the same pose, the same limb positions, the same body size and the same place in the sheet as in Image 1 (do not move, resize, re-pose, mirror, add or remove any frame);
+- the same character: dark-brown skin, very muscular athletic build, black spiky anime hair, a red scarf around the neck, a white torn fur loincloth over a brown wrap with a brown belt, a silver-and-blue armoured left arm and gauntlet, a bare right arm, tall blue-and-white armoured boots.
+
+MATCH IMAGE 2's STYLE, the same way in every frame:
+- the same high-quality anime illustration rendering: clean confident line art, cel shading with soft painterly gradients, crisp specular highlights on the armour, defined muscle forms;
+- the same warm golden sunlight from the upper right with warm rim light, the same skin tones, hair, scarf red, fur white and armour blue as Image 2;
+- the face drawn like Image 2 (determined, then shouting in pain as he is hit, then eyes closed once he lies still);
+- identical colours, line weight, lighting and level of detail in all 20 frames, as if drawn by the same artist on the same day.
+
+Background: keep a perfectly flat, uniform pure chroma green (#00FF00) everywhere around the hero. No scenery from Image 2, no sky, no debris, no shadow, no ground, no floor line, no glow, no green tint on the character, no frame borders, no numbers, no text.

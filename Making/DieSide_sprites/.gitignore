@@ -1,0 +1,5 @@
+# re-made by the tools (see README): the Blender passes, scratch images, the unzipped key art, the 2D test
+render/
+work/
+segments_src/
+out_toon_test/

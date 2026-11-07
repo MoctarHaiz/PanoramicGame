@@ -50,6 +50,13 @@ ANIMS = {
     "climb": (None, 30.0, False),
     "win": (None, 20.0, False),
 }
+# animations rendered somewhere other than RENDER: name -> folder of NNN.png + points.json
+SOURCES = {
+    # (the user's DieSide, 2026-11-07) the death from the user's own model (Making/Animation.blend, 4_Die) painted in
+    # the anime cel look of their key art (Making/segments.zip), mirrored to fall back to the left; made by
+    # Making/DieSide_sprites (die_render.py --mirror-lights, toon_paint.py --game, game_export.py: see its README)
+    "die": ROOT / "Making/DieSide_sprites/game/die",
+}
 
 
 def premultiplied_resize(img: Image.Image, k: float) -> np.ndarray:
@@ -217,7 +224,7 @@ def main() -> None:
     frames = []  # (anim, index, array, offset of the trimmed box in the scaled frame)
     meta = {}
     for name, (keep, fps, loop) in ANIMS.items():
-        folder = RENDER / name
+        folder = SOURCES.get(name, RENDER / name)
         points = json.loads((folder / "points.json").read_text())
         files = sorted(folder.glob("*.png"))
         idx = keep if keep is not None else range(len(files))

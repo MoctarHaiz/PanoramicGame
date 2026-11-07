@@ -1,0 +1,49 @@
+{
+ "animation": "die",
+ "frame_size": [
+  775,
+  721
+ ],
+ "half_frame_size": [
+  387,
+  360
+ ],
+ "columns": 5,
+ "rows": 4,
+ "count": 20,
+ "fps": 12.0,
+ "loop": false,
+ "hold_last": true,
+ "pivot": [
+  482.0,
+  667.5
+ ],
+ "half_pivot": [
+  241.0,
+  333.8
+ ],
+ "pivot_note": "pixels from each frame's top-left: the ground under his hips",
+ "source_frames": [
+  1,
+  6,
+  9,
+  12,
+  15,
+  18,
+  21,
+  24,
+  27,
+  30,
+  33,
+  36,
+  39,
+  42,
+  45,
+  48,
+  51,
+  54,
+  60,
+  78
+ ],
+ "source": "Making/Animation.blend, 4_Die (mixamo.com.003), Cam_Side, 30 fps"
+}
