@@ -1155,7 +1155,7 @@ func _layout_problems(device: Dictionary) -> Array:
 
 ## What's wrong with an end panel (a new best forced): its badge (BurstBadge) off the middle of the
 ## place kept for it or over the card's frame (a stamp was once centred from its size before it
-## entered the tree), the hero's picture off the screen.
+## entered the tree), the hero's picture or his dais off the screen.
 func _results_problems(device: Dictionary) -> Array:
 	var px: Vector2i = device.size
 	var screen := Rect2(Vector2.ZERO, Vector2(640.0 * px.x / px.y, 640.0))
@@ -1186,6 +1186,11 @@ func _results_problems(device: Dictionary) -> Array:
 		var a: Rect2 = panel.art.get_global_transform() * Rect2(Vector2.ZERO, panel.art.size)
 		if not screen.grow(1.0).encloses(a):
 			problems.append("the hero's picture %s off the screen %s" % [a, screen])
+		var dais: Variant = panel.get(&"_dais")  # (UI r21) the ground he stands on, whole on the screen
+		if dais is Control and (dais as Control).visible:
+			var d: Rect2 = (dais as Control).get_global_transform() * (dais as Control).call(&"drawn_rect")
+			if not screen.grow(1.0).encloses(d):
+				problems.append("his dais %s off the screen %s" % [d, screen])
 	return problems
 
 

@@ -3,9 +3,10 @@ extends Control
 ## A big shiny star (results, best run): a fat five-point star with a fine warm rim, a gold face
 ## lit from the top, a lit bevel inside its edge, a darker bevel along its lower edge, a glossy
 ## highlight on its upper left, its shadow on the panel, a warm glow behind it, sparkles twinkling
-## round it and now and then a twinkle on a tip. Unlit, it is its socket: a star pressed into the
-## panel, outlined, shaded inside under its upper edges and light at its foot, a lit lip below: a
-## place waiting for its star (not a dark hole, not a missing picture).
+## round it and now and then a twinkle on a tip. Unlit, it is its socket (UI r21, the judges of j17:
+## "the empty third star a dull broken asset"): a star-shaped hollow cut into the panel, designed as a
+## place for the star: a lit bevel round its mouth, its upper walls deep in shade, its lower walls
+## catching the light, a darker floor with a faint star engraved on it.
 
 const INK := Color("2e0d04")
 const FACE_TOP := Color("fff47e")
@@ -82,13 +83,20 @@ func _draw() -> void:
 	var o := maxf(side * 0.06, 2.5)  # outline thickness
 	var c := size / 2 + Vector2(0, side * 0.04)
 	var r := side * 0.5 - o
-	if not lit:  # the socket: a star pressed into the panel: a fine brown outline, shade inside under
-		# its upper edges, warm sand towards its foot, the panel's light caught on the lip below it
-		# (j15: "its empty third star invisible beige on cream": a deeper socket, clearly an empty place)
-		draw_colored_polygon(points(c + Vector2(0, o * 0.8), r + o * 0.5, 0.55), Color(1, 0.98, 0.9, 0.8))  # lit lip
-		draw_colored_polygon(points(c, r + o * 0.5, 0.55), Color("5e2e0c"))
-		_gradient(points(c, r - o * 0.4, 0.53), c, r, Color("6e3c16"), Color("b88450"))
-		_gradient(points(c + Vector2(0, o * 0.7), r - o * 1.5, 0.5), c, r, Color("94602e"), Color("d2a670"))
+	if not lit:  # the socket: a hollow cut into the panel, lit from the top: the bevel round its mouth,
+		# then inside it the upper walls in shade, the lower walls lit, the floor
+		var mouth := points(c, r + o * 0.3, 0.55)
+		draw_colored_polygon(points(c + Vector2(0, o * 0.9), r + o * 0.9, 0.55), Color(1, 0.97, 0.86, 0.75))  # the lit lip
+		draw_colored_polygon(points(c, r + o * 0.9, 0.55), Color("6a3814"))  # the bevel's rim
+		_gradient(mouth, c, r, Color("2a1206"), Color("4e260e"))  # the walls, deep under the upper edge
+		var lit_wall := Geometry2D.intersect_polygons(mouth, points(c + Vector2(0, o * 1.3), r + o * 0.2, 0.55))
+		for poly in lit_wall:  # the lower walls catch the light (where the mouth shifted down still covers)
+			_gradient(poly, c, r, Color("7a4a22"), Color("c08a52"))
+		var floor_pts := points(c + Vector2(0, o * 0.55), r - o * 1.1, 0.53)
+		_gradient(floor_pts, c, r, Color("4a2410"), Color("6e4020"))  # the floor
+		var engraved := points(c + Vector2(0, o * 0.55), (r - o * 1.1) * 0.62, 0.5)
+		engraved.append(engraved[0])
+		draw_polyline(engraved, Color(1, 0.86, 0.6, 0.16), maxf(o * 0.35, 1.2), true)  # a faint star on it
 		return
 	# its shadow on the panel, the ink outline (a fatter star), the bevel under the face, then the face
 	draw_colored_polygon(points(c + Vector2(o * 0.5, o * 2.4), r + o * 0.5, 0.55), Color(0.3, 0.1, 0.0, 0.32))

@@ -1,15 +1,21 @@
 #!/usr/bin/env python3
-"""(round 20, the judges: "the panels a generic casual kit with stock diamond studs, no game identity") Zulu beadwork for
-the interface kit, in the language of Panoramic's chakram (tools/art/ring_beadwork.py): red and black triangles on white
-glass beads, a blue bead at the foot of each white one (his armour's blue).
+"""Zulu beadwork for the interface kit's frames (src/ui/card.gd), in the language of Panoramic's chakram
+(tools/art/ring_beadwork.py): red and near-black diamonds and triangles on ivory glass beads, a little blue.
 
-    python3 tools/art/ui_beadwork.py   # assets/art/ui/beadwork_band.png, bead_rosette.png
+    python3 tools/art/ui_beadwork.py   # assets/art/ui/beadwork_band.png, beadwork_motifs.png
 
-- beadwork_band.png: a band of seed beads in a square stitch, three rows, triangles standing on its lower (inner) edge,
-  red and black in turn, white between; a leather edging along both sides. It tiles left to right (12 beads a period).
-  Card draws it along the middle of its wooden frame, the triangles pointing out.
-- bead_rosette.png: a beaded medallion for a panel's corner (where the bands meet): a red centre bead, a ring of white,
-  a ring of red and black in turn, a ring of white with blue, on a leather disc in an ink ring.
+(UI r21, the judges of j17: the r20 band "dithers / moires at phone size, the most detailed thing on every panel; the
+corner rosettes read as bottle caps: 2-3 larger motif blocks, softer".) So the beadwork is now calm: a plain run of
+oxblood beads along the frame (close in value to the wood: it reads as an inlay, not a stripe), and on each side two or
+three larger motif blocks; a small flat beaded diamond on each corner. The motifs are clean shapes (not single-bead
+stairs, which read as dithering); the beads are a soft texture over them: a gentle dome per bead, a dim thread line
+between beads, a broad soft light, no hot glints; muted colours.
+
+- beadwork_band.png: the run (tiles left to right): three rows of oxblood beads in a brick stitch between two thin
+  leather edges.
+- beadwork_motifs.png: an atlas: the motif block (a pointed ivory cartouche, a big near-black diamond with a red heart in
+  its middle, a red triangle pointing at it from each end) in the 114 x 28 units at its top left; the corner diamond
+  (ivory in a dark line, a red diamond, a dark heart) in the 42 x 42 from CORNER_AT.
 
 Painted in numpy at 4x and reduced (no aliasing). SCALE px per card unit.
 """
@@ -21,125 +27,157 @@ from PIL import Image
 NEW = Path(__file__).resolve().parents[2]
 OUT = NEW / "assets/art/ui"
 SS = 4  # supersampling
-SCALE = 3  # px per card unit (sharp on a tablet, where a unit is about 3 px)
-PITCH = 14  # px from one bead to the next (4.7 units: each bead reads on a phone)
+SCALE = 3  # px per card unit (sharp on a tablet)
+PITCH = 6.0  # units from one bead to the next (11 px on a phone: a texture, not a dither)
 ROWS = 3
-PERIOD = 12  # beads: a red triangle and a black one
-EDGE = 3  # px of leather along each side of the band
+EDGE = 1.0  # units of leather along each side of the band
+BAND_H = ROWS * PITCH + EDGE * 2  # 20 units
+PERIOD = 16  # beads in the run's period (each bead's own shade varies a little)
+BLOCK = (112.0, 26.0)  # the motif block's size (units): longer and taller than the run (over the wood a little)
+BLOCK_PITCH = 6.5  # its beads (four rows)
+CORNER = 40.0  # the corner diamond's side box (units)
+CORNER_AT = 116.0  # its place in the atlas (units from the left)
 
-WHITE = np.array([0.96, 0.93, 0.86])
-RED = np.array([0.82, 0.13, 0.10])
-BLACK = np.array([0.13, 0.10, 0.11])
-BLUE = np.array([0.16, 0.40, 0.82])
-GOLD = np.array([0.99, 0.76, 0.20])
-THREAD = np.array([0.17, 0.07, 0.03])
-LEATHER = np.array([0.30, 0.12, 0.04])
-INK = np.array([0.18, 0.05, 0.02])
-LIGHT = np.array([-0.45, -0.75, 0.5]) / np.linalg.norm([-0.45, -0.75, 0.5])
+IVORY = np.array([0.90, 0.85, 0.74])
+RED = np.array([0.72, 0.18, 0.12])
+DARK = np.array([0.20, 0.13, 0.11])
+BLUE = np.array([0.26, 0.43, 0.70])
+OXBLOOD = np.array([0.50, 0.15, 0.10])
+LEATHER = np.array([0.24, 0.10, 0.05])
+LINE = np.array([0.17, 0.07, 0.04])
 
 
-def _bead(colour: np.ndarray, u: np.ndarray, v: np.ndarray, rx: float, ry: float):
-    """A glass seed bead (a rounded pillow `rx` x `ry` px round its centre; u, v px from it), lit from the upper left:
-    its colour shaded by its dome, a hot glint, a darker foot. Returns (rgb, coverage)."""
-    q = np.sqrt((u / rx) ** 4 + (v / ry) ** 4) ** 0.5  # a superellipse: rounder than a box, squarer than a disc
-    cover = np.clip((1.0 - q) * min(rx, ry) * 1.2, 0, 1)
-    nx = np.clip(u / rx, -1, 1) * 0.85
-    ny = np.clip(v / ry, -1, 1) * 0.85
+def _grid(xx, yy, x0: float, y0: float, stagger: bool, pitch: float = PITCH):
+    """Each pixel's bead (column, row) and its offset from that bead's centre (units), in a brick stitch from (x0, y0)."""
+    row = np.floor((yy - y0) / pitch)
+    shift = np.where((row % 2 == 1) & stagger, pitch / 2, 0.0)
+    col = np.floor((xx - x0 - shift) / pitch)
+    u = (xx - x0 - shift) - (col + 0.5) * pitch
+    v = (yy - y0) - (row + 0.5) * pitch
+    return col, row, u, v
+
+
+def _beads(colour: np.ndarray, u: np.ndarray, v: np.ndarray, vary: np.ndarray, pitch: float = PITCH) -> np.ndarray:
+    """Soft glass beads over a colour field: a gentle dome per bead (lit from the upper left), a dim thread line between
+    them, a broad soft light; `vary`: each bead's own shade (+-)."""
+    rx, ry = pitch * 0.5, pitch * 0.5
+    q = np.sqrt(np.sqrt((u / rx) ** 4 + (v / ry) ** 4))  # a rounded square: beads packed side by side
+    nx = np.clip(u / rx, -1, 1) * 0.7
+    ny = np.clip(v / ry, -1, 1) * 0.7
     nz = np.sqrt(np.clip(1 - nx * nx - ny * ny, 0.05, 1))
-    diffuse = np.clip(nx * LIGHT[0] + ny * LIGHT[1] + nz * LIGHT[2], 0, 1)
-    spec = np.clip((nx * -0.35 + ny * -0.6 + nz * 0.72), 0, 1) ** 30
-    dark = colour.mean() < 0.3
-    col = colour * (0.45 + 0.7 * diffuse[..., None]) + spec[..., None] * (0.75 if dark else 0.55)
-    col += (1 - diffuse[..., None]) * 0.04 * colour  # a little light through the glass
-    return np.clip(col, 0, 1), cover
+    light = np.clip(-0.45 * nx - 0.6 * ny + 0.66 * nz, 0, 1)
+    shade = 0.78 + 0.3 * light  # low contrast: the bead's form, not a sparkle
+    gap = np.clip((q - 0.82) / 0.18, 0, 1)  # the thread between beads: dimmer, not black
+    shade = shade * (1 - 0.32 * gap) * (1 + vary)
+    soft = np.clip(1 - np.hypot(u + rx * 0.3, v + ry * 0.35) / (rx * 0.55), 0, 1) ** 2 * 0.12 * (1 - gap)
+    return np.clip(colour * shade[..., None] + soft[..., None], 0, 1)
+
+
+def _vary(col, row, seed: int) -> np.ndarray:
+    h = (np.mod(col, PERIOD) * 73.0 + row * 191.0 + seed * 37.0)
+    return (np.mod(np.sin(h) * 43758.5453, 1.0) - 0.5) * 0.08
+
+
+def _canvas(w_units: float, h_units: float):
+    n_w, n_h = int(round(w_units * SCALE)) * SS, int(round(h_units * SCALE)) * SS
+    yy, xx = (np.mgrid[0:n_h, 0:n_w] + 0.5) / (SCALE * SS)  # units
+    return xx, yy
+
+
+def _reduce(rgb: np.ndarray, alpha: np.ndarray) -> Image.Image:
+    h, w = alpha.shape[0] // SS, alpha.shape[1] // SS
+    pre = np.dstack([rgb * alpha[..., None], alpha]).reshape(h, SS, w, SS, 4).mean(axis=(1, 3))  # premultiplied
+    pre[..., :3] /= np.maximum(pre[..., 3:], 1e-6)
+    return Image.fromarray((np.clip(pre, 0, 1) * 255).astype(np.uint8), "RGBA")
 
 
 def band() -> Image.Image:
-    w, h = PERIOD * PITCH, ROWS * PITCH + EDGE * 2
-    n_w, n_h = w * SS, h * SS
-    yy, xx = (np.mgrid[0:n_h, 0:n_w] + 0.5) / SS  # px
-    rgb = np.zeros((n_h, n_w, 3))
-    rgb[:] = THREAD
-    alpha = np.ones((n_h, n_w))
-    # the beads: row r (0 at the top, the outer edge), column c
-    by = yy - EDGE
-    row = np.clip(np.floor(by / PITCH).astype(int), 0, ROWS - 1)
-    col = np.floor(xx / PITCH).astype(int) % PERIOD
-    u = (xx % PITCH) - PITCH / 2
-    v = (by - row * PITCH) - PITCH / 2
-    # triangles standing on the bottom row (the inner edge), their tips at the top: a red one centred on column 3,
-    # a black one on column 9; white between, a blue bead where a white wedge meets the outer edge
-    colour = np.zeros((n_h, n_w, 3))
-    colour[:] = WHITE
-    for centre, c in ((3, RED), (9, BLACK)):
-        d = np.abs(col - centre)
-        inside = d <= row  # row 0: its tip; row 2: 5 beads wide
-        colour[inside] = c
-    tip = (row == 0) & ((col == 0) | (col == 6))
-    colour[tip] = BLUE
-    bead_rgb, cover = _bead(colour, u, v, PITCH * 0.47, PITCH * 0.44)
-    inside_band = (by >= 0) & (by < ROWS * PITCH)
-    k = (cover * inside_band)[..., None]
-    rgb = rgb * (1 - k) + bead_rgb * k
-    # the leather edging: a lit lip on its top, darker below
-    for top in (True, False):
-        e = (yy < EDGE) if top else (yy >= h - EDGE)
-        t = (yy / EDGE) if top else ((yy - (h - EDGE)) / EDGE)
-        leather = LEATHER * (1.25 - 0.5 * t)[..., None]
+    xx, yy = _canvas(PERIOD * PITCH, BAND_H)
+    col, row, u, v = _grid(xx, yy, 0.0, EDGE, True)
+    colour = np.broadcast_to(OXBLOOD, xx.shape + (3,)).copy()
+    rgb = _beads(colour, u, v, _vary(col, row, 1))
+    for top in (True, False):  # the leather edges: a dark line, its outer side a little lit
+        t = (yy / EDGE) if top else ((BAND_H - yy) / EDGE)
+        e = t < 1.0
+        leather = LEATHER * (0.8 + 0.4 * (1 - t))[..., None]
         rgb = np.where(e[..., None], leather, rgb)
-    img = np.dstack([rgb, alpha])
-    img = img.reshape(h, SS, w, SS, 4).mean(axis=(1, 3))
-    return Image.fromarray((np.clip(img, 0, 1) * 255).astype(np.uint8), "RGBA")
+    return _reduce(rgb, np.ones(xx.shape))
 
 
-def rosette(units: float = 46.0) -> Image.Image:
-    n = int(units * SCALE)
-    m = n * SS
-    yy, xx = (np.mgrid[0:m, 0:m] + 0.5) / SS - n / 2  # px from the centre
-    d = np.hypot(xx, yy)
-    ang = np.arctan2(yy, xx)
-    r_out = n / 2 - 1.5
-    rgb = np.zeros((m, m, 3))
-    a = np.zeros((m, m))
+def _diamond(xx, yy, cx, cy, hx, hy):
+    """Signed distance-ish (units, < 0 inside) to a diamond of half sizes hx, hy round (cx, cy)."""
+    return (np.abs(xx - cx) / hx + np.abs(yy - cy) / hy - 1.0) * min(hx, hy) / 1.4142
 
-    def over(src, cov):
-        nonlocal rgb, a
+
+def _cover(d: np.ndarray, feather: float = 0.25) -> np.ndarray:
+    return np.clip(0.5 - d / feather, 0, 1)
+
+
+def motifs() -> Image.Image:
+    w, h = CORNER_AT + CORNER + 2.0, max(CORNER, BLOCK[1]) + 2.0
+    xx, yy = _canvas(w, h)
+    rgb = np.zeros(xx.shape + (3,))
+    alpha = np.zeros(xx.shape)
+
+    def over(colour, cov):
+        nonlocal rgb, alpha
         k = cov[..., None]
-        na = cov + a * (1 - cov)
-        rgb = (src * k + rgb * a[..., None] * (1 - k)) / np.maximum(na[..., None], 1e-6)
-        a = na
+        na = cov + alpha * (1 - cov)
+        rgb = (colour * k + rgb * alpha[..., None] * (1 - k)) / np.maximum(na[..., None], 1e-6)
+        alpha = na
 
-    # a soft shadow under it, the ink ring, the leather disc (lit at its top left)
-    shadow = np.clip((r_out - np.hypot(xx, yy - 4.0)) / 6.0, 0, 1) * 0.5
-    over(np.zeros((m, m, 3)), shadow)
-    over(np.broadcast_to(INK, (m, m, 3)), np.clip((r_out - d) * SS / SS + 0.5, 0, 1))
-    shade = np.clip(0.75 - (xx + yy) / (n * 1.4), 0.35, 1.0)
-    over(LEATHER * shade[..., None] * 1.1, np.clip((r_out - 3.0 - d) + 0.5, 0, 1))
-    # rings of beads packed close (each touching the next), from the rim in: (radius px, colours in turn)
-    pitch = 16.5
-    rings = [
-        (r_out - 11.5, [WHITE, BLUE]),
-        (r_out - 11.5 - pitch, [RED, BLACK]),
-        (r_out - 11.5 - pitch * 2, [WHITE]),
-    ]
-    for radius, colours in rings:
-        count = int(round(2 * np.pi * radius / pitch / len(colours))) * len(colours)
-        br = min(np.pi * radius / count, pitch / 2) * 0.9
-        for k in range(count):
-            t = k * 2 * np.pi / count - np.pi / 2
-            bx, by = np.cos(t) * radius, np.sin(t) * radius
-            col, cov = _bead(colours[k % len(colours)], xx - bx, yy - by, br, br)
-            over(col, cov)
-    # the centre: a big red bead in a ring of ink
-    over(np.broadcast_to(INK, (m, m, 3)), np.clip((11.0 - d) + 0.5, 0, 1))
-    col, cov = _bead(RED, xx, yy, 9.6, 9.6)
-    over(col, cov)
-    img = np.dstack([rgb * a[..., None], a]).reshape(n, SS, n, SS, 4).mean(axis=(1, 3))  # premultiplied: no dark fringe
-    img[..., :3] /= np.maximum(img[..., 3:], 1e-6)
-    return Image.fromarray((np.clip(img, 0, 1) * 255).astype(np.uint8), "RGBA")
+    # the block: a pointed cartouche (its ends at 45 degrees) in a dark line, ivory beads, a big near-black diamond
+    # with a red heart and an ivory eye, a red triangle pointing at it from each end, a blue bead at each point
+    bw, bh = BLOCK
+    cy = 1.0 + bh / 2  # (a unit of clear round it in the atlas)
+    cx = 1.0 + bw / 2
+    hexa = np.maximum(np.abs(yy - cy) - bh / 2, (np.abs(xx - cx) + np.abs(yy - cy)) - (bw / 2)) * 0.7071
+    hexa = np.where(xx > bw + 2.0, 9.0, hexa)
+    shadow = np.maximum(np.abs(yy - cy - 1.2) - bh / 2, (np.abs(xx - cx) + np.abs(yy - cy - 1.2)) - (bw / 2)) * 0.7071
+    shadow = np.where(xx > bw + 2.0, 9.0, shadow)
+    over(np.zeros(xx.shape + (3,)), np.clip(-shadow / 1.6 + 0.5, 0, 1) * 0.3)  # it sits on the wood
+    field = np.broadcast_to(IVORY, xx.shape + (3,)).copy()
+    big = _diamond(xx, yy, cx, cy, 22.0, 11.6)
+    field = np.where((big < 0)[..., None], DARK, field)
+    heart = _diamond(xx, yy, cx, cy, 13.5, 7.1)
+    field = np.where((heart < 0)[..., None], RED, field)
+    eye = _diamond(xx, yy, cx, cy, 4.6, 2.5)
+    field = np.where((eye < 0)[..., None], IVORY, field)
+    for side in (-1.0, 1.0):  # the triangles: base towards the cartouche's point, tip towards the middle
+        bx = cx + side * 42.0
+        tip = cx + side * 28.0
+        k = (xx - bx) / (tip - bx)
+        tri = (k >= 0) & (k <= 1) & (np.abs(yy - cy) <= (1 - k) * 8.6)
+        field = np.where(tri[..., None], RED, field)
+        dot = _diamond(xx, yy, cx + side * 47.5, cy, 2.6, 2.6)  # a blue bead near each point
+        field = np.where((dot < 0)[..., None], BLUE, field)
+    col, row, u, v = _grid(xx, yy, 1.0, 1.0, True, BLOCK_PITCH)
+    beads = _beads(field, u, v, _vary(col, row, 2), BLOCK_PITCH)
+    over(np.broadcast_to(LINE, xx.shape + (3,)), _cover(hexa))  # its line
+    over(beads, _cover(hexa + 1.1))
+
+    # the corner: a beaded diamond, a soft shadow under it, a dark line, ivory, a red diamond, a dark heart
+    ox, oy = CORNER_AT + 1.0 + CORNER / 2, 1.0 + CORNER / 2
+    r = CORNER / 2 - 1.0
+    shadow = _diamond(xx, yy, ox, oy + 1.4, r + 0.6, r + 0.6)
+    over(np.zeros(xx.shape + (3,)), np.clip(-shadow / 2.0, 0, 1) * 0.35)
+    outer = _diamond(xx, yy, ox, oy, r, r)
+    field = np.broadcast_to(IVORY, xx.shape + (3,)).copy()
+    mid = _diamond(xx, yy, ox, oy, r * 0.58, r * 0.58)
+    field = np.where((mid < 0)[..., None], RED, field)
+    core = _diamond(xx, yy, ox, oy, r * 0.26, r * 0.26)
+    field = np.where((core < 0)[..., None], DARK, field)
+    # its beads on the diagonal (a diamond of beads, as it is stitched)
+    rx = (xx - ox + yy - oy) * 0.7071
+    ry = (yy - oy - xx + ox) * 0.7071
+    col, row, u, v = _grid(rx, ry, -BLOCK_PITCH * 0.5, -BLOCK_PITCH * 0.5, False, BLOCK_PITCH)
+    beads = _beads(field, u, v, _vary(col, row, 3), BLOCK_PITCH)
+    over(np.broadcast_to(LINE, xx.shape + (3,)), _cover(outer))
+    over(beads, _cover(outer + 1.2))
+    return _reduce(rgb, alpha)
 
 
 if __name__ == "__main__":
     band().save(OUT / "beadwork_band.png")
-    rosette().save(OUT / "bead_rosette.png")
-    print("wrote", OUT / "beadwork_band.png", OUT / "bead_rosette.png")
+    motifs().save(OUT / "beadwork_motifs.png")
+    print("wrote", OUT / "beadwork_band.png", OUT / "beadwork_motifs.png")

@@ -2,14 +2,17 @@ class_name Card
 extends PanelContainer
 ## The panel of the interface kit (pause, results, settings, About), as the pop-ups of top mobile
 ## games, in his world's materials: a deep shadow cast on the game behind, a dark ink outline, a thick
-## frame of carved wood bevelled (lit along its top and outer edge, shaded at its foot) with a band of
-## Zulu beadwork set along its middle (round 20, the judges: "a generic casual kit with stock diamond
-## studs, no game identity"): red and black triangles on white glass beads, the language of his
-## chakram's band, pointing out, and a beaded rosette where the bands meet at each corner
-## (tools/art/ui_beadwork.py); a broad gold trim inside it, and a body of tanned hide (paper.png grain)
-## that sinks under the frame (shade along its top, sides and foot, a soft light in its middle: it
-## curves). Text on the body is dark brown. A mood (set_mood) gilds it for a win (a thicker polished
+## frame of carved wood bevelled (lit along its top and outer edge, shaded at its foot) with an inlay
+## of Zulu beadwork along its middle, a broad gold trim inside it, and a body of tanned hide (paper.png
+## grain) that sinks under the frame (shade along its top, sides and foot, a soft light in its middle:
+## it curves). Text on the body is dark brown. A mood (set_mood) gilds it for a win (a thicker polished
 ## gold frame), or darkens it to smoked wood, dusty beads and hide for a loss.
+## The beadwork (UI r21, the judges of j17: the r20 band of single-bead triangles "dithers / moires at
+## phone size, the most detailed thing on every panel; the corner rosettes read as bottle caps: 2-3
+## larger motif blocks, softer"): a calm run of oxblood beads close in value to the wood (an inlay, not
+## a stripe), two or three larger motif blocks on each side (a pointed ivory cartouche, a dark diamond
+## with a red heart, red triangles pointing at it), kept clear of the title ribbon (top_clear), and a
+## small flat beaded diamond on each corner (tools/art/ui_beadwork.py).
 ## The light variant (the start card, tutorial hints) is a see-through dark glass with a gold line.
 ## `well()` is the style of a sunken area inside the body (the results' counts, settings' rows).
 
@@ -21,11 +24,11 @@ const TRIM := 6.0  ## the gold ring inside the frame
 const TRIM_TOP := Color("ffe9a0")
 const TRIM_BOTTOM := Color("e0901c")
 const PAPER := preload("res://assets/art/ui/paper.png")
-const BAND := preload("res://assets/art/ui/beadwork_band.png")  ## the beadwork along the frame (tools/art/ui_beadwork.py)
-const ROSETTE := preload("res://assets/art/ui/bead_rosette.png")  ## the beaded rosette on each corner
-const BEAD_SCALE := 2.3  ## px of the beaded band's picture per card unit (its beads 6 units: each reads on a phone)
-const ROSETTE_SCALE := 2.8  ## and of the rosette's
-const BEAD_MIDDLE := 49.0  ## px into the band's period: the middle of a red triangle (each side centred on one)
+const BAND := preload("res://assets/art/ui/beadwork_band.png")  ## the run of beads along the frame (tools/art/ui_beadwork.py)
+const MOTIFS := preload("res://assets/art/ui/beadwork_motifs.png")  ## its motif block and corner diamond
+const BEAD_SCALE := 3.0  ## px of the beadwork's pictures per card unit
+const BLOCK := Rect2(0, 0, 342, 84)  ## the motif block in MOTIFS (114 x 28 units, its clear edge round it)
+const CORNER := Rect2(348, 0, 126, 126)  ## the corner diamond in MOTIFS (centred in it)
 
 var top_colour := Color("f6e4bc")  ## tanned hide, warm at the top
 var bottom_colour := Color("dcb47c")  ## and darker towards its foot
@@ -36,6 +39,7 @@ var trim_bottom := TRIM_BOTTOM
 var radius := 34.0
 var bronze := false  ## a defeat's: the beads dusty, as the smoked wood
 var frame_w := FRAME  ## the frame's width (a win's is thicker)
+var top_clear := 0.0  ## the width of the title ribbon over the top edge's middle: no motif block under it
 var ornate := false  ## a win's frame: thick polished gold
 var _framed := true
 var _shadow_box: StyleBoxFlat
@@ -154,34 +158,65 @@ func _draw() -> void:
 		draw_polyline(line, Color(Ui.GOLD, 0.55), 2.0, true)
 
 
-## The beadwork on the frame: a band along the middle of each side (its triangles pointing out, each
-## side centred on a red one), a beaded rosette over each corner where two bands meet. Two pictures,
-## eight rects (they batch). Dusty on a defeat.
+## The beadwork on the frame: a run of beads along the middle of each side, motif blocks set in it (two
+## on the long sides, one on the short ones; off the title ribbon: top_clear), a beaded diamond over
+## each corner where two runs meet. Two pictures (they batch). Dusty on a defeat.
 func _beadwork(r: Rect2) -> void:
-	var tint := Color(0.8, 0.74, 0.7) if bronze else Color.WHITE
+	var tint := Color(0.8, 0.75, 0.72) if bronze else Color.WHITE
 	var mid := frame_w * 0.5
 	var m := radius - (radius - mid) * 0.7071  # the frame's middle where it turns, from the corner
-	var end := m + 13.0  # a band stops under its corner's rosette
-	_band(r.position + Vector2(end, mid), Vector2(r.end.x - end, r.position.y + mid), tint)
-	_band(Vector2(r.end.x - mid, r.position.y + end), r.end - Vector2(mid, end), tint)
-	_band(r.end - Vector2(end, mid), Vector2(r.position.x + end, r.end.y - mid), tint)
-	_band(Vector2(r.position.x + mid, r.end.y - end), r.position + Vector2(mid, end), tint)
-	var side := ROSETTE.get_width() / ROSETTE_SCALE
+	var end := m + 8.0  # a run stops under its corner's diamond
+	var top := [r.position + Vector2(end, mid), Vector2(r.end.x - end, r.position.y + mid)]
+	var right := [Vector2(r.end.x - mid, r.position.y + end), r.end - Vector2(mid, end)]
+	var bottom := [r.end - Vector2(end, mid), Vector2(r.position.x + end, r.end.y - mid)]
+	var left := [Vector2(r.position.x + mid, r.end.y - end), r.position + Vector2(mid, end)]
+	for run: Array in [top, right, bottom, left]:
+		_band(run[0], run[1], tint)
+	# the motif blocks: on a long top and foot two, a quarter of the way in from the middle (the same
+	# places top and bottom, unless the ribbon covers the top's: then none there), on a shorter one one in
+	# the middle (none on the top under a ribbon); one in the middle of each side if it is tall enough
+	var block_w := BLOCK.size.x / BEAD_SCALE
+	var long := r.size.x - end * 2.0
+	var cx := r.get_center().x
+	if long >= block_w * 5.5:
+		var off := long * 0.28
+		var room := long * 0.5 - block_w * 0.5 - 18.0  # the farthest a block's middle may be from a side's middle
+		var cleared := top_clear * 0.5 + block_w * 0.5 + 22.0  # the nearest it may be under the ribbon
+		var top_off := maxf(off, cleared) if top_clear > 0.0 else off
+		var bottom_off := top_off if top_off <= room else off
+		for k: float in [-1.0, 1.0]:
+			if top_off <= room:
+				_block(Vector2(cx + k * top_off, r.position.y + mid), 0.0, tint)
+			_block(Vector2(cx + k * bottom_off, r.end.y - mid), 0.0, tint)
+	elif long >= block_w * 1.6:
+		if top_clear <= 0.0:
+			_block(Vector2(cx, r.position.y + mid), 0.0, tint)
+		_block(Vector2(cx, r.end.y - mid), 0.0, tint)
+	if r.size.y - end * 2.0 > block_w * 3.0:
+		for x: float in [r.position.x + mid, r.end.x - mid]:
+			_block(Vector2(x, r.get_center().y), PI / 2, tint)
+	var side := CORNER.size.x / BEAD_SCALE
 	for c: Vector2 in [r.position + Vector2(m, m), Vector2(r.end.x - m, r.position.y + m),
 			Vector2(r.position.x + m, r.end.y - m), r.end - Vector2(m, m)]:
-		draw_texture_rect(ROSETTE, Rect2(c - Vector2(side, side) / 2, Vector2(side, side)), false, tint)
+		draw_texture_rect_region(MOTIFS, Rect2(c - Vector2(side, side) / 2, Vector2(side, side)), CORNER, tint)
 
 
-## A run of the beaded band from `from` to `to` (going round the card clockwise: its outer edge on the
-## left of the way it goes), centred on a red triangle.
+## A run of the beads from `from` to `to`, centred on its middle.
 func _band(from: Vector2, to: Vector2, tint: Color) -> void:
 	var length := from.distance_to(to) * BEAD_SCALE
 	if length < 8.0:
 		return
 	var h := float(BAND.get_height())
-	var x0 := fposmod(BEAD_MIDDLE - length * 0.5, float(BAND.get_width()))
+	var x0 := fposmod(-length * 0.5, float(BAND.get_width()))
 	draw_set_transform(from, (to - from).angle(), Vector2.ONE / BEAD_SCALE)
 	draw_texture_rect_region(BAND, Rect2(0.0, -h * 0.5, length, h), Rect2(x0, 0.0, length, h), tint)
+	draw_set_transform(Vector2.ZERO)
+
+
+## A motif block centred at `at`, along the run (turned by `angle`).
+func _block(at: Vector2, angle: float, tint: Color) -> void:
+	draw_set_transform(at, angle, Vector2.ONE / BEAD_SCALE)
+	draw_texture_rect_region(MOTIFS, Rect2(-BLOCK.size * 0.5, BLOCK.size), BLOCK, tint)
 	draw_set_transform(Vector2.ZERO)
 
 

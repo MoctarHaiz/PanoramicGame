@@ -246,17 +246,19 @@ static func badge_burst(parent: Node, at: Vector2) -> void:
 ## (four volleys, each smaller), fast and smeared along its way out, then fluttering down; spread in
 ## depth: far pieces small, slow and hazy, mid ones crisp, and a few big ones out of focus close to the
 ## eye (soft, flying past fastest); satin streamers trailing out of it; sparkles at the origin.
-static func confetti_burst(parent: Node, at: Vector2) -> void:
+## `calm` (the results, UI r21: "confetti chaotic"): two smaller volleys, none of it over `keep_off` (him).
+static func confetti_burst(parent: Node, at: Vector2, calm := false, keep_off := Rect2()) -> void:
 	glow(parent, at, Color(1, 0.9, 0.65, 0.8), 0.3, 1.6, 0.35)
-	_volley(parent, at, 1.0, true)
+	_volley(parent, at, 0.55 if calm else 1.0, not calm, keep_off)
 	var later := parent.create_tween()  # owned by the layer: it goes with it
-	for v: Vector2 in [Vector2(0.2, 0.75), Vector2(0.22, 0.6), Vector2(0.26, 0.45)]:  # (wait, share)
+	var volleys := [Vector2(0.25, 0.35)] if calm else [Vector2(0.2, 0.75), Vector2(0.22, 0.6), Vector2(0.26, 0.45)]
+	for v: Vector2 in volleys:  # (wait, share)
 		later.tween_interval(v.x)
-		later.tween_callback(_volley.bind(parent, at, v.y, false))
+		later.tween_callback(_volley.bind(parent, at, v.y, false, keep_off))
 
 
 ## One volley of a burst (`k`: its share of the first): far, mid and (`near`) out-of-focus paper.
-static func _volley(parent: Node, at: Vector2, k: float, near: bool) -> void:
+static func _volley(parent: Node, at: Vector2, k: float, near: bool, keep_off := Rect2()) -> void:
 	var far := Confetti.make(parent, at)  # far: small, slower, paler with the air, under the rest
 	far.depth = 0.95
 	far.haze = Color(1.0, 0.93, 0.82)
@@ -264,12 +266,14 @@ static func _volley(parent: Node, at: Vector2, k: float, near: bool) -> void:
 	far.drag = 1.8
 	far.flutter = 420.0
 	_behind_hero(far, parent)
+	_keep_clear(far, keep_off)
 	far.spray(int(14 * k), PAPER_SHAPES, PAPER_COLOURS, Vector2(600, 1300), Vector2.UP, 58.0, 1.1, Vector2(2.4, 3.2), 20.0)
 	var mid := Confetti.make(parent, at)  # mid: crisp, two-tone, glinting
 	mid.gravity = 900.0
 	mid.drag = 1.55
 	mid.flutter = 520.0
 	_behind_hero(mid, parent)
+	_keep_clear(mid, keep_off)
 	mid.spray(int(20 * k), PAPER_SHAPES, PAPER_COLOURS, Vector2(850, 1900), Vector2.UP, 48.0, 2.0, Vector2(2.2, 3.0), 20.0)
 	mid.spray(int(4 * k + 0.5), STREAMERS, STREAMER_COLOURS, Vector2(900, 1500), Vector2.UP, 38.0, 1.5, Vector2(2.0, 2.6), 16.0)
 	mid.sparkle(int(10 * k), GOLD, Vector2(200, 650), 1.0, Vector2(0.5, 1.0))
@@ -286,6 +290,12 @@ static func _volley(parent: Node, at: Vector2, k: float, near: bool) -> void:
 		soft.spray(6, [Confetti.Shape.BOKEH], colours, Vector2(1500, 2300), Vector2.UP, 72.0, 3.4, Vector2(1.3, 1.8), 26.0)
 
 
+## `c`'s pieces keep off `r` (in its parent's units; none: an empty rect).
+static func _keep_clear(c: Confetti, r: Rect2) -> void:
+	if r.has_area():
+		c.avoid = Rect2(r.position - c.position, r.size)
+
+
 ## In the level (`parent` the world view's effects layer), what flies out of the doorway behind him
 ## passes behind Panoramic: `c` keeps clear of his body (WorldView.hero_screen_rect), so no piece
 ## lands on his face.
@@ -293,26 +303,6 @@ static func _behind_hero(c: Confetti, parent: Node) -> void:
 	var view := parent.get_parent()
 	if view and view.has_method(&"hero_screen_rect"):
 		c.avoid = c.get_global_transform().affine_inverse() * (view.call(&"hero_screen_rect") as Rect2)
-
-
-## Fireworks from `from` (a lower corner of the screen, effects units): three shells rise steeply,
-## leaning a little towards the middle (`inward`: +1 from the left, -1 from the right), bursting at
-## their tops, each a different kind (FireworkShow.Kind) and colour. Best behind the people and
-## panels: they are light in the sky.
-static func fireworks(parent: Node, from: Vector2, inward: float) -> void:
-	var show := FireworkShow.new()
-	show.material = additive()
-	show.radius = 300.0
-	parent.add_child(show)
-	var screen: Variant = parent.get_parent()  # the results panel, if that is where they are
-	var card: Variant = screen.get(&"card") if screen else null
-	if card is Control and is_instance_valid(card):
-		_keep_off(show, card as Control)
-	var shells := [[FireworkShow.Kind.PEONY, 1, 0.8], [FireworkShow.Kind.CHRYSANTHEMUM, 0, 1.0],
-			[FireworkShow.Kind.RING, 2, 0.7]]  # kind, colour (FIREWORK_HUES), size
-	for i in shells.size():
-		show.launch(from, Vector2(inward * randf_range(0.06, 0.16), -1.0).normalized() * randf_range(1150.0, 1300.0),
-				i * 0.6, shells[i][1], shells[i][0], shells[i][2])
 
 
 ## Fireworks round the results card (`card`, a Control; `parent` is behind it, effects units): eight
@@ -338,13 +328,13 @@ static func card_bursts(parent: Node2D, card: Control) -> void:
 			Vector2((right.x + right.y) / 2.0 - show.radius * 0.1, view.position.y + view.size.y * 0.5)]
 	var inside := Vector2(view.position.x + show.radius * 0.55, view.end.x - show.radius * 0.55)  # (narrow margins: a tablet)
 	# (round 20, the judges: "fireworks blurry smears": no willow's long hanging trails, crisp kinds only)
-	var plan := [[FireworkShow.Kind.CHRYSANTHEMUM, 0, 1.0], [FireworkShow.Kind.RING, 1, 0.75],
-			[FireworkShow.Kind.PEONY, 3, 0.95], [FireworkShow.Kind.PEONY, 2, 0.8],
-			[FireworkShow.Kind.CHRYSANTHEMUM, 4, 0.9], [FireworkShow.Kind.RING, 0, 0.8],
-			[FireworkShow.Kind.CHRYSANTHEMUM, 1, 1.0], [FireworkShow.Kind.PEONY, 4, 0.85]]  # kind, colour, size
+	# (UI r21, the judges of j17: "confetti chaotic": five, slower, a calm rhythm under the party's bursts)
+	var plan := [[FireworkShow.Kind.CHRYSANTHEMUM, 0, 1.0], [FireworkShow.Kind.PEONY, 3, 0.9],
+			[FireworkShow.Kind.RING, 1, 0.75], [FireworkShow.Kind.CHRYSANTHEMUM, 4, 0.9],
+			[FireworkShow.Kind.PEONY, 2, 0.85]]  # kind, colour, size
 	for i in plan.size():
 		var at: Vector2 = spots[i % 3] + Vector2(randf_range(-40, 40), randf_range(-40, 40))
-		show.burst(Vector2(clampf(at.x, inside.x, inside.y), at.y), i * 0.6, plan[i][1], plan[i][0], plan[i][2])
+		show.burst(Vector2(clampf(at.x, inside.x, inside.y), at.y), i * 0.85, plan[i][1], plan[i][0], plan[i][2])
 
 
 ## What `show`'s bursts keep off (in its units): the results card and Panoramic beside it, with a
@@ -947,112 +937,69 @@ static func home_glow(parent: Node, at: Vector2) -> void:
 	stop.tween_callback(p.queue_free)
 
 
-## The win's shower over the results (`width` x `height`, screen units; `parent` is behind him and
-## the card): shaded two-tone paper in the sunset's golds and red fluttering down beside the card for
-## the whole reveal, blurred by its motion, most of it behind him and the card (they hide what passes
-## behind them: depth), and in front of everything only where nothing is behind it (left of him,
-## right of the card; fading if it drifts over the card or him): gold coins tumbling and glinting as
-## they turn, some paper, gold motes twinkling; the coins' tinkle.
-static func coin_shower(parent: Node, width: float, height: float) -> void:
-	var front: Node = parent.get_parent() if parent.get_parent() else parent  # the panel: over everything
-	var holder := Node2D.new()
-	front.add_child(holder)
-	var to_local := holder.get_global_transform().affine_inverse()
-	var card := Rect2(width * 0.3, 0.0, width * 0.4, height)  # the card and him, if the panel says where
-	var hero := Rect2()
-	var c: Variant = front.get(&"card")
-	if c is Control and is_instance_valid(c):
-		card = to_local * (c as Control).get_global_rect()
-		hero = _hero_rect(c, to_local)
-	card = card.grow(12.0)
-	var sides := [Vector2(0.0, maxf(card.position.x, 0.0)), Vector2(card.end.x, maxf(width - card.end.x, 0.0))]
-	for side: Vector2 in sides:  # behind: a little paper drifting down the margins (the cannons throw the rest)
-		if side.y < 20.0:
-			continue
-		var paper := Confetti.make(parent, Vector2(side.x, 0.0))  # slow paper: in the air all the reveal
-		paper.depth = 0.8
-		paper.gravity = 520.0
-		paper.drag = 2.2
-		paper.flutter = 420.0
-		paper.rain(int(16 * side.y / width) + 3, side.y, WIN_SHAPES, PAPER_COLOURS, 1.15, Vector2(3.4, 4.2), 2.2)
-	var left := (hero.position.x if hero.has_area() else card.position.x) - 8.0  # the sky left of him
-	var clear := [Vector3(0.0, left, 0.0), Vector3(card.end.x, width - card.end.x, 1.0)]
-	for strip: Vector3 in clear:  # in front: x, width, 1 right of the card
-		if strip.y < 40.0:
-			continue
-		var share := strip.y / width
-		var avoid := card if strip.z > 0.0 else (hero if hero.has_area() else card)
-		var coins := Confetti.make(holder, Vector2(strip.x, 0.0))
-		coins.gravity = 1100.0
-		coins.drag = 0.8
-		coins.flutter = 40.0
-		coins.avoid = Rect2(avoid.position - coins.position, avoid.size)
-		coins.rain(int(20 * share) + 2, strip.y, [Confetti.Shape.COIN], GOLD, 1.15, Vector2(1.8, 2.4), 2.0)  # (big ones read as blurred blobs)
-		var motes := Confetti.make(holder, Vector2(strip.x + strip.y / 2.0, height * 0.35))
-		motes.avoid = Rect2(avoid.position - motes.position, avoid.size)
-		motes.sparkle(8, GOLD, Vector2(120, 420), 0.8, Vector2(0.6, 1.1), strip.y * 0.4)
-	Audio.play_sfx(&"coins")
-
-
-## The win's party cannons: two confetti cannons at the screen's bottom corners fire up and inward, a
-## flash at each muzzle; each fires a short stream (three puffs, round 20: in any frame the paper is seen
-## coming out of its corner); the paper leaves fast, blurred by its speed, slows, then flutters down
-## tumbling, spread in depth: most of it far (behind him and the card, small, slow and hazy: `back`), a few
-## big crisp pieces near (in front, in the clear strips left of him and right of the card, fading where
-## they would cover them: `front`), and a few bigger still, out of focus, closest to the eye.
-## `view`: the screen (effects units); `card`, `hero`: their rects there.
-static func cannons(back: Node2D, front: Node2D, view: Vector2, card: Rect2, hero: Rect2) -> void:
-	_cannon_puff(back, front, view, card, hero, 1.0, true)
+## The win's party (UI r21, the judges of j17: "confetti chaotic" after r20's cannons and rain): a few
+## clustered bursts in the clear sky left of him and right of the card, one after the other (a pop, then
+## the next), each one cluster spread in depth: far pieces small, slow and hazy behind him and the card
+## (`back`), mid ones crisp and two-tone in front (`front`), on the first two a big soft piece close to
+## the eye; none drawn over him or the card (they fade as they reach them). `view`: the screen, `card`,
+## `hero`: their rects (effects units).
+static func party_bursts(back: Node2D, front: Node2D, view: Vector2, card: Rect2, hero: Rect2) -> void:
+	var him := hero if hero.has_area() else card
+	var left := him.position.x  # the clear sky left of him
+	var right := view.x - card.end.x  # and right of the card
+	var spots := []  # [where, what it keeps off, when (s), share]
+	if left > 150.0:
+		spots.append([Vector2(left * 0.5, view.y * 0.3), him, 0.0, 1.0])
+		spots.append([Vector2(left * 0.46, view.y * 0.64), him, 1.4, 0.8])
+	else:  # (a narrow screen: no sky beside him) high in its corner, a smaller one
+		spots.append([Vector2(view.x * 0.07, view.y * 0.1), him, 0.0, 0.7])
+	if right > 150.0:
+		spots.append([Vector2(card.end.x + right * 0.5, view.y * 0.2), card, 0.5, 1.0])
+		spots.append([Vector2(card.end.x + right * 0.54, view.y * 0.56), card, 1.9, 0.8])
+	else:
+		spots.append([Vector2(view.x * 0.93, view.y * 0.1), card, 0.5, 0.7])
 	var later := back.create_tween()  # owned by the far layer: it goes with the panel
-	for v: Vector2 in [Vector2(0.14, 0.6), Vector2(0.16, 0.4)]:  # (wait, share)
-		later.tween_interval(v.x)
-		later.tween_callback(_cannon_puff.bind(back, front, view, card, hero, v.y, false))
+	var t := 0.0
+	spots.sort_custom(func(a: Array, b: Array) -> bool: return a[2] < b[2])
+	for spot: Array in spots:
+		later.tween_interval(maxf(float(spot[2]) - t, 0.01))
+		t = spot[2]
+		later.tween_callback(_cluster.bind(back, front, spot[0], spot[1], spot[3]))
 	Audio.play_sfx(&"firework", 1.5, 0.5)
 
 
-## One puff of both cannons (`k`: its share of the first; `first`: the muzzle flash and the soft near pieces).
-static func _cannon_puff(back: Node2D, front: Node2D, view: Vector2, card: Rect2, hero: Rect2, k: float, first: bool) -> void:
+## One burst of the party at `at`: a soft flash, then the cluster in three depths (see party_bursts).
+static func _cluster(back: Node2D, front: Node2D, at: Vector2, keep_off: Rect2, k: float) -> void:
 	if not is_instance_valid(front):
 		return
-	var left_clear := (hero.position.x if hero.has_area() else card.position.x)
-	for side: float in [-1.0, 1.0]:
-		var muzzle := Vector2(view.x * (0.5 + side * 0.49), view.y + 30.0)
-		var inward := -side  # the left one leans right, the right one left
-		glow(back, muzzle + Vector2(0, -40), Color(1, 0.86, 0.6, 0.7 * k), 0.4, 1.6, 0.3)  # each puff's flash
-		var far := Confetti.make(back, muzzle)
-		far.depth = 0.9
-		far.haze = Color(0.86, 0.84, 0.95)  # the cool dusk's air
-		far.gravity = 900.0
-		far.drag = 1.45
-		far.flutter = 480.0
-		far.spray(int(30 * k), WIN_SHAPES, PAPER_COLOURS, Vector2(1900, 2900), Vector2.from_angle(-PI / 2 + inward * 0.36), 15.0,
-				1.7, Vector2(3.0, 3.8), 24.0)
-		far.sparkle(int(8 * k), GOLD, Vector2(300, 900), 1.0, Vector2(0.4, 0.8), 30.0)
-		var near := Confetti.make(front, muzzle)
-		near.depth = 0.25
-		near.gravity = 900.0
-		near.drag = 1.5
-		near.flutter = 460.0
-		var clear := Rect2(card.position - near.position, card.size) if side > 0.0 \
-				else Rect2((hero if hero.has_area() else card).position - near.position, (hero if hero.has_area() else card).size)
-		near.avoid = clear.grow(10.0)
-		var steep := 0.1 if side > 0.0 or left_clear > view.x * 0.12 else 0.04
-		near.spray(int(10 * k), WIN_SHAPES, PAPER_COLOURS, Vector2(2000, 2800), Vector2.from_angle(-PI / 2 + inward * steep), 8.0,
-				2.4, Vector2(2.8, 3.4), 16.0)
-		near.spray(int(3 * k + 0.5), STREAMERS, STREAMER_COLOURS, Vector2(1700, 2400), Vector2.from_angle(-PI / 2 + inward * steep),
-				10.0, 1.8, Vector2(2.4, 3.0), 12.0)  # satin streamers trailing out of the muzzle
-		if first:  # out of focus, closest to the eye
-			var soft := Confetti.make(front, muzzle)
-			soft.gravity = 700.0
-			soft.drag = 1.0
-			soft.flutter = 200.0
-			soft.glints = false
-			soft.avoid = near.avoid
-			var colours: Array[Color] = []
-			for c in PAPER_COLOURS:
-				colours.append(Color(c, 0.8))
-			soft.spray(3, [Confetti.Shape.BOKEH], colours, Vector2(2100, 2700), Vector2.from_angle(-PI / 2 + inward * steep), 10.0,
-					4.2, Vector2(2.0, 2.6), 20.0)
+	glow(back, at, Color(1, 0.88, 0.62, 0.5 * k), 0.3, 1.3, 0.3)
+	var far := Confetti.make(back, at)  # far: small, slow, hazy with the dusk's air
+	far.depth = 0.9
+	far.haze = Color(0.86, 0.84, 0.95)
+	far.gravity = 620.0
+	far.drag = 2.1
+	far.flutter = 420.0
+	_keep_clear(far, keep_off.grow(10.0))
+	far.spray(int(18 * k), WIN_SHAPES, PAPER_COLOURS, Vector2(420, 1000), Vector2.UP, 150.0, 1.0, Vector2(2.6, 3.4), 26.0)
+	var mid := Confetti.make(front, at)  # mid: crisp, two-tone, glinting
+	mid.gravity = 760.0
+	mid.drag = 1.9
+	mid.flutter = 480.0
+	_keep_clear(mid, keep_off.grow(16.0))
+	mid.spray(int(12 * k), WIN_SHAPES, PAPER_COLOURS, Vector2(520, 1250), Vector2.UP, 120.0, 1.9, Vector2(2.4, 3.2), 18.0)
+	mid.spray(int(2 * k + 0.5), STREAMERS, STREAMER_COLOURS, Vector2(560, 1100), Vector2.UP, 80.0, 1.5, Vector2(2.0, 2.6), 12.0)
+	mid.sparkle(int(6 * k), GOLD, Vector2(140, 480), 0.9, Vector2(0.4, 0.8))
+	if k >= 1.0:  # out of focus, closest to the eye
+		var soft := Confetti.make(front, at)
+		soft.gravity = 520.0
+		soft.drag = 1.2
+		soft.flutter = 180.0
+		soft.glints = false
+		soft.avoid = mid.avoid
+		var colours: Array[Color] = []
+		for c in PAPER_COLOURS:
+			colours.append(Color(c, 0.8))
+		soft.spray(2, [Confetti.Shape.BOKEH], colours, Vector2(700, 1200), Vector2.UP, 100.0, 3.6, Vector2(1.8, 2.4), 20.0)
 
 
 ## Panoramic's picture beside the results card (the panel's art: it carries a "tall" meta), in the

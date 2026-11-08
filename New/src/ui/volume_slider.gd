@@ -1,16 +1,18 @@
 class_name VolumeSlider
 extends Control
 ## A volume that reads as a slider, not a switch (j15: "sliders look like toggles, 100% collides with
-## the knob"): a slim groove sunk into the panel with a notch at each step, filled with gold up to the
-## value (a soft light along it), a round gold-rimmed knob bigger than the groove, a glossy dome
-## (no grip lines: they read as a pause sign), to drag (or tap the groove); the value written beside it, outside the groove ("80%", never under
-## the knob). Steps of 10 %; at 0 the sound is off. A tick plays at each step while dragging.
+## the knob"): a thick groove sunk into the panel (UI r21, the judges of j17: "thin short sliders") with
+## a notch at each step, filled with gold up to the value (a soft light along it), a round gold-rimmed
+## knob bigger than the groove, a glossy dome (no grip lines: they read as a pause sign), to drag (or tap
+## the groove); the value written beside it, outside the groove ("80%", never under the knob), with air
+## after it. Steps of 10 %; at 0 the sound is off. A tick plays at each step while dragging.
 
 signal changed(value: float)
 
 const INK := Color("4a1e04")
 const STEPS := 10
-const VALUE_W := 70.0  ## the value's room at the right end (outside the groove)
+const VALUE_W := 76.0  ## the value's room at the right end (outside the groove)
+const VALUE_PAD := 6.0  ## air after the value (it never touches the well's edge)
 
 var value := 1.0
 var _dragging := false
@@ -18,7 +20,7 @@ var _dragging := false
 
 func _init(start := 1.0) -> void:
 	value = clampf(start, 0.0, 1.0)
-	custom_minimum_size = Vector2(250, 54)
+	custom_minimum_size = Vector2(250, 58)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	size_flags_vertical = Control.SIZE_SHRINK_CENTER
 
@@ -40,7 +42,7 @@ func _gui_input(event: InputEvent) -> void:
 
 ## The knob's radius and the groove's two ends (the knob's centre at 0 % and at 100 %).
 func _knob_r() -> float:
-	return size.y * 0.42
+	return size.y * 0.44
 
 
 func _ends() -> Vector2:
@@ -64,7 +66,7 @@ func _draw() -> void:
 	var ci := get_canvas_item()
 	var e := _ends()
 	var mid := size.y / 2
-	var gh := maxf(roundf(size.y * 0.26), 10.0)  # a slim groove: the knob stands well over it
+	var gh := maxf(roundf(size.y * 0.36), 14.0)  # a thick groove: the knob still stands over it
 	var groove := Rect2(Vector2(e.x - gh * 0.5, mid - gh / 2), Vector2(e.y - e.x + gh, gh))
 	var gr := gh / 2
 	GlossStyle.fill_rounded(ci, Rect2(groove.position + Vector2(0, 2), groove.size).grow(1.5), gr + 1.5,
@@ -75,12 +77,12 @@ func _draw() -> void:
 	for i in range(1, STEPS):  # a notch at each step, on the way still to go
 		var x := lerpf(e.x, e.y, float(i) / STEPS)
 		if x > cx + _knob_r():
-			draw_circle(Vector2(x, mid), 2.2, Color(1, 0.92, 0.78, 0.55), true, -1, true)
+			draw_circle(Vector2(x, mid), 2.6, Color(1, 0.92, 0.78, 0.5), true, -1, true)
 	if value > 0.0:
 		var fill := Rect2(groove.position, Vector2(cx - groove.position.x, groove.size.y)).grow(-1.0)
 		GlossStyle.fill_rounded(ci, fill.grow(3.0), gr + 3.0, Color(1, 0.8, 0.3, 0.22), Color(1, 0.8, 0.3, 0.22))  # its glow
 		GlossStyle.fill_rounded(ci, fill, gr - 1.0, Color("ffe066"), Color("e8860e"))
-		GlossStyle.fill_rounded(ci, Rect2(fill.position + Vector2(gr * 0.6, 1.5), Vector2(maxf(fill.size.x - gr * 1.2, 0), 2.5)), 1.2,
+		GlossStyle.fill_rounded(ci, Rect2(fill.position + Vector2(gr * 0.6, 2.0), Vector2(maxf(fill.size.x - gr * 1.2, 0), 3.5)), 1.7,
 				Color(1, 1, 0.92, 0.8), Color(1, 1, 0.92, 0.8))
 	var knob_r := _knob_r()
 	var centre := Vector2(cx, mid)
@@ -104,5 +106,5 @@ func _value_text() -> void:
 	var px := 24
 	var w := font.get_string_size(words, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
 	var base := size.y / 2 + px * 0.36
-	draw_string(font, Vector2(size.x - VALUE_W + 12.0 + maxf(VALUE_W - 12.0 - w, 0.0) * 0.5, base), words, HORIZONTAL_ALIGNMENT_LEFT, -1, px,
+	draw_string(font, Vector2(size.x - VALUE_PAD - w, base), words, HORIZONTAL_ALIGNMENT_LEFT, -1, px,  # right-aligned
 			Color("8a4a14") if value > 0.0 else Color("a08a78"))

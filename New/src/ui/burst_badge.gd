@@ -4,17 +4,20 @@ extends Control
 ## ink outline and a soft shadow, a glossy red medallion in it, the words on two lines in outlined
 ## white display text, a gold crown on its top edge and a glint twinkling on its rim. A seal set on
 ## the panel (not a button: no bevel, no ring, never the shape of the buttons beside it).
+## One badge for a win and a defeat (UI r21, the judges of j17: "two designs, a gold plaque on the loss,
+## a red starburst on the win"): after a defeat (`calm`) the same seal, quieter: old gold spikes, a deep
+## wine medallion with no gloss, cream words, no glint (and ResultsPanel lets it settle, no fanfare).
 
 const POINTS := 22  ## the burst's spikes
 const INK := Color("3a1006")
 
 var radius := 62.0  ## the burst's outer radius (its spikes' tips)
-var calm := false  ## the quiet plaque (a new best after a defeat): no spikes, no glint, dark words on gold
+var calm := false  ## the quiet seal (a new best after a defeat): old gold, deep wine, no gloss, no glint
 var _clock := 0.0
 
 
 ## `text`: the words (split on two lines at the first space); `burst`: the outer radius in units;
-## `quiet`: the calm plaque instead of the burst (its box the same size: it takes the same place).
+## `quiet`: the calm seal (the same shape and size).
 func _init(text: String, burst := 62.0, quiet := false) -> void:
 	radius = burst
 	calm = quiet
@@ -24,16 +27,16 @@ func _init(text: String, burst := 62.0, quiet := false) -> void:
 	pivot_offset = size / 2
 	var words := text.to_upper().split(" ", false, 1)
 	var disc := radius * 0.74
-	var room := radius * 2.0 if calm else disc * 1.42  # (calm: a gold plaque wider than tall, its words on it)
+	var room := disc * 1.42
 	var lines: Array[DisplayText] = []
 	for w: String in words:
-		var fit := 28.0 if calm else 34.0
+		var fit := 34.0
 		var t := _line(w, fit)
 		# the widest line fits the medallion, a little air at both ends
 		fit = minf(fit, fit * room / maxf(t.text_width(), 1.0))  # air at both ends: not cramped
 		t.font_size = int(fit)
-		t.outline_width = 0.0 if calm else roundf(fit * 0.11)
-		t.depth = 0.0 if calm else roundf(fit * 0.07)
+		t.outline_width = roundf(fit * 0.11)
+		t.depth = roundf(fit * 0.07)
 		t.refresh()
 		lines.append(t)
 	var line_h := 0.0
@@ -44,18 +47,18 @@ func _init(text: String, burst := 62.0, quiet := false) -> void:
 		t.size = Vector2(size.x, line_h)
 		t.position = Vector2(0, size.y / 2 + (i - lines.size() / 2.0) * line_h + 2.0)
 		add_child(t)
-	var crown := Ui.bold_icon("crown-fill", radius * (0.34 if calm else 0.46), Ui.GOLD, INK)
+	var crown := Ui.bold_icon("crown-fill", radius * 0.46, Color("e8c878") if calm else Ui.GOLD, INK)
 	crown.size = crown.custom_minimum_size
-	var crown_y := size.y / 2 - radius * 0.62 - crown.size.y * 0.62 if calm else -crown.size.y * 0.28  # (calm: on the plaque's top)
+	var crown_y := -crown.size.y * 0.28
 	crown.position = Vector2(size.x / 2 - crown.size.x / 2, crown_y)
 	add_child(crown)
 	set_process(Prefs.motion() and not calm)
 
 
 func _line(text: String, font_size: float) -> DisplayText:
-	if calm:  # dark brown words engraved on the gold
-		var q := Ui.display_text(text, int(font_size), Color("5a2408"), Color(0, 0, 0, 0), Color("3a1404"))
-		q.shadow = Color(1, 0.95, 0.8, 0.0)
+	if calm:  # cream words on the deep wine
+		var q := Ui.display_text(text, int(font_size), Color("fff2d6"), Color("2e0a04"), Color("f0d6a8"))
+		q.shadow = Color(0, 0, 0, 0)
 		return q
 	var t := Ui.display_text(text, int(font_size), Ui.WHITE, Color("5a0804"), Color("ffe6c8"))
 	t.shadow = Color(0, 0, 0, 0)
@@ -93,33 +96,24 @@ func _gradient(pts: PackedVector2Array, y0: float, y1: float, top: Color, bottom
 
 func _draw() -> void:
 	var c := size / 2
-	if calm:  # a gold plaque: an ink line, a gold rim lit at its top, a gold face bevelled (lit along its top,
-		# deeper at its foot), a beaded rosette on each end as on the panels' corners (round 20, the judges: "a flat
-		# cream block"); no spikes, no glint
-		var half := Vector2(radius * 1.12, radius * 0.62)
-		var r := Rect2(c - half, half * 2.0)
-		var ci := get_canvas_item()
-		GlossStyle.fill_rounded(ci, Rect2(r.position + Vector2(0, 5), r.size).grow(4.0), 20.0, Color(0.12, 0.02, 0.0, 0.3),
-				Color(0.12, 0.02, 0.0, 0.3))
-		GlossStyle.fill_rounded(ci, r.grow(4.0), 20.0, INK, INK)
-		GlossStyle.fill_rounded(ci, r.grow(1.5), 17.5, Color("ffe68a"), Color("b8680a"))
-		GlossStyle.fill_rounded(ci, r.grow(-3.5), 13.0, Color("ffe892"), Color("eaa62a"))
-		GlossStyle.fill_rounded(ci, Rect2(r.position + Vector2(10, 1), Vector2(r.size.x - 20, 5)), 2.5, Color(1, 1, 0.9, 0.85),
-				Color(1, 1, 0.9, 0.3))  # its lit top edge
-		var side := radius * 0.5
-		for x: float in [r.position.x, r.end.x]:
-			draw_texture_rect(Card.ROSETTE, Rect2(Vector2(x, c.y) - Vector2(side, side) / 2, Vector2(side, side)), false)
-		return
 	var r := radius - 3.0
 	var inner := r * 0.84
+	# per mood: the spikes' two golds (rim, face), the medallion's (rim, face)
+	var spikes := [Color("fff2a0"), Color("e0861a"), Color("ffe066"), Color("f0a028")]
+	var medal := [Color("ff6a46"), Color("b81408"), Color("f23a1e"), Color("c81a0a")]
+	if calm:  # old gold, a deep wine: the same seal, quieter
+		spikes = [Color("f0dc9c"), Color("9a6a2a"), Color("dcbc70"), Color("b08236")]
+		medal = [Color("9a4632"), Color("4a160e"), Color("7e2c1e"), Color("5c1c12")]
 	draw_colored_polygon(_burst(c + Vector2(0, 6), r + 3.0, inner + 3.0), Color(0.12, 0.02, 0.0, 0.35))  # its shadow
 	draw_colored_polygon(_burst(c, r + 3.0, inner + 3.0), INK)
-	_gradient(_burst(c, r, inner), c.y - r, c.y + r, Color("fff2a0"), Color("e0861a"))
-	_gradient(_burst(c, r * 0.9, inner * 0.92), c.y - r, c.y + r, Color("ffe066"), Color("f0a028"))
+	_gradient(_burst(c, r, inner), c.y - r, c.y + r, spikes[0], spikes[1])
+	_gradient(_burst(c, r * 0.9, inner * 0.92), c.y - r, c.y + r, spikes[2], spikes[3])
 	var d := radius * 0.74
 	draw_colored_polygon(_disc(c, d + 3.0), INK)
-	_gradient(_disc(c, d), c.y - d, c.y + d, Color("ff6a46"), Color("b81408"))
-	_gradient(_disc(c + Vector2(0, d * 0.08), d * 0.86), c.y - d, c.y + d, Color("f23a1e"), Color("c81a0a"))
+	_gradient(_disc(c, d), c.y - d, c.y + d, medal[0], medal[1])
+	_gradient(_disc(c + Vector2(0, d * 0.08), d * 0.86), c.y - d, c.y + d, medal[2], medal[3])
+	if calm:
+		return
 	# the gloss: a soft light over the medallion's upper half
 	var gloss := PackedVector2Array()
 	for i in 24:

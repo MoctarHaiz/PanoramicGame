@@ -28,7 +28,7 @@ static func open(host: Control, resume: Callable, home: Callable, hide: Array = 
 	go.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	go.pressed.connect(resume)
 	go.idle(0.04)
-	go.shine(3.2, 1, 0.3)  # one small glint: more would be noise
+	go.shine(3.6, 0)  # a sweep of light now and then (UI r21: the ring's sparkle glint read as stock)
 	body.add_child(go)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -126,12 +126,10 @@ static func moves_list() -> Array:
 			[Gesture.Kind.RIGHT, "MOVE_STEP"], [Gesture.Kind.TAP, "MOVE_THROW"]]
 
 
-## Music or sounds on and off, read at a glance: the settings' switch set in the tile's foot (green, its
-## knob right, a tick: on; grey, its knob left, a cross: off), the tile gold when on and quiet bone when
-## off, its icon over the switch (notes, a speaker with its waves; off: a speaker with a cross, or the
-## notes dimmed and struck through). Its name under it. A tap flips it, the switch sliding over.
+## Music or sounds on and off, read at a glance on the tile itself: on, a gold tile and its icon (notes,
+## a speaker with its waves); off, a quiet bone tile, the icon dimmed and struck through (a speaker with a
+## cross, or the notes struck by a red bar). Its name under it. A tap flips it, the tile popping.
 class SoundSwitch extends VBoxContainer:
-	const SWITCH_K := 0.86  ## the switch's scale in the tile (ToggleSwitch is 110 x 58)
 	var _option: StringName
 	var _icon_name := ""
 	var _off_icon := ""
@@ -147,10 +145,10 @@ class SoundSwitch extends VBoxContainer:
 		_holder.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		add_child(_holder)
 		add_child(PausePanel._caption(caption))
-		_fill(Save.get(_option))
+		_fill(false)
 
-	## The tile for the option's state; `was`: the state the switch slides from.
-	func _fill(was: bool) -> void:
+	## The tile for the option's state; `flipped`: it was just tapped (a little pop).
+	func _fill(flipped: bool) -> void:
 		for c in _holder.get_children():
 			c.queue_free()
 		var on: bool = Save.get(_option)
@@ -158,28 +156,20 @@ class SoundSwitch extends VBoxContainer:
 		var b := Ui.icon_button(icon_name, Ui.Tone.GOLD if on else Ui.Tone.WHITE, TILE, 30.0)
 		b.size = _holder.custom_minimum_size
 		b.pressed.connect(func() -> void:
-			var before: bool = Save.get(_option)
-			Save.set_option(_option, not before)
+			Save.set_option(_option, not Save.get(_option))
 			Audio.apply_settings()
-			_fill(before))
+			_fill(true))
 		_holder.add_child(b)
-		var room := TILE * 0.3  # the icon over the switch
-		b.content.offset_bottom = -room
-		var switch := ToggleSwitch.new()
-		switch.mouse_filter = Control.MOUSE_FILTER_IGNORE  # the tile takes the tap
-		switch.scale = Vector2.ONE * SWITCH_K
-		switch.size = switch.custom_minimum_size
-		switch.position = Vector2((TILE - switch.size.x * SWITCH_K) / 2.0, TILE * 0.62)
-		b.add_child(switch)
-		switch.set_on(was)
-		if was != on:
-			switch.set_on.call_deferred(on, true)
 		if not on:
-			b.content.self_modulate.a = 0.55
+			b.content.self_modulate.a = 0.6
 			if _off_icon.is_empty():  # no off icon: struck through, a dark-edged red bar
 				var slash := _Slash.new()
 				slash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 				b.content.add_child(slash)
+		if flipped and Prefs.motion():
+			b.pivot_offset = b.size / 2
+			b.create_tween().tween_property(b, "scale", Vector2.ONE, 0.25).from(Vector2.ONE * 0.9) \
+					.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 ## A red bar struck across the icon it is in (drawn square in the middle of it: a BoldIcon on a coloured

@@ -2,16 +2,19 @@ class_name ResultsPanel
 extends RefCounted
 ## The end of a run, over the game (GamePanel), told in order so the eye can follow it:
 ## - Home: a red ribbon on the gilded card; the three stars (the middle one bigger, raised) slam into
-##   their sockets one
-##   after the other, each with a burst and its note (the third shakes the card), coins and confetti
-##   rain in front of everything; then the Red Bobs roll up with ticks in a groove cut into the
-##   parchment; a NEW BEST burst badge slams in last beside the count (its place kept in the count's
-##   row from the start: nothing moves, nothing is covered, no empty band). Panoramic stands at the
-##   left with his arms up, in a pool of gold light, a big burst of rays turning behind the card.
+##   their sockets one after the other, each with a burst and its note (the third shakes the card); an
+##   empty socket stays a designed hollow (StarBadge); a calm party (UI r21, the judges of j17: "confetti
+##   chaotic"): one burst from behind the stars, a few clustered bursts in the sky beside him and the
+##   card, spread in depth, none over him, a few fireworks; then the Red Bobs roll up with ticks in a
+##   groove cut into the parchment; a NEW BEST burst badge slams in last beside the count (its place
+##   kept in the count's row from the start: nothing moves, nothing is covered, no empty band).
+##   Panoramic stands at the left with his arms up on his dais, a big burst of rays turning behind the
+##   card.
 ## - A lost run, in another mood: the world behind drained grey, the card in smoked wood, old bronze
 ##   and dusty hide, a red GAME OVER ribbon and what happened under it; the Red Bobs roll up, then the
 ##   bar of the way home fills to where he got (the house at its end in a gold disc: the goal); the
-##   buttons are there at once. Panoramic dazed on the ground in a cold, dim light.
+##   buttons are there at once; a new best is the same seal as a win's, quieter (BurstBadge.calm).
+##   Panoramic dazed on his dais in a cold, dim light.
 ## PLAY AGAIN (the big green one) between Home and Share, two gold ones (apart from the red ribbon
 ## and the brown wood: orange was too close to them, bone read as disabled, blue fought the green).
 
@@ -113,11 +116,11 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 			108 if won else 100, 44 if won else 42)
 	go.custom_minimum_size.x = 360 if won else 340
 	go.pressed.connect(again)
-	if won:  # the reward screen's call: bigger, a warm light breathing behind it, its glints
+	if won:  # the reward screen's call: bigger, a warm light breathing behind it, a sweep of light
 		_glow_behind(go)
-		go.shine(2.6, 2, 0.42)
+		go.shine(2.6, 0)  # (UI r21, the judges of j17: the ring's sparkle glints read as stock)
 	else:
-		go.shine(3.2, 1, 0.3)  # one small glint
+		go.shine(3.6, 0)
 	buttons.add_child(go)
 	var share_button := Ui.icon_button("share-network-fill", Ui.Tone.GOLD, 92.0, 28.0)
 	share_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -221,6 +224,9 @@ static func _hero(won: bool) -> TextureRect:
 	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
 	if rendered:  # the stills stand on their own contact shadow (hero_atlas_ai.py stills()): the panel adds none
 		art.set_meta(&"ground", 0.935)  # (round 19) where his feet are, a share of the picture's height
+		# (UI r21) the dais under him: its middle and half width, shares of the picture's width (the victory stance's
+		# feet span it; knocked out, he sits on its right part, a boot in the air on the left)
+		art.set_meta(&"dais", Vector2(0.47, 0.55) if won else Vector2(0.62, 0.43))
 	if rendered and won:  # (round 21) in the night's light, the fireworks' on his right
 		var night := ShaderMaterial.new()
 		night.shader = preload("res://src/game/actor.gdshader")
@@ -323,32 +329,23 @@ static func _reveal(game: Control, panel: GamePanel, world: World, stars: Array[
 		var party := panel.create_tween()  # owned by the panel: it never outlives it
 		party.tween_interval(t - 0.1)
 		party.tween_callback(func() -> void:
-			var back := Node2D.new()  # behind the card: it flies out from under its top
+			var back := Node2D.new()  # behind him and the card
 			back.scale = Vector2.ONE * 0.5
 			panel.add_child(back)
 			panel.move_child(back, panel.card.get_parent().get_index())
-			Fx.confetti_burst(back, stars[1].get_global_rect().get_center() * 2.0)
-			var rain := Node2D.new()  # coins around the card (over the words they read as stains)
-			panel.add_child(rain)
-			panel.move_child(rain, panel.card.get_parent().get_index())
-			Fx.coin_shower(rain, panel.size.x, panel.size.y)
-			rain = Node2D.new()  # the cannons' near paper: in front of everything (it keeps off him and the card)
-			rain.scale = Vector2.ONE * 0.5
-			panel.add_child(rain)
-			var view := panel.size * 2.0  # New (audio): fireworks in the sky behind him and the card
-			Fx.fireworks(back, Vector2(view.x * 0.96, view.y * 1.02), -1.0)  # shells on the right only (left: him)
-			Fx.card_bursts(back, panel.card)  # New (audio): crisp bursts left of him and right of the card
-			_fire_cannons(panel, back, rain))
-		party.tween_interval(1.7)  # a second volley while the first still flutters down
-		party.tween_callback(func() -> void:
-			var back := Node2D.new()
-			back.scale = Vector2.ONE * 0.5
-			panel.add_child(back)
-			panel.move_child(back, panel.card.get_parent().get_index())
-			var front := Node2D.new()
+			var front := Node2D.new()  # in front of everything (it keeps off him and the card)
 			front.scale = Vector2.ONE * 0.5
 			panel.add_child(front)
-			_fire_cannons(panel, back, front))
+			var to_local := back.get_global_transform().affine_inverse()
+			var card: Rect2 = to_local * panel.card.get_global_rect()
+			var hero := Rect2()
+			if panel.art and panel.art.visible:
+				hero = to_local * panel.art.get_global_rect()
+			# (UI r21, the judges of j17: "confetti chaotic"): one burst from behind the stars, clustered bursts
+			# in the clear sky beside them, a few fireworks; no rain, no cannons, nothing over him
+			Fx.confetti_burst(back, stars[1].get_global_rect().get_center() * 2.0, true, hero.grow(12.0))
+			Fx.card_bursts(back, panel.card)
+			Fx.party_bursts(back, front, panel.size * 2.0, card, hero))
 	_count_up(tree, bobs, world.bobs, total, t, panel)
 	t += COUNT_TIME + 0.1
 	if bar:
@@ -356,17 +353,6 @@ static func _reveal(game: Control, panel: GamePanel, world: World, stars: Array[
 		t += 0.6
 	if best:
 		_stamp(tree, panel, slot, t + 0.1, not won)
-
-
-## The party cannons from the screen's bottom corners (Fx.cannons): far paper on `back` (behind him and
-## the card), near paper on `front` (in front, effects units: both scaled 0.5).
-static func _fire_cannons(panel: GamePanel, back: Node2D, front: Node2D) -> void:
-	var to_local := back.get_global_transform().affine_inverse()
-	var card: Rect2 = to_local * panel.card.get_global_rect()
-	var hero := Rect2()
-	if panel.art and panel.art.visible:
-		hero = to_local * panel.art.get_global_rect()
-	Fx.cannons(back, front, panel.size * 2.0, card, hero)
 
 
 ## A star slams into its socket: from big and turned to a little small, then its size, a burst of
