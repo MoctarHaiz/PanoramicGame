@@ -38,8 +38,8 @@ const SAND_DEEP := Color("dcb47c")
 ## highlight) in a thin bright brass ring (the panels' gold trim) over a deep drop shadow. GREEN is the
 ## go colour (one main action per screen: Play, Resume, Play again; also "on"), GOLD rewards and the
 ## pause's tiles, SUNSET the brand, BLUE the quiet buttons beside the main one, CRIMSON warnings,
-## WHITE (bone) the quietest choice, SLATE the defeat's cool title.
-enum Tone { GREEN, GOLD, SUNSET, BLUE, CRIMSON, WHITE, SLATE, AMBER }
+## WHITE (bone) the quietest choice, SLATE the defeat's cool title, STONE a switched-off tile (greyed).
+enum Tone { GREEN, GOLD, SUNSET, BLUE, CRIMSON, WHITE, SLATE, AMBER, STONE }
 ## Per tone: face top, face bottom, edge (the bevel under the face), outline (and text outline).
 const TONES := {
 	Tone.GREEN: [Color("d2e874"), Color("68aa30"), Color("467c1e"), Color("1f3c0e")],  # warm leaf, not neon
@@ -50,6 +50,7 @@ const TONES := {
 	Tone.WHITE: [Color("fffaf0"), Color("f1e2c4"), Color("d2b48a"), Color("4a1e04")],
 	Tone.SLATE: [Color("9aaccc"), Color("4e5f86"), Color("34415e"), Color("141a2c")],  # dusk blue-grey
 	Tone.AMBER: [Color("ffcc4e"), Color("ec8c0c"), Color("b45a06"), Color("5a2604")],  # a richer gold (settings)
+	Tone.STONE: [Color("dcd6ce"), Color("a59d93"), Color("776f66"), Color("38322d")],  # greyed: switched off
 }
 ## The ring around a button's face: thin bright brass (lit along its top, deeper at its foot), per
 ## tone: ring top, ring bottom, the thickness under it (edge), the outline around it all. A gold face
@@ -64,6 +65,7 @@ const FRAMES := {
 	Tone.WHITE: BRASS,
 	Tone.SLATE: [Color("dfe6f2"), Color("8c98ae"), Color("4a5468"), Color("141a2c")],
 	Tone.AMBER: [Color("ffc27a"), Color("d8641c"), Color("8a340a"), Color("3a1404")],
+	Tone.STONE: [Color("eeebe6"), Color("9e968c"), Color("5e5750"), Color("2a2622")],
 }
 
 var font_title: FontVariation  ## Fredoka Bold: titles, buttons, numbers
@@ -356,6 +358,68 @@ func _candy_button(text: String, icon_name: String, c: Dictionary, height: int, 
 	b.add_child(_face_holder(row, _framed(c, radius, false, depth, ring)))
 	b.content = row
 	return b
+
+
+## The menu's PLAY in the world's materials (UI r22, the judges of j18: "a stock glossy green pill, casual UI against
+## the gritty anime warrior"): a slab of polished bronze in a ring of dark bronze, a line engraved round its face, an
+## emerald set in it at its left with the play sign cut in it (the go colour as a gem: GemPlay), the word in white
+## display letters in a deep brown stroke. Still the screen's one main action: the biggest, brightest thing in the
+## column (call idle() and shine() on it).
+func bronze_button(text: String, height := 116.0, font_size := 60) -> JuicyButton:
+	var c := {"top": Color("ffd47a"), "bottom": Color("a8560e"), "edge": Color("5a2c08"), "outline": Color("2a1204"),
+			"frame": [Color("c98a42"), Color("5e2e0a"), Color("3e1e06"), Color("1e0c02")]}
+	var b := JuicyButton.new()
+	b.custom_minimum_size = Vector2(0, height)
+	var radius := height * 0.3
+	var depth := roundf(height * 0.09)
+	var ring := maxf(roundf(height * 0.065), 3.0)
+	var style := _framed(c, radius, false, depth, ring)
+	style.gloss = 0.3  # polished metal: a broad light across its top
+	b.add_theme_stylebox_override(&"normal", style)
+	b.add_theme_stylebox_override(&"hover", style)
+	var down := _framed(c, radius, true, depth, ring)
+	down.gloss = 0.3
+	b.add_theme_stylebox_override(&"pressed", down)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override(&"separation", roundi(font_size * 0.3))
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(GemPlay.new(roundf(height * 0.64)))
+	var l := display_text(text, font_size, WHITE, Color("3a1606"), Color("fff0d0"))
+	l.outline_width = roundf(font_size * 0.09)
+	l.depth = roundf(font_size * 0.08)
+	l.shadow = Color(0, 0, 0, 0)
+	l.refresh()
+	row.add_child(l)
+	var holder := _face_holder(row, style)
+	var engraved := _Engraved.new()  # under the gem and the word
+	engraved.radius = maxf(radius - style.outline_width - style.frame_width, 4.0)
+	engraved.inset = style.outline_width + style.frame_width
+	engraved.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	holder.add_child(engraved)
+	holder.move_child(engraved, 0)
+	b.add_child(holder)
+	b.content = row
+	return b
+
+
+## A line engraved round a metal face, a little inside its edge: cut dark, lit along its lower lip.
+class _Engraved extends Control:
+	var radius := 20.0
+	var inset := 8.0  ## from the holder's sides to the face
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var r := Rect2(Vector2(inset, 0), Vector2(size.x - inset * 2.0, size.y)).grow(-7.0)
+		if r.size.x < 20.0 or r.size.y < 12.0:
+			return
+		var rr := maxf(radius - 7.0, 4.0)
+		for line: Array in [[Vector2(0, 1.6), Color(1, 0.95, 0.75, 0.55)], [Vector2.ZERO, Color(0.36, 0.17, 0.03, 0.6)]]:
+			var pts := GlossStyle.rounded_points(Rect2(r.position + (line[0] as Vector2), r.size), rr)
+			pts.append(pts[0])
+			draw_polyline(pts, line[1], 2.0, true)
 
 
 ## A full-rect holder over a button's face (above its bevel), so the content centres on the face

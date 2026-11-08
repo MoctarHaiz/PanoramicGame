@@ -12,7 +12,7 @@ const POINTS := 22  ## the burst's spikes
 const INK := Color("3a1006")
 
 var radius := 62.0  ## the burst's outer radius (its spikes' tips)
-var calm := false  ## the quiet seal (a new best after a defeat): old gold, deep wine, no gloss, no glint
+var calm := false  ## the quiet seal (a new best after a defeat): gold on a dark medallion, no gloss, no glint
 var _clock := 0.0
 
 
@@ -47,7 +47,7 @@ func _init(text: String, burst := 62.0, quiet := false) -> void:
 		t.size = Vector2(size.x, line_h)
 		t.position = Vector2(0, size.y / 2 + (i - lines.size() / 2.0) * line_h + 2.0)
 		add_child(t)
-	var crown := Ui.bold_icon("crown-fill", radius * 0.46, Color("e8c878") if calm else Ui.GOLD, INK)
+	var crown := Ui.bold_icon("crown-fill", radius * 0.46, Ui.GOLD, INK)
 	crown.size = crown.custom_minimum_size
 	var crown_y := -crown.size.y * 0.28
 	crown.position = Vector2(size.x / 2 - crown.size.x / 2, crown_y)
@@ -56,8 +56,8 @@ func _init(text: String, burst := 62.0, quiet := false) -> void:
 
 
 func _line(text: String, font_size: float) -> DisplayText:
-	if calm:  # cream words on the deep wine
-		var q := Ui.display_text(text, int(font_size), Color("fff2d6"), Color("2e0a04"), Color("f0d6a8"))
+	if calm:  # gold words on the dark medallion
+		var q := Ui.display_text(text, int(font_size), Color("fff4c0"), Color("160802"), Color("ffc23a"))
 		q.shadow = Color(0, 0, 0, 0)
 		return q
 	var t := Ui.display_text(text, int(font_size), Ui.WHITE, Color("5a0804"), Color("ffe6c8"))
@@ -101,19 +101,21 @@ func _draw() -> void:
 	# per mood: the spikes' two golds (rim, face), the medallion's (rim, face)
 	var spikes := [Color("fff2a0"), Color("e0861a"), Color("ffe066"), Color("f0a028")]
 	var medal := [Color("ff6a46"), Color("b81408"), Color("f23a1e"), Color("c81a0a")]
-	if calm:  # old gold, a deep wine: the same seal, quieter
-		spikes = [Color("f0dc9c"), Color("9a6a2a"), Color("dcbc70"), Color("b08236")]
-		medal = [Color("9a4632"), Color("4a160e"), Color("7e2c1e"), Color("5c1c12")]
+	if calm:  # gold round a dark medallion: the same seal, quieter, standing out on the dark well
+		spikes = [Color("fff0b4"), Color("c88a22"), Color("ffd96e"), Color("d89a34")]
+		medal = [Color("ffe08a"), Color("c07a18"), Color("3e2416"), Color("1e100a")]
 	draw_colored_polygon(_burst(c + Vector2(0, 6), r + 3.0, inner + 3.0), Color(0.12, 0.02, 0.0, 0.35))  # its shadow
 	draw_colored_polygon(_burst(c, r + 3.0, inner + 3.0), INK)
 	_gradient(_burst(c, r, inner), c.y - r, c.y + r, spikes[0], spikes[1])
 	_gradient(_burst(c, r * 0.9, inner * 0.92), c.y - r, c.y + r, spikes[2], spikes[3])
 	var d := radius * 0.74
 	draw_colored_polygon(_disc(c, d + 3.0), INK)
-	_gradient(_disc(c, d), c.y - d, c.y + d, medal[0], medal[1])
-	_gradient(_disc(c + Vector2(0, d * 0.08), d * 0.86), c.y - d, c.y + d, medal[2], medal[3])
-	if calm:
+	_gradient(_disc(c, d), c.y - d, c.y + d, medal[0], medal[1])  # (calm: its bright gold ring)
+	if calm:  # the dark face inside the ring, an ink line between them
+		draw_colored_polygon(_disc(c, d * 0.88 + 1.5), INK)
+		_gradient(_disc(c, d * 0.88), c.y - d, c.y + d, medal[2], medal[3])
 		return
+	_gradient(_disc(c + Vector2(0, d * 0.08), d * 0.86), c.y - d, c.y + d, medal[2], medal[3])
 	# the gloss: a soft light over the medallion's upper half
 	var gloss := PackedVector2Array()
 	for i in 24:

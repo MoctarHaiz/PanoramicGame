@@ -2062,6 +2062,12 @@ func _test_ux() -> void:
 		wanted.append(m[1])
 	for key: String in wanted:
 		_check(keys.has(key), "%s is translated" % key)
+	# (UI r22, the judges of j18: "no visible on/off state on Music/Sounds") the pause's tiles say it in words
+	var lamps: Array[PausePanel.Lamp] = [PausePanel.Lamp.new(true), PausePanel.Lamp.new(false)]
+	_check(keys.has("STATE_ON") and keys.has("STATE_OFF") and lamps[0]._word != lamps[1]._word,
+			"the pause's music and sounds tiles say on or off in words, translated (%s, %s)" % [lamps[0]._word, lamps[1]._word])
+	for lamp in lamps:
+		lamp.free()
 
 
 # ------------------------------------------------------------------ art track

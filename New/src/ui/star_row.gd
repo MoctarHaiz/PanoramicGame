@@ -1,6 +1,6 @@
 class_name StarRow
 extends HBoxContainer
-## Three stars, the first `count` gold, the others bright empty sockets (results and best run),
+## Three stars, the first `count` gold, the others pale greyed stars (not yet earned) (results and best run),
 ## the middle one a little bigger and higher (StarBadge).
 
 

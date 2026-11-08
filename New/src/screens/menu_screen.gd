@@ -4,15 +4,17 @@ extends Screen
 ## (grade.gdshader: the candy UI and the art one family), with a soft shade behind the title column;
 ## embers streaming out of his launch along the leap (_embers); on the right one clean column with even
 ## gutters, clear of his hand: the CHAKA ZULU logo (gold lettering locked up with a Zulu shield and
-## crossed assegais), its subtitle on a ribbon across the shield's foot, and under it one board in the
-## panels' own materials (round 20, the judges: "a casual green pill and a cream card against gritty
-## anime key art; the column floats on a busy sky"): carved wood with its band of Zulu beadwork and
-## beaded rosettes (Card), holding the big green PLAY and, under it on the hide, the best run in a
-## sunken strip (the Red Bob, "BEST" over the count, the three stars: compact, no big empty pill); a
-## deeper shade on the sky behind the column; the settings on a round wooden button in the bottom left
-## corner, clear of his ring (round 20: "the gear collides with the chakram"). Everything arrives in a
-## short choreography: the logo drops and bounces, the ribbon unrolls, PLAY pops, the rest fades in.
-## Then the logo catches the light now and then and PLAY breathes.
+## crossed assegais), its subtitle on a ribbon across the shield's foot, and under it, with no board round
+## them (UI r22, the judges of j18: r21's board "stacks five borders" and its "stock glossy green pill" read
+## as casual UI pasted on the gritty key art): one hero button, PLAY in the world's materials (polished
+## bronze, an engraved line, an emerald set in it with the play sign: Ui.bronze_button), and one frame,
+## the best run on a slim plate of dark glass with a gold line (the Red Bob, "BEST" over the count, the
+## three stars, the ones still to win pale grey); a deeper shade on the sky behind the column; the
+## settings on a round button of the panels' carved wood in a gold ring, anchored in the top left corner
+## of the screen (j18: "floating near his boot"), clear of his ring (the top right one where his ring
+## reaches that corner). Everything arrives in a short
+## choreography: the logo drops and bounces, the ribbon unrolls, PLAY pops, the rest fades in. Then the
+## logo catches the light now and then and PLAY breathes.
 
 const RIBBON := preload("res://assets/art/ui/ribbon_plain.png")  ## (its dashed stitch removed: tools/art/ui_kit.py)
 const TAIL_TRIM := 8  ## px cut off each end of the ribbon's tails (its notch is 24 deep)
@@ -24,11 +26,11 @@ const KEYART := "res://assets/art/ui/menu_keyart.png"  ## the painted title key 
 const HAND_U := 0.548
 const RING_U := 0.17
 const DUST := Rect2(0.0, 0.6, 0.24, 0.38)
-const COLUMN_W := 480.0  ## the title column's width (the board with PLAY and the best run)
+const COLUMN_W := 480.0  ## the title column's width (PLAY and the best run)
+const PLAY_W := 412.0  ## PLAY's width (the best run's plate is as wide)
 const PLAY_H := 116.0
-const BOARD_MARGIN := Vector4(44, 38, 44, 32)  ## the board's content margins (inside its frame)
 const GUTTER := 28.0  ## between his hand and the column, and between the column and the screen's edge
-const GEAR := 92.0  ## the settings button's side
+const GEAR := 84.0  ## the settings button's side
 
 var _backdrop: SunsetBackdrop  # only when the key art is missing
 var _art: TextureRect
@@ -41,8 +43,8 @@ var _logo_tex: Texture2D
 var _ribbon: Control
 var _ribbon_fit: Control  # holds the ribbon, shrunk to the column
 var _column: VBoxContainer
-var _board_fit: Control  # holds the board, shrunk with the column on a narrow screen
-var _board: Card  # PLAY and the best run, framed
+var _board_fit: Control  # holds PLAY and the best run, shrunk with the column on a narrow screen
+var _board: VBoxContainer  # PLAY and the best run (no frame round them)
 var _play_box: Control
 var _play_pop: Control  # unmanaged inside _play_box: what the entrance scales
 var _play: JuicyButton
@@ -106,33 +108,31 @@ func enter(_data: Dictionary) -> void:
 	_ribbon_fit.add_child(_ribbon)
 	_logo_box.add_child(_ribbon_fit)
 
-	# the board: PLAY, and the best run under it
+	# PLAY, and the best run under it: one hero button, one frame (no board round them)
 	_board_fit = Control.new()
 	_board_fit.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_board_fit.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_column.add_child(_board_fit)
-	_board = Card.new(BOARD_MARGIN)
+	_board = VBoxContainer.new()
+	_board.add_theme_constant_override(&"separation", 20)
 	_board.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_board_fit.add_child(_board)
-	var inside := VBoxContainer.new()
-	inside.add_theme_constant_override(&"separation", 12)
-	inside.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_board.add_child(inside)
 	_play_box = Control.new()
 	_play_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_play_box.custom_minimum_size = Vector2(_play_w(), PLAY_H)
-	inside.add_child(_play_box)
+	_play_box.custom_minimum_size = Vector2(PLAY_W, PLAY_H)
+	_board.add_child(_play_box)
 	_play_pop = Control.new()
 	_play_pop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_play_box.add_child(_play_pop)
-	_play = Ui.candy_button(tr("PLAY"), "play-fill", Ui.Tone.GREEN, int(PLAY_H), 62)
+	_play = Ui.bronze_button(tr("PLAY"), PLAY_H, 62)
 	_play.pressed.connect(func() -> void: Nav.go(&"game", {}, _play.get_global_rect().get_center()))
 	_play.idle(0.06)
 	_play.shine(3.2, 0)  # the sweep only: lens-flare glints read as stock
 	_play_pop.add_child(_play)
 	if Save.games_played > 0:
 		_best = _best_strip()
-		inside.add_child(_best)
+		_best.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		_board.add_child(_best)
 
 	_gear = _gear_button()
 	_gear.pressed.connect(func() -> void: Nav.go(&"settings", {}, _gear.get_global_rect().get_center()))
@@ -151,27 +151,18 @@ func _exit_tree() -> void:
 		Device.changed.disconnect(_layout)
 
 
-## The settings: a round button in the panels' wood (the settings' back button's twin), its gear in
-## their brown, alone in a corner.
+## The settings: a round button of the panels' carved wood in their gold ring, a cream gear (the HUD's pause
+## button's twin), anchored in a corner of the screen.
 func _gear_button() -> JuicyButton:
-	return Ui.wood_button("gear-chunky", Vector2(GEAR, GEAR), GEAR / 2.0)
+	return Ui.frame_button("gear-chunky", GEAR)
 
 
-## PLAY's width on the board (the column less the board's frame and margins).
-static func _play_w() -> float:
-	return COLUMN_W - BOARD_MARGIN.x - BOARD_MARGIN.z
-
-
-## The best run on the board's hide, in a sunken strip as wide as PLAY: the Red Bob, "BEST" over the
-## count, and at its right end the three stars (the missing ones clear sockets). Compact: no empty pill.
-func _best_strip() -> PanelContainer:
-	var s := Card.well(18)
-	s.content_margin_left = 14
-	s.content_margin_right = 16
-	s.content_margin_top = 2
-	s.content_margin_bottom = 4
-	var strip := PanelContainer.new()
-	strip.add_theme_stylebox_override(&"panel", s)
+## The best run on a slim plate of dark glass with a gold line, as wide as PLAY: the Red Bob, "BEST" over
+## the count, and at its right end the three stars (the ones still to win pale grey). Compact.
+func _best_strip() -> Card:
+	var strip := Card.new(Vector4(16, 8, 20, 8), true)
+	strip.radius = 24.0
+	strip.custom_minimum_size.x = PLAY_W - 24.0
 	strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override(&"separation", 12)
@@ -183,13 +174,13 @@ func _best_strip() -> PanelContainer:
 	bob.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	bob.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(bob)
-	# one type style: "Best" and the count in the same brown family, the count bigger
+	# one type style on the dark glass: "Best" in gold, the count bigger in cream
 	var words := VBoxContainer.new()
 	words.add_theme_constant_override(&"separation", -10)  # the two lines close, not touching
 	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	words.alignment = BoxContainer.ALIGNMENT_CENTER
-	words.add_child(Ui.label(tr("BEST").to_upper(), 22, Color("8a4416"), Ui.title_font(580, 2), HORIZONTAL_ALIGNMENT_LEFT))
-	words.add_child(Ui.label(str(Save.best_bobs), 42, Color("3a1404"), Ui.font_display, HORIZONTAL_ALIGNMENT_LEFT))
+	words.add_child(Ui.label(tr("BEST").to_upper(), 22, Color("ffc85a"), Ui.title_font(580, 2), HORIZONTAL_ALIGNMENT_LEFT))
+	words.add_child(Ui.label(str(Save.best_bobs), 42, Color("fff4dc"), Ui.font_display, HORIZONTAL_ALIGNMENT_LEFT))
 	row.add_child(words)
 	var gap := Control.new()  # the stars at the strip's right end
 	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -354,17 +345,25 @@ func _layout() -> void:
 	var col_w := right - col_left
 	_fit = clampf(col_w / COLUMN_W, 0.6, 1.0)
 	var w := COLUMN_W * _fit
-	# the board (PLAY and the best run), shrunk as one to a narrow column
-	_play_pop.size = Vector2(_play_w(), PLAY_H)
+	# PLAY and the best run, shrunk as one to a narrow column
+	_play_pop.size = Vector2(PLAY_W, PLAY_H)
 	_play_pop.pivot_offset = _play_pop.size / 2
 	_play_pop.scale = Vector2.ONE * _pop_u
 	_play.size = _play_pop.size
 	_board.size = Vector2.ZERO
-	_board.size = Vector2(COLUMN_W, _board.get_combined_minimum_size().y)
+	_board.size = Vector2(PLAY_W, _board.get_combined_minimum_size().y)
 	_board.scale = Vector2(_fit, _fit)
 	_board_fit.custom_minimum_size = _board.size * _fit
+	# the settings anchored in a corner of the screen (UI r22, the judges of j18: "the gear floats by his
+	# boot"): the top left one, in the sky clear of his raised ring (round 20: "the gear collides with the
+	# chakram"); where his ring reaches that corner (a tablet, a 16:9 phone), the top right one, the column
+	# under it
+	var ring_left := _art.position.x + RING_U * _art.size.x if _art else v.x
+	var gear_left := insets.x + 22.0 + GEAR + 16.0 <= ring_left
+	_gear.size = _gear.custom_minimum_size
+	_gear.position = Vector2(insets.x + 22.0 if gear_left else v.x - insets.z - 22.0 - GEAR, insets.y + 18.0)
 	# the logo takes the height left
-	var top := insets.y + 18.0
+	var top := insets.y + 18.0 + (0.0 if gear_left else GEAR + 10.0)
 	var bottom := v.y - Device.bottom_with_banner() - Device.ad_gap() - 18.0
 	var rest := _board.size.y * _fit + 18.0
 	var rk := minf(1.0, (w + GUTTER) / _ribbon.size.x)  # the ribbon a little wider than the column: its tails out
@@ -387,13 +386,6 @@ func _layout() -> void:
 	var h := _column.get_combined_minimum_size().y
 	_column.size = Vector2(maxf(box_w, w), h)
 	_column.position = Vector2(centre_x - _column.size.x / 2, top + (bottom - top - h) / 2)
-	# the settings in the top right corner when the column leaves it free (a tablet), else the bottom left
-	# one, under his dust and clear of his raised ring (round 20: "the gear collides with the chakram")
-	_gear.size = _gear.custom_minimum_size
-	if _column.position.y >= insets.y + 18.0 + GEAR + 24.0:
-		_gear.position = Vector2(v.x - insets.z - 22.0 - GEAR, insets.y + 18.0)
-	else:
-		_gear.position = Vector2(insets.x + 22.0, v.y - Device.bottom_with_banner() - 22.0 - GEAR)
 
 
 ## The entrance, played as the transition opens.

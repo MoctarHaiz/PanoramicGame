@@ -3,15 +3,15 @@ extends Control
 ## The game's heads-up display, inside the safe area, over a soft shade along the top that sets it
 ## apart from the vine. Every piece sits on the same plate of his world (UI r21, the judges of j17:
 ## r20's cream-and-gold pills "a generic casual kit, no world material"): carved wood, lit along its
-## top bevel, a faint grain, an ink line, a row of beads stitched along its foot (the panels' beadwork in
-## small), a soft shadow; one family:
+## top bevel, a faint grain, an ink line, a soft shadow: a clean bevelled edge (UI r22, the judges of j18:
+## the bead strips under the pills "noise at phone size"); one family:
 ## - lives on the left: three glossy hearts; a lost one flashes, cracks in two and its halves fall
 ##   while the plate flashes red, leaving its socket hollow and cracked (not a flat tan heart); the last
 ##   one beats when it is all that is left;
 ## - the way home in the middle: a thick dark groove cut into the wood ("a thin dashed line with tiny
-##   diamonds, unreadable on a phone"), filling with glowing gold as the level scrolls, three bone studs
-##   at its quarters lighting up gold as he passes them, Panoramic's face big in its gold ring over the
-##   plate's edges running along it to the house on a gold disc;
+##   diamonds, unreadable on a phone"), filling with glowing gold as the level scrolls, Panoramic's face
+##   big in its gold ring over the plate's edges running along it to the house on a gold disc (no studs
+##   along it: UI r22, the judges of j18: "three grey dots read as a loading spinner");
 ## - the Red Bobs on the right (counted the moment one is taken, the counter punching and flashing), the
 ##   count in cream; and the pause button, a round button of the same wood in a gold ring.
 ## The plates stay solid (a HUD held half see-through, or gone for seconds, reads as broken).
@@ -29,8 +29,6 @@ const PLATE_EDGE := Color("3e1606")  ## its thickness under it
 const PLATE_LINE := Color("2e0d04")  ## the kit's ink: outlines
 const GROOVE_TOP := Color("2a1206")  ## the way home's groove, cut deep into the wood
 const GROOVE_BOTTOM := Color("4e2812")
-const BEADS: Array[Color] = [Color("c89a66"), Color("c89a66"), Color("9a3418"), Color("c89a66"), Color("c89a66"),
-		Color("3a1c10")]  ## the beads stitched along a plate's foot, in turn (close to the wood: an edging, not a dotted line)
 
 var world: World
 var _hearts: Array[Control] = []
@@ -133,7 +131,7 @@ func _glass(content: Control, side_margin: float) -> PanelContainer:
 	s.content_margin_left = side_margin
 	s.content_margin_right = side_margin
 	s.content_margin_top = 4.0
-	s.content_margin_bottom = 4.0 + 3.0
+	s.content_margin_bottom = 4.0
 	var p := PanelContainer.new()
 	p.add_theme_stylebox_override(&"panel", s)
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -160,7 +158,7 @@ func _counter() -> Control:
 	var s := plate(ROW_HEIGHT / 2.0)
 	s.content_margin_left = _bob_icon.size.x * 0.62
 	s.content_margin_right = 16.0
-	s.content_margin_bottom = 3.0
+	s.content_margin_bottom = 0.0
 	var pill := PanelContainer.new()
 	pill.add_theme_stylebox_override(&"panel", s)
 	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -342,7 +340,6 @@ class _Track extends Control:
 			if not is_equal_approx(value, progress):
 				progress = value
 				queue_redraw()
-	const WAYMARKS: Array[float] = [0.25, 0.5, 0.75]  ## the trail's quarter marks
 	var _clock := 0.0
 	var _house: BoldIcon
 	var _face: TextureRect  # his portrait, lifted (lift.gdshader): bright in its ring
@@ -383,12 +380,6 @@ class _Track extends Control:
 			GlossStyle.fill_rounded(ci, Rect2(groove.position, Vector2(fill_w + 2.0, groove.size.y)).grow(3.0), groove.size.y / 2 + 3.0,
 					Color(1, 0.78, 0.25, 0.35), Color(1, 0.6, 0.15, 0.35))
 		GlossStyle.fill_bar(ci, groove, groove.size.y / 2, x0 + 2 + fill_w, Color("ffd84a"), Color("ec7c0a"), 0.8)
-		for k in WAYMARKS:  # the studs he has passed light up gold
-			var at := Vector2(x0 + w * k, y)
-			if fill_w >= w * k:
-				GlossStyle.fill_disc(ci, at, 7.0, PLATE_LINE)
-				GlossStyle.fill_disc(ci, at, 5.0, Color("fff3b0"))
-				GlossStyle.fill_disc(ci, at + Vector2(-1.5, -1.5), 2.0, Color(1, 1, 1, 0.8))
 		# the house at the end, on a glowing gold disc
 		var hc := Vector2(x0 + w + 12, y)
 		var pulse := 0.5 + 0.5 * sin(_clock * 3.0)
@@ -413,8 +404,7 @@ class _Track extends Control:
 
 
 ## The way home's groove (the _Track's, behind its fill): cut deep into the wood (dark, a shade under its
-## upper edge, the wood's lit lip under it), three bone studs at its quarters waiting (the fill lights them
-## up). Drawn once.
+## upper edge, the wood's lit lip under it), plain. Drawn once.
 class _Groove extends Control:
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -431,11 +421,6 @@ class _Groove extends Control:
 		GlossStyle.fill_rounded(ci, g, r, Hud.GROOVE_TOP, Hud.GROOVE_BOTTOM)  # sunk: darkest under its upper edge
 		GlossStyle.fill_clipped(ci, g, r, Rect2(g.position.x, g.end.y - 6.0, w, 6.0),
 				Color(1, 0.75, 0.45, 0.0), Color(1, 0.75, 0.45, 0.16))  # a little light caught at its foot
-		for k in _Track.WAYMARKS:  # the studs, waiting: bone in a dark ring
-			var at := Vector2(g.position.x + w * k, g.get_center().y)
-			GlossStyle.fill_disc(ci, at, 7.0, Color(0, 0, 0, 0.6))
-			GlossStyle.fill_disc(ci, at, 5.0, Color("8a7058"))
-			GlossStyle.fill_disc(ci, at + Vector2(-1.2, -1.2), 2.2, Color(1, 0.95, 0.85, 0.35))
 		GlossStyle.end_batch(ci)
 
 
@@ -479,8 +464,8 @@ class _Heart extends Control:
 
 
 ## The HUD's plate: carved wood (lit along its top bevel, darker at its foot, a faint grain along it) on
-## its own thickness, in an ink line, a soft shadow on the sky, and a row of beads stitched along its foot
-## (BEADS, the panels' beadwork in small: an edging).
+## its own thickness, in an ink line, a soft shadow on the sky: a clean bevelled edge (UI r22, the judges of
+## j18: r21's row of beads along its foot "noise at phone size").
 class _Plate extends GlossStyle:
 	func _init(r: float, is_pressed := false) -> void:
 		super(Hud.PLATE_TOP, Hud.PLATE_BOTTOM, Hud.PLATE_EDGE, r, 4.0, is_pressed)
@@ -501,16 +486,5 @@ class _Plate extends GlossStyle:
 		GlossStyle.begin_batch()
 		for k: float in [0.3, 0.52]:  # the grain: faint darker lines along it
 			GlossStyle.fill_clipped(ci, face, fr, Rect2(face.position.x, face.position.y + face.size.y * k, face.size.x, 1.6),
-					Color(0.2, 0.06, 0.0, 0.16), Color(0.2, 0.06, 0.0, 0.16))
-		var y := face.end.y - 5.5  # the beads along its foot, inside its rounded ends
-		var x0 := face.position.x + fr * 0.75
-		var x1 := face.end.x - fr * 0.75
-		var n := maxi(int((x1 - x0) / 5.0), 1)  # beads touching: a beaded cord, not a dotted line
-		var pitch := (x1 - x0) / n
-		GlossStyle.fill_rounded(ci, Rect2(x0 - 3.0, y - 3.2, x1 - x0 + 6.0, 6.4), 3.2, Color(0.12, 0.04, 0.0, 0.45),
-				Color(0.12, 0.04, 0.0, 0.45))  # the cord's shadow in the wood
-		for i in n + 1:
-			var at := Vector2(x0 + i * pitch, y)
-			GlossStyle.fill_disc(ci, at, 2.5, Color(Hud.BEADS[i % Hud.BEADS.size()], 0.9))
-			GlossStyle.fill_disc(ci, at + Vector2(-0.7, -0.8), 0.9, Color(1, 0.95, 0.85, 0.3))
+					Color(0.2, 0.06, 0.0, 0.12), Color(0.2, 0.06, 0.0, 0.12))
 		GlossStyle.end_batch(ci)

@@ -369,9 +369,11 @@ static func card_bursts(parent: Node2D, card: Control) -> void:
 	var inside := Vector2(view.position.x + show.radius * 0.55, view.end.x - show.radius * 0.55)  # (narrow margins: a tablet)
 	# (round 20, the judges: "fireworks blurry smears": no willow's long hanging trails, crisp kinds only)
 	# (UI r21, the judges of j17: "confetti chaotic": five, slower, a calm rhythm under the party's bursts)
+	# (UI r22, the judges of j18: a ring burst, its sparks on its rim only, "a lone dotted ring, a loading spinner":
+	# filled bursts only)
 	var plan := [[FireworkShow.Kind.CHRYSANTHEMUM, 0, 1.0], [FireworkShow.Kind.PEONY, 3, 0.9],
-			[FireworkShow.Kind.RING, 1, 0.75], [FireworkShow.Kind.CHRYSANTHEMUM, 4, 0.9],
-			[FireworkShow.Kind.PEONY, 2, 0.85]]  # kind, colour, size
+			[FireworkShow.Kind.CHRYSANTHEMUM, 1, 0.8], [FireworkShow.Kind.PEONY, 4, 0.9],
+			[FireworkShow.Kind.CHRYSANTHEMUM, 2, 0.85]]  # kind, colour, size
 	for i in plan.size():
 		var at: Vector2 = spots[i % 3] + Vector2(randf_range(-40, 40), randf_range(-40, 40))
 		show.burst(Vector2(clampf(at.x, inside.x, inside.y), at.y), i * 0.85, plan[i][1], plan[i][0], plan[i][2])
@@ -403,7 +405,7 @@ class FireworkShow extends Node2D:
 	## (round 20, the judges: "the fireworks blurry smears, not crisp bursts") more sparks, thinner and
 	## shorter streaks, small hot heads with a tight glow: a burst reads as a sharp star of light.
 	const KINDS := {
-		Kind.CHRYSANTHEMUM: {"sparks": 64, "life": 1.5, "drag": 3.0, "fall": 260.0, "trail": Vector2(0.38, 0.08),
+		Kind.CHRYSANTHEMUM: {"sparks": 64, "life": 1.5, "drag": 3.0, "fall": 260.0, "trail": Vector2(0.5, 0.1),
 				"width": 8.0, "head": 5.0},
 		Kind.PEONY: {"sparks": 56, "life": 1.3, "drag": 3.4, "fall": 200.0, "trail": Vector2(0.14, 0.04),
 				"width": 8.0, "head": 7.0},
@@ -507,6 +509,9 @@ class FireworkShow extends Node2D:
 		for i in k.sparks:
 			var z := randf_range(-0.15, 0.15) if kind == Kind.RING else randf_range(-1.0, 1.0)
 			var out := sqrt(1.0 - z * z)
+			if kind != Kind.RING:  # (UI r22, the judges of j18: a sphere seen from the side is dense at its rim and
+				# read "a dotted ring, a loading spinner") a share of the sparks spread through its middle: a full burst
+				out = lerpf(out, sqrt(randf()), 0.4)
 			var dir := Vector2.from_angle((i + randf_range(-0.3, 0.3)) * TAU / k.sparks)
 			_add_spark(at, at, dir * out * radius * size * k.drag, k.life * randf_range(0.85, 1.15),
 					outer if out > 0.6 else inner, kind)

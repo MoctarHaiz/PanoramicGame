@@ -2,19 +2,19 @@ class_name ResultsPanel
 extends RefCounted
 ## The end of a run, over the game (GamePanel), told in order so the eye can follow it:
 ## - Home: a red ribbon on the gilded card; the three stars (the middle one bigger, raised) slam into
-##   their sockets one after the other, each with a burst and its note (the third shakes the card); an
-##   empty socket stays a designed hollow (StarBadge); a calm party (UI r21, the judges of j17: "confetti
+##   their places one after the other, each with a burst and its note (the third shakes the card); a
+##   star not earned stays a pale greyed star (StarBadge); a calm party (UI r21, the judges of j17: "confetti
 ##   chaotic"): one burst from behind the stars, a few clustered bursts in the sky beside him and the
 ##   card, spread in depth, none over him, a few fireworks; then the Red Bobs roll up with ticks in a
 ##   groove cut into the parchment; a NEW BEST burst badge slams in last beside the count (its place
 ##   kept in the count's row from the start: nothing moves, nothing is covered, no empty band).
-##   Panoramic stands at the left with his arms up on his dais, a big burst of rays turning behind the
-##   card.
+##   Panoramic stands at the left with his arms up on the lit ground, a big burst of rays turning behind
+##   the card.
 ## - A lost run, in another mood: the world behind drained grey, the card in smoked wood, old bronze
 ##   and dusty hide, a red GAME OVER ribbon and what happened under it; the Red Bobs roll up, then the
 ##   bar of the way home fills to where he got (the house at its end in a gold disc: the goal); the
 ##   buttons are there at once; a new best is the same seal as a win's, quieter (BurstBadge.calm).
-##   Panoramic dazed on his dais in a cold, dim light.
+##   Panoramic dazed on the ground in a cold, dim light.
 ## PLAY AGAIN (the big green one) between Home and Share, two gold ones (apart from the red ribbon
 ## and the brown wood: orange was too close to them, bone read as disabled, blue fought the green).
 
@@ -141,8 +141,23 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 		panel = GamePanel.open(game, title, Ui.Tone.CRIMSON, body, _hero(false), Color(0.06, 0.04, 0.06, 0.45),
 				Color(0.75, 0.8, 1.0, 0.1), false, hide, &"loss")
 	panel.leave_out_of_picture(PausePanel.moving_pieces(game))  # his still stands for him: not him twice
+	if won:  # (UI r22, the judges of j18: "a blurred HOME sign right behind his head") the signpost's letters
+		# framed his head in the picture behind: left out of it (the home stays: its huts, fence and fire)
+		panel.leave_out_of_picture(_home_sign(game))
 	_reveal(game, panel, world, stars, bobs, total, bar, slot, news.get("best_bobs", false), buttons, go)
 	return panel
+
+
+## The home's carved HOME signpost in the scene (HomeView's back layer), or nothing.
+static func _home_sign(game: Control) -> Array:
+	var back := game.find_child("HomeBack", true, false)
+	if not back:
+		return []
+	var out := []
+	for n in back.get_children():
+		if n is Sprite2D and (n as Sprite2D).texture and (n as Sprite2D).texture.resource_path.ends_with("home_sign.png"):
+			out.append(n)
+	return out
 
 
 ## The groove under the run's count: cut into the parchment (InsetStyle: shade under its upper
@@ -224,8 +239,9 @@ static func _hero(won: bool) -> TextureRect:
 	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
 	if rendered:  # the stills stand on their own contact shadow (hero_atlas_ai.py stills()): the panel adds none
 		art.set_meta(&"ground", 0.935)  # (round 19) where his feet are, a share of the picture's height
-		# (UI r21) the dais under him: its middle and half width, shares of the picture's width (the victory stance's
-		# feet span it; knocked out, he sits on its right part, a boot in the air on the left)
+		# (UI r21) the ground under him (GamePanel._Dais; UI r22: a patch of lit earth, no dais): its middle and half
+		# width, shares of the picture's width (the victory stance's feet span it; knocked out, he sits on its right
+		# part, a boot in the air on the left)
 		art.set_meta(&"dais", Vector2(0.47, 0.55) if won else Vector2(0.62, 0.43))
 	if rendered and won:  # (round 21) in the night's light, the fireworks' on his right
 		var night := ShaderMaterial.new()

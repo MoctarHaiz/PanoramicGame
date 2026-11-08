@@ -72,3 +72,5 @@ FEEL,Effects,Effets
 HELP,Help,Aide
 SOUND_GROUP,Sound,Son
 WAY_HOME,Way home,Vers la maison
+STATE_ON,On,Oui
+STATE_OFF,Off,Non

@@ -1,8 +1,9 @@
 class_name StartCard
 extends Control
-## Before the first touch the world waits (the 2017 "Ready"): the screen's call to action low on the
-## screen (UI r21, the judges of j17: r20's big framed plate "dead centre" covered the scene; "a smaller
-## pill, lower third"): "Tap to start" in bold display letters (cream to gold, an ink outline and depth)
+## Before the first touch the world waits (the 2017 "Ready"): the screen's call to action at the foot of the
+## screen, over the soil under the run's ground line, where it covers nothing of the play (UI r21, the judges
+## of j17: r20's big framed plate "dead centre" covered the scene; UI r22, the judges of j18: r21's pill in the
+## lower third "sits on the gem row"): "Tap to start" in bold display letters (cream to gold, an ink outline and depth)
 ## on a slim pill of dark glass with a gold line, a hand tapping beside the words with its ripples (never
 ## over them), the words beating like the Play button. No glow round it (it washed the sky milky).
 ## The first time, nothing else: the moves are taught when they are needed (Tutorial). Later runs
@@ -11,7 +12,7 @@ extends Control
 
 
 const PILL_PAD := Vector2(28, 6)  ## from the words and the hand to the pill's edge
-const LOW := 0.86  ## where the bottom of it all sits, a share of the screen's height (the lower third)
+const FOOT := 14.0  ## from the bottom of it all to the safe area's foot (design units)
 
 
 func _init(first_run: bool) -> void:
@@ -92,8 +93,8 @@ func _init(first_run: bool) -> void:
 	box.minimum_size_changed.connect(_fit.bind(box))
 
 
-## Centres it across, its foot in the lower third (LOW), shrunk to fit a narrow screen (a tablet, the
-## longer French words) inside the safe area. (Placed by hand: a container would undo the scale.)
+## Centres it across, its foot at the safe area's foot (FOOT), shrunk to fit a narrow screen (a tablet,
+## the longer French words) inside the safe area. (Placed by hand: a container would undo the scale.)
 func _fit(box: Control) -> void:
 	var insets := Device.insets()
 	var room := minf(size.x - insets.x - insets.z - 40.0, size.x * 0.7)  # never the whole width
@@ -101,7 +102,7 @@ func _fit(box: Control) -> void:
 	var k := clampf(room / maxf(need.x, 1.0), 0.1, 1.0)
 	box.size = need
 	box.pivot_offset = need / 2
-	var foot := minf(size.y * LOW, size.y - insets.w - 16.0)  # (inside the safe area at the bottom)
+	var foot := size.y - insets.w - FOOT  # (inside the safe area at the bottom)
 	var y := foot - need.y + need.y * (1.0 - k) / 2  # its foot there once shrunk round its middle
 	box.position = Vector2(insets.x + (size.x - insets.x - insets.z - need.x) / 2, y)
 	box.scale = Vector2.ONE * k
