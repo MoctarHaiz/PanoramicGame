@@ -2,22 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c0s4pt38evmmh"
-path.s3tc="res://.godot/imported/hanging.png-d7f729d4e8b6c1e6d72270b515158bee.s3tc.ctex"
-path.etc2="res://.godot/imported/hanging.png-d7f729d4e8b6c1e6d72270b515158bee.etc2.ctex"
+uid="uid://66n4368kmsei"
+path="res://.godot/imported/far_mesa_pieces.png-35156ba47fe30a69e2d41b050b35b497.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc", "etc2_astc"],
-"vram_texture": true
+"vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/art/world/hanging.png"
-dest_files=["res://.godot/imported/hanging.png-d7f729d4e8b6c1e6d72270b515158bee.s3tc.ctex", "res://.godot/imported/hanging.png-d7f729d4e8b6c1e6d72270b515158bee.etc2.ctex"]
+source_file="res://assets/art/world/far_mesa_pieces.png"
+dest_files=["res://.godot/imported/far_mesa_pieces.png-35156ba47fe30a69e2d41b050b35b497.ctex"]
 
 [params]
 
-compress/mode=2
+compress/mode=0
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -25,7 +23,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=true
+mipmaps/generate=false
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

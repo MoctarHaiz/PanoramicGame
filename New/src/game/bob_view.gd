@@ -18,6 +18,14 @@ const SPEC_AT := Vector2(-5.9, -6.4)  ## units from its middle (at SIZE): bob_sh
 const GLOW := Color(0.2, 0.0, 0.06, 0.55)  ## the ring round it (normal blend), tight so a row never merges
 const GLOW_R := 0.7  ## its reach, a share of SIZE from the middle (the ball is 0.5)
 const SPEC_K := 0.85  ## the steady specular spark on its glint
+## Round 20 (the judges, j16: "Red Bob rows run through the bandits' heads and torsos: one red-black knot at the
+## focal point"; "gems on the far ground at the background's value"): a Bob behind a bandit's drawn body dims and
+## shrinks a little (the bandit, drawn over it, reads whole; the Bob is still there to take), and every Bob has a
+## thin warm-cream ring just outside its rim, inside its dark one, so it reads as a pickup on any backdrop (the
+## acacias' crowns, the plain, the pink mesas). Their places are the rules': never moved.
+const RIM := Color(1.0, 0.9, 0.74, 0.9)
+const BEHIND_ALPHA := 0.3  ## a Bob behind a bandit: this opaque
+const BEHIND_GROW := Vector2(14.0, 24.0)  ## units a bandit's drawn body (hair, cape) reaches past its box
 
 static var _sheet: Texture2D
 static var _frame_px := 128
@@ -26,6 +34,9 @@ static var _faces := {}  # Face -> AtlasTexture
 static var _glint: Texture2D
 static var _halo: Texture2D
 static var _additive: CanvasItemMaterial
+static var _ring: Texture2D
+static var _bandits_frame := -1  # the frame _bandit_rects was worked out in (one look per frame for every Bob)
+static var _bandit_rects: Array[Rect2] = []  # round 20: the bandits' drawn bodies this frame, in level units
 
 var _sprite: Sprite2D
 var _glow: Sprite2D
@@ -40,6 +51,8 @@ var _scale := 1.0
 var _unit := 1.0  # the scale that draws it SIZE wide
 var _tilt := 0.0  # its own lean (radians): no two alike
 var _face := Face.SMILE  # its own face (round 7: a row was "identical tomatoes"): happy, laughing, winking
+var _behind := 0.0  # round 20: 1 while behind a bandit (eased)
+var _rim: Sprite2D
 
 
 static func load_art() -> void:
@@ -56,6 +69,32 @@ static func load_art() -> void:
 		_faces[f] = a
 	_glint = _make_glint()
 	_halo = _make_halo()
+	_ring = _make_ring()
+	_warm_up_world.call_deferred()  # (made and added at once, when the tree is idle: never left an orphan)
+
+
+## Round 20: the world's new shaders (the ledges' undersides, the river's columns, the campfire) drawn once,
+## nearly unseen, for half a second as soon as the Bob art is first loaded (the menu shows a Bob: the earliest
+## the game's own art is touched), so they are compiled before the level opens (~70 ms in its first frame,
+## ~85 ms the frame the home came into view). As WorldView.warm_up() does for the level's other shaders.
+static func _warm_up_world() -> void:
+	var tree := Engine.get_main_loop() as SceneTree
+	if not tree or not tree.root:
+		return
+	var holder := Node2D.new()
+	holder.name = &"WorldShaderWarmUp"
+	holder.process_mode = Node.PROCESS_MODE_ALWAYS  # (gone in half a second even if the game is paused)
+	for shader: Shader in [TerrainView.UNDERSIDE, TerrainView.SPIRE_SHADER, HomeView.Fire.FIRE_SHADER]:
+		var r := ColorRect.new()
+		r.size = Vector2.ONE
+		r.modulate.a = 0.02
+		var m := ShaderMaterial.new()
+		m.shader = shader
+		r.material = m
+		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		holder.add_child(r)
+	tree.root.add_child(holder)
+	tree.create_timer(0.5, true).timeout.connect(holder.queue_free)
 	_additive = CanvasItemMaterial.new()
 	_additive.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 
@@ -109,6 +148,10 @@ func _init(column := 0, row := 0) -> void:
 	_glow.texture = _halo
 	_glow.modulate = GLOW
 	add_child(_glow)
+	_rim = Sprite2D.new()  # round 20: the cream ring round its rim (under the ball)
+	_rim.texture = _ring
+	_rim.modulate = RIM
+	add_child(_rim)
 	_sprite = Sprite2D.new()
 	_sprite.texture = _faces[Face.SMILE]
 	_sprite.scale = Vector2.ONE * _scale
@@ -131,6 +174,7 @@ func _init(column := 0, row := 0) -> void:
 	_scale *= 0.88 + 0.22 * h
 	_tilt = (fposmod(h * 7.31, 1.0) - 0.5) * 0.7
 	_glow.scale = Vector2.ONE * (SIZE * GLOW_R * 2.0 / 64.0) * (_scale / _unit)
+	_rim.scale = Vector2.ONE * ((SIZE + 4.0) / 64.0) * (_scale / _unit)
 	_face = [Face.SMILE, Face.JOY, Face.SMILE, Face.WINK, Face.JOY][int(h * 97.0) % 5]
 	_pace = 2.6 + 1.4 * fposmod(h * 37.1, 1.0)
 	_clock = 0.0
@@ -148,6 +192,13 @@ func _process(delta: float) -> void:
 	_sprite.scale = Vector2(_scale * (1.0 + squash), _scale * (1.0 - squash)) * pulse
 	_sprite.rotation = _tilt + 0.09 * sin(_clock * 2.1 - _phase * 0.7)
 	_glow.position = _sprite.position
+	_rim.position = _sprite.position
+	_rim.scale = Vector2.ONE * ((SIZE + 4.0) / 64.0) * (_sprite.scale.x / _unit)
+	# round 20: behind a bandit it dims and shrinks a little (the bandit reads whole over it)
+	var behind := _behind_bandit()
+	_behind = move_toward(_behind, 1.0 if behind else 0.0, delta * 5.0)
+	modulate.a = lerpf(1.0, BEHIND_ALPHA, _behind)
+	scale = Vector2.ONE * lerpf(1.0, 0.82, _behind)
 	# blink every few seconds; once in a while a wink
 	var face := _face
 	if _clock >= _blink_at:
@@ -162,6 +213,51 @@ func _process(delta: float) -> void:
 	if _glint_k > 0.0:
 		_glint_k = maxf(_glint_k - delta * 1.8, 0.0)
 		_shine.queue_redraw()
+
+
+## Round 20: whether a bandit's drawn body is over this Bob now (the bandits are looked up once a frame, for
+## every Bob: WorldView holds the world, this Bob's level holds it).
+func _behind_bandit() -> bool:
+	var frame := Engine.get_process_frames()
+	if frame != _bandits_frame:
+		_bandits_frame = frame
+		_bandit_rects.clear()
+		var level := get_parent()
+		var view := level.get_parent() if level else null
+		var w: Variant = view.get("world") if view else null
+		var drawn: Variant = view.get("_bandits") if view else null  # (WorldView's: id -> its BanditView)
+		if w is World and drawn is Dictionary:
+			var world := w as World
+			for b in world.bandits:
+				var v: Node2D = drawn.get(b.id)
+				if b.gone or v == null or not v.visible or v.modulate.a < 0.3:  # (only one drawn on screen)
+					continue
+				var bx := lerpf(b.prev_x, b.x, world.alpha) if b.active else b.wait_x
+				var by := lerpf(b.prev_y, b.y, world.alpha) if b.active else b.wait_y
+				var body := World.bandit_body(b)
+				_bandit_rects.append(Rect2(bx + body.position.x, by + body.position.y, body.size.x, body.size.y)
+						.grow_individual(BEHIND_GROW.x, BEHIND_GROW.y, BEHIND_GROW.x, 4.0))
+	if _bandit_rects.is_empty():
+		return false
+	var r := SIZE * 0.4
+	var me := Rect2(position - Vector2(r, r), Vector2(r, r) * 2.0)
+	for rect in _bandit_rects:
+		if rect.intersects(me):
+			return true
+	return false
+
+
+## Round 20: a thin ring (64 px), for the cream rim just outside the ball.
+static func _make_ring() -> Texture2D:
+	var n := 64
+	var img := Image.create_empty(n, n, false, Image.FORMAT_RGBA8)
+	for y in n:
+		for x in n:
+			var r := (Vector2(x + 0.5, y + 0.5) / (n / 2.0) - Vector2.ONE).length()
+			var a := smoothstep(0.8, 0.88, r) * (1.0 - smoothstep(0.94, 1.0, r))
+			img.set_pixel(x, y, Color(1, 1, 1, a))
+	img.generate_mipmaps()
+	return ImageTexture.create_from_image(img)
 
 
 func _draw_glint() -> void:

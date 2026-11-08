@@ -4,13 +4,14 @@ extends Node2D
 ## 16 columns so the renderer batches each layer and skips what is off screen:
 ##   soil   every solid cell: terrain_shape.png for its outline and edge light, the paint from
 ##          flat cel colours in level space (terrain.gdshader; round 5: blocks of rock, ink, no texture)
-##   spires a one-cell-wide wall (the poles in the river) is a sandstone spire instead (spires.png:
-##          painted like the buttes on the horizon, a cap rock, beds of stone, a flared foot),
-##          its grass cap on top
+##   spires a one- or two-cell-wide wall (the poles in the river, the stacks on the plain) is a carved
+##          sandstone column instead (round 20: spire.gdshader, each its own), its grass cap on top
+##   (round 20: a narrow wall standing on the ground is a carved pillar in terrain.gdshader; a
+##          floating ledge's underside is painted by underside.gdshader)
 ##   (New: the sandstone chunks that jutted from walls are gone: they read as a zipper;
 ##          terrain.gdshader erodes a wall's sides instead. The banks of the pools slope into the
 ##          water in water.gdshader.)
-##   mass   (round 2) the earth and rock a floating ledge carries under it, deepest under its middle
+##   mass   (round 2) the rock a floating ledge carries under it, deepest under its middle
 ##   under  (round 4: no longer drawn: the masses make a ledge's underside)
 ##   caps   the grass along every walkable top (grass_cap.png), rounded ends wrapping the corners
 ##   roots  roots reaching into the soil under the grass
@@ -46,18 +47,13 @@ const CAST_K := 0.75  ## its length per unit of the wall's height (a low sun)
 const DRAPE := Vector2(30, 50)  ## grass_drape.png: two pieces (left side, right side), each this size
 const DRAPE_IN := 8.0  ## units of a drape over its own cell (the rest hangs past the open side)
 const DRAPE_TOP := 12.0  ## units of a drape above the grass surface
-const SPIRE := Vector2(96, 560)  ## spires.png: three spires side by side, each this size (round 2: taller, no stretch)
-## Round 19 (kie.ai, tools/art/world_rock.py; "the same thin cardboard column twice with broccoli hats, no
-## base"): sandstone shafts painted like the mesas, their own top the walkable cap under a slim mat of grass
-## (no drapes), each standing on its flared foot and fallen boulders (spire_feet.png) at the waterline or on
-## the ground it rises from. spires.json: units of shaft in each picture (a taller pillar stretches it).
-const SPIRE_FOOT := Vector2(96, 64)
-const SPIRE_TINT := Color(0.86, 0.72, 0.72)  ## (near: deeper and richer than the far mesas, not their pale twin)
+## Round 20: a one- or two-cell-wide stack (the poles in the river, the stacks on the plain) is a carved column
+## painted by spire.gdshader (round 19's spires.png and spire_feet.png pictures are gone), its slim grass mat on top.
+const SPIRE_SHADER := preload("res://src/game/spire.gdshader")
 const FOOT_SINK := 24.0  ## units its foot reaches under the waterline / into the ground
-const MASS := Vector2(256, 128)  ## hanging.png: masses of rock hanging under a ledge, each this size
-const MASS_VARIANTS := 4
-const MASS_INSET := 40.0  ## units the masses stay in from a ledge's ends (its taper cuts up to ~34)
-const MASS_TINT := Color(0.84, 0.76, 0.8)  ## (the underside is in the island's own shade: below the plain's light)
+const MASS := Vector2(256, 128)  ## (round 19's hanging.png masses: their size still sets how deep an underside hangs)
+const UNDERSIDE := preload("res://src/game/underside.gdshader")
+const MASS_INSET := 40.0  ## a ledge shorter than twice this (and 24 units) has no underside
 const MASS_TOP := 7.0  ## units under the grass surface where a mass's straight top joins the ledge (under the mat)
 const NARROW_CELLS := 6  ## a wall at most this many cells wide is a pillar (shaded as a column to its foot)
 const DIR := "res://assets/art/world/"
@@ -78,7 +74,7 @@ var _cols := 0
 var _map: Level  # the map prepare() reads (on a worker thread: level is set only once build() runs)
 var _prepared := false
 var _depth_px := PackedByteArray()
-var _spire_len := PackedFloat32Array([560.0, 560.0, 560.0])  # units of shaft in each picture (spires.json)
+var _white: Texture2D  # round 20: the undersides' and columns' rectangles (their shaders paint them)
 
 
 class Batch extends Node2D:
@@ -139,12 +135,15 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 	if not _prepared:
 		prepare(lvl, first_col, end_col)
 	level = lvl
+	var white := Image.create_empty(4, 4, false, Image.FORMAT_RGBA8)
+	white.fill(Color.WHITE)
+	_white = ImageTexture.create_from_image(white)
 	var soil := ShaderMaterial.new()
 	soil.shader = preload("res://src/game/terrain.gdshader")
 	var sway := ShaderMaterial.new()
 	sway.shader = preload("res://src/game/sway.gdshader")
 	# (round 9: the masses over the soil: their top fades into the ledge, its underside line hidden)
-	for name: StringName in [&"soil", &"mass", &"spires", &"feet", &"roots", &"caps", &"ends", &"tufts", &"drape", &"foot", &"cast"]:
+	for name: StringName in [&"soil", &"mass", &"spires", &"roots", &"caps", &"ends", &"tufts", &"drape", &"foot", &"cast"]:
 		var layer := Node2D.new()
 		layer.name = name
 		add_child(layer)
@@ -164,12 +163,7 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 		&"ends": load(DIR + "grass_ends.png"), &"tufts": load(DIR + "tufts.png"),
 		&"front": load(DIR + "front_grass.png"), &"foot": soft_disc(), &"cast": cast_shade(),
 		&"drape": load(DIR + "grass_drape.png"),
-		&"spires": load(DIR + "spires.png"), &"mass": load(DIR + "hanging.png"),
-		&"feet": load(DIR + "spire_feet.png"),
 	}
-	var info: Variant = JSON.parse_string(FileAccess.get_file_as_string(DIR + "spires.json"))
-	if info is Dictionary:
-		_spire_len = PackedFloat32Array(info["length"])
 	textures[&"front_cast"] = textures[&"cast"]
 	_textures = textures
 
@@ -237,31 +231,38 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 	var pole := _in_pole(c, r)
 	if pole and open_n and (span / 10000 == 1 or span / 10000 == 2):  # the stack, from its top into the
 		# ground it stands on (or the river); two cells wide: drawn wider from the left one
-		var v := posmod(c + roundi(c / 9.0), 3)  # (round 9: neighbours in the river never twins)
-		var end := span % 100
+		# round 20 (the judges, j16: "the two river pillars identical chimneys"; spires.png read as cardboard with
+		# ruled lines): a carved column painted by spire.gdshader, each its own width, waist, chips, ledge and tint
 		var w := float(span / 10000)
-		var width := SPIRE.x * (1.0 if w == 1.0 else 1.7) * (0.86 + 0.34 * _hash(c, 21, 100) / 100.0)  # (round 6: each its own width)
-		var k := width / SPIRE.x
+		var end := span % 100
+		var half_w := T * 0.5 * w * (0.95 + 0.9 * _hash(c, 21, 100) / 100.0)
 		# its foot: at the waterline in the river, on the ground under a stack, none over a pit
 		var river := end >= Level.ROWS and _kind(c - 1, Level.ROWS - 2) == Level.Kind.WATER
 		var base := (Level.ROWS - 2) * T + 8.0 if river else end * T + 4.0
 		var footed := river or end < Level.ROWS
-		var h := (base - y) + (8.0 if footed else 40.0)
-		var length := _spire_len[v]
-		var rect := Rect2(x + T * w / 2 - width / 2, y - 3.0, width, h)
-		# (round 9: never mirrored: the sun stays on their left; a pillar taller than its picture stretches it)
-		b[&"spires"].items.append([rect, Rect2(v * SPIRE.x * PX, 0, SPIRE.x * PX, minf(h, length) * PX), SPIRE_TINT])
-		if footed:
-			var fs := SPIRE_FOOT * k
-			b[&"feet"].items.append([Rect2(x + T * w / 2 - fs.x / 2, base + FOOT_SINK - fs.y, fs.x, fs.y),
-					Rect2(v * SPIRE_FOOT.x * PX, 0, SPIRE_FOOT.x * PX, SPIRE_FOOT.y * PX), SPIRE_TINT])
+		var top := y - 3.0
+		var h := (base - top) + (FOOT_SINK + 10.0 if river else (8.0 if footed else 40.0))
+		var room := half_w * 3.0 + 56.0  # (its flared foot, its lean and a ledge reach out past its shaft)
+		var rock := UnderRock.new()
+		rock.white = _white
+		rock.rect = Rect2(x + T * w / 2 - room / 2, top, room, h)
+		var m := ShaderMaterial.new()
+		m.shader = SPIRE_SHADER
+		m.set_shader_parameter(&"size", rock.rect.size)
+		m.set_shader_parameter(&"half_w", half_w)
+		m.set_shader_parameter(&"water_y", (Level.ROWS - 2) * T + 7.0 - top if river else -1.0)
+		m.set_shader_parameter(&"foot_y", base - top)
+		m.set_shader_parameter(&"level_x", rock.rect.position.x)
+		m.set_shader_parameter(&"seed", float(_hash(c, 31, 997)) + 1.0)
+		rock.material = m
+		_layers[&"spires"].add_child(rock)
 	if not pole:
 		b[&"soil"].items.append([Rect2(x, y, T, T),
 				Rect2(mask * SHAPE_STRIDE + 4.0, variant * SHAPE_STRIDE + 4.0, 64, 64), Color.WHITE])
 	# (round 4: no more strip of earth under a ledge's cells: it stopped square before the ledge's
 	# rounded ends; the masses below and the ledge's own shade make its underside)
 	if open_s and not pole and not (solid(c - 1, r) and not solid(c - 1, r + 1)):
-		_hang_masses(c, r, b[&"mass"], b[&"foot"])
+		_hang_masses(c, r, b[&"foot"])
 	if not open_n and _wall_foot(c, r):  # (round 2) the ground's grass runs on across a wall's foot
 		b[&"caps"].items.append([Rect2(x, y - CAP_ABOVE, T, CAP_H),
 				Rect2(fposmod(x * PX, STRIP), 0, T * PX, CAP_H * PX), Color.WHITE])
@@ -274,15 +275,25 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 	if not open_w and not open_e:
 		b[&"caps"].items.append([Rect2(x, y - CAP_ABOVE, T, CAP_H),
 				Rect2(_strip_x(c, x), 0, T * PX, CAP_H * PX), _grass_tone(c)])
+	elif not (open_w and open_e) and not _in_pole(c, r):
+		# round 20: the turf runs on under a rounded end, short of its corner (the end's curl hides where it
+		# stops): the strip's fringe stopped square at the end cell, the rock under the end bare and dark
+		var inset := 10.0
+		var x0 := x + (inset if open_w else 0.0)
+		var w := T - inset
+		b[&"caps"].items.append([Rect2(x0, y - CAP_ABOVE, w, CAP_H),
+				Rect2(_strip_x(c, x0), 0, w * PX, CAP_H * PX), _grass_tone(c)])
 	var pole_top := pole and open_w and open_e  # round 19: a pillar's cap: a slim mat, no hat
-	if pole_top:
-		var out := 7.0  # units it reaches past each side
-		var k := 0.72  # (shorter blades, a thinner mat)
-		var top := y - CAP_ABOVE * k
-		b[&"ends"].items.append([Rect2(x - out, top, out + T / 2, END_H * k),
-				Rect2((END_OUT - out) * PX, 0, (out + T / 2) * PX, END_H * PX), Color.WHITE])
-		b[&"ends"].items.append([Rect2(x + T / 2, top, out + T / 2, END_H * k),
-				Rect2((END_W + END_FADE + T / 2) * PX, 0, (out + T / 2) * PX, END_H * PX), Color.WHITE])
+	if pole_top:  # round 20: a slim turf across the column's top and a clump of grass on it (the rounded
+		# ends read as a lime box on the river's columns)
+		var k := 0.72
+		var reach := 3.0  # (its band and fringe only: the clump is its blades)
+		b[&"caps"].items.append([Rect2(x - reach, y, T + reach * 2.0, (CAP_H - CAP_ABOVE) * k),
+				Rect2(_strip_x(c, x), CAP_ABOVE * PX, (T + reach * 2.0) * PX, (CAP_H - CAP_ABOVE) * PX), _grass_tone(c)])
+		var v: int = [0, 2, 6, 7][_hash(c, r + 3, 4)]
+		var tw := TUFT.x * 0.8
+		b[&"tufts"].items.append([Rect2(x + T / 2 - tw / 2 + float(_hash(c, r + 1, 9)) - 4.0, y - TUFT.y * 0.8 + 6.0, tw, TUFT.y * 0.8),
+				Rect2(v * TUFT.x * PX, 0, TUFT.x * PX, TUFT.y * PX), Color(0.92, 0.94, 0.9)])
 	elif open_w:
 		b[&"ends"].items.append([Rect2(x - END_OUT, y - CAP_ABOVE, END_W, END_H),
 				Rect2(0, 0, END_W * PX, END_H * PX), Color.WHITE])
@@ -320,21 +331,27 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 					Color(CAST_SHADE, CAST_SHADE.a * 0.45)])  # (trimmed: only the blades' lower half)
 	b[&"front"].items.append([Rect2(x, y - FRONT_BASE + 4.0, T, FRONT_H),
 			Rect2(fposmod(x * PX, 1024.0), 0, T * PX, FRONT_H * PX), Color.WHITE])
-	# some tops get a clump of grass or flowers (never on the edge cells)
-	if not open_w and not open_e and _hash(c, r + 7, 100) < 30:
+	# some tops get a clump of grass or flowers (never on the edge cells); round 20 (the judges, j16: "the ground
+	# a straight band"): more of them, each its own size, in runs that come and go, so the grass line along the
+	# top rises and falls (drawn only: the ground he runs on is where it was)
+	var run := smoothstep(0.35, 0.65, float(_hash(floori(c / 5.0), r + 41, 100)) / 100.0)
+	if not open_w and not open_e and _hash(c, r + 7, 100) < 22 + roundi(30.0 * run):
 		var v := _hash(c + 3, r, 8)
 		var dx := float(_hash(c, r + 1, 17)) - 8.0
-		b[&"tufts"].items.append([Rect2(x + T / 2 - TUFT.x / 2 + dx, y - TUFT.y + 6.0, TUFT.x, TUFT.y),
+		var k := 0.72 + 0.6 * _hash(c, r + 43, 100) / 100.0
+		var size := TUFT * k
+		b[&"tufts"].items.append([Rect2(x + T / 2 - size.x / 2 + dx, y - size.y + 6.0 * k, size.x, size.y),
 				Rect2(v * TUFT.x * PX, 0, TUFT.x * PX, TUFT.y * PX), Color.WHITE])
 
 
-## Round 2: under a floating ledge (from its left end, cell c of row r), the rock it carries (hanging.png):
+## Round 2: under a floating ledge (from its left end, cell c of row r), the rock it carries (round 20: painted
+## by underside.gdshader):
 ## biggest under its middle, smaller to its ends, so it reads as a floating island; never down into what lies
 ## under it. Round 19 (kie.ai masses: big planes of the mesas' sandstone, strata, roots and loose stones; "a
 ## grid of same-size hexagons"): fewer, wider masses that overlap into one body, their straight tops joining
 ## the ledge under its grass mat; a second, smaller rank behind them in the shade (no row of teeth); the
 ## ledge's soft shadow on the ground under it.
-func _hang_masses(c: int, r: int, batch: Batch, batch_shadow: Batch) -> void:
+func _hang_masses(c: int, r: int, batch_shadow: Batch) -> void:
 	var n := 0
 	while n < 60 and solid(c + n, r) and not solid(c + n, r + 1):
 		n += 1
@@ -362,27 +379,34 @@ func _hang_masses(c: int, r: int, batch: Batch, batch_shadow: Batch) -> void:
 		var sw := length * 0.95 + 40.0
 		batch_shadow.items.append([Rect2(sx - sw / 2, ground_r * T - 16.0, sw, 34.0), Rect2(0, 0, 64, 64),
 				Color(0.12, 0.06, 0.16, clampf(0.62 - drop / 900.0, 0.24, 0.56))])
-	var count := maxi(1, roundi(length / 250.0))
-	var span := x1 - x0
-	# the rank behind: smaller, darker, between the front ones (the underside reads as one lumpy body)
-	if count > 1:
-		for i in count - 1:
-			var u := (i + 1.0) / count
-			var width := minf(span / count * 1.3, 340.0)
-			var cx := x0 + u * span + (_hash(c + i, r + 14, 100) - 50.0) * 0.4
-			var v := _hash(c + i, r + 11, MASS_VARIANTS)
-			var rect := Rect2(cx - width / 2, top + 2.0, width, deepest * (0.55 + 0.25 * _hash(c + i, r + 12, 100) / 100.0))
-			batch.items.append([rect, Rect2(v * MASS.x * PX, 0, MASS.x * PX, MASS.y * PX), Color(0.5, 0.44, 0.58)])
-	for i in count:
-		var u := (i + 0.5) / count
-		var k := 0.62 + 0.38 * pow(sin(PI * u), 0.6) if count > 1 else 1.0
-		k *= 0.86 + 0.28 * _hash(c + i, r + 15, 100) / 100.0  # (each its own depth: no even rhythm)
-		var width := minf(span / count * 1.9 + 40.0, 520.0) * (0.8 + 0.2 * k)
-		width = minf(width, span)
-		var cx := clampf(x0 + u * span + (_hash(c + i, r + 16, 100) - 50.0) * 0.5, x0 + width / 2, x1 - width / 2)
-		var v := _hash(c + i, r, MASS_VARIANTS)
-		var rect := Rect2(cx - width / 2, top, width, deepest * k + 6.0)  # (never mirrored: lit from the left)
-		batch.items.append([rect, Rect2(v * MASS.x * PX, 0, MASS.x * PX, MASS.y * PX), MASS_TINT])
+	# round 20 (the judges, j16: "cracked flat slabs with crude outlines, a broken biscuit"): one underside
+	# painted for the whole ledge (underside.gdshader): its front face under the grass mat, big planes, a dark
+	# core, drips and roots; from end to end of the ledge (its ends taper into the soil's rounded ends)
+	var rock := UnderRock.new()
+	rock.white = _white
+	var x_left := c * T + 2.0
+	var x_right := (c + n) * T - 2.0
+	var lip := 40.0 + (r - top_row) * 12.0  # (its front face: what shows under the grass mat, more on a thick ledge)
+	var depth := lip + minf((deepest - (r - top_row) * T) * 0.9, length * 0.3)  # (a short ledge: a shallow body, no spike)
+	var room := 54.0  # (under its lowest corner: its drips and roots)
+	rock.rect = Rect2(x_left, top, x_right - x_left, depth + room)
+	var m := ShaderMaterial.new()
+	m.shader = UNDERSIDE
+	m.set_shader_parameter(&"size", rock.rect.size)
+	m.set_shader_parameter(&"deepest", depth)
+	m.set_shader_parameter(&"lip", lip)
+	m.set_shader_parameter(&"seed", float(_hash(c, r, 997)) + 1.0)
+	rock.material = m
+	_layers[&"mass"].add_child(rock)
+
+
+## Round 20: a ledge's underside: one rectangle drawn with underside.gdshader (its own material: its size and seed).
+class UnderRock extends Node2D:
+	var rect: Rect2
+	var white: Texture2D  # (TerrainView's: a 4 px white picture, its UV 0..1 over the rectangle)
+
+	func _draw() -> void:
+		draw_texture_rect(white, rect, false)
 
 
 ## A cell at the ground line under a wall: a run of cells with a wall over them (at most 16), with

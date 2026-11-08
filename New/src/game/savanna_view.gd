@@ -36,11 +36,27 @@ const SKY_DRIFT := 2.5
 
 ## Strips that repeat left to right: texture, scroll factor, bottom y, units per texture pixel.
 const STRIPS := {
-	&"far_mesas": [0.035, 486.0, 1.0],
 	&"far_hills": [0.07, 548.0, 1.0],
 	&"mid_hills": [0.15, 648.0, 1.0],
 	&"near_grass": [0.42, 646.0, 0.5],
 }
+## Round 20 (the judges, j16: "the same mesa shape x4, no atmospheric layering"): the escarpments placed one
+## landform at a time (far_mesa_pieces.png, tools/art/world_mesas.py) in two rows: scroll factor, bottom y,
+## scale range, haze amount, foot haze, haze colour, tint. The far row smaller, paler and cooler (some mirrored:
+## its light is lost in the haze); the near row bigger, warmer and darker, never mirrored (lit from the left).
+const MESA_ROWS := [
+	[0.022, 470.0, Vector2(0.5, 0.74), 0.36, 0.22, Color(0.7, 0.73, 0.88), Color(1, 1, 1)],
+	[0.038, 494.0, Vector2(0.86, 1.2), 0.08, 0.3, Color(0.6, 0.56, 0.7), Color(0.98, 0.92, 0.88)],
+]
+const MESA_SLOTS := 7  ## landforms in a row before its order repeats
+## Round 20 (the judges, j16: "home all orange, no cool complement: the hero melts into the backdrop"): over the
+## last stretch to home dusk falls: the sky cools from the top to a blue-violet, the escarpments and the far
+## plain to rose and mauve (each multiplied by these, as `dusk` goes 0 -> 1); the warm hut, fire and hero stand
+## out against it.
+const DUSK_HIGH := Color(0.56, 0.6, 1.0)
+const DUSK_LOW := Color(0.8, 0.74, 0.96)
+const DUSK_MESAS := [Color(0.7, 0.72, 1.0), Color(0.74, 0.66, 0.92)]
+const DUSK_STRIPS := {&"far_hills": Color(0.78, 0.78, 1.0), &"mid_hills": Color(0.9, 0.86, 0.98)}
 ## Tree rows: scroll factor, spacing (level units of that layer), size (of the picture's height in
 ## units), ground y, haze, foot haze, share of empty slots, haze colour (the far rows sink into the
 ## cool blue of distance, the near one into the warm air at the horizon).
@@ -60,11 +76,12 @@ const TREE_TINT := [Color(1, 1, 1), Color(0.76, 0.7, 0.6), Color(0.72, 0.66, 0.5
 const ANIMALS := [Rect2(0, 0, 140, 220), Rect2(140, 12, 128, 208), Rect2(268, 68, 220, 152), Rect2(488, 132, 300, 88)]
 const CLOUD_SHADOW_GAP := 700.0  ## round 10: units of the plain between two clouds' shadows
 const FRONT_SCROLL := 1.35  ## the foreground grass moves faster than the ground
-const FRONT_PROP_SCROLL := 1.6  ## round 9: the big things in front, nearer still
+const FRONT_PROP_SCROLL := 1.45  ## round 9: the big things in front, nearer still (round 20: 1.6 -> 1.45: longer in the corner)
 const FRONT_PROP := Vector2(260, 190)  ## one piece of fg_props.png (units, 1 px a unit)
 const FRONT_PIECES := 4  ## tall grass, an aloe, a fallen log, a bush
-const FRONT_PROP_GAP := 760.0  ## units of the foreground between two of them (some left open)
-const FRONT_DROP := 12.0  ## units its picture reaches below the bottom of the screen
+const FRONT_PROP_GAP := 420.0  ## units of the foreground between two of them (some left open)
+const FRONT_ZONE := 95.0  ## round 20: they show only this far and more behind him (the corner behind his back)
+const FRONT_DROP := 4.0  ## units its picture reaches below the bottom of the screen (round 20: 12 -> 4, fg_grass.png keeps every shape 2+ units under the ground line)
 
 ## Play units visible left of the play window and the visible width (set by WorldView).
 var view_left := 0.0
@@ -78,6 +95,10 @@ var _tree_anchor: Array[float] = []
 var _painters: Array[Node2D] = []
 var front: Node2D  ## the foreground grass (WorldView adds it above the actors)
 var hero_x := -999.0  ## round 7: his play x (WorldView): the near trees fade where they pass behind him
+var dusk := 0.0  ## round 20: 0..1, how far dusk has fallen (the last stretch to home)
+var _mesa_src: Array[Rect2] = []  # round 20: each landform in far_mesa_pieces.png
+var _mesa_slots := []  # per row: [[piece, x, scale, mirrored, height factor], ...] (units of that row)
+var _mesa_span: Array[float] = []  # per row: units before its order repeats
 
 
 class Painter extends Node2D:
@@ -88,7 +109,7 @@ class Painter extends Node2D:
 
 
 func _ready() -> void:
-	for name in ["sky", "sun", "sun_halo", "rays", "far_mesas", "far_hills", "mid_hills", "near_grass", "haze",
+	for name in ["sky", "sun", "sun_halo", "rays", "far_mesa_pieces", "far_hills", "mid_hills", "near_grass", "haze",
 			"mote", "bird"]:
 		_tex[StringName(name)] = load(DIR + name + ".png")
 	var info: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(DIR + "tree_info.json"))
@@ -104,7 +125,10 @@ func _ready() -> void:
 	_painter(_draw_sun.bind(true)).material = add  # added, orange on blue made it a grey-white disc)
 	# (world redraw: the clouds are painted in the sky now, the drifting cloud sprites are gone)
 	# (round 9: the mesas' feet in cool air, not pale milk: the middle of the screen read washed out)
-	_painter(_draw_strip.bind(&"far_mesas"), true).material = _haze([0, 0, 0, 0, 0.0, 0.22, 0, Color(0.5, 0.5, 0.68)])  # (round 12: lighter: "washed by haze")
+	_place_mesas()
+	for row in MESA_ROWS.size():  # (round 20: two rows of landforms, the far one paler and cooler)
+		var m: Array = MESA_ROWS[row]
+		_painter(_draw_mesas.bind(row)).material = _haze([0, 0, 0, 0, m[3], m[4], 0, m[5]], m[6])
 	_painter(_draw_band.bind(470.0, 110.0, 0.035))  # (round 4: haze only around the far layers; round 9: fainter)
 	# (round 9: the far hills slate blue and darker: they were the pale milky band)
 	# (world redraw: the new far plain is painted pale: a little darker and cooler, not a milky band)
@@ -155,8 +179,15 @@ func _haze(row: Array, tint := Color.WHITE) -> ShaderMaterial:
 
 func _process(delta: float) -> void:
 	_clock += delta
+	# round 20: dusk falls over the last stretch to home
+	dusk = smoothstep(HomeView.LEFT - 1800.0, HomeView.LEFT - 150.0, scroll)
 	for p in _painters:
 		p.queue_redraw()
+
+
+## Round 20: the dusk's colour over a layer (white: none).
+func _dusk(c: Color) -> Color:
+	return Color.WHITE.lerp(c, dusk)
 
 
 func _x0() -> float:
@@ -188,13 +219,21 @@ func _draw_sky(ci: CanvasItem) -> void:
 	var src := Rect2(fposmod((scroll * SKY_SCROLL + _clock * SKY_DRIFT + x0) / k, sky.get_width()), 0, w / k, sky.get_height())
 	if view_top - 2.0 < SKY_RECT.x:  # mirrored about its top edge
 		ci.draw_set_transform(Vector2(0.0, 2.0 * SKY_RECT.x + 1.0), 0.0, Vector2(1.0, -1.0))
-		ci.draw_texture_rect_region(sky, Rect2(x0, SKY_RECT.x, w, SKY_RECT.y), src)
+		ci.draw_texture_rect_region(sky, Rect2(x0, SKY_RECT.x, w, SKY_RECT.y), src, _dusk(DUSK_HIGH))
 		ci.draw_set_transform_matrix(Transform2D.IDENTITY)
-	ci.draw_texture_rect_region(sky, Rect2(x0, SKY_RECT.x, w, SKY_RECT.y), src)
+	# (round 20: at dusk, near home, the sky cools from the top: a blue-violet over the warm horizon)
+	var size := sky.get_size()
+	var uv0 := src.position / size
+	var uv1 := src.end / size
+	var top := _dusk(DUSK_HIGH)
+	var low := _dusk(DUSK_LOW)
+	ci.draw_polygon(PackedVector2Array([Vector2(x0, SKY_RECT.x), Vector2(x0 + w, SKY_RECT.x), Vector2(x0 + w, SKY_RECT.x + SKY_RECT.y),
+			Vector2(x0, SKY_RECT.x + SKY_RECT.y)]), PackedColorArray([top, top, low, low]),
+			PackedVector2Array([uv0, Vector2(uv1.x, uv0.y), uv1, Vector2(uv0.x, uv1.y)]), sky)
 	var bottom := SKY_RECT.x + SKY_RECT.y
 	if bottom < World.VIEW_H + 4.0:
 		ci.draw_texture_rect_region(sky, Rect2(x0, bottom - 1.0, w, World.VIEW_H + 5.0 - bottom),
-				Rect2(src.position.x, sky.get_height() - 1, src.size.x, 1))
+				Rect2(src.position.x, sky.get_height() - 1, src.size.x, 1), low)
 
 
 ## The sun: its golden halo laid over the sky (`bloom` false), then its hot disc and bloom added.
@@ -202,9 +241,9 @@ func _draw_sun(ci: CanvasItem, bloom: bool) -> void:
 	var s := SUN_SIZE * (1.0 + sin(_clock * 0.7) * 0.012)
 	if bloom:  # (round 10: softer, warmer: "a hard white disc"; round 19: out of the picture, its glow a
 		# wide soft warmth in the corner, never brighter than the lit clouds)
-		ci.draw_texture_rect(_tex[&"sun"], Rect2(_sun() - Vector2(s, s) * 0.5, Vector2(s, s) * 1.0), false, Color(1, 0.8, 0.52, 0.42))
+		ci.draw_texture_rect(_tex[&"sun"], Rect2(_sun() - Vector2(s, s) * 0.5, Vector2(s, s) * 1.0), false, Color(1, 0.8, 0.52, 0.42 * (1.0 - 0.5 * dusk)))
 	else:
-		ci.draw_texture_rect(_tex[&"sun_halo"], Rect2(_sun() - Vector2(s, s) * 0.6, Vector2(s, s) * 1.2), false, Color(1, 0.84, 0.6, 0.6))
+		ci.draw_texture_rect(_tex[&"sun_halo"], Rect2(_sun() - Vector2(s, s) * 0.6, Vector2(s, s) * 1.2), false, Color(1, 0.84, 0.6, 0.6 * (1.0 - 0.5 * dusk)))
 
 
 ## God rays fanning from the sun to the lower right, breathing slowly.
@@ -213,6 +252,59 @@ func _draw_rays(ci: CanvasItem) -> void:
 	var k := 1.2
 	var a := 0.2 + 0.04 * sin(_clock * 0.45) + 0.02 * sin(_clock * 1.13)
 	ci.draw_texture_rect(tex, Rect2(_sun() - RAYS_ORIGIN * k, RAYS_SIZE * k), false, Color(1, 1, 1, a))
+
+
+## Round 20: each row's order of landforms, worked out once: never the same one twice in a row (nor across
+## the repeat), each its own size, overlapping a little or with a stretch of plain between.
+func _place_mesas() -> void:
+	var info: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(DIR + "far_mesa_pieces.json"))
+	var h := float(info["height"])
+	for p: Array in info["pieces"]:
+		_mesa_src.append(Rect2(float(p[0]), 0.0, float(p[1]), h))
+	for row in MESA_ROWS.size():
+		var scales: Vector2 = MESA_ROWS[row][2]
+		var slots := []
+		var x := 0.0
+		var prev := -1
+		var first := -1
+		for i in MESA_SLOTS:
+			var piece := int(_hash(i * 37 + row * 101 + 5) * _mesa_src.size()) % _mesa_src.size()
+			while piece == prev or (i == MESA_SLOTS - 1 and piece == first):
+				piece = (piece + 1) % _mesa_src.size()
+			if i == 0:
+				first = piece
+			prev = piece
+			var k := lerpf(scales.x, scales.y, _hash(i * 13 + row * 57 + 2))
+			if _mesa_src[piece].size.x > 500.0:
+				k *= 0.82  # (the long plateau: never a wall across the whole view)
+			var mirrored := row == 0 and _hash(i * 19 + row * 7 + 3) < 0.4
+			# (its own proportions too: a butte stands taller or squats wider, so no two read as twins)
+			var tall := 0.74 + _hash(i * 29 + row * 11 + 4) * 0.46
+			slots.append([piece, x, k, mirrored, tall])
+			x += _mesa_src[piece].size.x * k * (0.78 + _hash(i * 23 + row * 3 + 9) * 0.4)
+		_mesa_slots.append(slots)
+		_mesa_span.append(x)
+
+
+func _draw_mesas(ci: CanvasItem, row: int) -> void:
+	var tex: Texture2D = _tex[&"far_mesa_pieces"]
+	var m: Array = MESA_ROWS[row]
+	var x0 := _x0()
+	var x1 := _x1()
+	var offset := scroll * float(m[0]) + (900.0 if row == 0 else 0.0)  # (the rows never line up)
+	var span: float = _mesa_span[row]
+	var bottom: float = m[1]
+	for cycle in range(floori((x0 + offset) / span) - 1, floori((x1 + offset) / span) + 1):
+		for slot: Array in _mesa_slots[row]:
+			var src: Rect2 = _mesa_src[slot[0]]
+			var k: float = slot[2]
+			var ky: float = k * float(slot[4])
+			var rect := Rect2(cycle * span + float(slot[1]) - offset, bottom - src.size.y * ky, src.size.x * k, src.size.y * ky)
+			if rect.end.x < x0 or rect.position.x > x1:
+				continue
+			if slot[3]:
+				rect.size.x = -rect.size.x  # mirrored in place
+			ci.draw_texture_rect_region(tex, rect, src, _dusk(DUSK_MESAS[row]))
 
 
 func _draw_strip(ci: CanvasItem, name: StringName) -> void:
@@ -224,12 +316,15 @@ func _draw_strip(ci: CanvasItem, name: StringName) -> void:
 	var h := tex.get_height() * k
 	var src_x := fposmod((scroll * s[0] + x0) / k, tex.get_width())
 	ci.draw_texture_rect_region(tex, Rect2(x0, s[1] - h, x1 - x0, h),
-			Rect2(src_x, 0, (x1 - x0) / k, tex.get_height()))
+			Rect2(src_x, 0, (x1 - x0) / k, tex.get_height()), _dusk(DUSK_STRIPS.get(name, Color.WHITE)))
 
 
-## The foreground grass along the bottom edge; round 9: and now and then a big thing near the camera
-## passing (fg_props.png: tall grass, an aloe, a log, a bush), faster still, never over him (it
-## fades where it passes in front of him).
+## The foreground grass along the bottom edge (round 20: taller, denser, its top rising and falling, never
+## over the ground line he runs on); round 9: and the big things near the camera (fg_props.png: tall grass,
+## an aloe, a log, a bush), faster still. Round 20 (the judges, j16: "no foreground framing layer, a flat
+## stage"; they faded only near him, so they covered the bandits' feet and the ground edge): the big things
+## rise into view only in the corner behind him (left of FRONT_ZONE units before him), framing the shot there;
+## anywhere else they are not drawn (they fade out as they pass into his space).
 func _draw_front(ci: CanvasItem) -> void:
 	var tex: Texture2D = _tex[&"fg_grass"]
 	var x0 := _x0()
@@ -240,18 +335,20 @@ func _draw_front(ci: CanvasItem) -> void:
 			Rect2(src_x, 0, x1 - x0, h))
 	var props: Texture2D = _tex[&"fg_props"]
 	var offset := scroll * FRONT_PROP_SCROLL
+	var zone := hero_x - FRONT_ZONE  # play x: right of this, nothing rises over the ground line
 	var first := floori((x0 + offset) / FRONT_PROP_GAP) - 1
 	for i in range(first, first + int((x1 - x0) / FRONT_PROP_GAP) + 3):
-		if _hash(i * 13 + 7) < 0.4:  # open stretches between them
+		if _hash(i * 13 + 7) < 0.25:  # open stretches between them
 			continue
-		var k := 0.7 + _hash(i * 7 + 3) * 0.3
+		var k := 0.82 + _hash(i * 7 + 3) * 0.3
 		var size := FRONT_PROP * k
 		var cx := i * FRONT_PROP_GAP + _hash(i * 5 + 1) * FRONT_PROP_GAP * 0.5 - offset
-		# (a third of it under the bottom edge: it rises at most ~45 units over the ground line)
-		var rect := Rect2(cx - size.x / 2, World.VIEW_H + FRONT_DROP + 6.0 - size.y * 0.65, size.x, size.y)
+		var rect := Rect2(cx - size.x / 2, World.VIEW_H + FRONT_DROP + 6.0 - size.y * 0.8, size.x, size.y)
 		if rect.end.x < x0 or rect.position.x > x1:
 			continue
-		var fade := 0.3 + 0.7 * smoothstep(size.x * 0.3, size.x * 0.3 + 120.0, absf(cx - hero_x))
+		var fade := 1.0 - smoothstep(zone - 70.0, zone, rect.end.x - size.x * 0.25)
+		if fade <= 0.01:
+			continue
 		if _hash(i * 11 + 4) < 0.5:
 			rect.size.x = -rect.size.x  # mirrored in place
 		var piece := posmod(int(_hash(i * 3 + 9) * FRONT_PIECES), FRONT_PIECES)
@@ -261,7 +358,7 @@ func _draw_front(ci: CanvasItem) -> void:
 ## Round 3: the low sun warming the grass behind the runners: the play lane is the brightest band,
 ## dark bandits and the hero stand out against it.
 func _draw_lane(ci: CanvasItem) -> void:  # (round 9: lower and fainter: it whitened the far plain)
-	ci.draw_texture_rect(_tex[&"haze"], Rect2(_x0(), 540.0, _x1() - _x0(), 90.0), false, Color(1.0, 0.7, 0.36, 0.13))
+	ci.draw_texture_rect(_tex[&"haze"], Rect2(_x0(), 540.0, _x1() - _x0(), 90.0), false, Color(1.0, 0.7, 0.36, 0.13 * (1.0 - 0.7 * dusk)))
 
 
 ## Round 10 ("a flat olive band"): the shadows of the clouds lying across the plain, long and soft,

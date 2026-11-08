@@ -2,22 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c3onfa0unkuov"
-path.s3tc="res://.godot/imported/spire_feet.png-0917632068f4fd871d380501ef0d521d.s3tc.ctex"
-path.etc2="res://.godot/imported/spire_feet.png-0917632068f4fd871d380501ef0d521d.etc2.ctex"
+uid="uid://b3uydvdyr1yfv"
+path="res://.godot/imported/far_mesas_strip.png-f688215b04414f010ca837dba8addc77.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc", "etc2_astc"],
-"vram_texture": true
+"vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/art/world/spire_feet.png"
-dest_files=["res://.godot/imported/spire_feet.png-0917632068f4fd871d380501ef0d521d.s3tc.ctex", "res://.godot/imported/spire_feet.png-0917632068f4fd871d380501ef0d521d.etc2.ctex"]
+source_file="res://tools/art/ref/far_mesas_strip.png"
+dest_files=["res://.godot/imported/far_mesas_strip.png-f688215b04414f010ca837dba8addc77.ctex"]
 
 [params]
 
-compress/mode=2
+compress/mode=0
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -25,7 +23,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=true
+mipmaps/generate=false
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

@@ -28,6 +28,7 @@ var _welcome := 0.0  # the fire flares when he walks in (1 -> 0)
 
 
 func build() -> void:
+	# (round 20: the campfire's shader is compiled in the menu, BobView._warm_up_world())
 	var info: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(DIR + "home.json"))
 	back = Node2D.new()
 	back.name = &"HomeBack"
@@ -133,14 +134,18 @@ func _process(delta: float) -> void:
 	_welcome = maxf(_welcome - delta * 0.6, 0.0)
 	if _glow:  # the fire inside breathes and flickers
 		var f := 0.55 + 0.12 * sin(_clock * 2.3) + 0.08 * sin(_clock * 7.1) + 0.05 * sin(_clock * 13.7)
-		# (round 5: dimmer and lower behind him: it washed out his silhouette in the doorway)
-		_glow.modulate = Color(1, 1, 1, minf(f * 0.55 + 0.25 * _welcome, 0.7))
+		# (round 5: dimmer and lower behind him: it washed out his silhouette in the doorway; round 20, the judges:
+		# "everything orange, the hero melts into the backdrop", "a yellow bloom smudge at his feet instead of a
+		# dark contact shadow": the doorway stays a cool dark behind him, the light on the ground before it low)
+		_glow.modulate = Color(1, 0.8, 0.6, minf(f * 0.26 + 0.14 * _welcome, 0.36))
 		_glow.scale = Vector2(0.9, 0.55) * (1.0 + 0.2 * _welcome)
-		_spill.modulate = Color(1, 0.8, 0.55, minf(f * 0.75 + 0.3 * _welcome, 1.0))
-		_pour.modulate = Color(1, 0.9, 0.75, minf(0.45 + f * 0.35 + 0.3 * _welcome, 1.0))
+		_spill.modulate = Color(1, 0.56, 0.3, minf(f * 0.2 + 0.1 * _welcome, 0.32))
+		_pour.modulate = Color(1, 0.72, 0.5, minf(0.1 + f * 0.1 + 0.1 * _welcome, 0.3))
+		(_fire as Fire).flare = _welcome
 		var flick := 0.08 * sin(_clock * 9.0) + 0.05 * sin(_clock * 23.0) + 0.03 * sin(_clock * 3.7)
-		_fire_light.modulate = Color(1, 0.62, 0.3, 0.3 + flick + 0.12 * _welcome)
-		_fire_pool.modulate = Color(1, 0.66, 0.34, 0.55 + flick * 1.5 + 0.15 * _welcome)
+		# (round 20: kept round the fire, not over the whole left of the home: the dusk's cool reads round it)
+		_fire_light.modulate = Color(1, 0.6, 0.3, 0.18 + flick + 0.1 * _welcome)
+		_fire_pool.modulate = Color(1, 0.66, 0.34, 0.45 + flick * 1.5 + 0.15 * _welcome)
 
 
 ## He is home: the fire flares up to welcome him.
@@ -246,12 +251,12 @@ func _smoke() -> CPUParticles2D:
 ## transparent tip, a bed of glowing embers, the logs' bark and the stones lit by the fire from
 ## above, sparks rising.
 class Fire extends Node2D:
-	const OUTER := [Color(1.0, 0.36, 0.08, 0.9), Color(0.85, 0.12, 0.04, 0.0)]
-	const MIDDLE := [Color(1.0, 0.62, 0.16, 0.95), Color(1.0, 0.36, 0.08, 0.0)]
-	const CORE := [Color(1.0, 0.97, 0.7, 1.0), Color(1.0, 0.78, 0.3, 0.0)]
+	const FIRE_SHADER := preload("res://src/game/fire.gdshader")
 	var _clock := 0.0
 	var _glow: Sprite2D
 	var _light: Sprite2D  # its light on the fence and the yard round it
+	var flare := 0.0  ## round 20: 0..1, it flares up when he is home (HomeView)
+	var _flames: Array[ShaderMaterial] = []  # round 20: the painted flames (fire.gdshader), back and front
 
 	func _ready() -> void:
 		_glow = Sprite2D.new()
@@ -266,18 +271,40 @@ class Fire extends Node2D:
 		# round 10 ("the campfire casts no light on the fence or ground"): a wide warm light round it
 		_light = Sprite2D.new()
 		_light.texture = _glow.texture
-		_light.scale = Vector2(3.0, 1.8)
+		_light.scale = Vector2(1.2, 0.8)  # (round 20: x the fire's own 2.3: it washed the whole left half orange)
 		_light.position = Vector2(0, -26)
 		_light.material = add
 		add_child(_light)
 		_light.show_behind_parent = true
+		# round 20 (the judges, j16: "the campfire flat vector triangles"): the flames painted by fire.gdshader,
+		# a bigger, redder body behind and a smaller, hotter one in front, each its own flicker
+		var img := Image.create_empty(4, 4, false, Image.FORMAT_RGBA8)
+		img.fill(Color.WHITE)
+		var white := ImageTexture.create_from_image(img)
+		for k in 2:
+			var size := Vector2(46.0, 52.0) if k == 0 else Vector2(31.0, 36.0)
+			var f := Sprite2D.new()
+			f.texture = white
+			f.centered = false
+			f.scale = size / 4.0
+			f.position = Vector2(-size.x / 2.0 + (1.5 if k == 0 else -1.0), -size.y - 3.0)
+			var m := ShaderMaterial.new()
+			m.shader = FIRE_SHADER
+			m.set_shader_parameter(&"seed", 1.3 + k * 6.1)
+			f.material = m
+			f.modulate = Color(1.0, 0.86, 0.8, 0.92) if k == 0 else Color.WHITE
+			add_child(f)
+			_flames.append(m)
 		add_child(_sparks())
 
 	func _process(delta: float) -> void:
 		_clock += delta
 		var flicker := 0.1 * sin(_clock * 9.0) + 0.06 * sin(_clock * 23.0)
 		_glow.modulate = Color(1, 0.75, 0.45, 0.75 + flicker)
-		_light.modulate = Color(1, 0.6, 0.3, 0.22 + flicker * 0.5)
+		# (round 20: its light kept round it: it washed the whole left half of the home orange)
+		_light.modulate = Color(1, 0.6, 0.3, 0.2 + flicker * 0.4)
+		for m in _flames:
+			m.set_shader_parameter(&"flare", flare)
 		queue_redraw()
 
 	func _draw() -> void:
@@ -304,38 +331,7 @@ class Fire extends Node2D:
 			draw_line(a.lerp(b, 0.45) + Vector2(0, -2.0), b + Vector2(0, -2.0), Color(1.0, 0.5, 0.2, 0.8 * flick), 1.2)
 			draw_circle(a, 2.6, Color(0.24, 0.14, 0.1))  # its cut end, charred, an ember in it
 			draw_circle(a + Vector2(0.4, -0.4), 1.1, Color(1.0, 0.5, 0.16, flick))
-		# the flames: three layers of tongues, back to front (round 19: more, taller, licking higher)
-		_tongues(8, 40.0, 6.5, 13.0, OUTER, 0.0)
-		_tongues(5, 30.0, 5.2, 9.0, MIDDLE, 1.7)
-		_tongues(3, 18.0, 3.8, 5.0, CORE, 3.1)
-
-	## n flame tongues across `spread` units, `tall` at most, each `width` wide at its root, shading
-	## from colours[0] at the root to colours[1] at the tip; they sway and stretch, each its own way.
-	func _tongues(n: int, tall: float, width: float, spread: float, colours: Array, phase: float) -> void:
-		for i in n:
-			var u := (i + 0.5) / n * 2.0 - 1.0
-			var x := u * spread
-			var seed := i * 1.37 + phase
-			var h := tall * (1.0 - absf(u) * 0.45) * (0.8 + 0.2 * sin(_clock * (7.0 + i) + seed * 3.0))
-			var lean := sin(_clock * 3.1 + seed) * 3.0 + 1.5 + u * 3.0
-			var pts := PackedVector2Array()
-			var cols := PackedColorArray()
-			var steps := 6
-			var left := PackedVector2Array()
-			var right := PackedVector2Array()
-			for k in steps + 1:  # a centre line that sways and curls, the tongue round it
-				var t := float(k) / steps
-				var centre := Vector2(x + lean * t * t + sin(t * 3.2 + _clock * 6.0 + seed) * 1.6 * t, -5.0 - h * t)
-				var half := width * (1.0 - t) * (1.0 - t * 0.3) + 0.2
-				left.append(centre - Vector2(half, 0))
-				right.append(centre + Vector2(half, 0))
-			for k in steps + 1:
-				pts.append(left[k])
-				cols.append(colours[0].lerp(colours[1], pow(float(k) / steps, 1.3)))
-			for k in range(steps, -1, -1):
-				pts.append(right[k])
-				cols.append(colours[0].lerp(colours[1], pow(float(k) / steps, 1.3)))
-			draw_polygon(pts, cols)
+		# (round 20: the flames are painted over these by fire.gdshader, the child sprites)
 
 	## Sparks rising from the fire, flickering out.
 	func _sparks() -> CPUParticles2D:

@@ -76,9 +76,7 @@ void fragment() {
 	to_rock = max(to_rock, narrow * smoothstep(-1.0, 1.0, depth - 26.0 - (noise(level_pos.x * 0.05) - 0.5) * 10.0));
 	c = mix(soil_colour, rock_colour, to_rock);
 	float rock_k = to_rock * smoothstep(20.0, 30.0, depth);
-	// round 19 ("the central rock pillar toy-like, blocky stone that doesn't match the painted mesas"): a
-	// narrow wall is a column of the mesas' sandstone (as the river's pillars): horizontal beds, no blocks
-	float strata_k = rock_k * narrow;
+	// (a narrow wall is a carved sandstone pillar: round 20, below; no blocks)
 	rock_k *= 1.0 - narrow;
 	vec2 bsize = vec2(70.0, 30.0);  // (blocks longer than tall, their centres kept near the middle
 	// of their bed: the joints between beds run across in wavy strata, the joints in a bed lean)
@@ -131,28 +129,6 @@ void fragment() {
 	c = mix(c, min(c * 1.42 + vec3(0.04, 0.03, 0.0), vec3(1.0)), edge_hi * 0.7);
 	// pits and soft patches in the stone
 	c *= 1.0 - 0.08 * smoothstep(0.6, 0.75, noise2(level_pos * 0.09 + bid * 3.0)) * rock_k;
-	// round 19: the sandstone beds of a narrow wall: uneven thickness, each its own tone (peach, rose,
-	// a pale band now and then), a lit lip on top of each, a dark joint under it, a few vertical cracks
-	// down a bed, painted mottling
-	float by = level_pos.y + (noise(level_pos.x * 0.018 + 4.0) - 0.5) * 7.0;
-	float bw = by / 30.0 + 0.32 * sin(by * 0.043 + 1.7);
-	float bed = floor(bw);
-	float bf = fract(bw);
-	float btone = hash(bed * 3.17 + 0.5);
-	vec3 sand = mix(vec3(0.84, 0.56, 0.42), vec3(0.74, 0.44, 0.37), step(0.55, btone));
-	sand = mix(sand, vec3(0.9, 0.68, 0.5), step(0.84, btone) * 0.8);
-	sand *= 0.92 + 0.1 * hash(bed * 7.1 + 2.0);
-	sand *= 0.93 + 0.12 * noise2(level_pos * vec2(0.05, 0.11) + bed * 5.0);
-	c = mix(c, sand, strata_k);
-	float lip_hi = (1.0 - smoothstep(0.0, 0.1, bf)) * strata_k;
-	c = mix(c, min(c * 1.25 + vec3(0.05, 0.03, 0.0), vec3(1.0)), lip_hi * 0.7);
-	float under = smoothstep(0.78, 0.97, bf) * strata_k;
-	c *= 1.0 - 0.28 * under;
-	ink = max(ink, (smoothstep(0.955, 0.985, bf)) * strata_k * 0.8);
-	float crack_x = hash(bed * 11.3) * 160.0;
-	float crack = (1.0 - smoothstep(0.6, 1.4, abs(mod(level_pos.x - crack_x, 160.0) - 80.0 + (bf - 0.5) * 6.0)))
-			* step(0.45, hash(bed * 5.9 + 1.0)) * smoothstep(0.1, 0.25, bf) * (1.0 - smoothstep(0.8, 0.9, bf));
-	ink = max(ink, crack * strata_k * 0.75);
 	// soil: wavy strata, and stones (dark below, lit on top) here and there
 	float soil_k = (1.0 - to_rock) * smoothstep(14.0, 22.0, depth);
 	float sy = level_pos.y + sin(level_pos.x * 0.03) * 4.0 + noise(level_pos.x * 0.05) * 6.0;
@@ -185,7 +161,7 @@ void fragment() {
 	earth *= 1.0 - 0.35 * out_on * smoothstep(out_top + 15.0, out_top + 17.0, depth) * (1.0 - smoothstep(out_top + 17.0, out_top + 28.0, depth));  // its shadow
 	float wide_ink = out_on * (smoothstep(out_top - 1.2, out_top - 0.2, depth) - smoothstep(out_top + 0.2, out_top + 1.2, depth));
 	wide_ink = max(wide_ink, out_on * (smoothstep(out_top + 14.5, out_top + 15.5, depth) - smoothstep(out_top + 16.5, out_top + 17.5, depth)));
-	earth *= 1.0 - 0.38 * smoothstep(34.0, 80.0, depth);  // darker down the bank (values: real darks at the bottom)
+	earth *= 1.0 - 0.14 * smoothstep(34.0, 80.0, depth);  // darker down the bank (round 20: less: the dark foreground passing in front is the dark now)
 	c = mix(c, earth, wide * 0.92);
 	ink = max(ink, wide_ink * wide * 0.8);
 	// stones: in the bank fewer and bigger, half buried, lit on top, a soft shadow under each (no ringed pebbles)
@@ -214,9 +190,9 @@ void fragment() {
 	// in rock each block takes the light of its centre, so the bands' edges run along its joints
 	float fl = mix(from_left, max(from_left + to_c.x, 0.0), rock_k);
 	float fr = mix(from_right, max(from_right - to_c.x, 0.0), rock_k);
-	float lit = 1.0 - smoothstep(0.0, min(46.0, width * 0.36) * (1.0 + 0.5 * strata_k), fl);
+	float lit = 1.0 - smoothstep(0.0, min(46.0, width * 0.36), fl);
 	// (round 12, "the shading ignores the low sun on the left": a pillar's far face clearly in shade)
-	float away = 1.0 - smoothstep(0.0, min(56.0, width * 0.5) * (1.0 + 1.05 * strata_k), fr);
+	float away = 1.0 - smoothstep(0.0, min(56.0, width * 0.5), fr);
 	float below_top = smoothstep(4.0, 30.0, depth);
 	float waver = (noise(level_pos.y * 0.035 + float(cell.x)) - 0.5) * 0.3 * (1.0 - rock_k);  // (round 8: band edges follow the rock)
 	float band_lit = smoothstep(0.45, 0.52, lit + waver) * below_top;
@@ -252,11 +228,20 @@ void fragment() {
 		c = mix(c, min(c * 1.5 + rim_colour * 0.22, vec3(1.0)), end_rim * 0.7);
 		taper = max(taper, cells.b < 0.5 ? 1.0 - smoothstep(cut - 0.7, cut + 0.7, from_right) : 0.0);
 	}
+	// round 20: a pillar's blocks (one seed per pillar: its left side); joints slant a little
+	float pillar_id = floor((level_pos.x - from_left) / 32.0 + 0.5);
+	float pillar_u = clamp(from_left / max(width, 1.0), 0.0, 1.0);
+	float pillar_bc = (depth - 34.0) / (74.0 + 34.0 * hash(pillar_id * 1.31)) + 0.16 * sin(depth * 0.019 + pillar_id)
+			+ (pillar_u - 0.5) * 0.3 * (hash(pillar_id * 2.13) > 0.5 ? 1.0 : -1.0)
+			+ (noise(level_pos.x * 0.07 + pillar_id) - 0.5) * 0.08;  // (a joint wanders: never a ruled line)
+	float pillar_bk = floor(pillar_bc);
 	// New: a wall's open sides are eroded (bulges and notches along its height, more towards its
 	// foot, none under the grass lip): no ruler-straight sides; the new edge gets a dark rim
 	float erode = 0.0;
 	float side_d = 99.0;
 	float lit_d = 99.0;  // units from the eroded edge on the sun's side
+	float pel = 0.0;  // how far each side is eroded in (round 20: the pillar's planes span what is left)
+	float per = 0.0;
 	if (depth > 20.0 && width < 200.0) {
 		// deepest just under the grass lip (it overhangs) and up the middle, little at the foot
 		// (the wall stands wider on the ground)
@@ -273,10 +258,105 @@ void fragment() {
 		// bulges and notches are kept as they were)
 		el += min(taper_in, max(31.0 - el, 0.0));
 		er += min(taper_in, max(31.0 - er, 0.0));
+		// round 20: a pillar's sides step in and out block by block (carved, not a noisy wobble), and
+		// tuck in under its grass cap (an undercut: the cap overhangs it, in its shadow)
+		if (floating < 0.5) {
+			float ins_l = 3.0 + 11.0 * hash(pillar_bk * 7.7 + pillar_id * 1.9);
+			float ins_r = 3.0 + 11.0 * hash(pillar_bk * 5.3 + pillar_id * 3.1 + 2.0);
+			float tuck = 9.0 * smoothstep(lip + 2.0, lip + 10.0, depth) * (1.0 - smoothstep(lip + 22.0, lip + 64.0, depth));
+			float on_block = smoothstep(lip + 16.0, lip + 40.0, depth) * (0.3 + 0.7 * smoothstep(0.0, 70.0, to_foot));
+			el = min(el * 0.55 + ins_l * on_block + tuck, 31.0);
+			er = min(er * 0.55 + ins_r * on_block + tuck, 31.0);
+		}
+		pel = el;
+		per = er;
 		side_d = min(from_left - el, from_right - er);
 		lit_d = cells.g < 0.5 ? from_left - el : 99.0;
 		erode = (cells.g < 0.5 ? 1.0 - smoothstep(el - 0.6, el + 0.6, from_left) : 0.0);
 		erode = max(erode, cells.b < 0.5 ? 1.0 - smoothstep(er - 0.6, er + 0.6, from_right) : 0.0);
+	}
+	// round 20 (the judges, j16: "a flat beige box with ruled brick lines, no AO under the grass cap: the
+	// cheapest-looking object on screen"): a narrow wall standing on the ground is a carved sandstone pillar:
+	// a few big blocks down it, each cut across in big planes lit from the upper left (a bright face, two mid
+	// planes, a cool violet shadow face with warm ground light bouncing into its edge); at a joint the block
+	// above's dark underside, a lit shelf and the overhang's shadow on the block below; lighter at the top and
+	// darker and cooler to its foot; a crisp shadow and a deep occlusion under the grass cap (it overhangs an
+	// undercut); moss dripping from the cap and the shelves, lichen on the sunny planes, the sandstone's beds as
+	// soft tone only (no ink lines)
+	float pillar_k = narrow * (1.0 - floating);
+	if (pillar_k > 0.5) {
+		float pw = max(width - pel - per, 8.0);
+		float ue = clamp((from_left - pel) / pw, 0.0, 1.0);
+		float pid = pillar_id;
+		float height = depth + to_foot;
+		float down = clamp((depth - lip) / max(height - lip, 1.0), 0.0, 1.0);
+		float bfr = fract(pillar_bc);
+		float bk = pillar_bk;
+		float bh = hash(bk * 7.31 + pid * 3.7);
+		// (chisel cuts: each joint across slants its own way down the block, the planes' widths their own)
+		float j1 = 0.14 + 0.14 * hash(bk * 1.7 + pid * 5.1) + (bfr - 0.5) * (hash(bk * 3.3 + pid) - 0.5) * 0.4;
+		float j2 = 0.44 + 0.14 * hash(bk * 2.9 + pid * 1.3) + (bfr - 0.5) * (hash(bk * 6.1 + pid) - 0.5) * 0.3;
+		float j3 = 0.7 + 0.12 * hash(bk * 4.3 + pid * 2.3) + (bfr - 0.5) * (hash(bk * 8.7 + pid) - 0.5) * 0.36;
+		float s1 = smoothstep(j1 - 0.01, j1 + 0.01, ue);
+		float s2 = smoothstep(j2 - 0.01, j2 + 0.01, ue);
+		float s3 = smoothstep(j3 - 0.01, j3 + 0.01, ue);
+		vec3 lit_p = vec3(1.0, 0.73, 0.49);
+		vec3 mid_p = vec3(0.88, 0.55, 0.41);
+		vec3 low_p = vec3(0.79, 0.47, 0.4);  // (a quiet turn inside the front: the strong ones are the lit and shadow faces)
+		vec3 shd_p = vec3(0.43, 0.29, 0.4);
+		vec3 pc = mix(mix(mix(lit_p, mid_p, s1), low_p, s2), shd_p, s3);
+		pc *= 1.0 + 0.1 * (1.0 - s1) * (1.0 - ue / max(j1, 0.01));  // brightest at the lit edge
+		pc *= 1.0 - 0.07 * (s1 - s2) * (ue - j1) / max(j2 - j1, 0.01);  // each plane turning from the light
+		// a light edge where a lit plane turns into the next (convex), a dark one into the shadow face
+		pc = mix(pc, min(pc * 1.25, vec3(1.0)), (1.0 - smoothstep(0.0, 0.018, abs(ue - j1 - 0.012))) * 0.6);
+		pc *= 1.0 - 0.18 * (1.0 - smoothstep(0.0, 0.016, abs(ue - j3 + 0.01)));
+		// warm light from the sunny ground bouncing into the shadow face, low down
+		pc = mix(pc, pc + vec3(0.14, 0.06, 0.0), s3 * smoothstep(0.8, 1.0, ue) * smoothstep(0.35, 1.0, down) * 0.7);
+		// the sandstone's beds: soft tone bands that wave a little, no lines; painted mottling
+		float bed_y = depth + (noise(level_pos.x * 0.03 + pid) - 0.5) * 6.0;
+		float tone_b = noise(bed_y * 0.06 + pid * 3.0);
+		pc *= mix(vec3(1.0), vec3(1.07, 0.95, 0.92), smoothstep(0.55, 0.85, tone_b));
+		pc *= mix(vec3(1.0), vec3(0.93, 0.95, 1.03), smoothstep(0.42, 0.15, tone_b));
+		pc *= 1.0 - 0.05 * smoothstep(0.72, 0.92, noise(bed_y * 0.32 + floor(level_pos.x / 37.0) * 0.4));
+		pc *= 0.93 + 0.09 * noise2(level_pos * vec2(0.04, 0.07) + pid) + 0.04 * noise2(level_pos * vec2(0.22, 0.3));
+		// the joint between two blocks (most of them): the underside above, a lit shelf, the overhang's shadow
+		float joint_on = step(0.5, bh) * smoothstep(lip + 24.0, lip + 40.0, depth) * step(24.0, to_foot)
+				* (0.25 + 0.75 * smoothstep(0.3, 0.5, noise(level_pos.x * 0.035 + bk * 3.0 + pid)));  // (broken: not a ruled line)
+		float underside = smoothstep(0.955, 0.99, bfr) * joint_on;
+		float shelf = (1.0 - smoothstep(0.0, 0.035, bfr)) * joint_on;
+		float overhang = smoothstep(0.03, 0.05, bfr) * (1.0 - smoothstep(0.05, 0.32, bfr)) * joint_on;
+		pc *= 1.0 - 0.4 * underside;
+		pc = mix(pc, min(pc * 1.25 + vec3(0.05, 0.03, 0.0), vec3(1.0)), shelf * 0.55);
+		pc *= 1.0 - 0.3 * overhang * (1.0 - 0.4 * s3);
+		// a crack down a plane's joint in some blocks
+		float crack_on = step(0.62, hash(bk * 9.1 + pid * 4.4)) * smoothstep(0.08, 0.2, bfr) * (1.0 - smoothstep(0.7, 0.85, bfr));
+		pc *= 1.0 - 0.45 * crack_on * (1.0 - smoothstep(0.0, 0.012, abs(ue - j2 + (noise(depth * 0.2) - 0.5) * 0.03)));
+		// the light falls off down the pillar, cooler toward its foot
+		pc *= mix(1.04, 0.68, smoothstep(0.0, 1.0, down));
+		pc = mix(pc, pc * vec3(0.86, 0.84, 1.0), smoothstep(0.45, 1.0, down) * 0.5);
+		// moss: dripping from under the cap in ragged tongues, and along some shelves in short drips
+		float drip_len = 3.0 + 16.0 * pow(noise(level_pos.x * 0.13 + bk * 5.0), 3.0);
+		float shelf_moss = (1.0 - smoothstep(drip_len - 1.0, drip_len + 1.0, bfr * 90.0)) * joint_on
+				* smoothstep(0.42, 0.55, noise(level_pos.x * 0.04 + bk * 2.0 + pid));
+		float cap_moss = (1.0 - smoothstep(tongue - 1.0, tongue + 1.0, depth)) * step(lip - 2.0, depth);
+		float moss_m = max(cap_moss, shelf_moss);
+		vec3 moss_p = mix(vec3(0.3, 0.42, 0.14), vec3(0.5, 0.62, 0.2), step(0.5, noise2(level_pos * vec2(0.09, 0.14))));
+		moss_p *= mix(1.1, 0.55, s2 * 0.6 + s3 * 0.4);
+		pc = mix(pc, moss_p, moss_m * 0.92);
+		pc *= 1.0 - 0.3 * (smoothstep(tongue - 0.5, tongue + 1.0, depth) - smoothstep(tongue + 1.0, tongue + 3.0, depth)) * step(lip + 4.0, tongue);
+		// lichen: ragged soft patches, sage and ochre, on the sunny planes
+		float lpatch = noise2(level_pos * vec2(0.07, 0.05) + pid * 7.0) * 0.7 + noise2(level_pos * 0.23 + pid) * 0.3;
+		float lichen_m = smoothstep(0.66, 0.72, lpatch) * (1.0 - 0.6 * s2) * smoothstep(lip + 10.0, lip + 30.0, depth) * (1.0 - s3);
+		vec3 lichen = mix(vec3(0.74, 0.76, 0.52), vec3(0.92, 0.66, 0.36), step(0.5, noise(level_pos.x * 0.05 + level_pos.y * 0.03)));
+		pc = mix(pc, lichen * mix(1.0, 0.7, s2) * (0.9 + 0.2 * noise2(level_pos * 0.4)), lichen_m * 0.12);
+		// under the grass cap: a crisp shadow, then a deep occlusion; a dark contact at its foot
+		float under_cap = max(depth - lip, 0.0);
+		float occl = min(0.72 * exp(-under_cap / 14.0) + 0.36 * exp(-under_cap / 42.0), 0.8);  // (darkest right under it)
+		pc *= 1.0 - occl;
+		pc = mix(pc, pc * vec3(0.8, 0.78, 1.0), exp(-under_cap / 30.0) * 0.6);  // (cool in the cap's shade)
+		pc *= 1.0 - 0.45 * (1.0 - smoothstep(0.0, 52.0, to_foot - 4.0)) * smoothstep(30.0, 40.0, depth);
+		c = pc;
+		ink = 0.0;
 	}
 	// round 19 (the judges: "a thin water strip cut off abruptly"): a bank under a pool's surface is seen
 	// through the water, murky and bluer deeper down, so the pool runs into its banks (it read as a red
@@ -291,13 +371,13 @@ void fragment() {
 	c = l > 0.0 ? mix(c, c * lit_colour * 1.35, step(0.12, l) * 0.8) : c * (1.0 - step(0.12, -l) * 0.3);
 	c = mix(c, min(c * 1.3 + rim_colour * 0.1, vec3(1.0)), step(0.35, shape.b) * 0.5);
 	ink = max(ink, step(0.3, shape.g));
-	float edge_line = (1.0 - smoothstep(2.4, 3.4, side_d)) * step(side_d, 98.0);
+	float edge_line = (1.0 - smoothstep(mix(2.4, 1.3, pillar_k), mix(3.4, 2.3, pillar_k), side_d)) * step(side_d, 98.0);
 	float sun_edge = (1.0 - smoothstep(4.0, 5.0, lit_d)) * step(lit_d, 98.0) * (1.0 - edge_line);
-	c = mix(c, min(c * 1.45 + rim_colour * 0.2, vec3(1.0)), sun_edge * 0.7);
+	c = mix(c, min(c * 1.45 + rim_colour * 0.2, vec3(1.0)), sun_edge * 0.7 * (1.0 - 0.6 * pillar_k));
 	// round 12: the low sun warms the sun side's edge further in (a pillar's left face)
 	float warm_edge = (1.0 - smoothstep(5.0, 13.0, lit_d)) * step(lit_d, 98.0) * (1.0 - edge_line) * (1.0 - sun_edge) * narrow;
-	c = mix(c, min(c * vec3(1.22, 1.08, 0.92) + rim_colour * 0.06, vec3(1.0)), warm_edge * 0.75);
-	ink = max(ink, edge_line);
+	c = mix(c, min(c * vec3(1.22, 1.08, 0.92) + rim_colour * 0.06, vec3(1.0)), warm_edge * 0.75 * (1.0 - 0.6 * pillar_k));
+	ink = max(ink, edge_line * (1.0 - 0.35 * pillar_k));
 	c = mix(c, outline_colour, ink * 0.92);
 	// round 5: a ledge's underside in a wavy line (it was flat as a box), inked
 	float bump = 4.0 + 8.0 * noise(level_pos.x * 0.045 + float(cell.y) * 3.1);

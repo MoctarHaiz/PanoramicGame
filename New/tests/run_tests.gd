@@ -2154,9 +2154,16 @@ func _test_art() -> void:
 			stacks += 1
 			river += 1 if span % 100 == Level.ROWS else 0
 	_check(stacks >= 5 and river >= 5, "the poles are drawn as stacks (%d, %d standing in the river)" % [stacks, river])
-	var feet: Texture2D = load(TerrainView.DIR + "spire_feet.png")
-	_check(feet.get_width() == roundi(TerrainView.SPIRE_FOOT.x * TerrainView.PX * 3.0) and terrain._spire_len.size() == 3,
-			"each river pillar has its foot on boulders and its shaft's length (spire_feet.png, spires.json)")
+	# round 20 ("the two river pillars identical chimneys"): each stack a carved column of its own (spire.gdshader)
+	terrain.ensure(0.0, Level.WIDTH)
+	var widths := []  # (each one's width and seed)
+	for rock: Node in terrain._layers[&"spires"].get_children():
+		var m := (rock as CanvasItem).material
+		widths.append(Vector2(m.get(&"shader_parameter/half_w"), m.get(&"shader_parameter/seed")))
+	var twins := 0
+	for i in range(1, widths.size()):
+		twins += 1 if widths[i] == widths[i - 1] else 0
+	_check(widths.size() >= 5 and twins == 0, "each stack is its own carved column, no two neighbours alike (%d)" % widths.size())
 	terrain.free()
 
 

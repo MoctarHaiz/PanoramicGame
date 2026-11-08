@@ -24,7 +24,7 @@ const TAUT_REACH := 120.0  ## round 12: units either side of his hands where his
 const KNOT_RANGE := 6.0  ## units a knot is tied above or below the line
 const KNOT_SHIFT := 0.28  ## round 9: share of SPAN a knot is tied off its even place (spans of uneven length)
 const BACK_SPAN := 1.47  ## round 10: the liana behind: its spans this many SPANs long, ..
-const BACK_TINT := Color(0.5, 0.48, 0.56, 0.9)  ## .. in the shade behind
+const BACK_TINT := Color(0.4, 0.36, 0.44, 0.85)  ## .. in the shade behind (round 20: darker: the two read as one braid)
 ## Round 19 (the judges: "a ruler-straight edge-to-edge line under the HUD with even leaf clusters: it reads as
 ## a UI divider"): the liana hangs from the canopy above the screen: from some knots a thinner strand climbs
 ## out of the top of the screen behind it (it hangs from something, it is not a rule across the view); leaf
@@ -33,6 +33,7 @@ const BACK_TINT := Color(0.5, 0.48, 0.56, 0.9)  ## .. in the shade behind
 const LEAVES := [Rect2(87, 18, 194, 42), Rect2(44, 162, 154, 42), Rect2(67, 738, 201, 58), Rect2(84, 1026, 195, 68)]  ## (under the rope)
 const TENDRILS := [Rect2(100, 306, 41, 93), Rect2(53, 594, 35, 110), Rect2(71, 882, 47, 95), Rect2(71, 450, 34, 87)]
 const ROPE_PX := 18.0  ## px rows of the rope at the top of each span picture
+const ROPE_H := 13.0  ## round 20: units the rope is drawn thick (it was 9: a thin line under the HUD)
 const STRAND_TOP := -170.0  ## play y the strands climb to (above any camera's top)
 
 var view_left := 0.0
@@ -177,9 +178,11 @@ func _draw_back() -> void:
 			var b := left + span * (k + 1) / SLICES
 			var ya := Y + 2.0 + _back_sag(a + scroll)
 			var yb := Y + 2.0 + _back_sag(b + scroll)
-			_back.draw_primitive(PackedVector2Array([Vector2(a, ya), Vector2(b, yb), Vector2(b, yb + h * 0.3), Vector2(a, ya + h * 0.3)]),
+			# (round 20: its rope only, thinner: it drew the whole span picture squashed, leaves and all)
+			var bh := ROPE_H * 0.45
+			_back.draw_primitive(PackedVector2Array([Vector2(a, ya), Vector2(b, yb), Vector2(b, yb + bh), Vector2(a, ya + bh)]),
 					back, PackedVector2Array([Vector2(float(k) / SLICES, v * h / th), Vector2(float(k + 1) / SLICES, v * h / th),
-					Vector2(float(k + 1) / SLICES, (v + 1) * h / th), Vector2(float(k) / SLICES, (v + 1) * h / th)]), TEXTURE)
+					Vector2(float(k + 1) / SLICES, (v * h + ROPE_PX) / th), Vector2(float(k) / SLICES, (v * h + ROPE_PX) / th)]), TEXTURE)
 
 
 ## Round 19: from some knots a strand climbs out of the top of the screen (the liana hangs from the canopy),
@@ -216,12 +219,12 @@ func _draw_strands(x0: float, x1: float) -> void:
 						PackedColorArray([tint, tint, tint, tint]),
 						PackedVector2Array([Vector2(ua, v * h / th), Vector2(ub, v * h / th),
 						Vector2(ub, (v * h + ROPE_PX) / th), Vector2(ua, (v * h + ROPE_PX) / th)]), TEXTURE)
-			if _rand(i * 47 + 5) < 0.6:  # a few leaves on the strand, where it leaves the screen's top band
+			if _rand(i * 47 + 5) < 0.3:  # a few leaves on the strand, where it leaves the screen's top band
 				var at := from.lerp(top, 0.3 + _rand(i * 49 + 2) * 0.25) + Vector2(5.0, 0.0)
 				_cluster(_back, i * 7 + 3, at.x, at.y, Color(0.64, 0.66, 0.62))
 		# leaf clusters behind the rope at this knot, each its own size
-		for j in 1 + int(_rand(i * 53 + 7) * 2.0):
-			_cluster(_back, i * 7 + j, kx + (_rand(i * 59 + j) - 0.5) * 50.0, ky + 3.0, Color(0.72, 0.74, 0.7))
+		if _rand(i * 53 + 7) < 0.35:  # (round 20: at a few knots only)
+			_cluster(_back, i * 7 + 1, kx + (_rand(i * 59 + 1) - 0.5) * 50.0, ky + 3.0, _leaf_tint(i * 5 + 2) * Color(0.78, 0.78, 0.78))
 
 
 ## A leaf cluster of vine.png hanging from (x, y), `seed` picking its picture, size, lean and side.
@@ -240,6 +243,10 @@ func _cluster(ci: CanvasItem, seed: int, x: float, y: float, tint: Color) -> voi
 
 
 func _draw() -> void:
+	# Round 20 (the judges, j16: "party bunting / a repeating sine-wave rope with identical flat leaves right
+	# under the HUD row"): the rope alone from each span picture (its twisted fibres), thicker, a thinner
+	# strand twisting round it, a knot of wraps where two spans are tied; leaves only in a few clusters of
+	# their own size and colour (the spans' baked rows of leaves are not drawn).
 	var x0 := -view_left - SPAN
 	var x1 := view_width - view_left + SPAN
 	var h := TEXTURE.get_height() / float(VARIANTS)
@@ -247,28 +254,53 @@ func _draw() -> void:
 	var white := PackedColorArray([Color.WHITE, Color.WHITE, Color.WHITE, Color.WHITE])
 	var first := _span_at(x0 + scroll)
 	for i in range(first, first + int((x1 - x0) / SPAN) + 2):
-		var draw_h := h / 2.0 * (0.86 + 0.36 * _rand(i * 19 + 2))  # (round 19: each span its own thickness)
+		var rope_h := ROPE_H * (0.82 + 0.36 * _rand(i * 19 + 2))  # (each span its own thickness)
 		var v := posmod(i * 7 + (i >> 2) * 3, VARIANTS)
-		var mirrored := posmod(i * 5 + (i >> 1), 3) == 0  # now and then: no two spans alike
+		var mirrored := posmod(i * 5 + (i >> 1), 3) == 0
 		var left := _knot_x(i) - scroll
-		var length := _knot_x(i + 1) - _knot_x(i)  # (round 9: each span its own length, the picture stretched)
-		for k in SLICES:
-			var a := left + length * k / SLICES
-			var b := left + length * (k + 1) / SLICES
-			var ua := float(k) / SLICES
-			var ub := float(k + 1) / SLICES
+		var length := _knot_x(i + 1) - _knot_x(i)
+		var top := v * h / th
+		var bottom := (v * h + ROPE_PX - 5.0) / th  # (the leaves' tips start in its last rows)
+		var n := SLICES * 2
+		for k in n:
+			var a := left + length * k / n
+			var b := left + length * (k + 1) / n
+			var ua := float(k) / n
+			var ub := float(k + 1) / n
 			if mirrored:
 				ua = 1.0 - ua
 				ub = 1.0 - ub
-			var ya := Y + sag_at(a)
-			var yb := Y + sag_at(b)
-			var top := v * h / th
-			var bottom := (v + 1) * h / th
-			draw_primitive(PackedVector2Array([Vector2(a, ya), Vector2(b, yb), Vector2(b, yb + draw_h), Vector2(a, ya + draw_h)]),
+			var ya := Y + sag_at(a) - (rope_h - ROPE_PX * 0.5) * 0.5
+			var yb := Y + sag_at(b) - (rope_h - ROPE_PX * 0.5) * 0.5  # (centred where the old rope was)
+			draw_primitive(PackedVector2Array([Vector2(a, ya), Vector2(b, yb), Vector2(b, yb + rope_h), Vector2(a, ya + rope_h)]),
 					white, PackedVector2Array([Vector2(ua, top), Vector2(ub, top), Vector2(ub, bottom), Vector2(ua, bottom)]),
 					TEXTURE)
-	# round 19: a cluster in front of the rope at some knots (it passes behind its own leaves)
+	# the knots where two spans are tied: a lump of wound rope, a shade under it
 	for i in range(first, first + int((x1 - x0) / SPAN) + 3):
-		if _rand(i * 61 + 9) < 0.45:
-			var kx := _knot_x(i) - scroll + (_rand(i * 67 + 1) - 0.5) * 30.0
-			_cluster(self, i * 7 + 5, kx, Y + sag_at(kx) + 7.0, Color.WHITE)
+		var kx := _knot_x(i) - scroll
+		var ky := Y + sag_at(kx) + ROPE_PX * 0.25
+		if not is_finite(ky):
+			continue
+		var r := ROPE_H * (0.5 + 0.14 * _rand(i * 7 + 3))
+		draw_set_transform(Vector2(kx + 1.0, ky + 2.0), 0.0, Vector2(1.25, 0.95))
+		draw_circle(Vector2.ZERO, r * 1.15, Color(0.1, 0.06, 0.05, 0.4))
+		draw_set_transform(Vector2(kx, ky), 0.25, Vector2(1.2, 0.9))
+		draw_circle(Vector2.ZERO, r, Color(0.3, 0.19, 0.12))
+		draw_circle(Vector2(-r * 0.22, -r * 0.24), r * 0.66, Color(0.5, 0.35, 0.22))
+		draw_circle(Vector2(-r * 0.36, -r * 0.4), r * 0.28, Color(0.72, 0.56, 0.36))
+		draw_set_transform_matrix(Transform2D.IDENTITY)
+	# round 19: a cluster in front of the rope at a few knots (round 20: fewer, each its own size and colour)
+	for i in range(first, first + int((x1 - x0) / SPAN) + 3):
+		if _rand(i * 61 + 9) < 0.3:
+			var kx := _knot_x(i) - scroll + (_rand(i * 67 + 1) - 0.5) * 60.0
+			_cluster(self, i * 7 + 5, kx, Y + sag_at(kx) + ROPE_H * 0.5, _leaf_tint(i * 3 + 1))
+
+
+## Round 20: a cluster's own colour: fresh, darker, or yellowing (the leaves were one flat green).
+func _leaf_tint(seed: int) -> Color:
+	var r := _rand(seed * 71 + 3)
+	if r < 0.22:
+		return Color(1.0, 0.9, 0.58)  # yellowing
+	if r < 0.5:
+		return Color(0.74, 0.8, 0.7)  # in shade
+	return Color(0.94 + 0.1 * _rand(seed), 1.0, 0.92)

@@ -477,70 +477,122 @@ def near_grass() -> Image.Image:
 
 
 def fg_grass() -> Image.Image:
-    """The foreground: dark, out-of-focus clumps of savanna grass, a few rocks and seed stalks
-    passing in front of the play along the bottom edge (they frame the shot and give it depth).
-    2048 x 150 units at 1 px per unit, tiles in x; mostly low (the ground and its gaps stay
-    readable), clumps with gaps between them, a thin warm rim where the low sun catches the tops."""
+    """The foreground: dark, out-of-focus savanna passing in front of the play along the bottom edge
+    (it frames the shot and gives it depth). 2048 x 150 units at 1 px per unit, tiles in x.
+    Round 20 (the judges, j16: "no foreground framing layer, a flat stage"; the old clumps were dark on
+    the dark soil band and went unseen): a denser, taller band whose top edge rises and falls (the
+    ground band no longer reads as a ruled stripe): clumps of grass, cattail reeds, rocks lit on top,
+    a fallen branch with twigs, broad leaves; a warm edge where the low sun catches their upper left,
+    a little olive in their tops so they read as plants, not holes. Nothing reaches the ground line he
+    runs on: drawn with its bottom 12 units under the screen's (savanna_view.gd), the ground line is
+    74 px down this picture; every shape stays under px 86."""
     w, h = 2048, 150
     ss = 3
-    rng = np.random.default_rng(57)
+    top_limit = 86.0  # px: no shape above this (the ground line is at 74)
+    base = h + 4
+    rng = np.random.default_rng(71)
     from PIL import ImageDraw
     m = Image.new("L", (w * ss, h * ss), 0)
     d = ImageDraw.Draw(m)
-    # clumps: centre, half width, height (units above the bottom edge)
-    clumps = []
-    x = rng.uniform(0, 120)
-    while x < w - 60:
-        half = rng.uniform(50, 140)
-        # round 8: a darker, taller foreground over the soil band, now and then over the grass line (the
-        # ground read as a flat green strip over a flat brown band); still under the Red Bobs' rows
-        tall = rng.uniform(34, 56) if rng.random() < 0.88 else rng.uniform(62, 76)
-        clumps.append((x + half, half, tall))
-        x += half * 2 + rng.uniform(4, 110)  # (denser, a frame along the whole edge)
-    for cx, half, tall in clumps:
-        blades = []
-        for _ in range(int(half * 2.2)):
-            u = rng.normal(0, 0.45)
-            hgt = tall * rng.uniform(0.55, 1.2) * max(0.25, 1 - abs(u) * 0.8)
-            lean = (u * 0.9 + rng.normal(0.12, 0.25)) * hgt  # blades fan out from the middle
-            bw = rng.uniform(2.2, 5.0)
-            blades.append((cx + u * half, hgt, lean, bw))
-        rock = None
-        if rng.random() < 0.45:  # a rock half hidden in the clump
-            rock = (cx + rng.uniform(-half, half) * 0.5, rng.uniform(18, 34), rng.uniform(12, 20))
+    max_h = base - top_limit
+
+    def poly(pts, ox):
+        d.polygon([((x + ox) * ss, y * ss) for x, y in pts], fill=255)
+
+    def blade(bx, hgt, lean, bw, ox):
+        hgt = min(hgt, max_h)
+        lean = float(np.clip(lean, -hgt * 0.9, hgt * 0.9))
+        tip_y = max(base - hgt, top_limit)
+        poly([(bx - bw, base), (bx + bw, base), (bx + lean * 0.35 + bw * 0.6, base - hgt * 0.55),
+              (bx + lean, tip_y), (bx + lean * 0.3 - bw * 0.2, base - hgt * 0.6)], ox)
+
+    items = []
+    x = rng.uniform(0, 60)
+    while x < w - 30:
+        kind = rng.choice(["grass", "bush", "reeds", "rock", "leaves", "branch"], p=[0.3, 0.2, 0.12, 0.16, 0.14, 0.08])
+        half = rng.uniform(40, 120) if kind != "branch" else rng.uniform(90, 150)
+        items.append((kind, x + half, half, int(rng.integers(1 << 30))))
+        x += half * 2 + rng.uniform(-30, 40)
+    for kind, cx, half, seed in items:
+        r = np.random.default_rng(seed)
+        tall = r.uniform(44, 62) if r.random() < 0.7 else r.uniform(62, 72)
         for ox in (-w, 0, w):
-            base = h + 4
-            d.ellipse([(cx + ox - half * 1.05) * ss, (base - tall * 0.22) * ss, (cx + ox + half * 1.05) * ss, (base + tall * 0.3) * ss], fill=255)
-            if rock:
-                rcx, rx, ry = rock
-                d.ellipse([(rcx + ox - rx) * ss, (base - ry * 1.7) * ss, (rcx + ox + rx) * ss, (base + ry) * ss], fill=255)
-            for bx, hgt, lean, bw in blades:
-                # a curved blade: wide at the foot, bending over towards its tip
-                pts = [(bx + ox - bw, base), (bx + ox + bw, base),
-                       (bx + ox + lean * 0.35 + bw * 0.6, base - hgt * 0.55),
-                       (bx + ox + lean, base - hgt),
-                       (bx + ox + lean * 0.3 - bw * 0.2, base - hgt * 0.6)]
-                d.polygon([(px * ss, py * ss) for px, py in pts], fill=255)
-    for _ in range(12):  # a few grass panicles above the clumps
-        cx, half, tall = clumps[int(rng.integers(len(clumps)))]
-        bx = cx + rng.uniform(-half, half) * 0.6
-        hgt = tall + rng.uniform(16, 40)
-        lean = rng.normal(0.18, 0.1) * hgt
-        for ox in (-w, 0, w):
-            tip = (bx + ox + lean, h - hgt)
-            d.line([((bx + ox) * ss, (h + 4) * ss), (tip[0] * ss, tip[1] * ss)], fill=255, width=int(1.8 * ss))
-            for k in range(5):  # the seed head: little spikelets along the last part
-                t = 0.72 + k * 0.06
-                px, py = bx + ox + lean * t, h + 4 - (hgt + 4) * t
-                d.ellipse([(px - 2.2 + lean * 0.02) * ss, (py - 5) * ss, (px + 2.2 + 3) * ss, (py + 1) * ss], fill=255)
-    a = np.asarray(m.resize((w, h), Image.LANCZOS), float) / 255
-    edge = h - 12 - noise1(w, 40, rng, 3) * 10  # a low dark band of grass along the whole edge
-    a = np.maximum(a, np.clip(np.arange(h)[:, None] - edge[None, :], 0, 1))
-    a = blur(a, 1.4, wrap_x=True)  # out of focus
+            rr = np.random.default_rng(seed)
+            if kind in ("grass", "reeds", "leaves"):
+                d.ellipse([(cx + ox - half * 1.05) * ss, (base - tall * 0.25) * ss, (cx + ox + half * 1.05) * ss, (base + tall * 0.3) * ss], fill=255)
+                for _ in range(int(half * (2.4 if kind == "grass" else 1.4))):
+                    u = rr.normal(0, 0.45)
+                    hgt = tall * rr.uniform(0.6, 1.15) * max(0.3, 1 - abs(u) * 0.7)
+                    blade(cx + u * half, hgt, (u * 0.9 + rr.normal(0.12, 0.25)) * hgt, rr.uniform(3.2, 7.0), ox)
+            if kind == "reeds":
+                for _ in range(rr.integers(3, 7)):
+                    bx = cx + rr.normal(0, half * 0.35)
+                    hgt = min(rr.uniform(52, 70), max_h)
+                    lean = rr.normal(0.1, 0.12) * hgt
+                    tip = (bx + lean, base - hgt)
+                    d.line([((bx + ox) * ss, base * ss), ((tip[0] + ox) * ss, tip[1] * ss)], fill=255, width=int(2.4 * ss))
+                    hx, hy = bx + lean * 0.86, base - hgt * 0.86  # the cattail's head
+                    d.ellipse([(hx + ox - 3.2) * ss, (hy - 9) * ss, (hx + ox + 3.2) * ss, (hy + 6) * ss], fill=255)
+            if kind == "leaves":
+                for _ in range(rr.integers(4, 8)):  # broad arrowhead leaves on stalks
+                    bx = cx + rr.normal(0, half * 0.4)
+                    hgt = min(rr.uniform(34, 64), max_h)
+                    a = rr.uniform(-0.6, 0.6)
+                    tx, ty = bx + np.sin(a) * hgt, base - np.cos(a) * hgt
+                    d.line([((bx + ox) * ss, base * ss), ((tx + ox) * ss, (ty + 8) * ss)], fill=255, width=int(2 * ss))
+                    lw, ll = rr.uniform(10, 16), rr.uniform(20, 30)
+                    nx, ny = np.cos(a), np.sin(a)
+                    poly([(tx, ty + 10), (tx - nx * lw, ty + 4 + ny * lw - ll * 0.2), (tx + np.sin(a) * ll * 0.2, max(ty - ll * 0.5, top_limit)),
+                          (tx + nx * lw, ty + 4 - ny * lw - ll * 0.2)], ox)
+            if kind == "bush":  # (round 20: masses that read at phone size, not thin blades)
+                for _ in range(int(half * 0.7)):
+                    a = rr.uniform(0.0, np.pi)
+                    q = np.sqrt(rr.uniform(0.0, 1.0))
+                    bx = cx + np.cos(a) * q * half
+                    by = base - 4 - np.sin(a) * q * (tall - 12)
+                    rad = rr.uniform(7, 14) * (1.2 - 0.5 * q)
+                    by = max(by, top_limit + rad * 0.8)
+                    d.ellipse([(bx + ox - rad) * ss, (by - rad * 0.8) * ss, (bx + ox + rad) * ss, (by + rad * 0.8) * ss], fill=255)
+                for _ in range(int(half * 0.8)):
+                    u = rr.normal(0, 0.6)
+                    hgt = tall * 0.45 * rr.uniform(0.5, 1.0)
+                    blade(cx + u * half, hgt, (u * 0.6 + rr.normal(0.1, 0.25)) * hgt, rr.uniform(2.4, 4.4), ox)
+            if kind == "rock":
+                ry = r.uniform(20, 34)
+                d.ellipse([(cx + ox - half * 0.55) * ss, (base - ry * 1.6) * ss, (cx + ox + half * 0.55) * ss, (base + ry) * ss], fill=255)
+                d.ellipse([(cx + ox - half * 0.3 + half * 0.5) * ss, (base - ry * 1.0) * ss, (cx + ox + half * 0.9) * ss, (base + ry) * ss], fill=255)
+                for _ in range(int(half * 0.8)):
+                    u = rr.normal(0, 0.6)
+                    hgt = tall * 0.6 * rr.uniform(0.4, 1.0)
+                    blade(cx + u * half, hgt, (u * 0.6 + rr.normal(0.1, 0.25)) * hgt, rr.uniform(1.8, 3.6), ox)
+            if kind == "branch":
+                y0 = base - r.uniform(26, 40)
+                x0, x1 = cx - half, cx + half
+                pts = [(x0, base), (x0 + 6, y0 + 10), (x0 + half * 0.6, y0 + 2), (x1 - 20, y0 - 6), (x1, y0 - 2), (x1 + 4, y0 + 8),
+                       (x1 - 18, y0 + 6), (x0 + half * 0.7, y0 + 14), (x0 + 30, base)]
+                poly(pts, ox)
+                for k in range(3):  # twigs
+                    tx = x0 + half * (0.5 + k * 0.45)
+                    ty = y0 + 4 - k * 2
+                    ex, ey = tx + rr.uniform(10, 26), max(ty - rr.uniform(16, 30), top_limit)
+                    d.line([((tx + ox) * ss, ty * ss), ((ex + ox) * ss, ey * ss)], fill=255, width=int(rr.uniform(2.2, 3.6) * ss))
+                for _ in range(int(half * 0.6)):
+                    u = rr.normal(0, 0.7)
+                    hgt = tall * 0.5 * rr.uniform(0.4, 1.0)
+                    blade(cx + u * half, hgt, (u * 0.6 + rr.normal(0.1, 0.25)) * hgt, rr.uniform(1.8, 3.4), ox)
+    shapes = np.asarray(m.resize((w, h), Image.LANCZOS), float) / 255
+    edge = h - 14 - noise1(w, 40, rng, 3) * 14  # the dark band under it all, its top rising and falling
+    band = np.clip(np.arange(h)[:, None] - edge[None, :], 0, 1)
+    a = np.maximum(shapes, band)
+    a[:int(top_limit - 2)] = 0.0
+    a = blur(a, 0.9, wrap_x=True)  # out of focus
+    shapes = blur(shapes * (1 - blur(band, 2.0, wrap_x=True)), 1.1, wrap_x=True)
     yy = np.linspace(0, 1, h)[:, None] * np.ones((1, w))
-    col = mix(hexc("2a2410"), hexc("0e0804"), smooth(0.25, 1.0, yy))  # (round 8: darker)
-    rim = np.clip(a - np.roll(np.roll(a, 3, axis=0), 3, axis=1), 0, 1)
-    col = mix(col, hexc("c88a3a"), blur(rim, 1.0, wrap_x=True) * 0.55)
+    # (dark olive plants in the shade near the camera, near black at the bottom; the low sun behind them
+    # lights a warm edge along their upper left: it is what sets them off the dark soil band)
+    col = mix(hexc("2c2814"), hexc("0e0806"), smooth(0.6, 0.98, yy))
+    rim = np.clip(shapes - np.roll(np.roll(shapes, 3, axis=0), 2, axis=1), 0, 1)
+    col = mix(col, hexc("f0a850"), np.clip(blur(rim, 0.7, wrap_x=True) * 1.3, 0, 1) * 0.72)
     return dither_rgba(np.clip(col, 0, 255), np.clip(a * 1.15, 0, 1), rng)
 
 
