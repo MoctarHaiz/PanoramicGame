@@ -28,11 +28,12 @@ const SPEC_K := 0.85  ## the steady specular spark on its glint
 ## neighbours just outside fade a little, so the row parts round the bandit; every Bob has a gold rim (treasure, not
 ## a berry) and a shine sweeping across it every few seconds, the next one in a row a beat later (a wave of light
 ## running along a row or a pile: a pickup, never a painted thing of the backdrop).
+## Round 23 (the judges, j19, two rounds running: "a half-faded, see-through Red Bob reads as a rendering bug"): binary.
+## A Bob is drawn in full, or hidden while a bandit's head or body covers it (a quick ease, HIDE_RATE, never a lingering
+## half-alpha); its neighbours no longer fade.
 const RIM := Color(1.0, 0.8, 0.36, 0.95)
-const BEHIND_ALPHA := 0.12  ## a Bob behind a bandit's body: this opaque (behind its head: hidden)
 const BEHIND_GROW := Vector2(14.0, 24.0)  ## units a bandit's drawn body (hair, cape) reaches past its box
-const HEAD_SHARE := 0.42  ## the top of a bandit's drawn box (with BEHIND_GROW) that is its head and shoulders
-const PART := 14.0  ## units round a bandit over which a Bob fades back in (the row parts round it)
+const HIDE_RATE := 14.0  ## its fade out and back in: ~70 ms each way
 const SHINE := """
 shader_type canvas_item;
 // Round 21: a band of light sweeping across a Red Bob (its own beat from where it is: a wave along a row).
@@ -81,7 +82,7 @@ var _scale := 1.0
 var _unit := 1.0  # the scale that draws it SIZE wide
 var _tilt := 0.0  # its own lean (radians): no two alike
 var _face := Face.SMILE  # its own face (round 7: a row was "identical tomatoes"): happy, laughing, winking
-var _behind := 0.0  # round 20: how far it is hidden behind a bandit (eased; round 21: 1 behind its head)
+var _behind := 0.0  # round 20: how far it is hidden behind a bandit (round 23: eased quickly to 0 or 1)
 var _rim: Sprite2D
 
 
@@ -231,11 +232,11 @@ func _process(delta: float) -> void:
 	_glow.position = _sprite.position
 	_rim.position = _sprite.position
 	_rim.scale = Vector2.ONE * ((SIZE + 5.0) / 64.0) * (_sprite.scale.x / _unit)
-	# round 20: behind a bandit it dims and shrinks a little (the bandit reads whole over it); round 21: hidden behind
-	# its head, all but hidden behind its body, fading a little just outside it
-	_behind = move_toward(_behind, _behind_bandit(), delta * 6.0)
+	# round 23: behind a bandit's head or body it is hidden (the bandit reads whole over it), clear of it drawn in full;
+	# the switch eased quickly, so no frame holds a see-through Bob
+	_behind = move_toward(_behind, _behind_bandit(), delta * HIDE_RATE)
 	modulate.a = 1.0 - _behind
-	scale = Vector2.ONE * lerpf(1.0, 0.82, minf(_behind * 1.2, 1.0))
+	visible = _behind < 0.999
 	# blink every few seconds; once in a while a wink
 	var face := _face
 	if _clock >= _blink_at:
@@ -252,9 +253,8 @@ func _process(delta: float) -> void:
 		_shine.queue_redraw()
 
 
-## Round 20: how far a bandit's drawn body is over this Bob now (the bandits are looked up once a frame, for
-## every Bob: WorldView holds the world, this Bob's level holds it). Round 21: 1 behind its head and shoulders,
-## 1 - BEHIND_ALPHA behind the rest of it, less and less within PART units of it, 0 clear of it.
+## Round 20: whether a bandit's drawn body is over this Bob now (the bandits are looked up once a frame, for
+## every Bob: WorldView holds the world, this Bob's level holds it). Round 23: 1 behind its head or body, 0 clear of it.
 func _behind_bandit() -> float:
 	var frame := Engine.get_process_frames()
 	if frame != _bandits_frame:
@@ -278,16 +278,11 @@ func _behind_bandit() -> float:
 	if _bandit_rects.is_empty():
 		return 0.0
 	var r := SIZE * 0.4
-	var cover := 0.0
+	var me := Rect2(position - Vector2(r, r), Vector2(r, r) * 2.0)
 	for rect in _bandit_rects:
-		var me := Rect2(position - Vector2(r, r), Vector2(r, r) * 2.0)
 		if rect.intersects(me):
-			var head := position.y < rect.position.y + rect.size.y * HEAD_SHARE
-			cover = maxf(cover, 1.0 if head else 1.0 - BEHIND_ALPHA)
-		else:
-			var gap := maxf(maxf(rect.position.x - me.end.x, me.position.x - rect.end.x), maxf(rect.position.y - me.end.y, me.position.y - rect.end.y))
-			cover = maxf(cover, 0.45 * (1.0 - smoothstep(0.0, PART, gap)))
-	return cover
+			return 1.0
+	return 0.0
 
 
 ## Round 20: a thin ring (64 px), for the cream rim just outside the ball.

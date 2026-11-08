@@ -110,7 +110,7 @@ const SHADERS := ["res://src/game/terrain.gdshader", "res://src/game/water.gdsha
 		"res://src/game/water_front.gdshader", "res://src/game/haze.gdshader", "res://src/game/light_grade.gdshader",
 		"res://src/game/form.gdshader", "res://src/game/sway.gdshader", "res://src/game/actor.gdshader",
 		"res://src/game/flash.gdshader", "res://src/game/shine_text.gdshader", "res://src/game/ink.gdshader",
-		"res://src/game/bandit.gdshader"]
+		"res://src/game/bandit.gdshader", "res://src/game/sky_cel.gdshader", "res://src/game/rays_cel.gdshader"]
 
 
 ## Draws each of the world's shaders once, unseen (a pixel in a corner, nearly transparent, for half

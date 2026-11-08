@@ -155,10 +155,12 @@ static func _rand(n: int) -> float:
 ## (one rope alone read as a clothesline): units it hangs down at level x.
 func _back_sag(lx: float) -> float:
 	var span := SPAN * BACK_SPAN
-	var i := floori(lx / span)
-	var t := lx / span - i
-	var knots := lerpf((_rand(i * 41 + 3) - 0.3) * 10.0, (_rand((i + 1) * 41 + 3) - 0.3) * 10.0, t)
-	return knots + pow(sin(PI * t), 2.0) * (14.0 + 26.0 * _rand(i * 23 + 9)) + sin(_clock * 1.1 + lx * 0.017) * 1.2
+	# (round 23: its spans of uneven length, a slow warp along it, and their sags from taut to deep: no even wave)
+	var wx := lx + 90.0 * sin(lx * 0.0019 + 1.3)
+	var i := floori(wx / span)
+	var t := wx / span - i
+	var knots := lerpf((_rand(i * 41 + 3) - 0.4) * 18.0, (_rand((i + 1) * 41 + 3) - 0.4) * 18.0, t)
+	return knots + pow(sin(PI * t), 1.6) * (5.0 + 56.0 * pow(_rand(i * 23 + 9), 1.5)) + sin(_clock * 1.1 + lx * 0.017) * 1.2
 
 
 ## Round 22: how far down the rope is drawn at play x: sag_at() round his hands (he hangs there), and away from them its
@@ -177,22 +179,27 @@ func _drawn_sag(x: float) -> float:
 	var b := _alt_knot_x(i + 1)
 	var t := clampf((lx - a) / (b - a), 0.0, 1.0)
 	var knots := lerpf(_alt_knot(i), _alt_knot(i + 1), t)
-	var depth := (4.0 + 62.0 * pow(_rand(i * 31 + 7), 1.4)) * (b - a) / ALT_SPAN
+	# (round 23, the judges, j19: "one perfectly even sag edge to edge: a clothesline": some spans pulled nearly taut,
+	# some hanging deep, most in between)
+	var depth := (3.0 + 64.0 * pow(_rand(i * 31 + 7), 1.8)) * (b - a) / ALT_SPAN
 	var u := lx / 520.0
 	var f := u - floorf(u)
 	var swell := lerpf(_rand(floori(u) * 11 + 5), _rand((floori(u) + 1) * 11 + 5), f * f * (3.0 - 2.0 * f))
-	var own := knots + pow(sin(PI * t), 1.4) * depth + DRIFT * smoothstep(0.4, 1.0, swell) + sin(_clock * 1.3 + lx * 0.021) * 0.8
+	# (round 23: the whole line rides high over some stretches and low over others: it rises and falls, no even line)
+	var own := knots + pow(sin(PI * t), 1.4) * depth + DRIFT * (smoothstep(0.2, 1.0, swell) * 1.7 - 0.75) + sin(_clock * 1.3 + lx * 0.021) * 0.8
 	return lerpf(sag_at(x), own, away)
 
 
-## Round 22: the level x of the drawn rope's knot i (tied at uneven places).
+## Round 22: the level x of the drawn rope's knot i (tied at uneven places; round 23: more uneven).
 func _alt_knot_x(i: int) -> float:
-	return (i + (_rand(i * 29 + 3) - 0.5) * 0.6) * ALT_SPAN
+	return (i + (_rand(i * 29 + 3) - 0.5) * 0.76) * ALT_SPAN
 
 
-## Round 22: the drawn rope's knot i's height (units): tied higher and lower.
+## Round 22: the drawn rope's knot i's height (units): tied higher and lower (round 23: some up out of the screen's top,
+## where a strand holds it, some well down: the rope rises and falls, never one even line).
 func _alt_knot(i: int) -> float:
-	return (_rand(i * 13 + 5) - 0.5) * 16.0
+	var h := (_rand(i * 13 + 5) - 0.55) * 30.0
+	return h - (14.0 if _climbs(i) and _rand(i * 61 + 9) < 0.5 else 0.0)
 
 
 func _ready() -> void:

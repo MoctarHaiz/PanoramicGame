@@ -41,7 +41,7 @@ const UNDER_H := 44.0
 const TUFT := Vector2(64, 48)  ## tufts.png: one row of 8
 const FRONT_H := 24.0  ## front_grass.png: blades rise from 14 units under the surface
 const FRONT_BASE := 18.0
-const FOOT_SHADE := Color(0.18, 0.06, 0.14, 0.62)  ## at the foot of a wall
+const FOOT_SHADE := Color(0.14, 0.06, 0.14, 0.78)  ## at the foot of a wall (round 23, the judges: "no contact shadow at its base": darker)
 const CAST_SHADE := Color(0.16, 0.1, 0.2, 0.68)  ## a wall's long shadow on the ground (soft-started: no seam)
 const CAST_K := 0.75  ## its length per unit of the wall's height (a low sun)
 const DRAPE := Vector2(30, 50)  ## grass_drape.png: two pieces (left side, right side), each this size
@@ -157,8 +157,13 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 	var ink := ShaderMaterial.new()
 	ink.shader = preload("res://src/game/ink.gdshader")
 	ink.set_shader_parameter(&"width", 2.6)
-	for name: StringName in [&"caps", &"ends", &"drape"]:
-		_layers[name].material = ink
+	_layers[&"drape"].material = ink
+	# round 23 (the judges, j19: "he runs over the darkest band of the screen"): the turf he runs on lit a value lighter,
+	# a clean light lip along the walking line, its underside in the cool shade (ink.gdshader's `turf`)
+	var turf := ink.duplicate() as ShaderMaterial
+	turf.set_shader_parameter(&"turf", 1.0)
+	for name: StringName in [&"caps", &"ends"]:
+		_layers[name].material = turf
 	_layers[&"front"] = front
 	_layers[&"front_cast"] = front.get_child(0)
 
@@ -354,6 +359,8 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 	var run := smoothstep(0.35, 0.65, float(_hash(floori(c / 5.0), r + 41, 100)) / 100.0)
 	if not open_w and not open_e and _hash(c, r + 7, 100) < 22 + roundi(30.0 * run):
 		var v := _hash(c + 3, r, 8)
+		if v == 1 and _hash(c, r + 51, 4) != 0:  # (round 23: the daisies seldom: the brightest pixels by his boots)
+			v = 5
 		var dx := float(_hash(c, r + 1, 17)) - 8.0
 		var k := 0.72 + 0.6 * _hash(c, r + 43, 100) / 100.0
 		var size := TUFT * k

@@ -51,7 +51,7 @@ void fragment() {
 	float cx = size.x * 0.5 + (hash(seed * 12.7) - 0.5) * 18.0 * down * down;
 	// (round 21: its rectangle is wide for its foot and boulders: what lies past the widest it can be at this height,
 	// its ledges included, is left at once, before the work)
-	float reach_max = half_w * 1.45 + (base_w - half_w) * pow(down, 1.25) + 26.0;
+	float reach_max = half_w * 1.45 + (base_w - half_w) * pow(down, 1.25) + 26.0 + half_w * 1.6 * smoothstep(0.6, 1.0, down);
 	float base_y = water_y > 0.0 ? water_y : foot_y;
 	if (abs(p.x - cx) > reach_max && (rubble < 0.5 || y < base_y - 46.0)) {
 		discard;
@@ -71,9 +71,33 @@ void fragment() {
 	// its width down its height (round 21): from its cap's width down to base_w at its foot, a waist, a flare
 	float waist = 0.45 + 0.25 * hash(seed * 4.1);
 	float spread = base_w / max(half_w, 1.0) - 1.0;
+	// round 23 (the judges, j19: "two tall, thin, identical striped columns: chimney stacks"): each its own build (`kind`
+	// from its seed): a shaft standing on a wide talus mound, a cone widening all the way down, an hourglass pinched at
+	// its waist, or tiers stepping out at a ledge or two; and every one flares into a base mass at its foot
+	float kind = floor(hash(seed * 6.7) * 4.0);
 	float prof = 1.0 + spread * pow(down, 1.25);
+	if (kind < 0.5) {  // a shaft on a talus mound
+		prof = 1.0 + spread * 0.35 * down + spread * 1.1 * pow(smoothstep(0.55, 1.0, down), 1.6);
+	} else if (kind < 1.5) {  // a cone
+		prof = 1.0 + spread * 1.1 * pow(down, 0.9);
+	} else if (kind < 2.5) {  // an hourglass
+		prof = 1.0 + spread * pow(down, 1.4) - 0.28 * exp(-pow((down - waist) / 0.16, 2.0));
+	} else {  // tiers, each stepping out by a short sloped shoulder
+		float tf = down * 3.0 + (hash(seed * 9.1) - 0.5) * 0.6;
+		float tier = floor(tf) + smoothstep(0.72, 1.0, fract(tf));
+		prof = 1.0 + spread * (0.22 * tier + 0.5 * pow(down, 1.6)) + 0.06 * tier;
+	}
 	prof *= 1.0 - 0.1 * hash(seed * 3.3) * exp(-pow((down - waist) / 0.2, 2.0));
-	prof += 0.3 * pow(smoothstep(0.8, 1.0, down), 2.0);
+	prof += (0.3 + 0.9 * hash(seed * 7.3)) * pow(smoothstep(0.72, 1.0, down), 2.0);  // (its base mass, flaring)
+	// erosion: a few grooves weathered into its sides (it narrows over a short height, an undercut under each)
+	float groove = 0.0;
+	for (int i = 0; i < 3; i++) {
+		float fi = float(i);
+		float gy = (0.2 + 0.55 * hash(seed * 2.9 + fi * 4.3)) * height;
+		float gh = 7.0 + 9.0 * hash(seed + fi * 6.6);
+		groove = max(groove, (1.0 - smoothstep(0.0, 1.0, abs(y - gy) / gh)) * step(0.35, hash(seed * 5.1 + fi)));
+	}
+	prof -= 0.16 * groove;
 	float hl = half_w * (prof + step_l * smoothstep(cap_h + 20.0, cap_h + 40.0, y)) - 6.0 * tuck;
 	float hr = half_w * (prof + step_r * smoothstep(cap_h + 20.0, cap_h + 40.0, y)) - 6.0 * tuck;
 	hl = mix(hl, half_w * 1.12, cap);
@@ -175,9 +199,15 @@ void fragment() {
 	c *= 1.0 + 0.1 * (1.0 - s1) * (1.0 - ue / max(j1, 0.01));
 	c = mix(c, min(c * 1.25, vec3(1.0)), (1.0 - smoothstep(0.0, 0.03, abs(ue - j1 - 0.02))) * 0.5);
 	c = mix(c, c + vec3(0.14, 0.06, 0.0), s3 * smoothstep(0.82, 1.0, ue) * smoothstep(0.45, 1.0, down) * 0.7);
-	// the sandstone's beds as soft tone, painted mottling
+	// round 23: each its own stone (redder, paler and greyer, or rosier), its grooves set back in shade
+	vec3 stone = vec3(1.0);
+	float st = hash(seed * 13.3);
+	stone = st < 0.33 ? vec3(1.04, 0.94, 0.9) : (st < 0.66 ? vec3(0.95, 0.94, 0.98) : vec3(1.0, 0.92, 0.96));
+	c *= stone;
+	c *= 1.0 - 0.26 * smoothstep(0.2, 0.7, groove);
+	// the sandstone's beds as soft tone, painted mottling (round 23: each column's beds their own thickness)
 	float bed_y = y + (noise(p.x * 0.05 + seed) - 0.5) * 4.0;
-	float tone_b = noise(bed_y * 0.07 + seed * 3.0);
+	float tone_b = noise(bed_y * (0.045 + 0.05 * hash(seed * 4.4)) + seed * 3.0);
 	c *= mix(vec3(1.0), vec3(1.07, 0.95, 0.92), smoothstep(0.55, 0.85, tone_b));
 	c *= mix(vec3(1.0), vec3(0.93, 0.95, 1.03), smoothstep(0.42, 0.15, tone_b));
 	c *= 0.93 + 0.09 * noise2(p * vec2(0.06, 0.05) + seed) + 0.04 * noise2(p * vec2(0.3, 0.25));

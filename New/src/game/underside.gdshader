@@ -134,12 +134,30 @@ void fragment() {
 			root = max(root, (1.0 - smoothstep(half_w - 0.5, half_w + 0.5, abs(p.x - x))) * (1.0 - smoothstep(0.75, 1.0, tt)));
 		}
 	}
+	// round 23 (the judges, j19: "roots at two depths"): a second rank of roots behind, from deeper in the rock: thinner,
+	// paler (in the air's haze under the island), more of them, swaying a little
+	float root_back = 0.0;
+	for (int i = 0; i < 9; i++) {
+		float fi = float(i);
+		if (fi > w / 70.0) {
+			break;
+		}
+		float rx = w * (0.05 + 0.9 * hash(seed * 4.1 + fi * 3.7));
+		float len = 14.0 + 34.0 * hash(seed + fi * 8.3);
+		float tt = (p.y - edge_y + 6.0) / len;
+		if (tt > 0.0 && tt < 1.0) {
+			float x = rx + sin(p.y * 0.12 + fi * 1.3 + TIME * 0.7) * 2.2 * tt + tt * (hash(fi * 1.7 + seed) - 0.5) * 12.0;
+			float half_w = mix(0.9, 0.25, tt);
+			root_back = max(root_back, (1.0 - smoothstep(half_w - 0.4, half_w + 0.4, abs(p.x - x))) * (1.0 - smoothstep(0.7, 1.0, tt)));
+		}
+	}
+	root_back *= 1.0 - root;
 	float body = 1.0 - smoothstep(edge_y - 0.7, edge_y + 0.7, p.y);
 	// (its ends cut back like the ledge's rounded ends above it: a wedge, not a square end)
 	float end_d = min(p.x, w - p.x) - max(p.y - 6.0, 0.0) * 0.5;
 	body *= smoothstep(-0.7, 0.7, end_d);
 	float shape = max(body, drip);
-	float alpha = max(shape, root);
+	float alpha = max(max(shape, root), root_back);
 	if (alpha <= 0.002) {
 		discard;
 	}
@@ -147,16 +165,30 @@ void fragment() {
 	// those facing the low sun a step warmer, those away a step cooler, an ink line where two planes meet, the plain's
 	// warm light along its lower edge; light only on the lip under the grass
 	float into = clamp((p.y - lip_y) / max(edge_y - lip_y, 1.0), 0.0, 1.0);  // 0 at the front face, 1 at the edge
-	vec3 warm = vec3(0.5, 0.3, 0.29);
-	vec3 cool = vec3(0.23, 0.14, 0.21);
+	// round 23 (the judges, j19: "the largest, darkest mass on screen, a plum-black slab dead centre"): its value lifted
+	// toward the sky's (the air under it is the sky's light), the core only a little darker, the planes kept
+	vec3 warm = vec3(0.66, 0.46, 0.42);
+	vec3 cool = vec3(0.42, 0.34, 0.44);
 	float face_sun = smoothstep(-0.12, 0.12, f_slope);
 	vec3 c = mix(cool, warm, face_sun);
-	c *= 0.86 + 0.26 * hash(seed + facet * 11.3);
-	c *= 1.0 - 0.3 * smoothstep(0.0, 0.4, into) * (1.0 - smoothstep(0.6, 1.0, into));  // its dark core
+	c *= 0.88 + 0.22 * hash(seed + facet * 11.3);
+	c *= 1.0 - 0.16 * smoothstep(0.0, 0.4, into) * (1.0 - smoothstep(0.6, 1.0, into));  // its dark core
 	c = mix(c, c + vec3(0.16, 0.08, 0.02), smoothstep(0.82, 1.0, into) * 0.8 * (0.4 + 0.6 * face_sun));  // the plain's warm light along its lower edge
 	c *= 0.92 + 0.12 * noise2(p * vec2(0.05, 0.09) + seed) + 0.04 * noise2(p * 0.3);
 	// soft beds following the planes, and an ink line between two planes
 	c *= 1.0 - 0.08 * smoothstep(0.6, 0.85, noise((p.y - p.x * f_slope * 0.6) * 0.09 + facet * 3.0));
+	// round 23 (the judges: "break it with strata"): the rock's beds across it, level as the ledge's, each its own tone,
+	// a lit edge along a bed's top on the planes facing the sun, a seam under it (broken), so the mass reads as layers
+	float sb_y = p.y + (noise(p.x * 0.03 + seed) - 0.5) * 6.0 + sin(p.x * 0.017 + seed) * 3.0;
+	float sb_h = 15.0 + 13.0 * noise(floor(sb_y / 20.0) * 1.9 + seed);
+	float sb_n = floor(sb_y / sb_h);
+	float sb_f = fract(sb_y / sb_h);
+	float sb_on = smoothstep(lip_y + 2.0, lip_y + 8.0, p.y);
+	c *= mix(1.0, mix(0.86, 1.1, hash(sb_n * 3.3 + seed)), sb_on);
+	c = mix(c, c * vec3(1.1, 0.96, 0.92), step(0.75, hash(sb_n * 7.1 + seed)) * 0.6 * sb_on);  // (a redder bed)
+	float sb_break = smoothstep(0.5, 0.66, noise(p.x * 0.05 + sb_n * 2.9)) * step(0.35, hash(sb_n * 5.7 + seed));
+	c = mix(c, min(c * 1.22 + vec3(0.03, 0.02, 0.0), vec3(1.0)), (1.0 - smoothstep(0.0, 0.1, sb_f)) * sb_on * sb_break * (0.3 + 0.5 * face_sun));
+	c *= 1.0 - 0.18 * smoothstep(0.87, 0.95, sb_f) * sb_on * sb_break;
 	float ridge = min(abs(p.x - ridge_c), abs(p.x - ridge_n));
 	float ridge_ink = (1.0 - smoothstep(0.5, 1.3, ridge)) * step(lip_y + 3.0, p.y) * smoothstep(0.25, 0.45, noise(p.y * 0.08 + facet * 2.0));
 	// the drips: the plane's colour, darker, lit down their sun side
@@ -181,8 +213,9 @@ void fragment() {
 	float line = (1.0 - smoothstep(1.4, 2.4, edge_y - p.y)) * body * (1.0 - drip);
 	line = max(line, (1.0 - smoothstep(0.9, 1.8, drip_edge)) * drip * (1.0 - body));
 	line = max(line, (1.0 - smoothstep(1.4, 2.4, end_d)) * body);
-	line = max(line, max(lip_ink * 0.85, ridge_ink * 0.6 * (1.0 - on_face)));
+	line = max(line, max(lip_ink * 0.85, ridge_ink * 0.38 * (1.0 - on_face)));
 	c = mix(c, vec3(0.17, 0.085, 0.06), line * 0.92);
 	c = mix(c, vec3(0.2, 0.12, 0.1), root * (1.0 - shape));
+	c = mix(c, vec3(0.44, 0.36, 0.42), root_back * (1.0 - shape));  // (the roots behind: in the haze under it)
 	COLOR = vec4(c, alpha);
 }

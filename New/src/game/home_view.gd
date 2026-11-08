@@ -62,7 +62,7 @@ func build() -> void:
 	_fire = Fire.new()
 	# (round 7: by the hut, in the pushed-in shot; round 21: nearer him, its light reaching his left side)
 	_fire.position = Vector2(LEFT + 644.0, GROUND - 8.0)
-	_fire.scale = Vector2(2.3, 2.3)  # (round 9: a little bigger: it reads at phone size; round 19: bigger still)
+	_fire.scale = Vector2(2.0, 2.0)  # (round 9: a little bigger: it reads at phone size; round 19: bigger still; round 23, the judges, j19: "a glow blob brighter than the hero": smaller, its light lower)
 	back.add_child(_fire)
 	var fire_smoke := _smoke()
 	fire_smoke.position = _fire.position + Vector2(0, -26)
@@ -184,10 +184,10 @@ func _process(delta: float) -> void:
 		var flick := 0.08 * sin(_clock * 9.0) + 0.05 * sin(_clock * 23.0) + 0.03 * sin(_clock * 3.7)
 		# (round 20: kept round the fire, not over the whole left of the home: the dusk's cool reads round it)
 		# (round 22, the judges, j18: "the fire's orange washes the left third": its light kept nearer it)
-		_fire_light.modulate = Color(1, 0.6, 0.3, 0.1 + flick * 0.7 + 0.06 * _welcome)
-		_fire_pool.modulate = Color(1, 0.66, 0.34, 0.45 + flick * 1.5 + 0.15 * _welcome)
-		_fire_reach.modulate = Color(1, 0.62, 0.3, 0.42 + flick * 1.2 + 0.12 * _welcome)
-		_fire_side.modulate = Color(1, 0.58, 0.28, 0.2 + flick * 0.8 + 0.08 * _welcome)
+		_fire_light.modulate = Color(1, 0.6, 0.3, 0.05 + flick * 0.35 + 0.03 * _welcome)
+		_fire_pool.modulate = Color(1, 0.66, 0.34, 0.24 + flick * 0.8 + 0.08 * _welcome)
+		_fire_reach.modulate = Color(1, 0.62, 0.3, 0.24 + flick * 0.7 + 0.06 * _welcome)
+		_fire_side.modulate = Color(1, 0.58, 0.28, 0.12 + flick * 0.5 + 0.05 * _welcome)
 		_door_lift.modulate = Color(0.86, 0.56, 0.34, 0.5 + f * 0.12 + 0.1 * _welcome)
 
 
@@ -342,7 +342,7 @@ class Fire extends Node2D:
 			m.shader = FIRE_SHADER
 			m.set_shader_parameter(&"seed", 1.3 + k * 6.1)
 			f.material = m
-			f.modulate = Color(1.0, 0.86, 0.8, 0.92) if k == 0 else Color.WHITE
+			f.modulate = Color(0.9, 0.7, 0.6, 0.9) if k == 0 else Color(0.96, 0.86, 0.76)  # (round 23: under his value)
 			add_child(f)
 			_flames.append(m)
 		add_child(_sparks())
@@ -350,9 +350,9 @@ class Fire extends Node2D:
 	func _process(delta: float) -> void:
 		_clock += delta
 		var flicker := 0.1 * sin(_clock * 9.0) + 0.06 * sin(_clock * 23.0)
-		_glow.modulate = Color(1, 0.7, 0.42, 0.55 + flicker)
+		_glow.modulate = Color(1, 0.7, 0.42, 0.3 + flicker * 0.6)  # (round 23: lower)
 		# (round 20: its light kept round it: it washed the whole left half of the home orange; round 22: less still)
-		_light.modulate = Color(1, 0.6, 0.3, 0.12 + flicker * 0.3)
+		_light.modulate = Color(1, 0.6, 0.3, 0.06 + flicker * 0.15)
 		for m in _flames:
 			m.set_shader_parameter(&"flare", flare)
 		queue_redraw()

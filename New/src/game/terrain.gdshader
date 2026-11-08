@@ -319,10 +319,12 @@ void fragment() {
 		float s2 = smoothstep(j2 - 0.01, j2 + 0.01, ue);
 		float s3 = smoothstep(j3 - 0.01, j3 + 0.01, ue);
 		// (round 22: a wider value range between the planes: cel steps, not a brown block)
-		vec3 lit_p = vec3(1.0, 0.72, 0.46);
-		vec3 mid_p = vec3(0.84, 0.49, 0.35);
-		vec3 low_p = vec3(0.7, 0.39, 0.33);  // (a quiet turn inside the front: the strong ones are the lit and shadow faces)
-		vec3 shd_p = vec3(0.34, 0.22, 0.34);
+		// round 23 (the judges, j19: "the largest saturated shape on screen, the mesas' value: it takes the focus"): a
+		// value darker and less saturated, so it supports the action in front of it
+		vec3 lit_p = vec3(0.8, 0.57, 0.42);
+		vec3 mid_p = vec3(0.64, 0.42, 0.34);
+		vec3 low_p = vec3(0.54, 0.35, 0.31);  // (a quiet turn inside the front: the strong ones are the lit and shadow faces)
+		vec3 shd_p = vec3(0.27, 0.19, 0.27);
 		vec3 pc = mix(mix(mix(lit_p, mid_p, s1), low_p, s2), shd_p, s3);
 		pc *= 1.0 + 0.1 * (1.0 - s1) * (1.0 - ue / max(j1, 0.01));  // brightest at the lit edge
 		pc *= 1.0 - 0.07 * (s1 - s2) * (ue - j1) / max(j2 - j1, 0.01);  // each plane turning from the light
@@ -338,6 +340,29 @@ void fragment() {
 		pc *= mix(vec3(1.0), vec3(0.93, 0.95, 1.03), smoothstep(0.42, 0.15, tone_b));
 		pc *= 1.0 - 0.05 * smoothstep(0.72, 0.92, noise(bed_y * 0.32 + floor(level_pos.x / 37.0) * 0.4));
 		pc *= 0.93 + 0.09 * noise2(level_pos * vec2(0.04, 0.07) + pid) + 0.04 * noise2(level_pos * vec2(0.22, 0.3));
+		// round 23 (the judges, j19: "flat planes with a few cracks, no strata"): the sandstone in beds of uneven
+		// thickness, each its own tone (paler, redder, darker), a lit edge along each bed's top on the sunny planes and a
+		// seam under it, broken (weathered out here, crisp there)
+		float sb_y = depth + (noise(level_pos.x * 0.045 + pid * 2.0) - 0.5) * 5.0 + sin(level_pos.x * 0.02 + pid) * 2.0;
+		float sb_h = 13.0 + 16.0 * noise(floor(sb_y / 19.0) * 1.7 + pid);
+		float sb_n = floor(sb_y / sb_h);
+		float sb_f = fract(sb_y / sb_h);
+		float sb_t = hash(sb_n * 3.7 + pid * 1.3);
+		pc *= mix(vec3(0.88, 0.88, 0.92), vec3(1.07, 1.02, 0.96), sb_t);
+		pc = mix(pc, pc * vec3(1.06, 0.9, 0.86), step(0.78, hash(sb_n * 5.1 + pid)) * 0.6);  // (a redder bed)
+		float sb_on = smoothstep(lip + 18.0, lip + 30.0, depth) * smoothstep(10.0, 24.0, to_foot);
+		float sb_break = smoothstep(0.45, 0.62, noise(level_pos.x * 0.06 + sb_n * 2.3)) * step(0.3, hash(sb_n * 7.9 + pid));
+		pc = mix(pc, min(pc * 1.2 + vec3(0.03, 0.02, 0.0), vec3(1.0)), (1.0 - smoothstep(0.0, 0.08, sb_f)) * sb_on * (1.0 - s3) * 0.4 * sb_break);
+		pc *= 1.0 - 0.2 * smoothstep(0.86, 0.95, sb_f) * sb_on * sb_break;
+		// chips knocked out of the face: a small pit, its upper-left wall in shadow, its lower-right lip lit
+		vec2 ch_c = floor(level_pos / vec2(19.0, 15.0));
+		vec2 ch_o = (vec2(hash(ch_c.x * 3.1 + ch_c.y * 7.7), hash(ch_c.y * 5.3 + ch_c.x * 1.9)) - 0.5) * vec2(10.0, 7.0);
+		vec2 ch_p = (level_pos - (ch_c + 0.5) * vec2(19.0, 15.0) - ch_o) / vec2(2.2, 1.0);  // (long, along the beds)
+		float ch_r = 1.6 + 2.0 * hash(ch_c.x * 9.7 + ch_c.y * 2.3);
+		float ch_on = step(0.86, hash(ch_c.x * 1.3 + ch_c.y * 11.1 + pid)) * sb_on;
+		float ch_in = (1.0 - smoothstep(ch_r - 0.6, ch_r + 0.4, length(ch_p))) * ch_on;
+		float ch_side = clamp(dot(normalize(ch_p + vec2(1e-3)), vec2(0.6, 0.8)), -1.0, 1.0);
+		pc = mix(pc, pc * mix(0.7, 1.16, smoothstep(-0.2, 0.6, ch_side)), ch_in * 0.75);
 		// the joint between two blocks (most of them): the underside above, a lit shelf, the overhang's shadow
 		float joint_on = step(0.5, bh) * smoothstep(lip + 24.0, lip + 40.0, depth) * step(24.0, to_foot)
 				* (0.25 + 0.75 * smoothstep(0.3, 0.5, noise(level_pos.x * 0.035 + bk * 3.0 + pid)));  // (broken: not a ruled line)
@@ -380,11 +405,15 @@ void fragment() {
 		cap_c *= 0.94 + 0.08 * noise2(level_pos * vec2(0.08, 0.3) + pid);
 		// under the cap rock: a crisp shadow, then a deep occlusion; a dark contact at its foot
 		float under_cap = max(depth - cap_end, 0.0);
-		float occl = min(0.62 * exp(-under_cap / 10.0) + 0.3 * exp(-under_cap / 40.0), 0.75);  // (darkest right under it)
+		// (round 23, the judges, j19: "no ambient occlusion under the grass cap, no contact shadow at its base"): deeper
+		// and longer under the cap, cool; a heavy dark contact where it stands in the grass
+		float occl = min(0.7 * exp(-under_cap / 12.0) + 0.38 * exp(-under_cap / 55.0), 0.84);  // (darkest right under it)
 		pc *= 1.0 - occl;
-		pc = mix(pc, pc * vec3(0.8, 0.78, 1.0), exp(-under_cap / 30.0) * 0.6);  // (cool in the cap's shade)
+		pc = mix(pc, pc * vec3(0.78, 0.78, 1.0), exp(-under_cap / 40.0) * 0.7);  // (cool in the cap's shade)
+		cap_c *= 0.82;  // (the cap rock under the grass: in the turf's shade, no pale band)
 		pc = mix(pc, cap_c, cap_band);
-		pc *= 1.0 - 0.45 * (1.0 - smoothstep(0.0, 52.0, to_foot - 4.0)) * smoothstep(30.0, 40.0, depth);
+		pc *= 1.0 - 0.62 * (1.0 - smoothstep(0.0, 76.0, to_foot - 4.0)) * smoothstep(30.0, 40.0, depth);
+		pc = mix(pc, pc * vec3(0.8, 0.78, 0.95), (1.0 - smoothstep(0.0, 26.0, to_foot - 2.0)) * smoothstep(30.0, 40.0, depth) * 0.6);
 		c = pc;
 		// the ink inside it: under the cap rock, where a plane turns into the shadow face, under a block's joint
 		float cap_ink = (smoothstep(cap_end - 1.4, cap_end - 0.4, depth) - smoothstep(cap_end + 0.6, cap_end + 1.6, depth));

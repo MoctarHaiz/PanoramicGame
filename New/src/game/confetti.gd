@@ -55,6 +55,10 @@ var avoid := Rect2()
 ## near ones bigger and crisp (j15: "flat same-size rectangles").
 var depth := 0.0
 var haze := Color(1.0, 0.92, 0.82)
+## Round 23 (the judges, j19, home: "flat same-size rectangles stuck on the thatch"): the party's paper lit over the full
+## range as it turns (bright face on, a step darker edge-on, its back in shade), so each piece reads as a tumbling,
+## lit thing (false: lit brightly whichever way it faces, as on the results card).
+var lit_full := false
 
 var _pieces: Array[Piece] = []
 var _sparkles: Array[Sparkle] = []
@@ -345,13 +349,15 @@ func _clear(p: Piece) -> float:
 ## Colour of a piece: its own colour lit by how squarely it faces the light, its back darker.
 func _shade(p: Piece) -> Color:
 	var face := cos(p.flip)
-	var lit := (0.82 + 0.18 * absf(face)) if p.shape in BRIGHT else (0.6 + 0.4 * absf(face))
+	var lit := (0.82 + 0.18 * absf(face)) if p.shape in BRIGHT and not lit_full else (0.5 + 0.5 * absf(face))
 	var base := p.colour
 	if face < 0.0:
 		if p.shape in [Shape.STRIP, Shape.PAPER]:  # two-tone paper: its other side shows as it turns over
 			base = p.back
+			if lit_full:
+				lit *= 0.82  # (its back turned from the light)
 		else:
-			lit *= 0.9 if p.shape in BRIGHT else 0.8
+			lit *= 0.9 if p.shape in BRIGHT and not lit_full else 0.8
 	var c := Color(base.r * lit, base.g * lit, base.b * lit, _fade(p.age, p.life) * lerpf(0.7, 1.0, p.z) * p.colour.a)
 	if p.shape in BRIGHT:  # its shade warmer, not greyer: red holds, green and blue go
 		c = Color(base.r * (0.9 + 0.1 * lit), base.g * lit, base.b * lit * lit, c.a)

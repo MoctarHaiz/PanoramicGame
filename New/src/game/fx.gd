@@ -299,6 +299,8 @@ static func _volley(parent: Node, at: Vector2, k: float, near: bool, keep_off :=
 ## Round 22 (the judges, j18: "home: a confetti blizzard of same-size flat rectangles over the hut and his head"): out of
 ## the doorway, a short burst that clears: a third of the paper, each volley spread over depth (small, pale and slow
 ## far; bigger and crisp near), shorter lives, a few out-of-focus pieces near the eye, the gold sparks; all behind him.
+## Round 23 (the judges, j19: "flat same-size rectangles stuck on the thatch"): fewer pieces, smaller, spread over more
+## depth (far ones small and hazed, near ones bigger), each lit over the full range as it tumbles (Confetti.lit_full).
 static func _home_volley(parent: Node, at: Vector2, k: float, near: bool) -> void:
 	var far := Confetti.make(parent, at)
 	far.depth = 0.95
@@ -306,17 +308,19 @@ static func _home_volley(parent: Node, at: Vector2, k: float, near: bool) -> voi
 	far.gravity = 760.0
 	far.drag = 1.9
 	far.flutter = 420.0
+	far.lit_full = true
 	_behind_hero(far, parent)
-	far.spray(int(9 * k), PAPER_SHAPES, PAPER_COLOURS, Vector2(560, 1150), Vector2.UP, 52.0, 1.0, Vector2(1.3, 1.9), 20.0)
+	far.spray(int(5 * k + 0.5), PAPER_SHAPES, PAPER_COLOURS, Vector2(560, 1150), Vector2.UP, 52.0, 1.0, Vector2(0.75, 1.3), 20.0)
 	var mid := Confetti.make(parent, at)
-	mid.depth = 0.6  # (each its own size)
+	mid.depth = 0.9  # (each its own size)
 	mid.gravity = 980.0
 	mid.drag = 1.6
 	mid.flutter = 520.0
+	mid.lit_full = true
 	_behind_hero(mid, parent)
-	mid.spray(int(9 * k), PAPER_SHAPES, PAPER_COLOURS, Vector2(800, 1700), Vector2.UP, 44.0, 1.7, Vector2(1.2, 1.8), 20.0)
-	mid.spray(int(2 * k + 0.5), STREAMERS, STREAMER_COLOURS, Vector2(850, 1400), Vector2.UP, 34.0, 1.4, Vector2(1.3, 1.8), 16.0)
-	mid.sparkle(int(8 * k), GOLD, Vector2(200, 600), 1.0, Vector2(0.45, 0.9))
+	mid.spray(int(6 * k + 0.5), PAPER_SHAPES, PAPER_COLOURS, Vector2(800, 1700), Vector2.UP, 44.0, 1.7, Vector2(0.9, 1.6), 20.0)
+	mid.spray(int(1 * k + 0.5), STREAMERS, STREAMER_COLOURS, Vector2(850, 1400), Vector2.UP, 34.0, 1.4, Vector2(1.1, 1.5), 16.0)
+	mid.sparkle(int(5 * k), GOLD, Vector2(200, 600), 1.0, Vector2(0.45, 0.9))
 	if near:
 		var soft := Confetti.make(parent, at)  # near the eye: big, soft, few, past fastest
 		soft.gravity = 520.0
