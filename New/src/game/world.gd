@@ -393,7 +393,9 @@ func advance(delta: float, before_tick := Callable()) -> int:
 			before_tick.call(self)
 		tick()
 		n += 1
-	alpha = _time / TICK
+	# (the user, 2026-11-08: "the bandit shakes when the hero dies"): once the run is over no tick moves anything, so
+	# the picture stays on the last one (alpha kept cycling between the last two places: everything shook)
+	alpha = _time / TICK if state == State.RUNNING else 1.0
 	return n
 
 
