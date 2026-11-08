@@ -86,6 +86,12 @@ var _run_frames := 10
 ## about 120 units from its crest to its boots, four fifths of Panoramic's height. Its hit box
 ## (World.BANDIT_SIZE, the 2017 rules) is unchanged; rings meet it at chest height either way.
 const DRAW_SCALE := 1.0
+## Each kind drawn at this share of its sheet (the user, 2026-11-07: the strong one as tall as the hero, the bandit
+## smaller). Measured 2026-11-08 (r23): the strong one's dreadlock tufts above his wrap made him 1.07 x the hero on
+## screen (366 px against 344): 0.94 brings his whole silhouette, tufts included, to the hero's height. His run
+## pace is raised by as much (a shorter stride at the same ground speed), so his planted boot doesn't slide. The
+## rules' body (World.STRONG_BODY, to the top of his wrap at full size) is unchanged: its top now meets his tufts' tips.
+const KIND_SCALE := {&"bandit": 1.0, &"bandit_strong": 0.94}
 
 var _scale := 0.5
 var _last_time := -1.0
@@ -122,7 +128,7 @@ func _init(w: World, b: World.Bandit) -> void:
 	_d = _kinds[kind][0]
 	_tex = _kinds[kind][1]
 	_run_frames = int(_d.run_frames)
-	_scale = DRAW_SCALE / float(_d.texture_scale)
+	_scale = DRAW_SCALE * float(KIND_SCALE[kind]) / float(_d.texture_scale)
 	_sprite = Sprite2D.new()
 	_sprite.texture = _tex
 	_sprite.region_enabled = true  # the frames are packed, each its own rectangle: bandit.json
@@ -151,8 +157,8 @@ func _init(w: World, b: World.Bandit) -> void:
 	# the silhouette's ink as wide on screen as Panoramic's (his atlas texel over this sheet's)
 	var texel := float(HeroView.frames_data().units_per_px) * float(_d.texture_scale)
 	_material.set_shader_parameter(&"sil_colour", INK)
-	_material.set_shader_parameter(&"sil_in_px", HeroView.SIL_IN * texel)
-	_material.set_shader_parameter(&"sil_out_px", HeroView.SIL_OUT * texel)
+	_material.set_shader_parameter(&"sil_in_px", HeroView.SIL_IN * texel / float(KIND_SCALE[kind]))
+	_material.set_shader_parameter(&"sil_out_px", HeroView.SIL_OUT * texel / float(KIND_SCALE[kind]))
 	_sprite.material = _material
 	add_child(_sprite)
 	_front = Node2D.new()
@@ -220,7 +226,7 @@ func _process(delta: float) -> void:
 		_sprite.scale = Vector2(_scale * (1.0 - 0.012 * k), _scale * (1.0 + 0.02 * k))
 	else:
 		# dazed, it runs a little slower and rocks on its feet
-		_run = fposmod(_run + dt * float(_d.run_fps) * (0.85 if bandit.hurt else 1.0), _run_frames)
+		_run = fposmod(_run + dt * float(_d.run_fps) / float(KIND_SCALE[kind]) * (0.85 if bandit.hurt else 1.0), _run_frames)
 		frame = int(_d.run) + int(_run)
 		if bandit.hurt:
 			rock = DAZE_ROCK * sin(_star_turn * 0.8)
