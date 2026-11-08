@@ -30,10 +30,17 @@ const VAULT_TIME := 0.46  ## seconds
 const VAULT_HEIGHT := 150.0  ## units: over his head
 const STAR_COUNT := 3
 const STAR_RISE := 30.0  ## units the dazed stars circle above the middle of its hair
+## (round 19) The characters' one line and light system (character.gdshaderinc, as Panoramic's): the same warm
+## brown ink and dusk shade, and the bandits graded down (their hues kept: the user's design) so he stays the
+## hottest, clearest shape on screen ("the cyan-haired bandits are the most saturated shapes, they read as the stars").
+const SATURATION := 0.7
+const VALUE := 0.9
+const SHADE := 0.2
+const SHADOW_WIDTH := 84.0  ## units across its shadow on the ground (Panoramic's: 100)
+const SHADOW_SHIFT := 8.0  ## its shadow falls a little right of it, away from the sun (upper left), as his does
 
 const KINDS: Array[StringName] = [&"bandit", &"bandit_strong"]
 static var _kinds := {}  # kind -> [its bandit.json data, its sheet]
-static var _shade: Texture2D
 
 ## How far a running bandit's body reaches ahead of its centre (units): pressed on a wall, its crest
 ## touches the face.
@@ -72,6 +79,7 @@ var _ko := false
 var _ko_time := 0.0
 var _pushed := 0.0  # 0..1 of KO_PUSH done
 var _vault := -1.0  # 0..1 through the vault over him (-1: not vaulting)
+var _lift := 0.0  # units it is drawn above the ground (the vault)
 
 
 static func load_art() -> void:
@@ -79,16 +87,6 @@ static func load_art() -> void:
 		return
 	for k in KINDS:
 		_kinds[k] = [JSON.parse_string(FileAccess.get_file_as_string(DIR + k + ".json")), load(DIR + k + ".png")]
-	var g := GradientTexture2D.new()
-	g.width = 64
-	g.height = 64
-	g.fill = GradientTexture2D.FILL_RADIAL
-	g.fill_from = Vector2(0.5, 0.5)
-	g.fill_to = Vector2(1.0, 0.5)
-	g.gradient = Gradient.new()
-	g.gradient.offsets = PackedFloat32Array([0.0, 0.55, 1.0])
-	g.gradient.colors = PackedColorArray([Color(0.08, 0.03, 0.06, 0.78), Color(0.08, 0.03, 0.06, 0.42), Color(0.08, 0.03, 0.06, 0)])
-	_shade = g
 
 
 func _init(w: World, b: World.Bandit) -> void:
@@ -108,6 +106,11 @@ func _init(w: World, b: World.Bandit) -> void:
 	_material = ShaderMaterial.new()
 	_material.shader = preload("res://src/game/bandit.gdshader")
 	_material.set_shader_parameter(&"seed", fmod(b.id * 1.7, 13.0))
+	_material.set_shader_parameter(&"line_colour", HeroView.LINE)
+	_material.set_shader_parameter(&"line_inside", HeroView.LINE_INSIDE)
+	_material.set_shader_parameter(&"saturation", SATURATION)
+	_material.set_shader_parameter(&"value", VALUE)
+	_material.set_shader_parameter(&"shade_amount", SHADE)
 	_sprite.material = _material
 	add_child(_sprite)
 	_front = Node2D.new()
@@ -191,12 +194,14 @@ func _process(delta: float) -> void:
 	var head: Array = _d.head[frame]
 	_head = Vector2(head[0], head[1]) * _scale
 	var lift := 0.0
+	_lift = 0.0
 	if bandit.touched_hero and _vault < 1.0:
 		if _vault < 0.0:  # the blow: it rears back, then leaps
 			_vault = 0.0
 			_squash = Vector2(0.86, 1.14)
 		_vault = minf(_vault + dt / VAULT_TIME, 1.0)
 		lift = VAULT_HEIGHT * 4.0 * _vault * (1.0 - _vault)
+		_lift = lift
 		frame = int(_d.leap)  # the leap over him
 		rotation = -0.35 * sin(_vault * PI)
 	elif _vault >= 1.0:
@@ -228,13 +233,13 @@ func _draw() -> void:
 	_draw_stars(false)
 
 
-## A soft shadow on the ground under him (only while he stands on it).
+## A soft shadow on the ground under him (only while he stands on it; vaulting over Panoramic, smaller and
+## lighter the higher he is): the hero's (HeroView.contact_shadow), so all of them stand on the same ground.
 func _draw_shadow() -> void:
 	if _ko or not _grounded:
 		return
-	_ground_shadow.draw_set_transform(Vector2(_jolt * 0.5, -1.0), 0.0, Vector2(0.95, 0.2))
-	_ground_shadow.draw_texture(_shade, -Vector2(32, 32))
-	_ground_shadow.draw_set_transform(Vector2.ZERO)
+	var k := 1.0 - clampf(_lift / VAULT_HEIGHT, 0.0, 1.0) * 0.7
+	HeroView.contact_shadow(_ground_shadow, Vector2(_jolt * 0.5 + SHADOW_SHIFT, -1.0), SHADOW_WIDTH * (1.15 if bandit.strong else 1.0), k)
 
 
 ## Dazed stars on a ring above its hair: those behind it drawn under the sprite, the rest over it.

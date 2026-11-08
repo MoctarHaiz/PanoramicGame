@@ -19,6 +19,7 @@ const HERO_WIN := "res://assets/art/hero/hero_win.png"  ## the art track's rende
 const HERO_LOSE := "res://assets/art/hero/hero_defeat.png"  # the art track's defeat pose
 const HERO_STAND := "res://assets/art/ui/hero_stand.png"  ## fallbacks, loaded only when used (a preload
 const HERO_DOWN := "res://assets/art/ui/hero_down.png"  ## kept them in texture memory all the time)
+const KO_HEAD := Vector2(0.57, 0.04)  ## (round 19) over the knock-out still's head (hero_defeat.png): its stars circle there
 const STAR_STEP := 0.32  ## seconds between two stars
 const COUNT_TIME := 0.7  ## seconds the Red Bobs take to roll up
 const BADGE := 62.0  ## the NEW BEST badge's radius (its spikes)
@@ -194,8 +195,8 @@ static func _stars_stage(stars: Array[Control]) -> Control:
 	return stage
 
 
-## Panoramic beside the card: arms up in the gold light after a win, down on one knee after a loss
-## (hero.gdshader, colder and darker then). The art track's renders when they are there.
+## Panoramic beside the card: his victory pose in the gold light after a win, knocked out (dizzy) after a loss
+## (hero.gdshader, colder and darker then, for the fallback crops). The art track's stills when they are there.
 static func _hero(won: bool) -> TextureRect:
 	var art := TextureRect.new()
 	var path := HERO_WIN if won else HERO_LOSE
@@ -203,22 +204,24 @@ static func _hero(won: bool) -> TextureRect:
 	art.texture = load(path) if rendered else load(HERO_STAND if won else HERO_DOWN)
 	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
-	if rendered:  # the renders stand on their own contact shadow (hero_atlas.py): the panel adds none
-		# (round 15: the win's leap has no shadow under it, "a disc far below his feet": the ground his leap
-		# rises from lies a little under the picture's foot)
-		art.set_meta(&"ground", 1.04 if won else 0.935)
+	if rendered:  # the stills stand on their own contact shadow (hero_atlas_ai.py stills()): the panel adds none
+		art.set_meta(&"ground", 0.935)  # (round 19) where his feet are, a share of the picture's height
 	if won:
-		art.set_meta(&"tall", 1.06)  # arms up: he stands a head above the card
-		art.set_meta(&"overlap", -0.08)  # beside it, with air: his raised hand clear of the ribbon
+		# (round 19, the judges: "the hero small on the win screen") the victory still, a fist punched to the sky: he
+		# stands taller than the card
+		art.set_meta(&"tall", 1.16)
+		art.set_meta(&"overlap", -0.06)  # beside it, with air: his raised fist clear of the ribbon
 	else:
 		var tex_size := art.texture.get_size()
 		# whatever his shape he stays clear of the card's frame and band (a little air between)
 		if tex_size.x > tex_size.y * 1.75:  # lying on the ground (very wide; round 17: the KO sit is 1.59)
 			art.set_meta(&"tall", 0.5)
 			art.set_meta(&"overlap", -0.03)
-		elif tex_size.x > tex_size.y * 1.15:  # (round 15) knocked out, sprawled: low, so a little taller
-			art.set_meta(&"tall", 0.7)
+		elif tex_size.x > tex_size.y * 1.15:  # (round 19) knocked out, slumped where he sat down: big enough to read
+			art.set_meta(&"tall", 0.82)
 			art.set_meta(&"overlap", -0.03)
+			if rendered:
+				art.add_child(_dizzy(KO_HEAD))
 		elif tex_size.x > tex_size.y * 0.8:  # seated (wide): on the ground beside the card, big enough
 			art.set_meta(&"tall", 0.66)  # not to float small in the dark
 			art.set_meta(&"overlap", -0.03)
@@ -236,6 +239,30 @@ static func _hero(won: bool) -> TextureRect:
 			lit.set_shader_parameter(&"shade", 0.55)
 		art.material = lit
 	return art
+
+
+## (round 19, the judges: "the game over reads lounging, sunbathing, not knocked out") Dazed stars circling over his
+## head on the knock-out still (its spiral eyes): BanditView's stars, on a ring tilted in depth (those behind him
+## fainter). `head`: where they circle, a share of the picture's size.
+static func _dizzy(head: Vector2) -> Control:
+	var stars := Control.new()
+	stars.set_anchors_preset(Control.PRESET_FULL_RECT)
+	stars.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var turn := [0.0]
+	stars.draw.connect(func() -> void:
+		var c := stars.size * head
+		var r := stars.size.x * 0.085
+		for i in 3:
+			var a: float = turn[0] + i * TAU / 3.0
+			var depth := sin(a)
+			BanditView._star(stars, c + Vector2(cos(a) * r, depth * r * 0.28), r * (0.2 + 0.05 * depth), a * 0.6,
+					Color(1, 0.86, 0.3, 0.8 + 0.2 * depth)))
+	if Prefs.motion():  # (reduced motion: they stay still)
+		var spin := stars.create_tween().set_loops()
+		spin.tween_method(func(t: float) -> void:
+			turn[0] = t
+			stars.queue_redraw(), 0.0, TAU, 1.4)
+	return stars
 
 
 ## The choreography, one beat after the other (each step is skipped if the panel is gone).

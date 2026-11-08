@@ -1,8 +1,8 @@
 class_name RingView
 extends Node2D
-## Panoramic's throwing ring: a thick blue-steel ring with a glowing inner edge, rendered in 3D and
-## lit like him (assets/art/fx/ring_spin.png, tools/art/blender/ring_render.py: 8 frames of a half
-## turn), 40 units across, tumbling as it flies; around it a soft additive glow, a highlight racing
+## Panoramic's throwing ring: a blue-steel chakram whose face carries a band of Zulu beadwork, red and black
+## triangles on white (round 19: the old emblem "read as a brand logo"; assets/art/fx/ring_spin.png,
+## tools/art/ring_beadwork.py: 8 frames of a half turn), 40 units across, tumbling as it flies; a highlight racing
 ## round it, a flash where it leaves his hand, a soft tapered streak of light behind it and now and
 ## then a spark shed into the air.
 

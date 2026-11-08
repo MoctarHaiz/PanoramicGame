@@ -51,7 +51,7 @@ FAMILIES = [
     ("ui/paper", "the hide/paper grain of the panels (tiles both ways)", authored("tools/art/ui_kit.py"), False, "tiles", ["palette"]),
     ("ui/", "interface ornament (beadwork, ribbon, shield, HUD head)", authored("tools/art/ui_art.py / logo.py"), True, "centre", ["palette"]),
     ("icons/", "app icon (iOS, Play, Android adaptive layers)", authored("tools/art/icons.py (from the user's portrait)"), False, "centre", ["identity", "palette"]),
-    ("fx/ring", "Panoramic's throwing ring: a 3D blue-steel torus with a glowing inner edge, 8 frames of a half turn", authored("tools/art/blender/ring_render.py (Blender)"), True, "centre", ["palette", "light-direction"]),
+    ("fx/ring", "Panoramic's chakram: a blue-steel ring with a band of Zulu beadwork (red and black triangles on white), 8 frames of a half turn", authored("tools/art/ring_beadwork.py"), True, "centre", ["palette", "light-direction"]),
     ("world/home_", "HOME homestead piece (hut, fence, granary, sign, pot, glow)", authored("tools/art/home.py"), True, "bottom-centre at the ground", ["palette", "light-direction"]),
     ("world/prop_", "savanna decoration prop", authored("tools/art/props.py"), True, "bottom-centre at the ground", ["palette", "light-direction"]),
     ("world/tree_", "background tree (acacia, baobab), anchors in tree_info.json", authored("tools/art/trees.py"), True, "bottom-centre at the trunk", ["palette", "light-direction"]),

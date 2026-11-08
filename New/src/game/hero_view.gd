@@ -9,7 +9,8 @@ extends Node2D
 ##   rules decide how high and how far), the landing played out into the run;
 ## - the vine: reaching up into it, hanging by his hands (a damped pendulum, legs swaying), the
 ##   climb over a ledge, the crouch, the throw (his arm over the running legs), the blow, the fall
-##   onto his back when caught, and at home he turns to us and throws his fists up;
+##   onto his back when caught, and at home he lands and springs into his victory pose (round 19: a kie.ai still,
+##   a fist punched to the sky, the beadwork chakram in his armoured hand);
 ## - a soft shadow on the ground under him, cast a little away from the sun.
 ## Animation runs on the world's clock while the game runs, so pause and hit-stop freeze him too.
 
@@ -31,12 +32,15 @@ const BLINK_HZ := 8.0  ## the mercy pulse after a hit (smooth, not a strobe)
 const VINE_Y := 6.0  ## where his hands grip the vine
 const GRIP_UP := 14.0  ## atlas px from his wrists up to his grip
 const WIN_LOOP := 10  ## the cheer at home loops from this frame
+const WIN_POSE := 3  ## the win's frame where the landing crouch springs into the victory pose (hero_atlas_ai.py)
 const JUMP_RISE := [2, 9]  ## jump frames of the rise (vertical speed -JUMP_SPEED .. -TOP)
 const JUMP_TOP := [10, 13]  ## the top (-TOP .. +TOP)
 const JUMP_FALL := [14, 18]  ## the fall (+TOP .. +JUMP_SPEED)
 const JUMP_LAND := [19, 26]  ## the landing, played out (it ends in the run's first frame)
 const TOP := 6.0  ## units a tick of vertical speed counted as the top of the jump
 const SHADOW_SHIFT := 10.0  ## units the ground shadow falls right of him (the sun is upper left)
+const SHADOW_WIDTH := 100.0  ## units across his shadow on the ground, standing on it
+const SHADOW := Color(0.11, 0.04, 0.07)  ## the characters' shadows: the dusk's warm plum shade
 const HOLD := 0.1  ## seconds an animation shows at least before another replaces it (no flicker)
 const HURT_TIME := 0.33  ## seconds of the blow's reaction
 const STUMBLE := 0.14  ## seconds of the stumble after it, leaning back and catching himself
@@ -44,6 +48,10 @@ const PULL := 0.16  ## seconds per hand-over-hand pull up a ledge
 const HAND_STEP := 0.2  ## seconds per hand step along the vine while hanging
 const LIGHT_GAIN := 1.18  ## his lit colours x this in play (actor.gdshader light_gain; the ink untouched; round 16:
 ## 1.28 -> 1.18, "traffic-cone orange")
+## (round 19) the characters' one line and light system (character.gdshaderinc, shared with BanditView)
+const LINE := Color(0.17, 0.085, 0.06)  ## his ink: a dark warm brown, not black
+const LINE_INSIDE := 0.55  ## the brown lines inside him (the muscles' grooves, folds) softened towards the colours round them
+const SHADE := 0.14  ## his shade tinted towards the dusk's cool ambient
 const VINE_INK_PX := 0.9  ## atlas px of ink added at the vine: hero_atlas.py's 3.2 x (1 / 0.78 - 1), the vine framing's zoom
 const WALK_IN := 70.0  ## units he walks into the doorway at home
 const DIE_PUSH := 40.0  ## units the fatal blow knocks him back
@@ -127,7 +135,12 @@ func _init() -> void:
 	_material.set_shader_parameter(&"rim_colour", Color(1.0, 0.86, 0.6))
 	_material.set_shader_parameter(&"rim_dir", Vector2(-0.6, -0.8))
 	_material.set_shader_parameter(&"outline_px", 0.0)
-	_material.set_shader_parameter(&"outline_colour", Color(0.1, 0.045, 0.035, 1.0))  # (hero_atlas.py's ink)
+	# (round 19) one line and light system with the bandits (character.gdshaderinc): his ink a dark warm brown, a
+	# lighter brown on the edges facing the sun, his shade tinted to the dusk's ambient; the vine's extra ink too
+	_material.set_shader_parameter(&"outline_colour", LINE)
+	_material.set_shader_parameter(&"line_colour", LINE)
+	_material.set_shader_parameter(&"line_inside", LINE_INSIDE)
+	_material.set_shader_parameter(&"shade_amount", SHADE)
 	# (round 12, "top runners light the hero brightest on screen") his lit side raised in the level's light
 	_material.set_shader_parameter(&"light_gain", LIGHT_GAIN)
 	_sprite.material = _material
@@ -227,7 +240,7 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 	var offset := Vector2.ZERO
 	var tilt := 0.0
 	var sink := 0.0  # 0..1: how far he has gone under a pool's surface
-	var duck := 1.0  # under a low roof: drawn this much shorter
+	var duck := 1.0  # under a low roof: drawn this much shorter (at home: his breath)
 	var air_y := p.y + _hips_dy  # where his hips are drawn in the air
 	var phase := w.move_phase()  # gameplay's hooks: what he is doing and since when
 	var t := w.phase_time()
@@ -245,6 +258,12 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 				var n := frames(anim).size()
 				var f := int((t - World.HOME_LAND) * float(frames_data().anims.win.fps))
 				index = f if f < n else WIN_LOOP + (f - WIN_LOOP) % (n - WIN_LOOP)
+				# (round 19) out of the landing crouch he springs into the victory pose (one drawing): a stretch as he
+				# rises into it, then breathing, his punched fist high
+				if index >= WIN_POSE and _anim == &"win" and _index < WIN_POSE:
+					_squash = Vector2(0.9, 1.12)
+				if index >= WIN_POSE:
+					duck = 1.0 + 0.012 * sin((t - World.HOME_LAND) * 5.0)
 			else:
 				anim = &"run"
 				var u := clampf((t - World.HOME_CHEER) / (World.HOME_TIME - World.HOME_CHEER), 0.0, 1.0)
@@ -426,7 +445,8 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 	# (hero pass 3) at home the campfire, on his left, warms that side of him
 	var home_k := clampf(_end_time / 0.5, 0.0, 1.0) if phase == &"home" else 0.0
 	_material.set_shader_parameter(&"bounce", 0.6 * home_k)
-	_material.set_shader_parameter(&"back_rim", 0.9 * home_k)  # (round 16: 0.4 -> 0.65, "the head vanishes into the doorway")  # (round 10) and the lit hut behind him rims him (round 14: lighter, "an orange outer-glow outline, a cut-out halo")
+	# (round 19, the user: no rim light on him; the judges: "backlit by the door into a halo") no back rim at home
+	_material.set_shader_parameter(&"back_rim", 0.0)
 	# (round 14: round 13's darker front "merged with the dark doorway": his front light kept at home)
 	_material.set_shader_parameter(&"bounce_scale", 2.0 / maxf(float(region[2]), 1.0))
 	_update_shadow(w, p)
@@ -471,13 +491,22 @@ func _update_shadow(w: World, p: Vector2) -> void:
 func _draw_under() -> void:
 	if _shadow.x < 0.0:
 		return
-	var w := 50.0 * (0.45 + 0.55 * _shadow_k)
-	# one soft blob, darkest under his feet (round 14, the character judge: six stacked circles "banded into
-	# concentric rings, like a puddle"); as dark in the middle as the rings were
-	var a := (1.0 - pow(1.0 - (0.2 * _shadow_k + 0.05), 6.0)) * _visible
-	_under.draw_set_transform(_shadow, 0.0, Vector2(_shadow_w, 0.22))
-	_under.draw_texture_rect(_blob(), Rect2(-w, -w, w * 2.0, w * 2.0), false, Color(0.12, 0.04, 0.06, a))
-	_under.draw_set_transform(Vector2.ZERO)
+	contact_shadow(_under, _shadow, SHADOW_WIDTH, _shadow_k, _visible, _shadow_w)
+
+
+## (round 19) Every character's shadow on the ground (Panoramic's, the bandits'): one soft blob, darkest under the
+## feet (round 14: no stacked rings, "like a puddle"), a tight darker contact where they stand (grounded, not
+## hovering), both in the dusk's warm plum shade, smaller and lighter the higher `k` (1: on the ground, 0: high
+## above it). `stretch` widens it (lying down).
+static func contact_shadow(target: CanvasItem, at: Vector2, width: float, k: float, opacity := 1.0, stretch := 1.0) -> void:
+	var w := width * 0.5 * (0.45 + 0.55 * k)
+	var a := (1.0 - pow(1.0 - (0.2 * k + 0.05), 6.0)) * opacity
+	target.draw_set_transform(at, 0.0, Vector2(stretch, 0.22))
+	target.draw_texture_rect(_blob(), Rect2(-w, -w, w * 2.0, w * 2.0), false, Color(SHADOW, a * 0.8))
+	var c := w * 0.55  # the contact: where the boots meet the ground
+	target.draw_set_transform(at, 0.0, Vector2(stretch, 0.16))
+	target.draw_texture_rect(_blob(), Rect2(-c, -c, c * 2.0, c * 2.0), false, Color(SHADOW, k * k * 0.55 * opacity))
+	target.draw_set_transform(Vector2.ZERO)
 
 
 static var _blob_tex: Texture2D

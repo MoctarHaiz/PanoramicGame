@@ -36,6 +36,7 @@ uniform vec4 back_rim_colour : source_color = vec4(1.0, 0.6, 0.22, 1.0);
 uniform float back_rim_ink_px = 3.4;  // the ink round the outline, in texture pixels (no light on it; round 16: 3.0 lit
 // the edge of round 15's thinner ink, "a pale outer edge")
 uniform float back_rim_px = 2.2;  // the band's width inside the ink
+#include "res://src/game/character.gdshaderinc"
 varying vec2 local_pos;
 
 void vertex() {
@@ -50,6 +51,24 @@ void fragment() {
 		uv.x += warp_px * TEXTURE_PIXEL_SIZE.x * k * k;
 		c = texture(TEXTURE, uv);
 		c.a *= opacity;
+	}
+	if (c.a > 0.0) {  // (round 19) the characters' one line and light system (character.gdshaderinc)
+		vec2 px = TEXTURE_PIXEL_SIZE * line_px;
+		float bright = 0.0;
+		vec3 sum = vec3(0.0);
+		float weight = 0.0;
+		for (int i = 0; i < 8; i++) {
+			float t = float(i) * 0.7853982;
+			vec4 n = texture(TEXTURE, uv + vec2(cos(t), sin(t)) * px);
+			bright = max(bright, mix(1.0, char_lum(n.rgb), n.a));
+			sum += n.rgb * n.a;
+			weight += n.a;
+		}
+		vec2 far = px * 2.4;
+		float inside = min(min(texture(TEXTURE, uv + vec2(far.x, 0.0)).a, texture(TEXTURE, uv - vec2(far.x, 0.0)).a),
+				min(texture(TEXTURE, uv + vec2(0.0, far.y)).a, texture(TEXTURE, uv - vec2(0.0, far.y)).a));
+		float lit = 1.0 - texture(TEXTURE, uv + normalize(light_dir) * far).a;
+		c.rgb = char_grade(c.rgb, bright, sum / max(weight, 0.001), 1.0 - smoothstep(0.2, 0.8, inside), lit);
 	}
 	if (rim > 0.0 && c.a > 0.0) {
 		// how much of this pixel's alpha is missing a few pixels towards the light: an edge facing it

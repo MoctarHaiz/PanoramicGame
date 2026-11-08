@@ -7,9 +7,11 @@ on the ground under the hips, the hips at the top of the fur loincloth, the hand
 the run's planted boot tracked from frame to frame.
 
     python3 tools/art/hero_atlas_ai.py [OUT_DIR] [RUN_FPS]   # default assets/art/hero, run_fps 16 (HeroView.RUN_FPS)
+    HERO_ANIM=DIR (the kie frames, default ROOT/_agents/kie/anim); STILLS=only: just the end screens' pictures (stills())
 """
 import hashlib
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -27,8 +29,13 @@ STAND_GEN = 675.0    # standing height in the cut stills
 UNITS = 150.0 / STAND_ATLAS
 GROUND_SPEED = 8.0 * 960.0 / 1320.0 * 40.0
 GRIP_UP = 14.0
-FINAL = ROOT / "_agents/kie/anim/final"  # one picture per slot from the Seedance clips (video/vframes.py)
-CUT = ROOT / "_agents/kie/anim/cut"  # the cut kie.ai stills (grid_cut.py)
+ANIM = Path(os.environ.get("HERO_ANIM", ROOT / "_agents/kie/anim"))  # (round 19: settable, for a git worktree)
+FINAL = ANIM / "final"  # one picture per slot from the Seedance clips (video/vframes.py)
+CUT = ANIM / "cut"  # the cut kie.ai stills (grid_cut.py)
+
+
+WIN_SLOTS = 24  # the win's slots (HeroView.WIN_LOOP loops inside them)
+WIN_STILL = 675.0 / 1030.0  # the victory still's size factor: its 1030 px from hair to boots drawn as tall as he stands
 
 
 def slots(seq):
@@ -60,7 +67,9 @@ ANIMS = {
              1.0, 30.0, False, "first"),
     "idle": (final("idle"), 1.0, 10.0, True, "first"),
     "die": (final("die"), 1.0, 20.0, False, "last"),
-    "win": (final("win"), 1.0, 20.0, False, "first"),
+    # (round 19, the judges: "a generic symmetric double-biceps, flat-footed") the landing crouch of the clip, then the
+    # victory still (kie.ai, anim/cut/r19/win.png): a fist punched to the sky, the chakram in his armoured hand, a stride
+    "win": (final("win", [0, 1, 2]) + [(str(CUT / "r19/win.png"), WIN_STILL)] * (WIN_SLOTS - 3), 1.0, 20.0, False, "first"),
     "climb": (cut("climb", range(8)), 1.0, 30.0, False, "last"),  # the stills: 8 drawings for its 8 slots
     "hang": (final("hang"), 1.15, 10.0, True, None),
     "catch": (cut("catch_hang", [0, 1, 2, 3]), 1.15, 30.0, False, None),
@@ -72,6 +81,81 @@ ANIMS = {
 }
 
 _cache = {}
+CALM = True  # (round 19) the skin's interior detail calmed at pack time: calm()
+TV_WEIGHT = 0.07  # how flat calm() makes the skin's value masses
+
+
+def _lum(rgb):
+    return rgb @ np.array([0.3, 0.59, 0.11], np.float32)
+
+
+def _disc(r):
+    yy, xx = np.mgrid[-r:r + 1, -r:r + 1]
+    return (yy ** 2 + xx ** 2) <= r * r
+
+
+def calm(a):
+    """(round 19, the judges: "over-cut anatomy, a muscle diagram: every ab and striation at full contrast") The skin's
+    interior detail calmed, at the stills' scale: its thin brown grooves filled from the skin round them (a grey closing),
+    the big values restored (only the lines and specks go), then the values settled into a few big masses (total-variation
+    smoothing of the luminance, the colour kept). Not on the silhouette and the hands near it (ramped in from it), the face
+    (a disc round the hair) nor the black ink; the costume as drawn."""
+    from skimage.restoration import denoise_tv_chambolle
+    rgb = a[..., :3]
+    solid = a[..., 3] > 0.5
+    L = _lum(rgb)
+    mx, mn = rgb.max(-1), rgb.min(-1)
+    sat = (mx - mn) / np.maximum(mx, 1e-4)
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    skin = solid & (r > g) & (g > b * 0.95) & (r - b > 0.12) & (sat > 0.25) & (sat < 0.8) & (L > 0.16) & (L < 0.85) \
+        & (g > r * 0.42)
+    skin = ndi.binary_opening(skin, iterations=1)
+    lab, n = ndi.label(skin)
+    if not n:
+        return a
+    sz = ndi.sum(skin, lab, range(1, n + 1))
+    skin = np.isin(lab, 1 + np.where(sz >= 60)[0])
+    region = ndi.binary_closing(skin, iterations=4) & solid  # the skin with the lines inside it
+    edge_w = np.clip((ndi.distance_transform_edt(solid) - 4.0) / 14.0, 0, 1)
+    dark = ndi.binary_opening(solid & (L < 0.14) & (sat < 0.6), iterations=2)  # dark masses, not lines
+    lab, n = ndi.label(dark)
+    face_w = np.ones_like(L)
+    if n:  # the face: a disc round the hair (the biggest dark mass), fading out past it
+        hair = lab == (1 + int(np.argmax(ndi.sum(dark, lab, range(1, n + 1)))))
+        ys, xs = np.where(hair)
+        rad = 0.95 * max(ys.max() - ys.min(), xs.max() - xs.min())
+        yy, xx = np.mgrid[0:a.shape[0], 0:a.shape[1]]
+        face_w = np.clip((np.hypot(yy - ys.mean(), xx - xs.mean()) - rad) / (0.25 * rad), 0, 1)
+    w = region * edge_w * face_w
+    # 1) the brown grooves filled (the black ink kept), the big values restored
+    closed = np.dstack([ndi.grey_closing(rgb[..., c], footprint=_disc(3)) for c in range(3)])
+    deep = edge_w ** 2  # well inside him: his black muscle lines too; near the silhouette (the hands) the black ink kept
+    ink = np.clip((L - 0.08) / 0.1, 0, 1)
+    line = np.clip((_lum(closed) - L - 0.03) / 0.1, 0, 1) * (ink + (1 - ink) * deep)
+    k = (line * w * 0.64)[..., None]
+    out = rgb * (1 - k) + closed * k
+    sm = solid.astype(np.float32)
+
+    def low(x):
+        return ndi.gaussian_filter(x * sm, 7.0) / np.maximum(ndi.gaussian_filter(sm, 7.0), 1e-4)
+
+    ratio = np.clip(low(L) / np.maximum(low(_lum(out)), 1e-3), 0.6, 1.2)
+    rk = np.clip(w * 1.5, 0, 1)[..., None]
+    out = out * (1 - rk) + np.clip(out * ratio[..., None], 0, 1) * rk
+    # 2) a few big value masses: the luminance smoothed to flat shapes with crisp edges, in the skin's own colour
+    Lo = _lum(out)
+    Lt = denoise_tv_chambolle(Lo, weight=TV_WEIGHT)
+    keep = (Lo < 0.12) * (1 - deep)  # the black ink near the silhouette as drawn
+    Lt = Lo * keep + Lt * (1 - keep)
+    wm = (w > 0.05).astype(np.float32)
+    sw = ndi.gaussian_filter(wm, 1.0)
+    blur = np.dstack([ndi.gaussian_filter(out[..., c] * sw, 2.0) for c in range(3)]) \
+        / np.maximum(ndi.gaussian_filter(sw, 2.0), 1e-3)[..., None]
+    cel = np.clip(blur / np.maximum(_lum(blur), 1e-3)[..., None] * Lt[..., None], 0, 1)
+    wk = (ndi.gaussian_filter(region.astype(np.float32), 1.2) * edge_w * face_w)[..., None]
+    res = a.copy()
+    res[..., :3] = out * (1 - wk) + cel * wk
+    return res
 
 
 def load(path, factor):
@@ -81,6 +165,8 @@ def load(path, factor):
     im = Image.open(path).convert("RGBA")
     k = STAND_ATLAS / STAND_GEN * factor
     a = np.asarray(im).astype(np.float32) / 255.0
+    if CALM:
+        a = calm(a)
     pm = a.copy(); pm[..., :3] *= pm[..., 3:4]
     w, h = round(im.width * k), round(im.height * k)
     ch = [np.asarray(Image.fromarray(pm[..., c]).resize((w, h), Image.LANCZOS)) for c in range(4)]
@@ -153,7 +239,8 @@ def build():
             k = (p, f_, anim)
             al, ys, xs = fig(a)
             hips = hips_of(a)
-            on_ground = ground is not None and low >= ground - 4.0
+            # (round 19) a still on its own canvas among a clip's frames (the win's victory pose) stands on its own feet
+            on_ground = ground is not None and (low >= ground - 4.0 or a.shape != pics[0].shape)
             g = float(low) if on_ground else (ground if ground is not None else float(low))
             top = int(ys.min()); tx = xs[ys <= top + 3]
             bot = int(ys.max()); bx = xs[ys >= bot - 4]
@@ -255,5 +342,36 @@ def build():
           "per slot %.1f px -> matched run fps %.1f" % (per_slot, matched))
 
 
+def stills():
+    """(round 19) The end screens' pictures from the kie.ai stills (anim/cut/r19): the victory (a fist punched to the sky,
+    the chakram in his armoured hand: the judges, "a generic symmetric double-biceps") and the knock-out (slumped, dizzy
+    spiral eyes: "lounging, sunbathing"), calmed like the atlas, each standing on its own soft contact shadow
+    (hero_atlas.grounded; ResultsPanel's "ground" meta is where his feet are)."""
+    import hero_atlas as ha
+    for src, name, height in (("win.png", "hero_win.png", WIN_STILL_PX), ("defeat.png", "hero_defeat.png", DEFEAT_STILL_PX)):
+        a = np.asarray(Image.open(CUT / "r19" / src).convert("RGBA")).astype(np.float32) / 255.0
+        if CALM:
+            a = calm(a)
+        k = height / a.shape[0]
+        pm = a.copy()
+        pm[..., :3] *= pm[..., 3:4]
+        w, h = round(a.shape[1] * k), round(a.shape[0] * k)
+        ch = [np.asarray(Image.fromarray(pm[..., c]).resize((w, h), Image.LANCZOS)) for c in range(4)]
+        r = np.clip(np.dstack(ch), 0, 1)
+        al = r[..., 3:4]
+        r[..., :3] = np.where(al > 1e-4, r[..., :3] / np.maximum(al, 1e-4), 0)
+        g = ha.grounded(r, strength=1.2)
+        rows = np.nonzero(r[..., 3].max(1) > 0.5)[0]
+        ha.OUT = OUT
+        ha.save(g, name)
+        print(name, "ground at %.3f of its height" % ((rows.max() + 8) / (g.shape[0] + 16)))
+
+
+WIN_STILL_PX = 964  # the end screens' pictures' heights (the figure; its shadow below)
+DEFEAT_STILL_PX = 700
+
+
 if __name__ == "__main__":
-    build()
+    if os.environ.get("STILLS") != "only":
+        build()
+    stills()

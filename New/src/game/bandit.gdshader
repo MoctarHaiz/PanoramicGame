@@ -12,6 +12,7 @@ uniform float vanish : hint_range(0.0, 1.0) = 0.0;
 uniform vec4 region = vec4(0.0, 0.0, 1.0, 1.0);
 uniform float aspect = 1.0;  // the frame's width over its height
 uniform float seed = 0.0;  // each bandit's own ripples
+#include "res://src/game/character.gdshaderinc"
 const float GLAZE_END = 0.6;  // the glaze covers him by then (banditMort6)
 const float TWIRL_FROM = 0.55;  // the twirl starts (banditMort7)
 varying vec4 vertex_colour;
@@ -33,6 +34,25 @@ float noise(vec2 p) {
 
 void fragment() {
 	vec4 c = COLOR;
+	if (vanish <= 0.0 && c.a > 0.0) {  // (round 19) the characters' one line and light system, graded down
+		// (character.gdshaderinc; BanditView sets its saturation and value under Panoramic's)
+		vec2 px = TEXTURE_PIXEL_SIZE * line_px;
+		float bright = 0.0;
+		vec3 sum = vec3(0.0);
+		float weight = 0.0;
+		for (int i = 0; i < 8; i++) {
+			float t = float(i) * 0.7853982;
+			vec4 n = texture(TEXTURE, UV + vec2(cos(t), sin(t)) * px);
+			bright = max(bright, mix(1.0, char_lum(n.rgb), n.a));
+			sum += n.rgb * n.a;
+			weight += n.a;
+		}
+		vec2 far = px * 2.4;
+		float inside = min(min(texture(TEXTURE, UV + vec2(far.x, 0.0)).a, texture(TEXTURE, UV - vec2(far.x, 0.0)).a),
+				min(texture(TEXTURE, UV + vec2(0.0, far.y)).a, texture(TEXTURE, UV - vec2(0.0, far.y)).a));
+		float lit = 1.0 - texture(TEXTURE, UV + normalize(light_dir) * far).a;
+		c.rgb = char_grade(c.rgb, bright, sum / max(weight, 0.001), 1.0 - smoothstep(0.2, 0.8, inside), lit);
+	}
 	if (vanish > 0.0) {
 		vec2 l = (UV - region.xy) / region.zw;  // 0..1 across the frame
 		vec2 q = (l - vec2(0.5)) * vec2(aspect, 1.0);  // from its middle, in frame heights
@@ -70,6 +90,7 @@ void fragment() {
 			c.a *= smoothstep(hole * 0.7, hole, r);  // nor in its middle
 		}
 		c.a *= 1.0 - smoothstep(0.8, 1.0, vanish);
+		c.rgb = char_grade(c.rgb, 0.0, c.rgb, 0.0, 0.0);  // (the grade, no line)
 	}
 	c.rgb = mix(c.rgb, tint.rgb, amount);
 	COLOR = c;

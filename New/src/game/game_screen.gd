@@ -39,8 +39,11 @@ const HIGH_FEET := 0.74  ## risen, his feet this share of the screen down
 const HIGH_RATE := 2.5  ## how fast it rises and comes back down (1/s)
 const HIGH_DROP := 14.0  ## ... and how fast it comes down when what must be seen no longer fits
 const HIGH_LOOKAHEAD := 330.0  ## units further than the rules look for a drop ahead (~1.4 s of run)
-const HOME_PUSH := 1.6  ## at home the camera pushes in to the doorway, to this zoom (1: 640 units tall; round 6: closer)
+const HOME_PUSH := 1.78  ## at home the camera pushes in to the doorway, to this zoom (1: 640 units tall; round 6: closer; round 19: 1.6 -> 1.78, "the hero small at home")
 const DEATH_PUSH := 1.2  ## caught: the camera closes in on him while he falls (World.DYING_TIME)
+const START_PUSH := 1.3  ## (round 19) on the start card the camera opens pushed in this much on him, about his feet,
+const START_HOLD := 1.6  ## ... holds it this many seconds,
+const START_REVEAL := 1.0  ## ... then draws back to the run's framing over this many (the first touch: at once)
 const HOME_CX := 800.0  ## play x drawn to the middle of the screen at home (the hut, him at its door)
 const SHAKE := 22.0  ## design units of the strongest shake
 const RESUME_COUNT := 3  ## after Resume: 3, 2, 1 before the world moves again
@@ -85,6 +88,9 @@ var _zoom := 0.0  # the camera's zoom (1: the 640 units fill the screen's height
 var _support := 0.0  # play y of the feet he last stood on (in the air only a fall moves it)
 var _high := 0.0  # 0..1: how far the camera has risen with him on a high ledge
 var _push := 1.0  # the camera pushed in at home (HOME_PUSH), or on him when caught (DEATH_PUSH)
+var _start_push := 1.0  # the camera pushed in on him on the start card (START_PUSH .. 1)
+var _zoom_placed_ready := false  # the camera was first placed on the start card
+var _start_clock := 0.0  # seconds the start card has shown
 var _pit_scroll := -1.0  # the scroll the camera holds at while he drops into a pit (_gameplay_camera)
 var _pit_time := 0.0  # seconds since it began holding
 var _pit_seen := false  # the hold began while he was still in the picture, dropping in
@@ -247,6 +253,7 @@ func _place_camera(delta: float) -> void:
 	if _zoom <= 0.0:  # the first frame: framed at once, no drift in from nowhere
 		_zoom = goal
 		_high = high
+		_zoom_placed_ready = _ready_to_start  # (round 19) framed on the start card: pushed in on him
 	_high = lerpf(_high, high, 1.0 - exp(-delta * (HIGH_RATE if fits else HIGH_DROP)))
 	_zoom = lerpf(_zoom, goal, 1.0 - exp(-delta * (ZOOM_OUT_RATE if goal < _zoom else ZOOM_IN_RATE)))
 	var home := world.state == World.State.WON
@@ -279,6 +286,22 @@ func _place_camera(delta: float) -> void:
 	var fair := _gameplay_camera(zoom_k, at)
 	zoom_k = fair[0]
 	at = fair[1]
+	# (round 19, the judges: "the hero small on the start card") on his marks the camera opens pushed in on him, about
+	# his feet (the ground stays on the bottom of the screen), then draws back to reveal the run's framing while the
+	# card waits; the first touch ends it at once (while he runs the whole play window shows: _keep_fair's rules)
+	if _zoom_placed_ready:
+		_start_push = START_PUSH
+		_start_clock = 0.0
+		_zoom_placed_ready = false
+	if _ready_to_start and _start_push > 1.0:
+		_start_clock += delta
+		_start_push = lerpf(START_PUSH, 1.0, smoothstep(START_HOLD, START_HOLD + START_REVEAL, _start_clock))
+	else:
+		_start_push = 1.0
+	if _start_push > 1.0005:
+		var mark := Vector2(at.x + p.x * zoom_k, _clip.size.y)
+		at = mark + (at - mark) * _start_push
+		zoom_k *= _start_push
 	var z := 1.0 + 2.0 * shake / (World.VIEW_H * _k)
 	zoom_k *= z
 	at = at * z + _clip.size / 2.0 * (1.0 - z)
