@@ -31,3 +31,5 @@ android/build/build/
 android/build/.gradle/
 android/build/libs/
 android/build/res/values/strings.xml
+# Godot's Android export output (compiled scripts and assets), rebuilt on every export
+android/build/src/main/assets/

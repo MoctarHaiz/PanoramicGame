@@ -39,3 +39,19 @@ venv/
 # Godot and Gradle caches in any subproject
 **/.godot/
 **/.gradle/
+
+# The 3D source files (Blender, FBX) and their renders in Making/ stay on this computer:
+# too big for git (Animation.blend alone is 326 MB, over GitHub's 100 MB limit).
+# Only the small scripts and notes in Making/ are tracked.
+/Making/**
+!/Making/**/
+!/Making/**/*.py
+!/Making/**/*.md
+!/Making/**/*.json
+!/Making/**/*.txt
+!/Making/**/.gitignore
+
+# Loose reference pictures dropped at the repo root
+/*.png
+/*.jpg
+/*.jpeg
