@@ -53,6 +53,7 @@ const SPIRE_SHADER := preload("res://src/game/spire.gdshader")
 const FOOT_SINK := 24.0  ## units its foot reaches under the waterline / into the ground
 const MASS := Vector2(256, 128)  ## (round 19's hanging.png masses: their size still sets how deep an underside hangs)
 const UNDERSIDE := preload("res://src/game/underside.gdshader")
+const HERO_DRAWN := 158.0  ## units from the ground to the top of his hair as drawn, a little room over it
 const MASS_INSET := 40.0  ## a ledge shorter than twice this (and 24 units) has no underside
 const MASS_TOP := 7.0  ## units under the grass surface where a mass's straight top joins the ledge (under the mat)
 const NARROW_CELLS := 6  ## a wall at most this many cells wide is a pillar (shaded as a column to its foot)
@@ -413,6 +414,18 @@ func _hang_masses(c: int, r: int, batch_shadow: Batch) -> void:
 	var lip := 40.0 + (r - top_row) * 12.0  # (its front face: what shows under the grass mat, more on a thick ledge)
 	var depth := lip + minf((deepest - (r - top_row) * T) * 0.9, length * 0.3)  # (a short ledge: a shallow body, no spike)
 	var room := 54.0  # (under its lowest corner: its drips and roots)
+	# (the user, 2026-11-08: "the hero passes through a floating wall"): where he can run under the ledge, its rock and
+	# drips end above his head as drawn (HERO_DRAWN units over the ground), so he passes under it, never through it
+	var clear := _run_under_limit(c, n, r)
+	if clear < INF:
+		var room_left := clear - top
+		if room_left < 18.0:
+			rock.free()
+			return
+		if depth + room > room_left:
+			room = minf(room, maxf(room_left * 0.25, 10.0))
+			depth = room_left - room
+			lip = minf(lip, depth * 0.7)
 	rock.rect = Rect2(x_left, top, x_right - x_left, depth + room)
 	var m := ShaderMaterial.new()
 	m.shader = UNDERSIDE
@@ -422,6 +435,19 @@ func _hang_masses(c: int, r: int, batch_shadow: Batch) -> void:
 	m.set_shader_parameter(&"seed", float(_hash(c, r, 997)) + 1.0)
 	rock.material = m
 	_layers[&"mass"].add_child(rock)
+
+
+## The lowest y (units) a floating ledge's rock may reach (cells c .. c+n-1 of row r): above the drawn hero's head
+## where he can run on the ground under it (the nearest solid cell below each column); INF when nothing is under it.
+func _run_under_limit(c: int, n: int, r: int) -> float:
+	var limit := INF
+	for k in n:
+		var f := 0
+		while r + 1 + f < Level.ROWS and not solid(c + k, r + 1 + f):
+			f += 1
+		if r + 1 + f < Level.ROWS:
+			limit = minf(limit, (r + 1 + f) * T - HERO_DRAWN)
+	return limit
 
 
 ## Round 20: a ledge's underside: one rectangle drawn with underside.gdshader (its own material: its size and seed).

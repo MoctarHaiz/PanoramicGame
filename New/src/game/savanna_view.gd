@@ -139,7 +139,6 @@ var _tree_anchor: Array[float] = []
 var _painters: Array[Node2D] = []
 var front: Node2D  ## the foreground grass (WorldView adds it above the actors)
 var hero_x := -999.0  ## round 7: his play x (WorldView): the near trees fade where they pass behind him
-var _hero_box := Rect2()  # round 21: his arms, hands and head this frame (play units; empty: not known)
 var dusk := 0.0  ## round 20: 0..1, how far dusk has fallen (the last stretch to home)
 var _mesa_src: Array[Rect2] = []  # round 20: each landform in far_mesa_pieces.png
 var _mesa_kind: Array[int] = []  # round 21: its kind (MESA_KINDS)
@@ -267,7 +266,6 @@ func _process(delta: float) -> void:
 	_clock += delta
 	# round 20: dusk falls over the last stretch to home
 	dusk = smoothstep(HomeView.LEFT - 1800.0, HomeView.LEFT - 150.0, scroll)
-	_hero_box = _find_hero_box()
 	for row in _mesa_mats.size():  # round 21: the clouds' shadows over the landforms, sliding with the wind
 		if float(MESA_ROWS[row].cloud) > 0.0:
 			_mesa_mats[row].set_shader_parameter(&"cloud_x", scroll * float(MESA_ROWS[row].scroll) - _clock * 7.0)
@@ -276,18 +274,6 @@ func _process(delta: float) -> void:
 	_mid_mat.set_shader_parameter(&"air_tint", _dusk(DUSK_STRIPS[&"mid_hills"]))
 	for p in _painters:
 		p.queue_redraw()
-
-
-## Round 21: the box round his arms, hands and head as drawn this frame (play units, as the trees are placed), from
-## the world WorldView draws (its parent); running, the forward hand reaches ~60 units ahead of his middle.
-func _find_hero_box() -> Rect2:
-	var view := get_parent()
-	var w: Variant = view.get("world") if view else null
-	if not (w is World):
-		return Rect2()
-	var p: Vector2 = (w as World).draw_hero()
-	var feet := p.y + World.HERO_SIZE.y / 2.0
-	return Rect2(p.x - 62.0, feet - 172.0, 150.0, 132.0)
 
 
 ## Round 20: the dusk's colour over a layer (white: none).
@@ -535,9 +521,7 @@ func _draw_cloud_shadows(ci: CanvasItem) -> void:
 
 ## Round 21 (the judges, j17: "acacias evenly spaced like wallpaper"): each row in groves of one to six trees
 ## standing close (the middle ones taller), with long stretches of open plain between (an animal or a termite mound
-## alone in some), so the rows read as clumps and gaps. Round 21 (the judges: "a background sapling lines up with
-## his forward hand: he carries a twig"): a near tree whose picture would reach into the box round his arms, hands
-## and head (_hero_box) fades out as it slides behind him (round 7 only dimmed it to 0.3).
+## alone in some), so the rows read as clumps and gaps.
 func _draw_trees(ci: CanvasItem, row_index: int) -> void:
 	var row: Array = TREE_ROWS[row_index]
 	var factor: float = row[0]
@@ -587,7 +571,7 @@ func _draw_trees(ci: CanvasItem, row_index: int) -> void:
 
 
 ## One tree (or mound) standing at `foot`: its picture `scale`d, mirrored, leaning (a skew about its foot), its
-## shade; faded out where it would show by his hands and head (_hero_box()).
+## shade.
 func _draw_tree(ci: CanvasItem, row_index: int, tex: Texture2D, anchor: float, foot: Vector2, scale_k: Vector2, flip: bool,
 		lean: float, v: float, warm: float) -> void:
 	var size := tex.get_size() * scale_k
@@ -597,15 +581,9 @@ func _draw_tree(ci: CanvasItem, row_index: int, tex: Texture2D, anchor: float, f
 	var rect := Rect2(foot.x - ax, foot.y - size.y, size.x, size.y)
 	if rect.end.x < _x0() - 40.0 or rect.position.x > _x1() + 40.0:
 		return
+	# (the user, 2026-11-08: the round 21 fade of a tree behind his head and hands cut a hole in the trees round him;
+	# every tree is drawn whole, he simply passes in front of it)
 	var alpha := 1.0
-	if row_index > 0 and _hero_box.size.x > 0.0:
-		# (its crown and trunk, leaning: the box it sweeps; a gap of 36 units fades it back in)
-		var swept := Rect2(rect.position.x - absf(lean) * size.y, rect.position.y, rect.size.x + absf(lean) * size.y * 2.0, rect.size.y)
-		var gap := maxf(maxf(_hero_box.position.x - swept.end.x, swept.position.x - _hero_box.end.x), 0.0)
-		if swept.position.y < _hero_box.end.y:
-			alpha = smoothstep(0.0, 36.0, gap)
-	if alpha <= 0.01:
-		return
 	if flip:  # a negative width mirrors the picture in place
 		rect.size.x = -size.x
 	ci.draw_set_transform_matrix(Transform2D(0.0, Vector2.ONE, lean, foot))

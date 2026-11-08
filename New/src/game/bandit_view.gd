@@ -49,10 +49,10 @@ const SHADE := 0.2
 ## weight on screen (HeroView.SIL_IN, SIL_OUT at this sheet's scale). Panoramic stays the most saturated, highest-contrast.
 const HAZE := 0.08
 const RECEDE := Color(0.4, 0.31, 0.38)
-const CORE_SAT := 0.5
-const CORE_VALUE := 0.55
+const CORE_SAT := 0.8  ## (the user, 2026-11-08: "too dark, we don't see them": r23's 0.5 / 0.55 core lifted)
+const CORE_VALUE := 0.9
 const CORE_TINT := Color(1.1, 0.95, 0.86)  ## (the grey they are muted towards: a warm umber, skin not ash)
-const CORE_FLOOR := 0.05  ## their darkest value: their black trousers keep their folds over the ink (not a cut-out)
+const CORE_FLOOR := 0.06  ## their darkest value: their black trousers keep their folds over the ink (not a cut-out)
 const INK := Color(0.075, 0.04, 0.035)  ## their silhouette's ink: darker than Panoramic's brown, under their dark core
 ## kind -> [its hues (degrees from, to, least saturation, least value), its brightest, where round its head (sheet px:
 ## left, top, right, bottom), its saturation and value x as drawn]: the bandit's indigo wrap, the strong one's rust wrap
@@ -104,6 +104,8 @@ var _stars := 0.0  # 0..1: dazed stars showing
 var _star_turn := 0.0
 var _hit_left := 0.0  # seconds of the recoil still to show
 var _grounded := true
+var _air_hold := 0.0  # seconds its leap is still shown after it stands again
+const AIR_HOLD := 0.12
 var _head := Vector2.ZERO  # the middle of its hair in this frame, local units
 # knocked out
 var _ko := false
@@ -175,9 +177,15 @@ func _init(w: World, b: World.Bandit) -> void:
 	_show(int(_d.run) + int(_run))
 
 
-## Called by WorldView every frame while the bandit is in the game. `grounded`: not hopping a wall.
-func show_state(grounded: bool) -> void:
-	_grounded = grounded
+## Called by WorldView every frame while the bandit is in the game. `grounded`: on its ledge this tick (not hopping a
+## wall, not leaping). Off the ground it shows its leap until it has stood AIR_HOLD seconds again (the top of a hop,
+## where it barely moves, doesn't flicker back to the run).
+func show_state(grounded: bool, delta := 0.0) -> void:
+	if not grounded:
+		_air_hold = AIR_HOLD
+	else:
+		_air_hold = maxf(_air_hold - delta, 0.0)
+	_grounded = _air_hold <= 0.0
 
 
 ## A ring hit it (knocked_out: the second one).

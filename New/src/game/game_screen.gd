@@ -699,7 +699,8 @@ func _on_hurt(_b: World.Bandit, lives: int) -> void:
 		if lives == 1:
 			_last_heart_warning()
 	else:
-		_impact(&"fatal", Vector2(-9.0, 0.0))
+		# (the user, 2026-11-08: "when the hero dies it shakes: remove it") the last blow holds the beat, no shake or kick
+		_freeze = maxf(_freeze, Fx.IMPACTS[&"fatal"].stop)
 	_red_flash(0.25 if Fx.calm() else 0.5)
 
 

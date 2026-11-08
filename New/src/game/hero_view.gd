@@ -33,14 +33,12 @@ const VINE_Y := 6.0  ## where his hands grip the vine
 const GRIP_UP := 14.0  ## atlas px from his wrists up to his grip
 ## (round 23, the judges: "his hand sits on top of the vine: he seems to float under it") hanging, the middle of his two
 ## fists (hero_frames.json "fists": tools/art/hero_contacts.py) on the rope's middle line (VineView's spans: their top
-## and a quarter of the rope's rows), the vine through his fists: its front, the lower part of the rope as VineView
-## draws it there, drawn again over his fingers (_over), his knuckles over its top
+## and a quarter of the rope's rows). The user (2026-11-08: "the hands inside the rope flicker"): his grip follows the
+## rope as VineView draws it at his hands (its dip under his weight, its breeze), and his fists are drawn over it
+## (round 23 drew a strip of the rope again over his fingers: it slid against them as the vine moved).
 const ROPE_MID := VineView.Y + VineView.ROPE_PX * 0.25
-const FRONT_FROM := 0.56  ## share of the rope's thickness from its top where its front over his fingers starts
 const WRIST_PX := 14.0  ## atlas px from his fists' middle down to his wrists: above them his fists are kept level
 const WRIST_BLEND := 10.0  ## atlas px round his wrists over which they bend
-const FIST_HALF := 6.5  ## units from a fist's middle to its sides
-const FRONT_FADE := 3.0  ## units the front fades out past them (into the same rope drawn behind)
 ## (round 23, the judges: "a floating dark oval under him: contact occlusion, not an oval") in play, under each sole
 ## (hero_frames.json "soles") a soft occlusion as dark as the sole is near the ground, gone by SOLE_FADE units up; the
 ## broad soft shadow under him kept faint (SHADOW_PLAY on the ground, SHADOW_AIR in the air: where he will land)
@@ -179,7 +177,6 @@ var _home := 0.0  # 0..1: at home (his shadow there a soft occlusion under his s
 var _lift := 0.0  # (round 23) 0..1: his feet lifted HOME_LIFT of the sink (at home, on his marks): his shadow with them
 var _stand := 0.0  # (round 23) 0..1: standing on his marks (his feet lifted), eased
 var _mid := 0.0  # units from his anchor to the middle of the frame shown (his stride's middle at home)
-var _over: Node2D  # (round 23) the vine's front over his fingers, drawn over him by a node of his parent
 var _fist_px: Array[Vector2] = []  # hanging: his fists' middles (the frame's px from his anchor)
 var _sole_px: Array[Vector3] = []  # each sole: its two ends' x and its y (the frame's px from his anchor)
 
@@ -249,22 +246,11 @@ func _ready() -> void:
 	_under.draw.connect(_draw_under)
 	get_parent().add_child.call_deferred(_under)
 	get_parent().move_child.call_deferred(_under, get_index())
-	_over = Node2D.new()
-	_over.draw.connect(_draw_over)
-	_add_over.call_deferred()
-
-
-## (round 23) The node over him (the vine's front over his fingers): the next child of his parent after him.
-func _add_over() -> void:
-	get_parent().add_child(_over)
-	get_parent().move_child(_over, get_index() + 1)
 
 
 func _exit_tree() -> void:
 	if is_instance_valid(_under):
 		_under.queue_free()
-	if is_instance_valid(_over):
-		_over.queue_free()
 
 
 func landed() -> void:
@@ -517,8 +503,12 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 			else:
 				grip = Vector2((float(f.hand_r[0]) + float(f.hand_l[0])) / 2.0, minf(f.hand_r[1], f.hand_l[1]) - GRIP_UP)
 			anchor_px = grip
-			# his hips over his box
-			position = Vector2(p.x + (grip.x - float(f.hips[0])) * _units, grip_y)
+			# his hips over his box; his grip on the rope where it is drawn at his hands (it dips under him, sways)
+			var hand_x := p.x + (grip.x - float(f.hips[0])) * _units
+			var vine := _find_vine()
+			if vine != null:
+				grip_y += vine._drawn_sag(hand_x)
+			position = Vector2(hand_x, grip_y)
 	# (round 23) his fists on the vine (the strand over his fingers) and his soles (their contact on the ground)
 	_fist_px.clear()
 	if anchor == Anchor.HANDS and f.has("fists"):
@@ -634,8 +624,6 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 	_update_shadow(w, p)
 	if is_instance_valid(_under):
 		_under.queue_redraw()
-	if is_instance_valid(_over):
-		_over.queue_redraw()
 
 
 ## Hanging: the swing's middle, pushed back by the wind of the run (none while a wall holds him).
@@ -717,60 +705,10 @@ func _draw_under() -> void:
 			_visible * broad, _shadow_w, CONTACT_HOME * _home)
 
 
-## (round 23) The vine through his fists: over each, the front of the rope (its lower part, from FRONT_FROM of its
-## thickness down, with the ink under it) drawn again as VineView draws it there (its span's picture, thickness and
-## sag, read from it), fading out past the fist into the same rope behind him; his knuckles show over it.
-func _draw_over() -> void:
-	var vine := _find_vine()
-	if _fist_px.is_empty() or _visible <= 0.0 or vine == null:
-		return
-	var t := transform
-	var tex := VineView.TEXTURE
-	var th := float(tex.get_height())
-	var vh := th / float(VineView.VARIANTS)
-	var rows := VineView.ROPE_PX - 5.0  # (the rows of each span's picture VineView draws as the rope)
-	var solid := Color(1, 1, 1, _visible)
-	var clear := Color(1, 1, 1, 0)
-	var ink := Color(VineView.INK, _visible)
-	var ink_clear := Color(VineView.INK, 0)
-	for q in _fist_px:
-		var wrist := Vector2(0.0, WRIST_PX)
-		var x := (t * (wrist + (q - wrist).rotated(-rotation))).x  # (where the shader draws it: kept level)
-		var i := vine._span_at(x + vine.scroll)
-		var rope_h := VineView.ROPE_H * (0.82 + 0.36 * VineView._rand(i * 19 + 2))
-		var v := posmod(i * 7 + (i >> 2) * 3, VineView.VARIANTS)
-		var mirrored := posmod(i * 5 + (i >> 1), 3) == 0
-		var left := vine._knot_x(i) - vine.scroll
-		var length := vine._knot_x(i + 1) - vine._knot_x(i)
-		var v0 := (v * vh + rows * FRONT_FROM) / th
-		var v1 := (v * vh + rows) / th
-		var xs := [x - FIST_HALF - FRONT_FADE, x - FIST_HALF, x + FIST_HALF, x + FIST_HALF + FRONT_FADE]
-		for k in 3:
-			var xa: float = xs[k]
-			var xb: float = xs[k + 1]
-			var ya := VineView.Y + vine._drawn_sag(xa) - (rope_h - VineView.ROPE_PX * 0.5) * 0.5
-			var yb := VineView.Y + vine._drawn_sag(xb) - (rope_h - VineView.ROPE_PX * 0.5) * 0.5
-			var ua := (xa - left) / length
-			var ub := (xb - left) / length
-			if mirrored:
-				ua = 1.0 - ua
-				ub = 1.0 - ub
-			var ca := solid if k > 0 else clear
-			var cb := solid if k < 2 else clear
-			# the ink under the rope (VineView's: 1.3 units below it), then the rope's front over his fingers
-			_over.draw_polygon(PackedVector2Array([Vector2(xa, ya + rope_h), Vector2(xb, yb + rope_h),
-					Vector2(xb, yb + rope_h + 1.3), Vector2(xa, ya + rope_h + 1.3)]),
-					PackedColorArray([ink if k > 0 else ink_clear, ink if k < 2 else ink_clear, ink if k < 2 else ink_clear,
-					ink if k > 0 else ink_clear]))
-			_over.draw_polygon(PackedVector2Array([Vector2(xa, ya + rope_h * FRONT_FROM), Vector2(xb, yb + rope_h * FRONT_FROM),
-					Vector2(xb, yb + rope_h), Vector2(xa, ya + rope_h)]), PackedColorArray([ca, cb, cb, ca]),
-					PackedVector2Array([Vector2(ua, v0), Vector2(ub, v0), Vector2(ub, v1), Vector2(ua, v1)]), tex)
-
-
 var _vine: VineView
 
 
-## (round 23) The vine he hangs from (WorldView's "Vine", beside his parent): drawn again over his fists.
+## (round 23) The vine he hangs from (WorldView's "Vine", beside his parent): his grip follows it as drawn.
 func _find_vine() -> VineView:
 	if not is_instance_valid(_vine) and get_parent() and get_parent().get_parent():
 		_vine = get_parent().get_parent().get_node_or_null(^"Vine") as VineView

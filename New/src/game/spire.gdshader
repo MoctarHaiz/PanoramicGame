@@ -66,15 +66,16 @@ void fragment() {
 			+ (noise(p.x * 0.11 + seed) - 0.5) * 0.06;  // .. and wander)
 	float bk = floor(bc);
 	float bfr = fract(bc);
-	float step_l = (hash(bk * 7.7 + seed) - 0.5) * 0.24;
-	float step_r = (hash(bk * 5.3 + seed * 1.9) - 0.5) * 0.24;
+	// (the user, 2026-11-08: "the wall seems cut in 2"): its blocks no longer step in or out of its outline
+	float step_l = 0.0;
+	float step_r = 0.0;
 	// its width down its height (round 21): from its cap's width down to base_w at its foot, a waist, a flare
 	float waist = 0.45 + 0.25 * hash(seed * 4.1);
 	float spread = base_w / max(half_w, 1.0) - 1.0;
 	// round 23 (the judges, j19: "two tall, thin, identical striped columns: chimney stacks"): each its own build (`kind`
 	// from its seed): a shaft standing on a wide talus mound, a cone widening all the way down, an hourglass pinched at
 	// its waist, or tiers stepping out at a ledge or two; and every one flares into a base mass at its foot
-	float kind = floor(hash(seed * 6.7) * 4.0);
+	float kind = floor(hash(seed * 6.7) * 3.0);  // (the user, 2026-11-08: no tiers: they read as a column cut in two)
 	float prof = 1.0 + spread * pow(down, 1.25);
 	if (kind < 0.5) {  // a shaft on a talus mound
 		prof = 1.0 + spread * 0.35 * down + spread * 1.1 * pow(smoothstep(0.55, 1.0, down), 1.6);
@@ -121,7 +122,7 @@ void fragment() {
 	float lt_on = 0.0;
 	float under_ledge = 0.0;  // the shadow a ledge casts on the shaft under it
 	float first_side = hash(seed * 8.8) < 0.5 ? -1.0 : 1.0;
-	for (int i = 0; i < 2; i++) {
+	for (int i = 0; i < 0; i++) {  // (the user, 2026-11-08: "a grass on the right": no ledges jutting from its sides)
 		float fi = float(i);
 		float ly = (0.26 + 0.3 * fi + 0.1 * hash(seed * 7.9 + fi)) * height;
 		float side = fi < 0.5 ? first_side : -first_side;
@@ -183,9 +184,10 @@ void fragment() {
 		discard;
 	}
 	float ue = clamp(in_l / max(hl + hr, 1.0), 0.0, 1.0);
-	float j1 = 0.18 + 0.14 * hash(bk * 1.7 + seed * 5.1) + (bfr - 0.5) * (hash(bk * 3.3 + seed) - 0.5) * 0.4;
-	float j2 = 0.46 + 0.12 * hash(bk * 2.9 + seed * 1.3);
-	float j3 = 0.68 + 0.12 * hash(bk * 4.3 + seed * 2.3) + (bfr - 0.5) * (hash(bk * 8.7 + seed) - 0.5) * 0.36;
+	// (the user, 2026-11-08: one column, not stacked blocks: its lit, mid and shadow planes run its whole height)
+	float j1 = 0.18 + 0.14 * hash(seed * 5.1) + (noise(y * 0.012 + seed) - 0.5) * 0.06;
+	float j2 = 0.46 + 0.12 * hash(seed * 1.3);
+	float j3 = 0.68 + 0.12 * hash(seed * 2.3) + (noise(y * 0.01 + seed * 3.0) - 0.5) * 0.06;
 	float s1 = smoothstep(j1 - 0.02, j1 + 0.02, ue);
 	float s2 = smoothstep(j2 - 0.02, j2 + 0.02, ue);
 	float s3 = smoothstep(j3 - 0.02, j3 + 0.02, ue);
@@ -213,9 +215,9 @@ void fragment() {
 	c *= 0.93 + 0.09 * noise2(p * vec2(0.06, 0.05) + seed) + 0.04 * noise2(p * vec2(0.3, 0.25));
 	// joints: the block above's underside, a lit shelf, the overhang's shadow (most of them)
 	float joint_on = step(0.45, hash(bk * 7.31 + seed * 3.7)) * smoothstep(cap_h + 24.0, cap_h + 40.0, y) * (1.0 - smoothstep(0.85, 0.95, down));
-	c *= 1.0 - 0.5 * smoothstep(0.955, 0.99, bfr) * joint_on;
-	c = mix(c, min(c * 1.25 + vec3(0.05, 0.03, 0.0), vec3(1.0)), (1.0 - smoothstep(0.0, 0.035, bfr)) * joint_on * 0.55);
-	c *= 1.0 - 0.28 * smoothstep(0.03, 0.05, bfr) * (1.0 - smoothstep(0.05, 0.3, bfr)) * joint_on;
+	c *= 1.0 - 0.18 * smoothstep(0.955, 0.99, bfr) * joint_on;  // (2026-11-08: soft beds, not cuts)
+	c = mix(c, min(c * 1.25 + vec3(0.05, 0.03, 0.0), vec3(1.0)), (1.0 - smoothstep(0.0, 0.035, bfr)) * joint_on * 0.2);
+	c *= 1.0 - 0.1 * smoothstep(0.03, 0.05, bfr) * (1.0 - smoothstep(0.05, 0.3, bfr)) * joint_on;
 	// the cap rock: its top lit, its underside dark over the undercut
 	c = mix(c, c * 1.12, cap * (1.0 - smoothstep(4.0, cap_h, y)));
 	c *= 1.0 - 0.55 * smoothstep(cap_h - 4.0, cap_h + 1.0, y) * exp(-max(y - cap_h, 0.0) / 14.0);
@@ -226,7 +228,8 @@ void fragment() {
 	c *= 1.0 - 0.38 * on_ledge * smoothstep(0.45, 1.0, lt_on);  // (its rounded underside turning from the light)
 	c *= 1.0 - 0.4 * under_ledge;
 	// moss: dripping from under the cap in a few thin tongues
-	float tongue = cap_h + 1.0 + 14.0 * pow(noise(p.x * 0.11 + seed * 7.0), 3.0) + 26.0 * pow(noise(p.x * 0.19 + seed), 8.0);
+	// (2026-11-08, the user: "the grass on top doesn't merge with the wall": the moss reaches further down from it)
+	float tongue = cap_h + 4.0 + 22.0 * pow(noise(p.x * 0.11 + seed * 7.0), 2.0) + 38.0 * pow(noise(p.x * 0.19 + seed), 5.0);
 	float moss = (1.0 - smoothstep(tongue - 1.0, tongue + 1.0, y)) * step(cap_h - 3.0, y);
 	vec3 moss_c = mix(vec3(0.26, 0.36, 0.13), vec3(0.4, 0.52, 0.18), step(0.5, noise2(p * vec2(0.12, 0.16))));
 	c = mix(c, moss_c * mix(1.0, 0.55, s3), moss * 0.85);

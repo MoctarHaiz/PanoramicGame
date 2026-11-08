@@ -275,8 +275,9 @@ void fragment() {
 		// round 20: a pillar's sides step in and out block by block (carved, not a noisy wobble), and
 		// tuck in under its grass cap (an undercut: the cap overhangs it, in its shadow)
 		if (floating < 0.5) {
-			float ins_l = 3.0 + 11.0 * hash(pillar_bk * 7.7 + pillar_id * 1.9);
-			float ins_r = 3.0 + 11.0 * hash(pillar_bk * 5.3 + pillar_id * 3.1 + 2.0);
+			// (the user, 2026-11-08: "the wall seems cut in 2": one inset for the whole pillar, no step block by block)
+			float ins_l = 3.0 + 11.0 * hash(pillar_id * 1.9);
+			float ins_r = 3.0 + 11.0 * hash(pillar_id * 3.1 + 2.0);
 			// round 22 (the judges, j18: "a flat brown mushroom splitting the frame"): a cap rock as wide as the top
 			// under the grass (its lit lip), the shaft stepping in under it by a crisp ledge, a shallower undercut
 			float cap_end = lip + PILLAR_CAP;
@@ -312,9 +313,10 @@ void fragment() {
 		float bk = pillar_bk;
 		float bh = hash(bk * 7.31 + pid * 3.7);
 		// (chisel cuts: each joint across slants its own way down the block, the planes' widths their own)
-		float j1 = 0.14 + 0.14 * hash(bk * 1.7 + pid * 5.1) + (bfr - 0.5) * (hash(bk * 3.3 + pid) - 0.5) * 0.4;
-		float j2 = 0.44 + 0.14 * hash(bk * 2.9 + pid * 1.3) + (bfr - 0.5) * (hash(bk * 6.1 + pid) - 0.5) * 0.3;
-		float j3 = 0.7 + 0.12 * hash(bk * 4.3 + pid * 2.3) + (bfr - 0.5) * (hash(bk * 8.7 + pid) - 0.5) * 0.36;
+		// (2026-11-08: one column: its planes run its whole height, wandering a little, not jumping at each block)
+		float j1 = 0.14 + 0.14 * hash(pid * 5.1) + (noise(depth * 0.012 + pid) - 0.5) * 0.06;
+		float j2 = 0.44 + 0.14 * hash(pid * 1.3) + (noise(depth * 0.011 + pid * 2.0) - 0.5) * 0.05;
+		float j3 = 0.7 + 0.12 * hash(pid * 2.3) + (noise(depth * 0.01 + pid * 3.0) - 0.5) * 0.06;
 		float s1 = smoothstep(j1 - 0.01, j1 + 0.01, ue);
 		float s2 = smoothstep(j2 - 0.01, j2 + 0.01, ue);
 		float s3 = smoothstep(j3 - 0.01, j3 + 0.01, ue);
@@ -369,9 +371,9 @@ void fragment() {
 		float underside = smoothstep(0.955, 0.99, bfr) * joint_on;
 		float shelf = (1.0 - smoothstep(0.0, 0.035, bfr)) * joint_on;
 		float overhang = smoothstep(0.03, 0.05, bfr) * (1.0 - smoothstep(0.05, 0.32, bfr)) * joint_on;
-		pc *= 1.0 - 0.4 * underside;
-		pc = mix(pc, min(pc * 1.25 + vec3(0.05, 0.03, 0.0), vec3(1.0)), shelf * 0.55);
-		pc *= 1.0 - 0.3 * overhang * (1.0 - 0.4 * s3);
+		pc *= 1.0 - 0.15 * underside;  // (2026-11-08: soft beds, not cuts across it)
+		pc = mix(pc, min(pc * 1.25 + vec3(0.05, 0.03, 0.0), vec3(1.0)), shelf * 0.2);
+		pc *= 1.0 - 0.1 * overhang * (1.0 - 0.4 * s3);
 		// a crack down a plane's joint in some blocks
 		float crack_on = step(0.62, hash(bk * 9.1 + pid * 4.4)) * smoothstep(0.08, 0.2, bfr) * (1.0 - smoothstep(0.7, 0.85, bfr));
 		pc *= 1.0 - 0.45 * crack_on * (1.0 - smoothstep(0.0, 0.012, abs(ue - j2 + (noise(depth * 0.2) - 0.5) * 0.03)));

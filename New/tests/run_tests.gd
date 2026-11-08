@@ -2142,11 +2142,13 @@ func _test_art() -> void:
 	var form: float = hero._material.get_shader_parameter(&"form_amount")
 	var box: Vector4 = hero._material.get_shader_parameter(&"figure_box")
 	_check(form > 0.0 and Vector2(box.z, box.w) == hero._sprite.region_rect.size, "a shade side across the frame he shows (form %.2f)" % form)
-	# (round 21, "lit flat, the bandits read first") a warm key on his sun side; (round 23, "ghosted bandits", "a dark
-	# smudge with thin ink") the bandits a dark core under him, his silhouette inked heavier than the lines inside him
+	# (round 21, "lit flat, the bandits read first") a warm key on his sun side; (round 23, "a dark smudge with thin
+	# ink") his silhouette inked heavier than the lines inside him; (the user, 2026-11-08: "the bandits too dark, we
+	# don't see them") their own colours kept: muted a little under him, never near-black
 	var key: float = hero._material.get_shader_parameter(&"key_amount")
 	var sil: float = hero._material.get_shader_parameter(&"sil_out_px")
-	_check(key > 0.0 and BanditView.CORE_VALUE < 0.7 and sil > 1.0, "a warm key on his sun side (%.2f), the bandits' dark core (%.2f), his outer ink (%.1f px)"
+	_check(key > 0.0 and BanditView.CORE_VALUE >= 0.8 and BanditView.CORE_VALUE < 1.0 and sil > 1.0,
+			"a warm key on his sun side (%.2f), the bandits' grade readable (%.2f), his outer ink (%.1f px)"
 			% [key, BanditView.CORE_VALUE, sil])
 	# (round 22, "a jog, not a sprint") at the ground's pace the drawing leans into the stride (his chest bent forward)
 	for i in 16:

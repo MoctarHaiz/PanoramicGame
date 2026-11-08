@@ -453,7 +453,9 @@ func _place_bandits(scroll: float, delta: float) -> void:
 		var push := maxf(face + BanditView.REACH - x, 0.0) if face >= 0.0 else 0.0
 		v.wall_shift = push if push > v.wall_shift else lerpf(v.wall_shift, push, 1.0 - exp(-delta * 12.0))
 		v.position = Vector2(x + v.wall_shift, y + World.BANDIT_SIZE.y / 2 + GameArt.FEET_SINK)
-		v.show_state(standing)
+		# (the user, 2026-11-08: at a wall they ran on up it) on the ground only when the rules held it there this tick
+		# (they snap it onto its ledge: no move at all); hopping a wall's face it rises a little each tick: the leap
+		v.show_state(absf(b.y - b.prev_y) < 0.5 or not b.active, delta)
 		var held := start_hold and not b.active and x + v.wall_shift + BANDIT_RIGHT > safe_right
 		if world.state == World.State.WON:  # home: one still standing (a jumper that dodged) fades away, not frozen there
 			v.modulate.a = move_toward(v.modulate.a, 0.0, delta * 4.0)
