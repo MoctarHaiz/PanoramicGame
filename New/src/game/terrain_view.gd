@@ -47,9 +47,18 @@ const DRAPE := Vector2(30, 50)  ## grass_drape.png: two pieces (left side, right
 const DRAPE_IN := 8.0  ## units of a drape over its own cell (the rest hangs past the open side)
 const DRAPE_TOP := 12.0  ## units of a drape above the grass surface
 const SPIRE := Vector2(96, 560)  ## spires.png: three spires side by side, each this size (round 2: taller, no stretch)
-const MASS := Vector2(160, 120)  ## hanging.png: masses of earth hanging under a ledge, each this size
+## Round 19 (kie.ai, tools/art/world_rock.py; "the same thin cardboard column twice with broccoli hats, no
+## base"): sandstone shafts painted like the mesas, their own top the walkable cap under a slim mat of grass
+## (no drapes), each standing on its flared foot and fallen boulders (spire_feet.png) at the waterline or on
+## the ground it rises from. spires.json: units of shaft in each picture (a taller pillar stretches it).
+const SPIRE_FOOT := Vector2(96, 64)
+const SPIRE_TINT := Color(0.86, 0.72, 0.72)  ## (near: deeper and richer than the far mesas, not their pale twin)
+const FOOT_SINK := 24.0  ## units its foot reaches under the waterline / into the ground
+const MASS := Vector2(256, 128)  ## hanging.png: masses of rock hanging under a ledge, each this size
 const MASS_VARIANTS := 4
-const MASS_INSET := 44.0  ## units the masses stay in from a ledge's ends (its taper cuts up to ~34)
+const MASS_INSET := 40.0  ## units the masses stay in from a ledge's ends (its taper cuts up to ~34)
+const MASS_TINT := Color(0.84, 0.76, 0.8)  ## (the underside is in the island's own shade: below the plain's light)
+const MASS_TOP := 7.0  ## units under the grass surface where a mass's straight top joins the ledge (under the mat)
 const NARROW_CELLS := 6  ## a wall at most this many cells wide is a pillar (shaded as a column to its foot)
 const DIR := "res://assets/art/world/"
 
@@ -69,6 +78,7 @@ var _cols := 0
 var _map: Level  # the map prepare() reads (on a worker thread: level is set only once build() runs)
 var _prepared := false
 var _depth_px := PackedByteArray()
+var _spire_len := PackedFloat32Array([560.0, 560.0, 560.0])  # units of shaft in each picture (spires.json)
 
 
 class Batch extends Node2D:
@@ -134,7 +144,7 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 	var sway := ShaderMaterial.new()
 	sway.shader = preload("res://src/game/sway.gdshader")
 	# (round 9: the masses over the soil: their top fades into the ledge, its underside line hidden)
-	for name: StringName in [&"soil", &"mass", &"spires", &"roots", &"caps", &"ends", &"tufts", &"drape", &"foot", &"cast"]:
+	for name: StringName in [&"soil", &"mass", &"spires", &"feet", &"roots", &"caps", &"ends", &"tufts", &"drape", &"foot", &"cast"]:
 		var layer := Node2D.new()
 		layer.name = name
 		add_child(layer)
@@ -155,7 +165,11 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 		&"front": load(DIR + "front_grass.png"), &"foot": soft_disc(), &"cast": cast_shade(),
 		&"drape": load(DIR + "grass_drape.png"),
 		&"spires": load(DIR + "spires.png"), &"mass": load(DIR + "hanging.png"),
+		&"feet": load(DIR + "spire_feet.png"),
 	}
+	var info: Variant = JSON.parse_string(FileAccess.get_file_as_string(DIR + "spires.json"))
+	if info is Dictionary:
+		_spire_len = PackedFloat32Array(info["length"])
 	textures[&"front_cast"] = textures[&"cast"]
 	_textures = textures
 
@@ -222,15 +236,25 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 	var span := _poles[c - _first_col + 1] if c >= _first_col - 1 and c <= _end_col else -1
 	var pole := _in_pole(c, r)
 	if pole and open_n and (span / 10000 == 1 or span / 10000 == 2):  # the stack, from its top into the
-		# ground it stands on (or under the screen); two cells wide: drawn wider from the left one
+		# ground it stands on (or the river); two cells wide: drawn wider from the left one
 		var v := posmod(c + roundi(c / 9.0), 3)  # (round 9: neighbours in the river never twins)
 		var end := span % 100
 		var w := float(span / 10000)
-		var h := (end - r) * T + (40.0 if end >= Level.ROWS else 22.0)
 		var width := SPIRE.x * (1.0 if w == 1.0 else 1.7) * (0.86 + 0.34 * _hash(c, 21, 100) / 100.0)  # (round 6: each its own width)
-		var rect := Rect2(x + T * w / 2 - width / 2, y - 6.0, width, h + 4.0)
-		# (round 9: never mirrored: the sun stays on their left; three pictures, each its own width)
-		b[&"spires"].items.append([rect, Rect2(v * SPIRE.x * PX, 0, SPIRE.x * PX, minf(h + 4.0, SPIRE.y) * PX), Color.WHITE])
+		var k := width / SPIRE.x
+		# its foot: at the waterline in the river, on the ground under a stack, none over a pit
+		var river := end >= Level.ROWS and _kind(c - 1, Level.ROWS - 2) == Level.Kind.WATER
+		var base := (Level.ROWS - 2) * T + 8.0 if river else end * T + 4.0
+		var footed := river or end < Level.ROWS
+		var h := (base - y) + (8.0 if footed else 40.0)
+		var length := _spire_len[v]
+		var rect := Rect2(x + T * w / 2 - width / 2, y - 3.0, width, h)
+		# (round 9: never mirrored: the sun stays on their left; a pillar taller than its picture stretches it)
+		b[&"spires"].items.append([rect, Rect2(v * SPIRE.x * PX, 0, SPIRE.x * PX, minf(h, length) * PX), SPIRE_TINT])
+		if footed:
+			var fs := SPIRE_FOOT * k
+			b[&"feet"].items.append([Rect2(x + T * w / 2 - fs.x / 2, base + FOOT_SINK - fs.y, fs.x, fs.y),
+					Rect2(v * SPIRE_FOOT.x * PX, 0, SPIRE_FOOT.x * PX, SPIRE_FOOT.y * PX), SPIRE_TINT])
 	if not pole:
 		b[&"soil"].items.append([Rect2(x, y, T, T),
 				Rect2(mask * SHAPE_STRIDE + 4.0, variant * SHAPE_STRIDE + 4.0, 64, 64), Color.WHITE])
@@ -250,20 +274,29 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 	if not open_w and not open_e:
 		b[&"caps"].items.append([Rect2(x, y - CAP_ABOVE, T, CAP_H),
 				Rect2(_strip_x(c, x), 0, T * PX, CAP_H * PX), _grass_tone(c)])
-	if open_w:
+	var pole_top := pole and open_w and open_e  # round 19: a pillar's cap: a slim mat, no hat
+	if pole_top:
+		var out := 7.0  # units it reaches past each side
+		var k := 0.72  # (shorter blades, a thinner mat)
+		var top := y - CAP_ABOVE * k
+		b[&"ends"].items.append([Rect2(x - out, top, out + T / 2, END_H * k),
+				Rect2((END_OUT - out) * PX, 0, (out + T / 2) * PX, END_H * PX), Color.WHITE])
+		b[&"ends"].items.append([Rect2(x + T / 2, top, out + T / 2, END_H * k),
+				Rect2((END_W + END_FADE + T / 2) * PX, 0, (out + T / 2) * PX, END_H * PX), Color.WHITE])
+	elif open_w:
 		b[&"ends"].items.append([Rect2(x - END_OUT, y - CAP_ABOVE, END_W, END_H),
 				Rect2(0, 0, END_W * PX, END_H * PX), Color.WHITE])
-	if open_e:
+	if open_e and not pole_top:
 		b[&"ends"].items.append([Rect2(x - END_FADE, y - CAP_ABOVE, END_W, END_H),
 				Rect2(END_W * PX, 0, END_W * PX, END_H * PX), Color.WHITE])
 	if not open_w and not open_e:
 		b[&"roots"].items.append([Rect2(x, y, T, ROOTS_H),
 				Rect2(_strip_x(c, x), 0, T * PX, ROOTS_H * PX), Color.WHITE])
-	# the tufted lip over each open side
-	if open_w:
+	# the tufted lip over each open side (round 19: none on a pillar's slim cap)
+	if open_w and not pole_top:
 		b[&"drape"].items.append([Rect2(x - (DRAPE.x - DRAPE_IN), y - DRAPE_TOP, DRAPE.x, DRAPE.y),
 				Rect2(0, 0, DRAPE.x * PX, DRAPE.y * PX), Color.WHITE])
-	if open_e:
+	if open_e and not pole_top:
 		b[&"drape"].items.append([Rect2(x + T - DRAPE_IN, y - DRAPE_TOP, DRAPE.x, DRAPE.y),
 				Rect2(DRAPE.x * PX, 0, DRAPE.x * PX, DRAPE.y * PX), Color.WHITE])
 	# a wall rising from this top: shade at its foot (the disc's centre on the wall's face)
@@ -295,9 +328,12 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 				Rect2(v * TUFT.x * PX, 0, TUFT.x * PX, TUFT.y * PX), Color.WHITE])
 
 
-## Round 2: under a floating ledge (from its left end, cell c of row r), the earth and rock it
-## carries (hanging.png): biggest under its middle, smaller to its ends, so it reads as a floating
-## island; never down into what lies under it.
+## Round 2: under a floating ledge (from its left end, cell c of row r), the rock it carries (hanging.png):
+## biggest under its middle, smaller to its ends, so it reads as a floating island; never down into what lies
+## under it. Round 19 (kie.ai masses: big planes of the mesas' sandstone, strata, roots and loose stones; "a
+## grid of same-size hexagons"): fewer, wider masses that overlap into one body, their straight tops joining
+## the ledge under its grass mat; a second, smaller rank behind them in the shade (no row of teeth); the
+## ledge's soft shadow on the ground under it.
 func _hang_masses(c: int, r: int, batch: Batch, batch_shadow: Batch) -> void:
 	var n := 0
 	while n < 60 and solid(c + n, r) and not solid(c + n, r + 1):
@@ -306,33 +342,47 @@ func _hang_masses(c: int, r: int, batch: Batch, batch_shadow: Batch) -> void:
 	while r + 1 + free < Level.ROWS - 2 and not solid(c + n / 2, r + 1 + free):
 		free += 1
 	var length := n * T
-	var count := maxi(1, roundi(length / 130.0))
-	var deepest := minf(MASS.y * clampf(0.45 + n / 10.0, 0.45, 1.0), free * T * 0.55)
+	var deepest := minf(MASS.y * clampf(0.5 + n / 12.0, 0.5, 1.15), free * T * 0.6)
 	if deepest < 16.0:
 		return
 	var x0 := c * T + MASS_INSET  # round 4: the masses stay under the ledge, clear of its rounded ends
 	var x1 := (c + n) * T - MASS_INSET  # (they ran ~2 cells past them, their flat tops showing)
 	if x1 - x0 < 24.0:
 		return
+	var top_row := r  # (a ledge two or more cells thick: its rock starts under its grass, not under its last row)
+	while top_row > r - 4 and solid(c + n / 2, top_row - 1):
+		top_row -= 1
+	var top := top_row * T + MASS_TOP
+	deepest += (r - top_row) * T
 	# round 6: its shadow on the ground below, away from the low sun (further the higher it floats)
 	var ground_r := r + 1 + free
 	if ground_r < Level.ROWS and solid(c + n / 2, ground_r):
 		var drop := free * T
 		var sx := c * T + length * 0.5 + drop * 0.35
 		var sw := length * 0.95 + 40.0
-		batch_shadow.items.append([Rect2(sx - sw / 2, ground_r * T - 14.0, sw, 30.0), Rect2(0, 0, 64, 64),
-				Color(0.14, 0.08, 0.18, clampf(0.55 - drop / 900.0, 0.2, 0.5))])
+		batch_shadow.items.append([Rect2(sx - sw / 2, ground_r * T - 16.0, sw, 34.0), Rect2(0, 0, 64, 64),
+				Color(0.12, 0.06, 0.16, clampf(0.62 - drop / 900.0, 0.24, 0.56))])
+	var count := maxi(1, roundi(length / 250.0))
+	var span := x1 - x0
+	# the rank behind: smaller, darker, between the front ones (the underside reads as one lumpy body)
+	if count > 1:
+		for i in count - 1:
+			var u := (i + 1.0) / count
+			var width := minf(span / count * 1.3, 340.0)
+			var cx := x0 + u * span + (_hash(c + i, r + 14, 100) - 50.0) * 0.4
+			var v := _hash(c + i, r + 11, MASS_VARIANTS)
+			var rect := Rect2(cx - width / 2, top + 2.0, width, deepest * (0.55 + 0.25 * _hash(c + i, r + 12, 100) / 100.0))
+			batch.items.append([rect, Rect2(v * MASS.x * PX, 0, MASS.x * PX, MASS.y * PX), Color(0.5, 0.44, 0.58)])
 	for i in count:
 		var u := (i + 0.5) / count
-		var k := 0.5 + 0.5 * pow(sin(PI * u), 0.7) if count > 1 else 1.0
-		var width := minf(length / count * 1.45 + 24.0, 260.0) * (0.85 + 0.15 * k)
-		width = minf(width, x1 - x0)
-		var cx := clampf(c * T + u * length, x0 + width / 2, x1 - width / 2)
+		var k := 0.62 + 0.38 * pow(sin(PI * u), 0.6) if count > 1 else 1.0
+		k *= 0.86 + 0.28 * _hash(c + i, r + 15, 100) / 100.0  # (each its own depth: no even rhythm)
+		var width := minf(span / count * 1.9 + 40.0, 520.0) * (0.8 + 0.2 * k)
+		width = minf(width, span)
+		var cx := clampf(x0 + u * span + (_hash(c + i, r + 16, 100) - 50.0) * 0.5, x0 + width / 2, x1 - width / 2)
 		var v := _hash(c + i, r, MASS_VARIANTS)
-		var rect := Rect2(cx - width / 2, (r + 1) * T - 16.0, width, deepest * k + 6.0)
-		if _hash(c + i, r + 3, 2) == 0:
-			rect.size.x = -rect.size.x  # mirrored in place
-		batch.items.append([rect, Rect2(v * MASS.x * PX, 0, MASS.x * PX, MASS.y * PX), Color.WHITE])
+		var rect := Rect2(cx - width / 2, top, width, deepest * k + 6.0)  # (never mirrored: lit from the left)
+		batch.items.append([rect, Rect2(v * MASS.x * PX, 0, MASS.x * PX, MASS.y * PX), MASS_TINT])
 
 
 ## A cell at the ground line under a wall: a run of cells with a wall over them (at most 16), with

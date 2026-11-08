@@ -12,8 +12,11 @@ const SIZE := 28.0  ## drawn width in units (a 32-unit tile; round 14: round 13'
 enum Face { SMILE, BLINK, JOY, WINK }
 const SPEC_AT := Vector2(-5.9, -6.4)  ## units from its middle (at SIZE): bob_sheet.py's hard glint
 ## (round 15, the judges: "red dots in a tight row": a brighter specular and a soft outer glow on each)
-const GLOW := Color(1.0, 0.3, 0.36, 0.42)  ## the glow round it (additive), kept tight so a row never merges
-const GLOW_R := 0.82  ## its reach, a share of SIZE from the middle (the ball is 0.5)
+## Round 19 ("red on the warm pink mesas gets lost"): no pink glow added round it (on the pink cliffs it
+## melted the ball into them): a soft dark wine ring under its rim instead, so its edge holds against any
+## backdrop, the ruby's own bright rim and glint inside it (bob_sheet.py: bolder face, thicker ink).
+const GLOW := Color(0.2, 0.0, 0.06, 0.55)  ## the ring round it (normal blend), tight so a row never merges
+const GLOW_R := 0.7  ## its reach, a share of SIZE from the middle (the ball is 0.5)
 const SPEC_K := 0.85  ## the steady specular spark on its glint
 
 static var _sheet: Texture2D
@@ -104,7 +107,6 @@ func _init(column := 0, row := 0) -> void:
 	_unit = _scale
 	_glow = Sprite2D.new()
 	_glow.texture = _halo
-	_glow.material = _additive
 	_glow.modulate = GLOW
 	add_child(_glow)
 	_sprite = Sprite2D.new()

@@ -35,27 +35,29 @@ def face(kind: str) -> Image.Image:
     img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     cx, cy = S * 0.5, S * 0.53
-    ex, ey, ew, eh = S * 0.115, S * 0.47, S * 0.062, S * 0.095  # eye centre offset and half size
+    # round 19 ("the kawaii faces become noise at phone size", ~50 px a ball): bigger eyes set wider, a
+    # thicker smile, softer cheeks: three bold marks that survive the phone
+    ex, ey, ew, eh = S * 0.14, S * 0.465, S * 0.08, S * 0.122  # eye centre offset and half size
 
     def eye(x, open_):
         if open_:
             d.ellipse([x - ew, ey - eh, x + ew, ey + eh], fill=INK)
             d.ellipse([x - ew * 0.15, ey - eh * 0.75, x + ew * 0.55, ey - eh * 0.1], fill=(255, 255, 255, 255))
         else:  # closed, happy: an arc
-            d.arc([x - ew * 1.2, ey - eh * 0.6, x + ew * 1.2, ey + eh * 0.9], 200, 340, fill=INK, width=int(S * 0.028))
+            d.arc([x - ew * 1.2, ey - eh * 0.6, x + ew * 1.2, ey + eh * 0.9], 200, 340, fill=INK, width=int(S * 0.042))
 
     eye(cx - ex, kind in ("smile", "wink"))
     eye(cx + ex, kind == "smile")
     if kind == "joy":  # an open laugh
-        d.chord([cx - S * 0.1, cy, cx + S * 0.1, cy + S * 0.14], 0, 180, fill=INK)
-        d.ellipse([cx - S * 0.05, cy + S * 0.07, cx + S * 0.05, cy + S * 0.13], fill=(230, 80, 90, 255))
+        d.chord([cx - S * 0.12, cy, cx + S * 0.12, cy + S * 0.17], 0, 180, fill=INK)
+        d.ellipse([cx - S * 0.06, cy + S * 0.085, cx + S * 0.06, cy + S * 0.16], fill=(230, 80, 90, 255))
     else:
-        d.arc([cx - S * 0.09, cy - S * 0.02, cx + S * 0.09, cy + S * 0.1], 20, 160, fill=INK, width=int(S * 0.03))
+        d.arc([cx - S * 0.115, cy - S * 0.03, cx + S * 0.115, cy + S * 0.12], 20, 160, fill=INK, width=int(S * 0.046))
     blush = Image.new("RGBA", (S, S), (0, 0, 0, 0))
     bd = ImageDraw.Draw(blush)
     for side in (-1, 1):
         x = cx + side * S * 0.2
-        bd.ellipse([x - S * 0.06, cy - S * 0.01, x + S * 0.06, cy + S * 0.05], fill=(255, 140, 150, 120))
+        bd.ellipse([x - S * 0.06, cy + S * 0.0, x + S * 0.06, cy + S * 0.05], fill=(255, 140, 150, 70))
     blush = blush.filter(ImageFilter.GaussianBlur(S * 0.012))
     return Image.alpha_composite(blush, img)
 
@@ -135,7 +137,7 @@ def main() -> None:
         ink = f[..., :3] * np.clip(shade[..., None] * 1.6, 0.55, 1.0)
         a = ball.copy()
         a[..., :3] = ball[..., :3] * (1.0 - fa) + ink * fa
-        small = inked(premultiplied_resize(Image.fromarray((a * 255 + 0.5).astype(np.uint8), "RGBA"), FRAME / S), 0.8)
+        small = inked(premultiplied_resize(Image.fromarray((a * 255 + 0.5).astype(np.uint8), "RGBA"), FRAME / S), 1.6)
         sheet[:, i * FRAME:(i + 1) * FRAME] = small[:FRAME, :FRAME]
     out = bleed(sheet)
     Image.fromarray((np.clip(out, 0, 1) * 255 + 0.5).astype(np.uint8), "RGBA").save(OUT / "bob.png", optimize=True)

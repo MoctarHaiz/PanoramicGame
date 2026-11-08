@@ -21,6 +21,8 @@ var _glow: Sprite2D
 var _fire: Node2D
 var _spill: Sprite2D  # firelight on the ground before the doorway
 var _pour: Sprite2D  # round 10: the light pouring out of the doorway onto the grass
+var _fire_light: Sprite2D  # round 19: the campfire's light on the hut, the sign and the fence
+var _fire_pool: Sprite2D  # round 19: and on the grass round it
 var _clock := 0.0
 var _welcome := 0.0  # the fire flares when he walks in (1 -> 0)
 
@@ -48,7 +50,7 @@ func build() -> void:
 	# round 3: the homestead is alive: a cooking fire in the yard, and people at it who greet him
 	_fire = Fire.new()
 	_fire.position = Vector2(LEFT + 622.0, GROUND - 8.0)  # (round 7: by the hut, in the pushed-in shot)
-	_fire.scale = Vector2(1.8, 1.8)  # (round 9: a little bigger: it reads at phone size)
+	_fire.scale = Vector2(2.3, 2.3)  # (round 9: a little bigger: it reads at phone size; round 19: bigger still)
 	back.add_child(_fire)
 	var fire_smoke := _smoke()
 	fire_smoke.position = _fire.position + Vector2(0, -26)
@@ -99,6 +101,22 @@ func build() -> void:
 	var wall := _sprite("home_hut_front", 1.0)
 	wall.position = hut.position + Vector2(float(hut_info.get("front_crop_x", 0.0)), 0.0)  # (stored cropped)
 	front.add_child(wall)
+	# round 19 (the judges: "the campfire flat triangles casting no glow"): its light reaches the hut's
+	# side, the sign's post and the fence (added over them), and pools warm on the grass round it
+	_fire_light = _sprite("home_glow", 1.0)
+	_fire_light.centered = true
+	_fire_light.offset = Vector2.ZERO
+	_fire_light.position = _fire.position + Vector2(10, -60)
+	_fire_light.scale = Vector2(1.6, 1.3)
+	_fire_light.material = spill_add
+	back.add_child(_fire_light)
+	_fire_pool = _sprite("home_glow", 1.0)
+	_fire_pool.centered = true
+	_fire_pool.offset = Vector2.ZERO
+	_fire_pool.position = _fire.position + Vector2(6, 10)
+	_fire_pool.scale = Vector2(1.3, 0.3)
+	_fire_pool.material = spill_add
+	yard.add_child(_fire_pool)
 	_glow = _sprite("home_glow", 1.0)
 	_glow.centered = true
 	_glow.offset = Vector2.ZERO
@@ -120,6 +138,9 @@ func _process(delta: float) -> void:
 		_glow.scale = Vector2(0.9, 0.55) * (1.0 + 0.2 * _welcome)
 		_spill.modulate = Color(1, 0.8, 0.55, minf(f * 0.75 + 0.3 * _welcome, 1.0))
 		_pour.modulate = Color(1, 0.9, 0.75, minf(0.45 + f * 0.35 + 0.3 * _welcome, 1.0))
+		var flick := 0.08 * sin(_clock * 9.0) + 0.05 * sin(_clock * 23.0) + 0.03 * sin(_clock * 3.7)
+		_fire_light.modulate = Color(1, 0.62, 0.3, 0.3 + flick + 0.12 * _welcome)
+		_fire_pool.modulate = Color(1, 0.66, 0.34, 0.55 + flick * 1.5 + 0.15 * _welcome)
 
 
 ## He is home: the fire flares up to welcome him.
@@ -283,10 +304,10 @@ class Fire extends Node2D:
 			draw_line(a.lerp(b, 0.45) + Vector2(0, -2.0), b + Vector2(0, -2.0), Color(1.0, 0.5, 0.2, 0.8 * flick), 1.2)
 			draw_circle(a, 2.6, Color(0.24, 0.14, 0.1))  # its cut end, charred, an ember in it
 			draw_circle(a + Vector2(0.4, -0.4), 1.1, Color(1.0, 0.5, 0.16, flick))
-		# the flames: three layers of tongues, back to front
-		_tongues(6, 34.0, 6.5, 11.0, OUTER, 0.0)
-		_tongues(4, 26.0, 5.0, 8.0, MIDDLE, 1.7)
-		_tongues(3, 15.0, 3.6, 5.0, CORE, 3.1)
+		# the flames: three layers of tongues, back to front (round 19: more, taller, licking higher)
+		_tongues(8, 40.0, 6.5, 13.0, OUTER, 0.0)
+		_tongues(5, 30.0, 5.2, 9.0, MIDDLE, 1.7)
+		_tongues(3, 18.0, 3.8, 5.0, CORE, 3.1)
 
 	## n flame tongues across `spread` units, `tall` at most, each `width` wide at its root, shading
 	## from colours[0] at the root to colours[1] at the tip; they sway and stretch, each its own way.

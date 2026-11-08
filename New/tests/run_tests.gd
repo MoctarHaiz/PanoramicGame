@@ -2150,6 +2150,9 @@ func _test_art() -> void:
 			stacks += 1
 			river += 1 if span % 100 == Level.ROWS else 0
 	_check(stacks >= 5 and river >= 5, "the poles are drawn as stacks (%d, %d standing in the river)" % [stacks, river])
+	var feet: Texture2D = load(TerrainView.DIR + "spire_feet.png")
+	_check(feet.get_width() == roundi(TerrainView.SPIRE_FOOT.x * TerrainView.PX * 3.0) and terrain._spire_len.size() == 3,
+			"each river pillar has its foot on boulders and its shaft's length (spire_feet.png, spires.json)")
 	terrain.free()
 
 

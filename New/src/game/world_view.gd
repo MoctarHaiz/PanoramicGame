@@ -455,7 +455,10 @@ func _place_bandits(scroll: float, delta: float) -> void:
 		v.position = Vector2(x + v.wall_shift, y + World.BANDIT_SIZE.y / 2 + GameArt.FEET_SINK)
 		v.show_state(standing)
 		var held := start_hold and not b.active and x + v.wall_shift + BANDIT_RIGHT > safe_right
-		v.modulate.a = 0.0 if held else move_toward(v.modulate.a, 1.0, delta * 4.0)
+		if world.state == World.State.WON:  # home: one still standing (a jumper that dodged) fades away, not frozen there
+			v.modulate.a = move_toward(v.modulate.a, 0.0, delta * 4.0)
+		else:
+			v.modulate.a = 0.0 if held else move_toward(v.modulate.a, 1.0, delta * 4.0)
 		# one still waiting out of the play window over a hole would stand on air: not drawn
 		if not b.active:
 			var feet_row := floori((b.wait_y + World.BANDIT_SIZE.y / 2 + 4.0) / Level.TILE)

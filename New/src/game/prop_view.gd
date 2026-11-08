@@ -35,6 +35,8 @@ const DRESSING := [
 	[&"prop_bush_a", 1.5, 0.0],
 	[&"prop_aloe", 1.5, 52.0],
 ]
+const ACACIAS: Array[StringName] = [&"tree_acacia_1", &"tree_acacia_2", &"tree_acacia_3", &"tree_acacia_4",
+		&"tree_acacia_5", &"tree_acacia_6"]
 const SINK := 5.0  ## dressing stands this far into the grass band
 const HOME_COL := 765  ## the homestead has its own composition from here
 const CHUNK := 16  ## columns per chunk (as TerrainView)
@@ -83,7 +85,16 @@ func _scan(c0: int, c1: int) -> void:
 			if DECOR.has(id):
 				var d: Array = DECOR[id]
 				var foot: Vector2 = (Vector2(c, r) + d[1]) * Level.TILE
-				_add(d[0], foot, d[2], _hash(c, r, 2) == 0, Color.WHITE)
+				var pic: StringName = d[0]
+				var height: float = d[2]
+				var tint := Color.WHITE
+				if _tree_anchor.has(pic):  # round 19 ("identical stamps"): each map tree its own acacia, size and shade
+					pic = ACACIAS[_hash(c, r + 17, ACACIAS.size())]
+					height *= 0.84 + 0.32 * _hash(c, r + 19, 100) / 100.0
+					var v := 0.88 + 0.2 * _hash(c, r + 23, 100) / 100.0
+					var warm := (_hash(c, r + 29, 100) / 100.0 - 0.5) * 0.12
+					tint = Color(v + warm, v, v - warm)
+				_add(pic, foot, height, _hash(c, r, 2) == 0, tint)
 	_bank_reeds(_level, c0, c1)
 	for c in range(maxi(c0, _first_col + 2), mini(c1, mini(_end_col, HOME_COL))):
 		for r in range(1, Level.ROWS):
@@ -147,8 +158,10 @@ func _add(name: StringName, foot: Vector2, height: float, flip: bool, colour: Co
 	var tex: Texture2D = _tex[name]
 	var k := 0.5 if height == 0.0 else absf(height) / tex.get_height()  # pictures are 2 px per unit
 	var size := tex.get_size() * k
-	var rect := Rect2(foot.x - _tree_anchor.get(name, tex.get_width() / 2.0) * k, foot.y - size.y, size.x, size.y)
-	if flip and not _tree_anchor.has(name):  # a negative width mirrors the picture in place
+	var ax: float = _tree_anchor.get(name, tex.get_width() / 2.0) * k
+	var rect := Rect2(foot.x - ax, foot.y - size.y, size.x, size.y)
+	if flip:  # a negative width mirrors the picture in place (round 19: trees too, about their trunk)
+		rect.position.x = foot.x - (size.x - ax)
 		rect.size.x = -rect.size.x
 	if height < 0.0:  # upside down under the foot (a negative height mirrors the picture in place)
 		rect = Rect2(rect.position.x, foot.y, rect.size.x, -size.y)

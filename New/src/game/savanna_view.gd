@@ -19,10 +19,13 @@ const DIR := "res://assets/art/world/"
 ## sun centre: share of the visible width, y (the upper left, where the light on every painted thing
 ## comes from). Round 2: low over the escarpments (was y 64, behind the hearts): a golden-hour sun in
 ## the picture, everything rimmed and casting long shadows away from it
-const SUN_AT := Vector2(0.1, 255.0)  # (round 3: lower, its glow off the HUD, half behind the far cliffs)
+## Round 19 (the judges: "the sun bloom is the brightest thing on screen, away from the action; the god rays
+## fall from another direction than the sun"): the sun is above the screen's top left corner, high enough for
+## the light shafts painted in the sky (falling from the upper left) and the rays to come from it, as the light
+## on every painted thing does; only its warm glow spills into the corner (its disc is out of the picture).
+## y is from the top of the screen.
+const SUN_AT := Vector2(0.02, -70.0)
 const SUN_SIZE := 640.0
-const SUN_DISC := 15.0  ## round 12: units, the radius of its crisp disc
-const SUN_STREAK := Vector2(420, 7)  ## round 12: units, the streak of light across it
 const RAYS_ORIGIN := Vector2(80, 80)  ## where the sun is in the rays, in units (tools/art/savanna.py)
 const RAYS_SIZE := Vector2(1280, 820)  ## drawn size of rays.png in units (stored at half that)
 ## World redraw: the painted sky (sky.png): top y and height it is drawn at (units), how much it
@@ -170,7 +173,7 @@ func sun_position() -> Vector2:
 
 
 func _sun() -> Vector2:
-	return Vector2(_x0() + (_x1() - _x0()) * SUN_AT.x - scroll * 0.004, SUN_AT.y)
+	return Vector2(_x0() + (_x1() - _x0()) * SUN_AT.x - scroll * 0.004, view_top + SUN_AT.y)
 
 
 ## World redraw: the sky is a painted panorama (kie.ai, from the menu's key art) that repeats left to
@@ -197,26 +200,18 @@ func _draw_sky(ci: CanvasItem) -> void:
 ## The sun: its golden halo laid over the sky (`bloom` false), then its hot disc and bloom added.
 func _draw_sun(ci: CanvasItem, bloom: bool) -> void:
 	var s := SUN_SIZE * (1.0 + sin(_clock * 0.7) * 0.012)
-	if bloom:  # (round 10: softer, warmer: "a hard white disc")
-		ci.draw_texture_rect(_tex[&"sun"], Rect2(_sun() - Vector2(s, s) * 0.32, Vector2(s, s) * 0.64), false, Color(1, 0.9, 0.7, 0.62))
-		# round 12 ("a blurry blob with no bloom structure"): a crisp disc in its bloom, and a thin
-		# streak of light across it, as a lens catches a low sun
-		var c := _sun()
-		var mote: Texture2D = _tex[&"mote"]
-		ci.draw_texture_rect(mote, Rect2(c - Vector2(SUN_STREAK.x / 2, SUN_STREAK.y / 2), SUN_STREAK), false, Color(1, 0.78, 0.48, 0.34))
-		ci.draw_texture_rect(mote, Rect2(c - Vector2(SUN_STREAK.x * 0.17, SUN_STREAK.y * 0.9), Vector2(SUN_STREAK.x * 0.34, SUN_STREAK.y * 1.8)), false,
-				Color(1, 0.86, 0.62, 0.3))
-		ci.draw_circle(c, SUN_DISC, Color(1.0, 0.86, 0.6, 0.55))
-		ci.draw_circle(c, SUN_DISC * 0.82, Color(1.0, 0.92, 0.76, 0.5))
-	else:  # (round 12: tighter: the blur round it read as a blob)
-		ci.draw_texture_rect(_tex[&"sun_halo"], Rect2(_sun() - Vector2(s, s) * 0.3, Vector2(s, s) * 0.6), false, Color(1, 1, 1, 0.7))
+	if bloom:  # (round 10: softer, warmer: "a hard white disc"; round 19: out of the picture, its glow a
+		# wide soft warmth in the corner, never brighter than the lit clouds)
+		ci.draw_texture_rect(_tex[&"sun"], Rect2(_sun() - Vector2(s, s) * 0.5, Vector2(s, s) * 1.0), false, Color(1, 0.8, 0.52, 0.42))
+	else:
+		ci.draw_texture_rect(_tex[&"sun_halo"], Rect2(_sun() - Vector2(s, s) * 0.6, Vector2(s, s) * 1.2), false, Color(1, 0.84, 0.6, 0.6))
 
 
 ## God rays fanning from the sun to the lower right, breathing slowly.
 func _draw_rays(ci: CanvasItem) -> void:
 	var tex: Texture2D = _tex[&"rays"]
 	var k := 1.2
-	var a := 0.12 + 0.04 * sin(_clock * 0.45) + 0.02 * sin(_clock * 1.13)
+	var a := 0.2 + 0.04 * sin(_clock * 0.45) + 0.02 * sin(_clock * 1.13)
 	ci.draw_texture_rect(tex, Rect2(_sun() - RAYS_ORIGIN * k, RAYS_SIZE * k), false, Color(1, 1, 1, a))
 
 
@@ -312,6 +307,9 @@ func _draw_trees(ci: CanvasItem, row_index: int) -> void:
 		if _hash(seed) < (row[6] + 0.3 if grove < 0.38 else row[6] * 0.4):
 			continue
 		var t := int(_hash(seed + 1) * _trees.size()) % _trees.size()
+		# round 19 ("identical stamps"): never the same tree as the slot before it in this row
+		if t == int(_hash(seed - 31 * 2 + 1) * _trees.size()) % _trees.size() or t == int(_hash(seed - 31 + 1) * _trees.size()) % _trees.size():
+			t = (t + 1 + slot % 3) % _trees.size()
 		var tex := _trees[t]
 		var height: float = row[2] * (0.5 + _hash(seed + 2) * 0.95) * (0.62 if slot & 1 == 1 else 1.0)  # (round 10: more unequal)
 		if tex.get_height() > tex.get_width():  # baobabs: taller pictures, same tree scale

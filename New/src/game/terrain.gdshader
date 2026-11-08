@@ -76,6 +76,10 @@ void fragment() {
 	to_rock = max(to_rock, narrow * smoothstep(-1.0, 1.0, depth - 26.0 - (noise(level_pos.x * 0.05) - 0.5) * 10.0));
 	c = mix(soil_colour, rock_colour, to_rock);
 	float rock_k = to_rock * smoothstep(20.0, 30.0, depth);
+	// round 19 ("the central rock pillar toy-like, blocky stone that doesn't match the painted mesas"): a
+	// narrow wall is a column of the mesas' sandstone (as the river's pillars): horizontal beds, no blocks
+	float strata_k = rock_k * narrow;
+	rock_k *= 1.0 - narrow;
 	vec2 bsize = vec2(70.0, 30.0);  // (blocks longer than tall, their centres kept near the middle
 	// of their bed: the joints between beds run across in wavy strata, the joints in a bed lean)
 	vec2 rq = level_pos + vec2((noise(level_pos.y * 0.021) - 0.5) * 30.0, (noise(level_pos.x * 0.011) - 0.5) * 26.0);
@@ -127,30 +131,73 @@ void fragment() {
 	c = mix(c, min(c * 1.42 + vec3(0.04, 0.03, 0.0), vec3(1.0)), edge_hi * 0.7);
 	// pits and soft patches in the stone
 	c *= 1.0 - 0.08 * smoothstep(0.6, 0.75, noise2(level_pos * 0.09 + bid * 3.0)) * rock_k;
+	// round 19: the sandstone beds of a narrow wall: uneven thickness, each its own tone (peach, rose,
+	// a pale band now and then), a lit lip on top of each, a dark joint under it, a few vertical cracks
+	// down a bed, painted mottling
+	float by = level_pos.y + (noise(level_pos.x * 0.018 + 4.0) - 0.5) * 7.0;
+	float bw = by / 30.0 + 0.32 * sin(by * 0.043 + 1.7);
+	float bed = floor(bw);
+	float bf = fract(bw);
+	float btone = hash(bed * 3.17 + 0.5);
+	vec3 sand = mix(vec3(0.84, 0.56, 0.42), vec3(0.74, 0.44, 0.37), step(0.55, btone));
+	sand = mix(sand, vec3(0.9, 0.68, 0.5), step(0.84, btone) * 0.8);
+	sand *= 0.92 + 0.1 * hash(bed * 7.1 + 2.0);
+	sand *= 0.93 + 0.12 * noise2(level_pos * vec2(0.05, 0.11) + bed * 5.0);
+	c = mix(c, sand, strata_k);
+	float lip_hi = (1.0 - smoothstep(0.0, 0.1, bf)) * strata_k;
+	c = mix(c, min(c * 1.25 + vec3(0.05, 0.03, 0.0), vec3(1.0)), lip_hi * 0.7);
+	float under = smoothstep(0.78, 0.97, bf) * strata_k;
+	c *= 1.0 - 0.28 * under;
+	ink = max(ink, (smoothstep(0.955, 0.985, bf)) * strata_k * 0.8);
+	float crack_x = hash(bed * 11.3) * 160.0;
+	float crack = (1.0 - smoothstep(0.6, 1.4, abs(mod(level_pos.x - crack_x, 160.0) - 80.0 + (bf - 0.5) * 6.0)))
+			* step(0.45, hash(bed * 5.9 + 1.0)) * smoothstep(0.1, 0.25, bf) * (1.0 - smoothstep(0.8, 0.9, bf));
+	ink = max(ink, crack * strata_k * 0.75);
 	// soil: wavy strata, and stones (dark below, lit on top) here and there
 	float soil_k = (1.0 - to_rock) * smoothstep(14.0, 22.0, depth);
 	float sy = level_pos.y + sin(level_pos.x * 0.03) * 4.0 + noise(level_pos.x * 0.05) * 6.0;
 	float sf = fract(sy / 21.0);
 	c *= 1.0 - 0.12 * (1.0 - smoothstep(0.0, 0.12, sf)) * soil_k;
 	c *= 1.0 + (hash(floor(sy / 21.0)) - 0.5) * 0.12 * soil_k;
-	// round 12 ("the bottom an empty dark-brown dirt band"): the earth in layers of its own colour,
-	// a darker humus band under the grass, a red layer, an ochre one with a lit top edge, wavering
+	// round 19 (the judges: "a flat thin tiled strip: grass fringe over a pebble band, no lip, depth or
+	// shadow, no variation along it"): the main ground's face is an earth bank under the grass's lip: a deep
+	// shadow under the overhang, then warm red earth in big soft patches that change along the run (darker
+	// clods, a paler dry stretch, rain runnels down it), a sandstone ledge breaking out of it now and then,
+	// a few half-buried rocks lit on top with their own shadow under them, darker down to the screen's edge
 	float wide = step(200.0, width) * soil_k * step(560.0, level_pos.y);  // (the main ground band only: not a ledge's edge)
-	float layer_y = depth + (noise(level_pos.x * 0.012) - 0.5) * 16.0 + sin(level_pos.x * 0.027) * 3.0;
-	vec3 earth = mix(vec3(0.42, 0.22, 0.16), soil_colour * vec3(1.08, 0.98, 0.94), smoothstep(24.0, 27.0, layer_y));
-	float ochre = smoothstep(36.0, 38.0, layer_y) * (1.0 - smoothstep(48.0, 51.0, layer_y));
-	earth = mix(earth, vec3(0.74, 0.5, 0.3), ochre);
-	earth = mix(earth, vec3(0.9, 0.66, 0.42), (smoothstep(36.0, 37.0, layer_y) - smoothstep(38.0, 40.0, layer_y)));  // its lit top edge
-	earth = mix(earth, earth * 0.7, (smoothstep(48.0, 49.0, layer_y) - smoothstep(50.0, 53.0, layer_y)));  // the shade under it
-	c = mix(c, earth * (c / max(soil_colour, vec3(0.01))) * 0.5 + earth * 0.5, wide * 0.8);
-	vec2 sc = floor(level_pos / 26.0);
-	float has_stone = step(mix(0.86, 0.8, wide), hash(sc.x * 13.1 + sc.y * 71.7)) * soil_k;  // (round 12: more in the ground)
-	vec2 sp = (fract(level_pos / 26.0) - 0.5 - (vec2(hash(sc.x + sc.y * 3.3), hash(sc.y + sc.x * 5.1)) - 0.5) * 0.4) * vec2(1.0, 1.5);
-	float stone_r = mix(0.2, 0.27, wide);  // (round 12: bigger in the ground band)
+	vec2 lp = level_pos;
+	float patch_big = noise2(lp * vec2(0.009, 0.02) + 3.0);
+	float patch_mid = noise2(lp * vec2(0.035, 0.06) + 11.0);
+	vec3 earth = mix(vec3(0.44, 0.22, 0.15), vec3(0.6, 0.33, 0.2), smoothstep(0.25, 0.75, patch_big));
+	earth = mix(earth, vec3(0.66, 0.44, 0.3), smoothstep(0.72, 0.9, noise(lp.x * 0.004 + 9.0)) * 0.6);  // a dry stretch
+	earth = mix(earth, vec3(0.32, 0.17, 0.14), smoothstep(0.6, 0.78, patch_mid) * 0.55);  // darker clods
+	float runnel = (1.0 - smoothstep(0.0, 0.08, abs(fract(lp.x / 23.0 + noise(lp.y * 0.05 + floor(lp.x / 23.0)) * 0.3) - 0.5)))
+			* step(0.55, hash(floor(lp.x / 23.0) * 1.7)) * smoothstep(30.0, 44.0, depth);
+	earth *= 1.0 - 0.14 * runnel;
+	// a sandstone ledge breaking out of the bank (a slow noise along the run picks where)
+	float out_on = smoothstep(0.66, 0.7, noise(lp.x * 0.006 + 21.0));
+	float out_top = 30.0 + 6.0 * noise(lp.x * 0.04);
+	float out_band = smoothstep(out_top - 0.8, out_top + 0.8, depth) * (1.0 - smoothstep(out_top + 15.0, out_top + 17.0, depth + (noise(lp.x * 0.09) - 0.5) * 6.0));
+	float outcrop = out_on * out_band;
+	vec3 sand_c = mix(vec3(0.82, 0.56, 0.42), vec3(0.62, 0.42, 0.4), smoothstep(out_top + 4.0, out_top + 15.0, depth));
+	sand_c = mix(sand_c, sand_c * 1.25, 1.0 - smoothstep(out_top + 0.5, out_top + 2.5, depth));  // its lit top
+	earth = mix(earth, sand_c, outcrop);
+	earth *= 1.0 - 0.35 * out_on * smoothstep(out_top + 15.0, out_top + 17.0, depth) * (1.0 - smoothstep(out_top + 17.0, out_top + 28.0, depth));  // its shadow
+	float wide_ink = out_on * (smoothstep(out_top - 1.2, out_top - 0.2, depth) - smoothstep(out_top + 0.2, out_top + 1.2, depth));
+	wide_ink = max(wide_ink, out_on * (smoothstep(out_top + 14.5, out_top + 15.5, depth) - smoothstep(out_top + 16.5, out_top + 17.5, depth)));
+	earth *= 1.0 - 0.38 * smoothstep(34.0, 80.0, depth);  // darker down the bank (values: real darks at the bottom)
+	c = mix(c, earth, wide * 0.92);
+	ink = max(ink, wide_ink * wide * 0.8);
+	// stones: in the bank fewer and bigger, half buried, lit on top, a soft shadow under each (no ringed pebbles)
+	vec2 sc = floor(level_pos / mix(26.0, 44.0, wide));
+	float has_stone = step(mix(0.86, 0.84, wide), hash(sc.x * 13.1 + sc.y * 71.7)) * soil_k * (1.0 - outcrop);
+	vec2 sp = (fract(level_pos / mix(26.0, 44.0, wide)) - 0.5 - (vec2(hash(sc.x + sc.y * 3.3), hash(sc.y + sc.x * 5.1)) - 0.5) * 0.4) * vec2(1.0, 1.6);
+	float stone_r = mix(0.2, 0.3, wide) * (0.75 + 0.5 * hash(sc.x * 2.1 + sc.y * 9.3));
 	float stone = (1.0 - smoothstep(stone_r - 0.03, stone_r, length(sp))) * has_stone;
-	vec3 stone_c = mix(vec3(0.42, 0.34, 0.33), vec3(0.78, 0.66, 0.56), step(sp.y, -0.04));
+	vec3 stone_c = mix(vec3(0.4, 0.3, 0.3), vec3(0.8, 0.64, 0.52), smoothstep(0.02, -0.08, sp.y + sp.x * 0.3));
+	c *= 1.0 - 0.35 * wide * has_stone * (1.0 - smoothstep(0.0, stone_r * 0.9, length(sp - vec2(0.06, stone_r * 0.7)))) * (1.0 - stone);
 	c = mix(c, stone_c, stone);
-	ink = max(ink, (smoothstep(stone_r - 0.03, stone_r, length(sp)) - smoothstep(stone_r, stone_r + 0.04, length(sp))) * has_stone);
+	ink = max(ink, (smoothstep(stone_r - 0.03, stone_r, length(sp)) - smoothstep(stone_r, stone_r + 0.04, length(sp))) * has_stone * mix(1.0, 0.55, wide));
 	// round 9: moss creeping down from under the grass in ragged tongues (the grass sat on the rock
 	// "like cake icing"), and on the sunny top of a block here and there
 	float lip = 18.0 + noise(level_pos.x * 0.09) * 8.0;  // (round 6: deeper, the grass overhangs)
@@ -167,9 +214,9 @@ void fragment() {
 	// in rock each block takes the light of its centre, so the bands' edges run along its joints
 	float fl = mix(from_left, max(from_left + to_c.x, 0.0), rock_k);
 	float fr = mix(from_right, max(from_right - to_c.x, 0.0), rock_k);
-	float lit = 1.0 - smoothstep(0.0, min(46.0, width * 0.36) * (1.0 + 0.5 * rock_k * narrow), fl);
+	float lit = 1.0 - smoothstep(0.0, min(46.0, width * 0.36) * (1.0 + 0.5 * strata_k), fl);
 	// (round 12, "the shading ignores the low sun on the left": a pillar's far face clearly in shade)
-	float away = 1.0 - smoothstep(0.0, min(56.0, width * 0.5) * (1.0 + 1.05 * rock_k * narrow), fr);
+	float away = 1.0 - smoothstep(0.0, min(56.0, width * 0.5) * (1.0 + 1.05 * strata_k), fr);
 	float below_top = smoothstep(4.0, 30.0, depth);
 	float waver = (noise(level_pos.y * 0.035 + float(cell.x)) - 0.5) * 0.3 * (1.0 - rock_k);  // (round 8: band edges follow the rock)
 	float band_lit = smoothstep(0.45, 0.52, lit + waver) * below_top;
@@ -180,7 +227,7 @@ void fragment() {
 	// under the grass lip: a crisp band of shadow, then a long soft occlusion (round 9); the foot of a
 	// wall darker; a ledge's underside
 	c *= 1.0 - 0.55 * (1.0 - smoothstep(lip - 1.0, lip + 1.0, depth));
-	c *= 1.0 - mix(0.3, 0.42, narrow) * exp(-max(depth - lip, 0.0) / mix(16.0, 24.0, narrow)) * step(lip, depth);  // (round 12: the cap's occlusion on a pillar)
+	c *= 1.0 - mix(mix(0.3, 0.5, wide), 0.42, narrow) * exp(-max(depth - lip, 0.0) / mix(mix(16.0, 12.0, wide), 24.0, narrow)) * step(lip, depth);  // (round 12: the cap's occlusion on a pillar; round 19: deeper under the ground's lip)
 	if (width < 200.0) {  // a dark contact where a wall meets the ground (round 9: a soft gradient)
 		c *= 1.0 - 0.4 * (1.0 - smoothstep(0.0, 48.0, to_foot - 6.0)) * smoothstep(30.0, 40.0, depth);
 	}
@@ -191,6 +238,12 @@ void fragment() {
 	vec4 below4 = floor(texelFetch(depth_tex, min(cell + ivec2(0, 1), textureSize(depth_tex, 0) - 1), 0) * 255.0 + 0.5);
 	float floating = max(ledge, step(127.5, below4.a));
 	if (floating > 0.5) {
+		// round 19: a floating ledge's own row is the sandstone of the rock under it (kie.ai masses), in
+		// the shade of its grass mat (it was a red soil slab between the grass and the rock)
+		vec3 ledge_rock = mix(vec3(0.74, 0.5, 0.42), vec3(0.6, 0.44, 0.5), smoothstep(10.0, 40.0, depth));
+		ledge_rock *= 0.93 + 0.1 * noise2(level_pos * vec2(0.06, 0.15));
+		ledge_rock *= 1.0 - 0.45 * (1.0 - smoothstep(lip + 2.0, lip + 18.0, depth));
+		c = mix(c, ledge_rock, 0.85);
 		// (round 4: rounder, deeper: a one-cell ledge no longer ends in a straight vertical edge)
 		float cut = max(depth - 6.0, 0.0) * 1.3 + noise(level_pos.y * 0.2 + float(cell.x)) * 4.0;
 		taper = cells.g < 0.5 ? 1.0 - smoothstep(cut - 0.7, cut + 0.7, from_left) : 0.0;
@@ -225,6 +278,14 @@ void fragment() {
 		erode = (cells.g < 0.5 ? 1.0 - smoothstep(el - 0.6, el + 0.6, from_left) : 0.0);
 		erode = max(erode, cells.b < 0.5 ? 1.0 - smoothstep(er - 0.6, er + 0.6, from_right) : 0.0);
 	}
+	// round 19 (the judges: "a thin water strip cut off abruptly"): a bank under a pool's surface is seen
+	// through the water, murky and bluer deeper down, so the pool runs into its banks (it read as a red
+	// block cut square under the waterline); every pit is a pool (Level._flood_pits)
+	float surf = 584.0 + sin(level_pos.x * 0.045 + TIME * 1.7) * 1.6;
+	float sub = smoothstep(surf, surf + 4.0, level_pos.y) * (1.0 - floating);
+	float by_water = 1.0 - smoothstep(4.0, 30.0, min(from_left, from_right));
+	vec3 murk = mix(vec3(0.12, 0.3, 0.33), vec3(0.04, 0.08, 0.2), smoothstep(surf, surf + 46.0, level_pos.y));
+	c = mix(c, murk * (0.7 + 0.5 * dot(c, vec3(0.33))), sub * by_water * 0.82);
 	// edges: the shape's light (R) and rim (B) kept as cel steps; ink (G and the eroded edge) thick
 	float l = shape.r - 0.5;
 	c = l > 0.0 ? mix(c, c * lit_colour * 1.35, step(0.12, l) * 0.8) : c * (1.0 - step(0.12, -l) * 0.3);
