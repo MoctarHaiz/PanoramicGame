@@ -9,27 +9,31 @@ const POINTS := 22  ## the burst's spikes
 const INK := Color("3a1006")
 
 var radius := 62.0  ## the burst's outer radius (its spikes' tips)
+var calm := false  ## the quiet plaque (a new best after a defeat): no spikes, no glint, dark words on gold
 var _clock := 0.0
 
 
-## `text`: the words (split on two lines at the first space); `burst`: the outer radius in units.
-func _init(text: String, burst := 62.0) -> void:
+## `text`: the words (split on two lines at the first space); `burst`: the outer radius in units;
+## `quiet`: the calm plaque instead of the burst (its box the same size: it takes the same place).
+func _init(text: String, burst := 62.0, quiet := false) -> void:
 	radius = burst
+	calm = quiet
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	custom_minimum_size = Vector2(radius, radius) * 2.0
 	size = custom_minimum_size
 	pivot_offset = size / 2
 	var words := text.to_upper().split(" ", false, 1)
 	var disc := radius * 0.74
+	var room := radius * 2.0 if calm else disc * 1.42  # (calm: a gold plaque wider than tall, its words on it)
 	var lines: Array[DisplayText] = []
 	for w: String in words:
-		var fit := 34.0
+		var fit := 28.0 if calm else 34.0
 		var t := _line(w, fit)
 		# the widest line fits the medallion, a little air at both ends
-		fit = minf(fit, fit * (disc * 1.42) / maxf(t.text_width(), 1.0))  # air at both ends: not cramped
+		fit = minf(fit, fit * room / maxf(t.text_width(), 1.0))  # air at both ends: not cramped
 		t.font_size = int(fit)
-		t.outline_width = roundf(fit * 0.11)
-		t.depth = roundf(fit * 0.07)
+		t.outline_width = 0.0 if calm else roundf(fit * 0.11)
+		t.depth = 0.0 if calm else roundf(fit * 0.07)
 		t.refresh()
 		lines.append(t)
 	var line_h := 0.0
@@ -40,14 +44,19 @@ func _init(text: String, burst := 62.0) -> void:
 		t.size = Vector2(size.x, line_h)
 		t.position = Vector2(0, size.y / 2 + (i - lines.size() / 2.0) * line_h + 2.0)
 		add_child(t)
-	var crown := Ui.bold_icon("crown-fill", radius * 0.46, Ui.GOLD, INK)
+	var crown := Ui.bold_icon("crown-fill", radius * (0.34 if calm else 0.46), Ui.GOLD, INK)
 	crown.size = crown.custom_minimum_size
-	crown.position = Vector2(size.x / 2 - crown.size.x / 2, -crown.size.y * 0.28)
+	var crown_y := size.y / 2 - radius * 0.62 - crown.size.y * 0.62 if calm else -crown.size.y * 0.28  # (calm: on the plaque's top)
+	crown.position = Vector2(size.x / 2 - crown.size.x / 2, crown_y)
 	add_child(crown)
-	set_process(Prefs.motion())
+	set_process(Prefs.motion() and not calm)
 
 
 func _line(text: String, font_size: float) -> DisplayText:
+	if calm:  # dark brown words engraved on the gold
+		var q := Ui.display_text(text, int(font_size), Color("5a2408"), Color(0, 0, 0, 0), Color("3a1404"))
+		q.shadow = Color(1, 0.95, 0.8, 0.0)
+		return q
 	var t := Ui.display_text(text, int(font_size), Ui.WHITE, Color("5a0804"), Color("ffe6c8"))
 	t.shadow = Color(0, 0, 0, 0)
 	return t
@@ -84,6 +93,16 @@ func _gradient(pts: PackedVector2Array, y0: float, y1: float, top: Color, bottom
 
 func _draw() -> void:
 	var c := size / 2
+	if calm:  # a gold plaque: an ink line, a gold rim lit at its top, a pale gold face; no spikes, no glint
+		var half := Vector2(radius * 1.18, radius * 0.62)
+		var r := Rect2(c - half, half * 2.0)
+		var ci := get_canvas_item()
+		GlossStyle.fill_rounded(ci, Rect2(r.position + Vector2(0, 4), r.size).grow(4.0), 20.0, Color(0.12, 0.02, 0.0, 0.25),
+				Color(0.12, 0.02, 0.0, 0.25))
+		GlossStyle.fill_rounded(ci, r.grow(4.0), 20.0, INK, INK)
+		GlossStyle.fill_rounded(ci, r.grow(1.5), 17.5, Color("ffe27a"), Color("c8780e"))
+		GlossStyle.fill_rounded(ci, r.grow(-3.0), 13.0, Color("fff3c6"), Color("f2c55a"))
+		return
 	var r := radius - 3.0
 	var inner := r * 0.84
 	draw_colored_polygon(_burst(c + Vector2(0, 6), r + 3.0, inner + 3.0), Color(0.12, 0.02, 0.0, 0.35))  # its shadow

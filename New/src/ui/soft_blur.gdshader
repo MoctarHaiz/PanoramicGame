@@ -1,14 +1,28 @@
 shader_type canvas_item;
-// The game behind a panel: a small, soft picture of it (Ui.blurred_snapshot: 1/16 of the screen, grown
-// back 4x) drawn stretched over the screen. Plain bilinear stretching of so few pixels shows blocks
-// and stair-stepped edges; here every pixel is a cubic B-spline sample of it (four bilinear taps,
-// Sigg & Hadwiger): a smooth Gaussian-like blur with no block, at the cost of four texture reads, in
-// one draw call.
-// `grey` drains its colour (a defeat: the world goes cold and grey behind the panel); `tame` softens
-// its brightest parts (the pause: the sun's bloom doesn't glare round the panel).
+// The scrim behind a panel over the game: a small, soft picture of the game (Ui.blurred_snapshot: 1/16 or
+// 1/32 of the screen, grown back 4x) drawn stretched over the screen through a cubic B-spline (four
+// bilinear taps, Sigg & Hadwiger: a smooth blur, no blocks), then graded into a designed backdrop
+// instead of a muddy dimmed screenshot (j15: "a muddy dark blurred screenshot, no mood"):
+// - a gradient map of the scene's own values: its shadows mapped to `shadow_tint`, its middle tones
+//   to `mid_tint`, its lights to `light_tint` (`duo`: how much of it over the picture's own
+//   colours), so the frozen scene reads as one tinted mood (warm dusk for the pause, cold slate for a defeat, gold for a win);
+// - a soft light behind the panel (`glow_colour`, its alpha the strength, round on any screen shape);
+// - a vignette in `vignette_colour` closing the corners;
+// - half a level of dither: the 8-bit screen shows no bands in the smooth gradients.
+// `grey` drains the picture before the duotone; `tame` softens its brightest parts (the sun's bloom).
 
 uniform float grey : hint_range(0.0, 1.0) = 0.0;
 uniform float tame : hint_range(0.0, 1.0) = 0.0;
+uniform vec4 shadow_tint : source_color = vec4(0.12, 0.05, 0.13, 1.0);
+uniform vec4 mid_tint : source_color = vec4(0.45, 0.18, 0.3, 1.0);
+uniform vec4 light_tint : source_color = vec4(0.92, 0.62, 0.38, 1.0);
+uniform float duo : hint_range(0.0, 1.0) = 0.0;
+uniform float exposure = 1.0;
+uniform vec4 glow_colour : source_color = vec4(1.0, 0.8, 0.5, 0.0);
+uniform vec2 glow_at = vec2(0.5, 0.5);  // in the screen's UV
+uniform float glow_size = 0.6;  // its radius, a share of the screen's height
+uniform vec4 vignette_colour : source_color = vec4(0.04, 0.01, 0.05, 1.0);
+uniform float vignette : hint_range(0.0, 1.0) = 0.0;
 varying vec4 tint;  // the vertex colour (modulate): COLOR in fragment() already holds the texture
 
 void vertex() {
@@ -45,5 +59,18 @@ void fragment() {
 	float lum = dot(blur.rgb, vec3(0.3, 0.59, 0.11));
 	blur.rgb = mix(blur.rgb, vec3(lum), grey);
 	blur.rgb *= 1.0 - 0.6 * tame * smoothstep(0.38, 0.9, lum);  // the sun's bloom: no bright smudge
-	COLOR = blur * tint;
+	lum = dot(blur.rgb, vec3(0.3, 0.59, 0.11));
+	float t = smoothstep(0.03, 0.85, lum);
+	vec3 duotone = t < 0.5 ? mix(shadow_tint.rgb, mid_tint.rgb, t * 2.0) : mix(mid_tint.rgb, light_tint.rgb, t * 2.0 - 1.0);
+	vec3 col = mix(blur.rgb, duotone, duo) * exposure;
+	float aspect = texel.y / texel.x;  // the picture has the screen's shape
+	vec2 q = (UV - glow_at) * vec2(aspect, 1.0);
+	float g = 1.0 - smoothstep(0.0, glow_size, length(q));
+	col += glow_colour.rgb * glow_colour.a * g * g;
+	vec2 e = (UV - 0.5) * 2.0;
+	float v = smoothstep(0.45, 1.45, length(e * vec2(1.0, 0.85)));
+	col = mix(col, vignette_colour.rgb, vignette * v);
+	float n = fract(sin(dot(FRAGCOORD.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
+	col += n / 255.0;
+	COLOR = vec4(col, blur.a) * tint;
 }

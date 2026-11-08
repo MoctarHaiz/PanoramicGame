@@ -35,14 +35,14 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 	if won:
 		body.add_child(_stars_stage(stars))
 	else:
-		# what happened: red display letters with a thin cream stroke, spaced (game-like; plain red read
-		# as body text)
+		# what happened: cream display letters in a thick deep-red stroke with its depth, as the ribbon's
+		# title (j15: red letters on the beige hide had a middling contrast)
 		var why := Ui.display_text(TranslationServer.translate("FELL" if world.death_reason == &"fall" else "CAUGHT"),
-				38, Color("e8301a"), Color("fff2dc"), Color("b81408"))
-		why.outline_width = 3.0
-		why.depth = 0.0
+				38, Color("fffaf0"), Color("6e1006"), Color("ffe0c0"))
+		why.outline_width = 6.0
+		why.depth = 3.0
 		why.tracking = 2.0
-		why.shadow = Color(0.3, 0.04, 0.0, 0.35)
+		why.shadow = Color(0.2, 0.03, 0.0, 0.3)
 		why.refresh()
 		var air := MarginContainer.new()  # air round it (not edge to edge), room for a crown under it
 		air.add_theme_constant_override(&"margin_bottom", 14)
@@ -86,7 +86,7 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 		var way := HBoxContainer.new()  # what the bar measures, said beside it (not a second score)
 		way.alignment = BoxContainer.ALIGNMENT_CENTER
 		way.add_theme_constant_override(&"separation", 12)
-		way.add_child(Ui.label(TranslationServer.translate("WAY_HOME"), 28, Color("e2e8f8"), Ui.font_title))
+		way.add_child(Ui.label(TranslationServer.translate("WAY_HOME"), 28, Color("fbe4c0"), Ui.font_title))
 		way.add_child(bar)
 		lines.add_child(way)
 	body.add_child(well)
@@ -128,14 +128,14 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 
 
 ## The groove under the run's count: cut into the parchment (InsetStyle: shade under its upper
-## edge, the lit lip of the parchment under it), dark, so the cream numbers stand out on it; warm
-## leather after a win, a deep cool navy after a loss (its gold numbers stand out on it): smooth
-## gradients and a soft inner shadow (a grain read as dithering).
+## edge, the lit lip of the parchment under it), dark, so the cream numbers stand out on it: the kit's
+## own leather (j15: a navy inset on parchment and wood read as a second UI kit), warm after a win,
+## smoked and quieter after a loss: smooth gradients and a soft inner shadow.
 static func _dark_well(won: bool) -> InsetStyle:
 	var s := InsetStyle.new(22.0)
-	s.top = Color("6a2e10") if won else Color("0c1226")  # a win's warmer (dark chocolate dulled the gold)
-	s.bottom = Color("9c5420") if won else Color("3e4e7c")  # a loss's a deep cool gradient
-	s.outline = Card.INK if won else Color("0a0e1e")
+	s.top = Color("6a2e10") if won else Color("2a1810")  # a win's warmer (dark chocolate dulled the gold)
+	s.bottom = Color("9c5420") if won else Color("5c3e2c")  # a loss's smoked leather
+	s.outline = Card.INK
 	s.content_margin_top = 12
 	s.content_margin_bottom = 14
 	return s
@@ -288,20 +288,45 @@ static func _reveal(game: Control, panel: GamePanel, world: World, stars: Array[
 			panel.add_child(back)
 			panel.move_child(back, panel.card.get_parent().get_index())
 			Fx.confetti_burst(back, stars[1].get_global_rect().get_center() * 2.0)
-			var rain := Node2D.new()  # coins and confetti around the card (over the words they read as stains)
+			var rain := Node2D.new()  # coins around the card (over the words they read as stains)
 			panel.add_child(rain)
 			panel.move_child(rain, panel.card.get_parent().get_index())
 			Fx.coin_shower(rain, panel.size.x, panel.size.y)
+			rain = Node2D.new()  # the cannons' near paper: in front of everything (it keeps off him and the card)
+			rain.scale = Vector2.ONE * 0.5
+			panel.add_child(rain)
 			var view := panel.size * 2.0  # New (audio): fireworks in the sky behind him and the card
 			Fx.fireworks(back, Vector2(view.x * 0.96, view.y * 1.02), -1.0)  # shells on the right only (left: him)
-			Fx.card_bursts(back, panel.card))  # New (audio): crisp bursts left of him and right of the card
+			Fx.card_bursts(back, panel.card)  # New (audio): crisp bursts left of him and right of the card
+			_fire_cannons(panel, back, rain))
+		party.tween_interval(1.7)  # a second volley while the first still flutters down
+		party.tween_callback(func() -> void:
+			var back := Node2D.new()
+			back.scale = Vector2.ONE * 0.5
+			panel.add_child(back)
+			panel.move_child(back, panel.card.get_parent().get_index())
+			var front := Node2D.new()
+			front.scale = Vector2.ONE * 0.5
+			panel.add_child(front)
+			_fire_cannons(panel, back, front))
 	_count_up(tree, bobs, world.bobs, total, t, panel)
 	t += COUNT_TIME + 0.1
 	if bar:
 		bar.fill_from(t - 0.1)
 		t += 0.6
 	if best:
-		_stamp(tree, panel, slot, t + 0.1)
+		_stamp(tree, panel, slot, t + 0.1, not won)
+
+
+## The party cannons from the screen's bottom corners (Fx.cannons): far paper on `back` (behind him and
+## the card), near paper on `front` (in front, effects units: both scaled 0.5).
+static func _fire_cannons(panel: GamePanel, back: Node2D, front: Node2D) -> void:
+	var to_local := back.get_global_transform().affine_inverse()
+	var card: Rect2 = to_local * panel.card.get_global_rect()
+	var hero := Rect2()
+	if panel.art and panel.art.visible:
+		hero = to_local * panel.art.get_global_rect()
+	Fx.cannons(back, front, panel.size * 2.0, card, hero)
 
 
 ## A star slams into its socket: from big and turned to a little small, then its size, a burst of
@@ -382,14 +407,23 @@ static func _count_up(tree: SceneTree, value: DisplayText, target: int, suffix: 
 
 ## NEW BEST!: a burst badge (a gold starburst, a glossy red medallion, a crown: a seal, not a
 ## button) slams into its place beside the count, spinning in a little askew, the card shakes,
-## light and sparkles burst under it.
-static func _stamp(tree: SceneTree, panel: GamePanel, slot: Control, delay: float) -> void:
+## light and sparkles burst under it. After a defeat (`calm`) the same news without the fanfare
+## (j15: a shouting seal on a loss sent mixed emotions): a quiet gold medal settles into its place.
+static func _stamp(tree: SceneTree, panel: GamePanel, slot: Control, delay: float, calm := false) -> void:
 	await tree.create_timer(delay).timeout
 	if not is_instance_valid(panel):
 		return
-	var stamp := BurstBadge.new(TranslationServer.translate("NEW_BEST"), BADGE)
+	var stamp := BurstBadge.new(TranslationServer.translate("NEW_BEST"), BADGE, calm)
 	slot.add_child(stamp)  # in the count's row, its place kept from the start
 	stamp.position = (slot.size - stamp.size) / 2
+	if calm:
+		stamp.modulate.a = 0.0
+		stamp.scale = Vector2.ONE * 0.85
+		var q := stamp.create_tween().set_parallel(true)
+		q.tween_property(stamp, "modulate:a", 1.0, 0.35)
+		q.tween_property(stamp, "scale", Vector2.ONE, 0.45).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		Audio.play_sfx(&"tick", 1.4, 0.7)
+		return
 	stamp.scale = Vector2.ONE * 1.8
 	stamp.modulate.a = 0.0
 	var t := stamp.create_tween().set_parallel(true)
@@ -466,8 +500,8 @@ class WayBar extends Control:
 		# the track, plainly a track: a pale rim round it, an ink line, the way still to go much darker
 		# than the well (a groove the colour of the well let the gold read as a pill sitting on it)
 		GlossStyle.fill_rounded(ci, r.grow(6.0), rad + 6.0, Color(0.95, 0.84, 0.6, 0.7), Color(0.85, 0.7, 0.45, 0.7))
-		GlossStyle.fill_rounded(ci, r.grow(3.0), rad + 3.0, Color("05070e"), Color("05070e"))
-		GlossStyle.fill_rounded(ci, r, rad, Color("03050a"), Color("0c1222"))
+		GlossStyle.fill_rounded(ci, r.grow(3.0), rad + 3.0, Card.INK, Card.INK)
+		GlossStyle.fill_rounded(ci, r, rad, Color("140a06"), Color("2a1810"))
 		GlossStyle.fill_clipped(ci, r, rad, Rect2(r.position, Vector2(r.size.x, r.size.y * 0.5)),
 				Color(0, 0, 0, 0.5), Color(0, 0, 0, 0))
 		# the way done: the track's own fill, from its left end, its full inner height, cut square at the

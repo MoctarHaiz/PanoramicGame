@@ -4,7 +4,9 @@ extends Node
 ## are repeatable.
 ##
 ## Godot --path . --fixed-fps 60 --resolution 200x200 --always-on-top res://tests/capture.tscn -- \
-##     --out=DIR [--devices=a,b] [--shots=x,y] [--lang=fr|en,fr] [--ads=off] [--boxes=on]
+##     --out=DIR [--devices=a,b] [--shots=x,y] [--lang=fr|en,fr] [--ads=on] [--boxes=on]
+## Pictures are taken without the ad banner (review rounds and store screenshots: a grey test box
+## reads as an unfinished game); --ads=on shows where AdMob's banner goes, to check the layouts round it.
 ## --boxes=on draws the collision boxes over the level (CollisionOverlay: what the rules test).
 ## Each picture is drawn on demand (_draw_now): macOS skips drawing covered windows.
 ## --lang=en,fr takes every picture in each language, into DIR/en/ and DIR/fr/.
@@ -46,7 +48,7 @@ const MOMENTS := {
 }
 
 var _out := ""
-var _ads := true
+var _ads := false  # (--ads=on: the test banner's box, to check the layouts round it)
 var _moments := {}  # name -> World snapshot
 
 
@@ -55,7 +57,7 @@ func _ready() -> void:
 	var args := _args()
 	var out: String = args.get("out", "user://captures")
 	var langs: PackedStringArray = String(args.get("lang", "")).split(",", false)
-	_ads = args.get("ads", "on") != "off"
+	_ads = args.get("ads", "off") == "on"  # (a release never shows this box: tests/ is not exported)
 	CollisionOverlay.shown = args.get("boxes", "off") == "on"  # (QA) the rules' boxes over the level shots
 	var devices: Array = args.get("devices", ",".join(DEVICES.keys())).split(",")
 	var shots: Array = args.get("shots", ",".join(SHOTS)).split(",")

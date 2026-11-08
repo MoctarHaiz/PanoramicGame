@@ -1,152 +1,88 @@
 extends Screen
-## The menu, composed as key art: on the left Panoramic in his fighting stance (the art track's
-## render, assets/art/hero/hero_menu.png), full length on a backlit granite kopje, his shadow on
-## the rock; the low sun between him and the title, blown out and blooming, shafts of light fanning
-## from it, long rose-gold clouds, so he is rim-lit from that side (hero.gdshader) and the middle of
-## the screen glows instead of lying empty; on the right the CHAKA ZULU logo (letters drawn for it,
-## chiselled gold, locked up with a Zulu shield and an assegai, tools/art/ui_logo.py) with its
-## subtitle on a ribbon across the shield's foot, a big green PLAY in a thin brass ring, and a row:
-## the best run on a parchment plaque and the settings on a gold tile. Everything arrives in a
-## short choreography: the hero rises onto the rock, the logo drops and bounces, the ribbon unrolls,
-## PLAY pops, the rest fades in. Then the logo catches the light now and then and PLAY breathes.
+## The menu, composed as a title screen: the painted key art (assets/art/ui/menu_keyart.png: Panoramic
+## leaping out of a dust cloud, the ring raised) covering the screen, graded a little richer
+## (grade.gdshader: the candy UI and the art one family), with a soft shade behind the title column;
+## embers streaming out of his launch along the leap (_embers); on the right one clean column with even
+## gutters, clear of his hand: the CHAKA ZULU logo (gold lettering locked up with a Zulu shield and
+## crossed assegais), its subtitle on a ribbon across the shield's foot, a big green PLAY, and the best
+## run on a roomy parchment plaque as wide as PLAY (the Red Bob, "BEST" over the count, the three stars,
+## the missing ones clear empty sockets); the settings on a round parchment button in a top corner
+## (j15: a square gear among the pills). Everything arrives in a short choreography: the logo
+## drops and bounces, the ribbon unrolls, PLAY pops, the rest fades in. Then the logo catches the light
+## now and then and PLAY breathes.
 
 const RIBBON := preload("res://assets/art/ui/ribbon_plain.png")  ## (its dashed stitch removed: tools/art/ui_kit.py)
-const PLATE_H := 112.0  ## the Best plaque's height, and the gear's beside it
 const TAIL_TRIM := 8  ## px cut off each end of the ribbon's tails (its notch is 24 deep)
-const LOGO := "res://assets/art/ui/logo.png"  ## loaded with the menu (a preload held it, 3 MB, all run long)
-const HERO_ART := "res://assets/art/hero/hero_menu.png"  ## the art track's render, when there
-const HERO_STAND := "res://assets/art/ui/hero_stand.png"  ## the fallback crop, loaded only when used
-const KEYART := "res://assets/art/ui/menu_keyart.png"  ## the painted title key art (hero + scene in one picture), when there
-const HERO_ART_SIZE := Vector2(718, 854)  ## hero_menu.png and menu_rock.png sizes: they place the UI column when the key art
-const ROCK_SIZE := Vector2(2000, 720)  ## hides them (their textures are then not loaded: 9 MB less on the menu)
-const ROCK := "res://assets/art/ui/menu_rock.png"  ## loaded with the menu (7 MB: not held during play)
-const ROCK_STAND := Vector2(1390, 152)  ## where his feet go on the rock, in its pixels (tools/art/ui_hero.py)
-const ROCK_LEDGE := 660.0  ## the rock's flat top his stance spans, boot to boot, in its pixels
-const ROCK_TILT := -0.066  ## the rock turned a little (radians) so its ledge is level under both boots
-const STANCE := 0.7147  ## (key art k52: the new picture's boots; k51 0.6603; k50 0.7143; k49 0.7443; k31-k48 0.6422)  ## (key art k31: the new build's picture is narrower and taller; the rock kept its size)  (k15-k30 0.629)  ## his stance, boot to boot, as a share of the render's width (hero_menu.png; round 15's throw,
-## its free arm and trail further out: 0.81 -> 0.629, round 17 0.629)
-const FEET_X := 0.4651  ## (key art k52, the point between his boots in the new picture; k51 0.4338; k50 0.4646; k49 0.4725; k31-k48 0.4329)  ## (key art k31, the same point on screen; k17-k30 0.424)  ## the point between his boots, as a share of its width (round 17: 0.424)
-const HERO_WIDE := 0.36  ## at most this share of the screen's width (round 15: 0.33; the wider throw kept as tall)
-const HERO_TALL := 0.8435  ## (key art k52: his boots kept their size on screen in the new picture; k51 0.8484; k50 0.8322; k49 0.840; k31-k48 0.8174)  ## (key art k31: his longer torso makes the picture taller; his legs and boots kept their size and place on screen; k12-k30 0.8)  ## his height, as a share of the screen's
-const FEET_AT := 0.9  ## where his feet stand, as a share of the screen's height
-const SUN_SHIFT := Vector2(-0.075, 0.0)  ## (key art k51, both judges of k50: "the hair edge just touches the sun disc: it looks accidental") the sun slid off his hair, a share of his picture's size (Vector2.ZERO: k7-k50's place); it stays in the sky, no glow on him
-const FEET_SINK := 0.008  ## his soles pressed onto the rock's ledge, a share of his height (key art k6: they hovered ~7 px over it,
-## his contact shadow fell on the grass behind, "no contact shadow on the rock")
+const LOGO := "res://assets/art/ui/logo.png"  ## loaded with the menu (a preload held it all run long)
+const KEYART := "res://assets/art/ui/menu_keyart.png"  ## the painted title key art (hero + scene in one picture)
+## Where things are in the key art, as shares of its size: the tip of his gauntleted hand (the title
+## column keeps clear of it), the left edge of his ring (never pushed off the screen), and the dust
+## cloud of his launch (the embers come out of it).
+const HAND_U := 0.548
+const RING_U := 0.17
+const DUST := Rect2(0.0, 0.6, 0.24, 0.38)
+const COLUMN_W := 440.0  ## the title column's width (PLAY and the Best plaque fill it)
+const PLAY_H := 124.0
+const PLATE_H := 100.0  ## the Best plaque's height
+const GUTTER := 28.0  ## between his hand and the column, and between the column and the screen's edge
+const GEAR := 92.0  ## the settings button's side
 
-var _backdrop: SunsetBackdrop
-var _hero: TextureRect
-var _hero_tex: Texture2D
-var _logo_tex: Texture2D
-var _rock_tex: Texture2D
-var _lit_crop := false  # the fallback crop (no art render): lit here by hero.gdshader
-var _rock: TextureRect
-var _shadow: TextureRect  # his shadow on the rock
-var _front: TextureRect  # dark backlit grass across the bottom, in front of the rock's foot
-var _halo_glow: ColorRect
-var _backing: TextureRect  # the dusk shade behind him (key art k11)
+var _backdrop: SunsetBackdrop  # only when the key art is missing
+var _art: TextureRect
+var _art_size := Vector2(2556, 1179)
+var _embers: CPUParticles2D
+var _dust: CPUParticles2D
 var _logo_box: Control  # sized by _layout; the logo and its ribbon inside
 var _logo: TextureRect
+var _logo_tex: Texture2D
 var _ribbon: Control
-var _ribbon_fit: Control  # holds the ribbon, shrunk when the column is narrow (a tablet)
+var _ribbon_fit: Control  # holds the ribbon, shrunk to the column
+var _column: VBoxContainer
 var _play_box: Control
 var _play_pop: Control  # unmanaged inside _play_box: what the entrance scales
 var _play: JuicyButton
-var _row: HBoxContainer
-var _row_fit: Control  # holds the Best plaque and the gear, shrunk when the column is narrow (a tablet)
-var _left: VBoxContainer
-var _hero_side: Control
-var _clock := 0.0
+var _plate_fit: Control  # holds the Best plaque, shrunk with the column on a narrow screen
+var _plate: Control
+var _gear: JuicyButton
+var _fit := 1.0  # the column's contents shrunk to a narrow column (a tablet)
+var _pop_u := 1.0  # PLAY's entrance (its pop)
 
 
 func enter(_data: Dictionary) -> void:
-	_backdrop = SunsetBackdrop.new()
-	_backdrop.framing_tree = false  # he stands there
-	_backdrop.motes = false  # no specks in a lit sky
-	_backdrop.clouds = true
-	_backdrop.shafts = 2.4
-	_backdrop.horizon = 0.8  # more sky: the horizon doesn't cut the frame in half
-	_backdrop.tree_x = 0.37  # the small acacia between him and the title, not behind the buttons
-	_backdrop.sun_disc = 0.0  # (key art k6) its bloom only: the layered sun is painted over it here (_halo_glow)
-	_backdrop.sun_glow = 0.42  # (k11: 0.5)  # (key art k6: the two blooms added up clipped the haze to a pale wash, no corona)
-	add_child(_backdrop)
-	_lit_crop = not ResourceLoader.exists(HERO_ART)
-	var painted := ResourceLoader.exists(KEYART)
-	if painted:  # the key art carries hero and rock: their textures aren't loaded, only their sizes kept for the layout
-		_lit_crop = false
-		_hero_tex = _sized(HERO_ART_SIZE)
-	else:
-		_hero_tex = load(HERO_STAND if _lit_crop else HERO_ART)
-	# the bloom around the low sun
-	_halo_glow = ColorRect.new()  # worked out per pixel (a small gradient stretched stepped into rings)
-	_halo_glow.color = Color(1, 0.6, 0.32, 0.32)  # (key art k6: 0.6, a wash; warmer: an orange haze round the gold)
-	_halo_glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var bloom := ShaderMaterial.new()
-	bloom.shader = preload("res://src/ui/sun_glow.gdshader")
-	bloom.set_shader_parameter(&"falloff", 1.8)
-	# (key art k6, "a flat white disc": a halo behind his head and back) a white-hot core, a gold corona round
-	# it, both painted over the sky, then the bloom fading into the haze (shares of the rect's half size, 0.75 of
-	# the screen's height: the core 0.085 of it, the corona out to 0.2)
-	bloom.set_shader_parameter(&"paint", 1.0)
-	bloom.set_shader_parameter(&"core", 1.0)
-	bloom.set_shader_parameter(&"core_radius", 0.113)
-	bloom.set_shader_parameter(&"core_colour", Color(1.0, 0.86, 0.62))  # (key art k11, "the flat white disc is the brightest value on screen": warmer, lower)
-	bloom.set_shader_parameter(&"corona", 0.8)
-	bloom.set_shader_parameter(&"corona_radius", 0.3)
-	bloom.set_shader_parameter(&"corona_colour", Color(1.0, 0.7, 0.16))
-	_halo_glow.material = bloom
-	add_child(_halo_glow)
-	# (key art k11, "the orange sky band behind the torso matches the skin") the sky just behind him a little darker and
-	# cooler: a broad soft dusk shade, far larger than his outline (not a halo round him)
-	_backing = _picture(Fx.glow_texture())
-	_backing.modulate = Color(0.2, 0.09, 0.26, 0.34)
-	add_child(_backing)
-	_rock_tex = _sized(ROCK_SIZE) if painted else load(ROCK)
-	_rock = _picture(_rock_tex)
-	add_child(_rock)
-	_shadow = _picture(Fx.glow_texture())
-	_shadow.modulate = Color(0.06, 0.0, 0.04, 0.85)
-	add_child(_shadow)
-	_front = _picture(load("res://assets/art/world/sunset_grass.png"))
-	_front.stretch_mode = TextureRect.STRETCH_TILE
-	_front.modulate = Color(0.55, 0.45, 0.52)
-	_hero = _picture(_hero_tex)
-	if _lit_crop:  # the art track's render carries its own backlight; the crop gets it here
-		_hero.material = _backlit()
-	add_child(_hero)
-	add_child(_front)
+	if ResourceLoader.exists(KEYART):
+		_art = TextureRect.new()
+		_art.texture = load(KEYART)
+		_art_size = _art.texture.get_size()
+		_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_art.stretch_mode = TextureRect.STRETCH_SCALE
+		_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var grade := ShaderMaterial.new()
+		grade.shader = preload("res://src/ui/grade.gdshader")
+		_art.material = grade
+		add_child(_art)
+		if Prefs.motion():
+			_embers = _ember_stream()
+			add_child(_embers)
+			_dust = _dust_drift()
+			add_child(_dust)
+	else:  # (no key art: the sunset alone)
+		_backdrop = SunsetBackdrop.new()
+		_backdrop.framing_tree = false
+		_backdrop.motes = false
+		add_child(_backdrop)
 	add_child(_vignette())
-	if painted:  # one painted key art (hero + scene) replaces the layered backdrop and the hero
-		var art := TextureRect.new()
-		art.texture = load(KEYART)
-		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		add_child(art)
-		move_child(art, _backdrop.get_index() + 1)
-		for n: CanvasItem in [_halo_glow, _backing, _rock, _shadow, _hero, _front]:
-			n.visible = false
 
-	var area := safe_area(true, 18.0)
-	add_child(area)
-	var columns := HBoxContainer.new()
-	columns.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	area.add_child(columns)
-	_hero_side = Control.new()  # Panoramic's side (he is placed by hand in _layout)
-	_hero_side.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	columns.add_child(_hero_side)
-	_left = VBoxContainer.new()
-	_left.alignment = BoxContainer.ALIGNMENT_CENTER
-	_left.add_theme_constant_override(&"separation", 16)  # air between logo, Play and the plaque
-	_left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_left.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	columns.add_child(_left)
+	_column = VBoxContainer.new()  # placed by hand in _layout
+	_column.alignment = BoxContainer.ALIGNMENT_CENTER
+	_column.add_theme_constant_override(&"separation", 18)
+	_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_column)
 
 	# the logo, its subtitle ribbon over its foot
 	_logo_box = Control.new()
 	_logo_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_logo_box.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_left.add_child(_logo_box)
+	_column.add_child(_logo_box)
 	_logo = TextureRect.new()
 	_logo_tex = load(LOGO)
 	_logo.texture = _logo_tex
@@ -168,42 +104,30 @@ func enter(_data: Dictionary) -> void:
 
 	_play_box = Control.new()
 	_play_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_play_box.custom_minimum_size = Vector2(420, 124)
 	_play_box.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_left.add_child(_play_box)
+	_column.add_child(_play_box)
 	_play_pop = Control.new()
 	_play_pop.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_play_pop.size = _play_box.custom_minimum_size
-	_play_pop.pivot_offset = _play_pop.size / 2
 	_play_box.add_child(_play_pop)
-	_play = Ui.candy_button(tr("PLAY"), "play-fill", Ui.Tone.GREEN, 124, 62)
-	_play.size = _play_box.custom_minimum_size
+	_play = Ui.candy_button(tr("PLAY"), "play-fill", Ui.Tone.GREEN, int(PLAY_H), 62)
 	_play.pressed.connect(func() -> void: Nav.go(&"game", {}, _play.get_global_rect().get_center()))
 	_play.idle(0.06)
 	_play.shine(3.2, 0)  # the sweep only: lens-flare glints read as stock
 	_play_pop.add_child(_play)
 
-	_row = HBoxContainer.new()
-	_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	_row.add_theme_constant_override(&"separation", 18)
-	_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_plate_fit = Control.new()
+	_plate_fit.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_plate_fit.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	if Save.games_played > 0:
-		_row.add_child(_best_plaque())
-	# the gear a gold tile of the kit (the pause's tiles), fixed at the plaque's fixed height: the
-	# row's width is known from the first frame (grown to the plaque's height in a later resize, it
-	# pushed the row past a French tablet's safe area while the menu came in)
-	var settings := Ui.icon_button("gear-chunky", Ui.Tone.GOLD, PLATE_H, 32.0)  # as tall as the plaque
-	settings.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	settings.pressed.connect(func() -> void: Nav.go(&"settings", {}, settings.get_global_rect().get_center()))
-	_row.add_child(settings)
-	_row_fit = Control.new()
-	_row_fit.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_row_fit.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_row_fit.add_child(_row)
-	_left.add_child(_row_fit)
+		_plate = _best_plaque()
+		_plate_fit.add_child(_plate)
+		_column.add_child(_plate_fit)
+
+	_gear = _gear_button()
+	_gear.pressed.connect(func() -> void: Nav.go(&"settings", {}, _gear.get_global_rect().get_center()))
+	add_child(_gear)
 
 	resized.connect(_layout)
-	_row.minimum_size_changed.connect(_layout)  # (the holder takes the row's size from _layout)
 	Device.changed.connect(_layout)
 	_layout()
 	_arrive()
@@ -211,75 +135,62 @@ func enter(_data: Dictionary) -> void:
 	Services.ads.show_banner(true)
 
 
-## The sunset's light on the studio-lit crop: a warm rim all round his outline (the sun is right
-## behind him), his front in warm shadow (hero.gdshader).
-static func _backlit() -> ShaderMaterial:
-	var lit := ShaderMaterial.new()
-	lit.shader = preload("res://src/ui/hero.gdshader")
-	# the sun right behind him: a warm rim all round his outline, his front in warm shadow
-	lit.set_shader_parameter(&"rim_dir", Vector2(0.75, -0.65))
-	lit.set_shader_parameter(&"rim_px", 8.0)
-	lit.set_shader_parameter(&"sky_colour", Color(1.0, 0.66, 0.36))
-	lit.set_shader_parameter(&"sky_rim", 0.85)
-	lit.set_shader_parameter(&"shade", 0.42)
-	return lit
-
-
 func _exit_tree() -> void:
 	if Device.changed.is_connected(_layout):
 		Device.changed.disconnect(_layout)
 
 
-static func _sized(size: Vector2) -> PlaceholderTexture2D:
-	var t := PlaceholderTexture2D.new()
-	t.size = size
-	return t
+## The settings: a round parchment button (the Best plaque's material), its gear in the panels' warm
+## orange, alone in the top left corner.
+func _gear_button() -> JuicyButton:
+	var b := JuicyButton.new()
+	b.custom_minimum_size = Vector2(GEAR, GEAR)
+	for state in [&"normal", &"hover"]:
+		b.add_theme_stylebox_override(state, Ui.plaque_style(GEAR / 2.0))
+	b.add_theme_stylebox_override(&"pressed", Ui.plaque_style(GEAR / 2.0, true))
+	var i := Ui.bold_icon("gear-chunky", GEAR * 0.52, Color("d0641c"), Color("4a1e04"))
+	b.add_child(Ui._face_holder(i, Ui.plaque_style(GEAR / 2.0)))
+	b.content = i
+	return b
 
 
-func _picture(texture: Texture2D) -> TextureRect:
-	var r := TextureRect.new()
-	r.texture = texture
-	r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	r.stretch_mode = TextureRect.STRETCH_SCALE
-	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	return r
-
-
-## The best run on a parchment plaque in a brass ring: the Red Bob, "BEST" over the count, the stars
-## (the missing ones dark sockets in gold rims).
+## The best run on a parchment plaque in a brass ring, as wide as PLAY: the Red Bob, "BEST" over the
+## count, and at its right end the three stars with room round them (the missing ones clear sockets).
 func _best_plaque() -> PanelContainer:
 	var s := Ui.plaque_style(30.0)
-	s.content_margin_left = 22
-	s.content_margin_right = 28
+	s.content_margin_left = 26
+	s.content_margin_right = 30
 	s.content_margin_top = 8
-	s.content_margin_bottom = 16
+	s.content_margin_bottom = 15
 	var plaque := PanelContainer.new()
 	plaque.add_theme_stylebox_override(&"panel", s)
 	plaque.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	plaque.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	plaque.custom_minimum_size.y = PLATE_H
+	plaque.custom_minimum_size = Vector2(COLUMN_W, PLATE_H)
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override(&"separation", 18)  # room: it read as cramped
+	row.add_theme_constant_override(&"separation", 16)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var bob := TextureRect.new()
 	bob.texture = BobView.texture()
 	bob.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	bob.custom_minimum_size = Vector2(58, 58)
+	bob.custom_minimum_size = Vector2(60, 60)
 	bob.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	bob.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(bob)
-	# one type style: "Best" and the count in the same dark brown Fredoka, the count bigger
+	# one type style: "Best" and the count in the same brown family, the count bigger
 	var words := VBoxContainer.new()
 	words.add_theme_constant_override(&"separation", -10)  # the two lines close, not touching
 	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	words.alignment = BoxContainer.ALIGNMENT_CENTER
-	# a small spaced label over the big number, one brown family (a red "Best" fought the brown count)
-	words.add_child(Ui.label(tr("BEST").to_upper(), 26, Color("b0682c"), Ui.title_font(580, 1), HORIZONTAL_ALIGNMENT_LEFT))
-	words.add_child(Ui.label(str(Save.best_bobs), 52, Color("3a1404"), Ui.font_display, HORIZONTAL_ALIGNMENT_LEFT))
+	words.add_child(Ui.label(tr("BEST").to_upper(), 24, Color("b0682c"), Ui.title_font(580, 2), HORIZONTAL_ALIGNMENT_LEFT))
+	words.add_child(Ui.label(str(Save.best_bobs), 50, Color("3a1404"), Ui.font_display, HORIZONTAL_ALIGNMENT_LEFT))
 	row.add_child(words)
+	var gap := Control.new()  # the stars at the plaque's right end, air between them and the count
+	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(gap)
 	var stars := StarRow.new(Save.best_stars, 50)
 	stars.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	stars.add_theme_constant_override(&"separation", 4)
+	stars.add_theme_constant_override(&"separation", 8)
 	row.add_child(stars)
 	plaque.add_child(row)
 	return plaque
@@ -322,106 +233,183 @@ func _vignette() -> TextureRect:
 	v.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	v.stretch_mode = TextureRect.STRETCH_SCALE
 	v.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	v.modulate = Color(0.25, 0.05, 0.02, 0.35)
+	v.modulate = Color(0.2, 0.05, 0.04, 0.4)
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return v
 
 
-## Places Panoramic on the left, full length, his feet on the rock (never wider than a third of a
-## tablet's screen); the sun low between him and the title; the title column on the right; the
-## logo sized to the height left by the safe area and the banner.
+## Embers streaming out of the dust cloud of his launch along his leap (up and to the right), fast,
+## then slowing and rising as they cool: hot white-gold streaks turning orange, stretched along their
+## way (j15: "dust and embers uniform and directionless").
+func _ember_stream() -> CPUParticles2D:
+	var p := CPUParticles2D.new()
+	p.material = Fx.additive()
+	p.texture = _streak_texture()
+	p.amount = 44
+	p.lifetime = 2.2
+	p.preprocess = 2.2  # already flowing on the first frame
+	p.randomness = 0.5
+	p.lifetime_randomness = 0.4
+	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	p.direction = Vector2(0.78, -0.62)
+	p.spread = 16.0
+	p.initial_velocity_min = 150.0
+	p.initial_velocity_max = 380.0
+	p.damping_min = 55.0
+	p.damping_max = 110.0
+	p.gravity = Vector2(10, -24)  # the heat lifts them as they slow
+	p.particle_flag_align_y = true
+	p.scale_amount_min = 0.35
+	p.scale_amount_max = 1.0
+	var curve := Curve.new()  # they shrink as they cool
+	curve.add_point(Vector2(0, 1.0))
+	curve.add_point(Vector2(1, 0.35))
+	p.scale_amount_curve = curve
+	var fade := Gradient.new()
+	fade.offsets = PackedFloat32Array([0.0, 0.08, 0.45, 1.0])
+	fade.colors = PackedColorArray([Color(1, 0.86, 0.52, 0.0), Color(1, 0.8, 0.42, 1.0), Color(1, 0.5, 0.14, 0.8),
+			Color(0.9, 0.24, 0.05, 0.0)])
+	p.color_ramp = fade
+	return p
+
+
+## A little of his dust still drifting back off the cloud, slow and soft, against the leap.
+func _dust_drift() -> CPUParticles2D:
+	var p := CPUParticles2D.new()
+	p.texture = Fx.puff_texture()
+	p.amount = 10
+	p.lifetime = 3.5
+	p.preprocess = 3.5
+	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	p.direction = Vector2(-0.8, -0.5)
+	p.spread = 25.0
+	p.initial_velocity_min = 14.0
+	p.initial_velocity_max = 40.0
+	p.gravity = Vector2(0, -6)
+	p.scale_amount_min = 0.5
+	p.scale_amount_max = 1.1
+	var fade := Gradient.new()
+	fade.offsets = PackedFloat32Array([0.0, 0.3, 1.0])
+	fade.colors = PackedColorArray([Color(0.92, 0.8, 0.62, 0.0), Color(0.92, 0.8, 0.62, 0.22), Color(0.9, 0.78, 0.6, 0.0)])
+	p.color_ramp = fade
+	return p
+
+
+static var _streak: GradientTexture2D
+
+
+## A soft spark stretched along its way: an elongated radial glow (6 x 30), its long side its Y axis.
+static func _streak_texture() -> GradientTexture2D:
+	if not _streak:
+		_streak = GradientTexture2D.new()
+		_streak.width = 12
+		_streak.height = 56
+		_streak.fill = GradientTexture2D.FILL_RADIAL
+		_streak.fill_from = Vector2(0.5, 0.5)
+		_streak.fill_to = Vector2(1.0, 0.5)
+		_streak.gradient = Gradient.new()
+		_streak.gradient.offsets = PackedFloat32Array([0.0, 0.35, 1.0])
+		_streak.gradient.colors = PackedColorArray([Color(1, 1, 1, 1), Color(1, 1, 1, 0.55), Color(1, 1, 1, 0)])
+	return _streak
+
+
+## The key art covers the screen, shifted left where the screen is narrower than it (a tablet) so his
+## hand stays clear of the title column (never so far that his ring leaves the screen); the column on
+## the right, GUTTER from his hand and from the safe area; the logo sized to the height left.
 func _layout() -> void:
 	var v := size
+	if v.x <= 0.0 or v.y <= 0.0:
+		return
 	var insets := Device.insets()
-	var aspect := float(_hero_tex.get_width()) / _hero_tex.get_height()
-	# (the lunge and the ring make him wide; round 12: the deeper lunge is wider; the hero comes first:
-	# where the title column is narrow, its Best row shrinks, not him)
-	var h := minf(v.y * HERO_TALL, v.x * (HERO_WIDE if not _lit_crop else 0.33) / aspect)
-	var w := h * aspect
-	var fx := FEET_X if not _lit_crop else 0.515
-	var feet := Vector2(insets.x + w * fx + 12.0, v.y * FEET_AT)  # between his boots
-	_hero.size = Vector2(w, h)
-	# the art track's render stands on its own contact shadow, both soles at 0.93 of its height; the
-	# fallback crop's soles are at its foot
-	_hero.position = feet - Vector2(w * fx, h * (0.985 if _lit_crop else 0.93 - FEET_SINK))
-	_hero.pivot_offset = Vector2(w / 2, h)
-	# the rock's pixels to screen units: its ledge as wide as his stance, turned level, both boots on it
-	var k := w * STANCE / ROCK_LEDGE if not _lit_crop else h * 0.62 / _rock_tex.get_height()
-	_rock.size = Vector2(_rock_tex.get_width(), _rock_tex.get_height()) * k
-	_rock.pivot_offset = ROCK_STAND * k
-	_rock.rotation = 0.0 if _lit_crop else ROCK_TILT
-	_rock.position = feet - ROCK_STAND * k
-	_front.size = Vector2(v.x, v.y * 0.1)
-	_front.position = Vector2(0, v.y * 0.92)
-	_shadow.size = Vector2(w * 1.15, w * 0.16)  # under both boots of his wide stance
-	_shadow.position = feet - Vector2(_shadow.size.x * 0.5, _shadow.size.y * 0.45)
-	# the sun, low, between him and the title: it rims him and fills the middle with light
-	# the sun right behind him, low: he stands against it, rim-lit, and the title column keeps calm
-	# sky behind it
-	var sun := _hero.position + Vector2(w * (0.32 + SUN_SHIFT.x), h * (0.1 + SUN_SHIFT.y))  # (key art k7, "the hair edge touches the disc edge": the disc 25 px clear of his silhouette, left of his head at its height)  # (key art k6: the layered halo behind the back of his head, off the ring and the kilt)  # (key art k5: up behind his head and back, a halo; low it lit his crotch)  # (key art k4: low behind his back, clear of his face and the ring)  # (key art k2: off his head, behind the throw, "a white blob that competes with the face")  # (round 17: behind his shoulders; at his belt it "washed out the abs")
-	_backdrop.sun_at = sun / v
-	_halo_glow.size = Vector2(v.y * 1.5, v.y * 1.5)
-	_halo_glow.position = sun - _halo_glow.size / 2
-	_backing.size = Vector2(w * 1.25, h * 1.05)
-	_backing.position = _hero.position + Vector2(w * 0.5, h * 0.42) - _backing.size / 2
-	# the column on the right of the sun
-	var column_left := minf(_hero.position.x + w + v.x * 0.06, v.x - insets.z - 18.0 - 470.0)
-	_hero_side.custom_minimum_size.x = maxf(column_left - insets.x - 18.0, 0.0)
-	var free := v.y - insets.y - Device.bottom_with_banner() - Device.ad_gap() - 36.0
-	var column_w := v.x - insets.z - 18.0 - column_left
-	# the Best plaque and the gear whole in the column: their full size on a phone, a little smaller
-	# where a 4:3 tablet's column is narrower than them (the French "Record" is the widest)
-	var row_size := _row.get_combined_minimum_size()
-	var fit := minf(1.0, (column_w - 8.0) / row_size.x)
-	_row.size = row_size
-	_row.scale = Vector2(fit, fit)
-	_row_fit.custom_minimum_size = row_size * fit
-	var row_h := maxf(row_size.y * fit, 92.0)
-	var logo_h := clampf(free - 124.0 - row_h - 48.0 - _ribbon.size.y * 0.5, 170.0, 330.0)  # air above and below
-	var logo_w := logo_h * _logo_tex.get_width() / _logo_tex.get_height()
-	if logo_w > column_w * 0.96:
-		logo_w = column_w * 0.96
-		logo_h = logo_w * _logo_tex.get_height() / _logo_tex.get_width()
-	var rk := minf(1.0, column_w * 0.98 / _ribbon.size.x)
+	var right := v.x - insets.z - GUTTER
+	var col_left := right - COLUMN_W
+	var hand := 0.0
+	if _art:
+		var s := maxf(v.x / _art_size.x, v.y / _art_size.y)
+		var art := _art_size * s
+		var x0 := (v.x - art.x) / 2.0
+		if x0 + HAND_U * art.x > col_left - GUTTER:  # shift it left, as far as it covers and the ring stays on
+			x0 = maxf(col_left - GUTTER - HAND_U * art.x, maxf(v.x - art.x, -RING_U * art.x))
+		_art.position = Vector2(x0, (v.y - art.y) / 2.0)
+		_art.size = art
+		hand = x0 + HAND_U * art.x
+		var m := _art.material as ShaderMaterial  # the shade behind the column, in the picture's own UV
+		m.set_shader_parameter(&"shade_at", (Vector2(right - COLUMN_W * 0.5, v.y * 0.5) - _art.position) / art)
+		m.set_shader_parameter(&"shade_size", Vector2(COLUMN_W * 0.95, v.y * 0.7) / art)
+		for p: CPUParticles2D in [_embers, _dust]:
+			if p:
+				p.position = _art.position + art * DUST.get_center()
+				p.emission_rect_extents = art * DUST.size * 0.5
+		if _embers:
+			_embers.scale_amount_min = 0.3 * s / 0.54
+			_embers.scale_amount_max = 0.8 * s / 0.54
+	col_left = maxf(col_left, hand + GUTTER)
+	var col_w := right - col_left
+	_fit = clampf(col_w / COLUMN_W, 0.6, 1.0)
+	var w := COLUMN_W * _fit
+	# PLAY and the plaque, shrunk together to a narrow column
+	_play_box.custom_minimum_size = Vector2(w, PLAY_H * _fit)
+	_play_pop.size = Vector2(COLUMN_W, PLAY_H)
+	_play_pop.pivot_offset = Vector2(COLUMN_W, PLAY_H) / 2
+	_play_pop.position = (Vector2(w, PLAY_H * _fit) - Vector2(COLUMN_W, PLAY_H)) / 2  # scaled round the box's middle
+	_play_pop.scale = Vector2.ONE * _pop_u * _fit
+	_play.size = Vector2(COLUMN_W, PLAY_H)
+	if _plate:
+		_plate.size = Vector2(COLUMN_W, PLATE_H)
+		_plate.scale = Vector2(_fit, _fit)
+		_plate_fit.custom_minimum_size = Vector2(w, PLATE_H * _fit)
+	# the logo takes the height left
+	var top := insets.y + 18.0
+	var bottom := v.y - Device.bottom_with_banner() - Device.ad_gap() - 18.0
+	var rest := PLAY_H * _fit + (PLATE_H * _fit + 18.0 if _plate else 0.0) + 18.0
+	var rk := minf(1.0, (w + GUTTER) / _ribbon.size.x)  # the ribbon a little wider than the column: its tails out
 	_ribbon_fit.scale = Vector2(rk, rk)
 	var ribbon_size := _ribbon.size * rk
+	var logo_h := clampf(bottom - top - rest - ribbon_size.y * 0.55, 150.0, 330.0)
+	var logo_w := logo_h * _logo_tex.get_width() / _logo_tex.get_height()
+	if logo_w > w * 1.02:
+		logo_w = w * 1.02
+		logo_h = logo_w * _logo_tex.get_height() / _logo_tex.get_width()
 	var box_w := maxf(logo_w, ribbon_size.x)
-	_logo_box.custom_minimum_size = Vector2(box_w, logo_h + ribbon_size.y * 0.5)
+	_logo_box.custom_minimum_size = Vector2(box_w, logo_h + ribbon_size.y * 0.45)
 	_logo.size = Vector2(logo_w, logo_h)
 	_logo.position = Vector2((box_w - logo_w) / 2, 0)
 	_logo.pivot_offset = _logo.size / 2
-	# under the words, across the foot of the mark (the shield takes the logo's left quarter)
-	var under := clampf(_logo.position.x + logo_w * 0.57 - ribbon_size.x / 2, 0.0, box_w - ribbon_size.x)
-	_ribbon_fit.position = Vector2(under, logo_h - ribbon_size.y * 0.5)  # across the shield's foot
+	_ribbon_fit.position = Vector2((box_w - ribbon_size.x) / 2, logo_h - ribbon_size.y * 0.55)  # across the shield's foot
+	var centre_x := col_left + col_w / 2.0
+	_column.size = Vector2(box_w, 0)
+	_column.reset_size()
+	var h := _column.get_combined_minimum_size().y
+	_column.size = Vector2(maxf(box_w, w), h)
+	_column.position = Vector2(centre_x - _column.size.x / 2, top + (bottom - top - h) / 2)
+	# the settings in a top corner: the right one when the column leaves it free (a tablet), else the left
+	_gear.size = _gear.custom_minimum_size
+	var corner_right := _column.position.y >= insets.y + 18.0 + GEAR + 24.0
+	_gear.position = Vector2(v.x - insets.z - 22.0 - GEAR if corner_right else insets.x + 22.0, insets.y + 18.0)
 
 
 ## The entrance, played as the transition opens.
 func _arrive() -> void:
 	var t := create_tween().set_parallel(true)
-	_hero.modulate.a = 0.0
-	var hero_y := _hero.position.y
-	_hero.position.y += 40.0
-	t.tween_property(_hero, "position:y", hero_y, 0.6).set_delay(0.1).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	t.tween_property(_hero, "modulate:a", 1.0, 0.35).set_delay(0.1)
 	_logo.position.y -= 420.0
 	t.tween_property(_logo, "position:y", _logo.position.y + 420.0, 0.75).set_delay(0.15) \
 			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_ribbon.scale = Vector2(0.0, 1.0)
 	t.tween_property(_ribbon, "scale", Vector2.ONE, 0.45).set_delay(0.55).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	_play_pop.scale = Vector2.ZERO
-	t.tween_property(_play_pop, "scale", Vector2.ONE, 0.5).set_delay(0.7).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	_row.modulate.a = 0.0
-	t.tween_property(_row, "modulate:a", 1.0, 0.4).set_delay(0.9)
+	_pop_play(0.0)
+	t.tween_method(_pop_play, 0.0, 1.0, 0.5).set_delay(0.7).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	for c: Control in [_plate_fit, _gear]:
+		c.modulate.a = 0.0
+		t.tween_property(c, "modulate:a", 1.0, 0.4).set_delay(0.9)
 
 
-func _process(delta: float) -> void:
+func _pop_play(u: float) -> void:
+	_pop_u = u
+	_play_pop.scale = Vector2.ONE * u * _fit
+
+
+func _process(_delta: float) -> void:
 	GameArt.collect_preloaded()
-	if not Prefs.motion():
-		return
-	_clock += delta
-	# Panoramic breathes
-	var b := sin(_clock * 1.6)
-	_hero.scale = Vector2(1.0 + 0.003 * b, 1.0 + 0.006 * b)
 
 
 func back() -> void:

@@ -3,9 +3,10 @@ extends Control
 ## A panel over the game (pause, results). Behind it the game is taken once as a picture, with the
 ## HUD and the flying effects hidden for that frame (no ghost of a heart or a "+1" in it), shrunk and
 ## drawn back stretched through a cubic B-spline (soft_blur.gdshader: a smooth blur, no blocks, one
-## draw call; no screen-sized copy kept), under a scrim of about 40 % and a darker vignette (it dims
-## the scene, it doesn't black it out), so the scene steps back and the panel owns the screen; a
-## defeat drains its colour (grey, a colder vignette). A Card in
+## draw call; no screen-sized copy kept) and graded into a designed scrim (_grade: the scene's own
+## shapes in one tinted mood, a soft light behind the card, closed corners, a few slow shafts of light),
+## so the scene steps back and the panel owns the screen: a warm dusk for the pause, cold slate for a
+## defeat, gold for a win. A Card in
 ## the middle of the safe area, its title on a ribbon over its top edge; a character (`art`) at its
 ## left, overlapping its edge, standing in a pool of light with his shadow under his feet; the group
 ## is centred. The card pops in opaque (0.7 -> 1.06 -> 1, a back-ease), the ribbon drops in after
@@ -63,26 +64,23 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 	_picture.stretch_mode = TextureRect.STRETCH_SCALE
 	_picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var soft := ShaderMaterial.new()  # a cubic B-spline stretch of the small picture: no blocks
+	var soft := ShaderMaterial.new()  # a cubic B-spline stretch of the small picture, graded into a scrim
 	soft.shader = SOFT_BLUR
-	soft.set_shader_parameter(&"grey", 0.5 if _mood == &"loss" else 0.0)  # a defeat drains the world (not to sepia)
-	soft.set_shader_parameter(&"tame", 1.0 if _mood == &"" else 0.0)  # the pause: the sun's bloom softened
+	_grade(soft)
 	_picture.material = soft
 	back.add_child(_picture)
-	var veil := ColorRect.new()
-	veil.color = tint
+	var veil := ColorRect.new()  # where no picture is taken (headless), the plain dim; over a picture a hair
+	veil.color = Color(tint, tint.a * 0.2)
 	veil.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	back.add_child(veil)
-	var vignette := TextureRect.new()
-	vignette.texture = Fx.vignette_texture()
-	vignette.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	vignette.stretch_mode = TextureRect.STRETCH_SCALE
-	vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	# a defeat's colder, darker corners; the pause's lighter (the frozen scene stays visible and colourful)
-	vignette.modulate = Color(0.02, 0.01, 0.03, {&"loss": 0.85, &"win": 0.7}.get(_mood, 0.5))
-	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	back.add_child(vignette)
+	if not rays:  # the pause and a defeat: a few slow soft shafts of the scrim's light behind the card (a
+		# designed backdrop, not a dimmed photo; a win has its own bright burst)
+		_rays = Rays.new(1600, Color(1, 0.86, 0.62, 0.07) if _mood == &"" else Color(0.75, 0.8, 1.0, 0.045), 16, true)
+		_rays.material = Fx.additive()
+		back.add_child(_rays)  # (it fades in with the scrim)
+		if Prefs.motion():
+			_rays.create_tween().set_loops().tween_property(_rays, "rotation", TAU, 120.0).from(0.0)
 	if rays:  # a radiance behind the card: soft shafts of light turning (hard-edged rays read as
 		# wallpaper stripes) in a warm light blooming
 		_rays = Rays.new(1600, Color(1, 0.8, 0.38, 0.26), 22, true)
@@ -145,6 +143,28 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 	_place()
 
 
+## The scrim's grade per mood (soft_blur.gdshader): the frozen scene as one tinted mood, a soft light
+## behind the card, closed corners. The pause: a warm dusk (the scene still readable, its shapes soft); a
+## defeat: cold slate, drained, quiet; a win: gold.
+func _grade(m: ShaderMaterial) -> void:
+	var g: Dictionary
+	match _mood:
+		&"loss":
+			g = {"grey": 0.5, "shadow_tint": Color("080a16"), "mid_tint": Color("262c46"), "light_tint": Color("8a90ae"),
+					"duo": 0.9, "exposure": 0.85, "glow_colour": Color(0.55, 0.62, 0.95, 0.2), "glow_size": 1.1,
+					"vignette_colour": Color("04050c"), "vignette": 0.8}
+		&"win":
+			g = {"shadow_tint": Color("2a0a06"), "mid_tint": Color("8e3412"), "light_tint": Color("ffc266"), "duo": 0.75,
+					"exposure": 0.92, "glow_colour": Color(1.0, 0.7, 0.3, 0.3), "glow_size": 1.1,
+					"vignette_colour": Color("140404"), "vignette": 0.6}
+		_:
+			g = {"tame": 0.4, "shadow_tint": Color("140b2c"), "mid_tint": Color("6e2c50"), "light_tint": Color("f2a862"),
+					"duo": 0.82, "exposure": 0.9, "glow_colour": Color(1.0, 0.66, 0.38, 0.42), "glow_size": 1.0,
+					"vignette_colour": Color("0a0414"), "vignette": 0.7}
+	for key: String in g:
+		m.set_shader_parameter(StringName(key), g[key])
+
+
 ## Hides `hide` (and itself) for one drawn frame and takes the picture behind from it, then
 ## enters. What it hid stays hidden while the panel is up (some effects draw over everything) and
 ## comes back when the panel goes.
@@ -160,9 +180,9 @@ func _snapshot_then_enter(hide: Array) -> void:
 	await RenderingServer.frame_post_draw
 	if not is_inside_tree():
 		return
-	# the end panels blurred deeper (1/64: at 1/16 the sun's haze and a pale mesa kept their outlines
-	# and turned to flat grey blocks under the dim); the pause lighter (1/16: the scene stays readable)
-	_picture.texture = Ui.blurred_snapshot(get_viewport(), 4 if _mood == &"" else 6)
+	# a controlled blur (1/32): the scene's shapes soft but still there (1/64 smeared it into a muddy
+	# wash; 1/16 showed its blocks under the grade)
+	_picture.texture = Ui.blurred_snapshot(get_viewport(), 5)
 	for n: CanvasItem in _out_of_picture:  # back at once: only the picture leaves them out
 		if is_instance_valid(n):
 			n.visible = true
@@ -276,15 +296,18 @@ func _place() -> void:
 	_pop.pivot_offset = whole / 2
 	_pop.position = centre - whole / 2
 	_pop.scale = Vector2.ONE * _u * _k
+	var at := centre + (Vector2(art_w + card_size.x / 2, _top + lift + card_size.y / 2) - whole / 2) * _k  # the card's middle
 	if _halo:  # centred on the card, reaching well past its edges
-		var at := centre + (Vector2(art_w + card_size.x / 2, _top + lift + card_size.y / 2) - whole / 2) * _k
 		_halo.size = card_size * _k * Vector2(1.9, 2.1)
 		_halo.position = at - _halo.size / 2
+	if _rays:
 		var d := maxf(card_size.x, card_size.y) * _k * 2.0
 		_rays.size = Vector2(d, d)
 		_rays.pivot_offset = _rays.size / 2
 		_rays.position = at - _rays.size / 2
 		_rays.queue_redraw()
+	if size.x > 0.0 and size.y > 0.0:  # the scrim's light behind the card
+		(_picture.material as ShaderMaterial).set_shader_parameter(&"glow_at", at / size)
 	card.position = Vector2(art_w, _top + lift)
 	if _gild:
 		_gild.position = card.position

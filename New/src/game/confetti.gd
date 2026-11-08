@@ -50,6 +50,11 @@ var glints := true
 ## Pieces inside this rectangle (local units) aren't drawn: they pass behind it (a card's words,
 ## him); they fade out as they reach it (_clear).
 var avoid := Rect2()
+## Depth (0: none): the pieces of a spray are spread over that much depth, each its own: the far
+## ones smaller, slower (parallax), paler with the air (towards `haze`) and fainter, drawn first; the
+## near ones bigger and crisp (j15: "flat same-size rectangles").
+var depth := 0.0
+var haze := Color(1.0, 0.92, 0.82)
 
 var _pieces: Array[Piece] = []
 var _sparkles: Array[Sparkle] = []
@@ -70,6 +75,7 @@ class Piece:
 	var shape: Shape
 	var age: float
 	var life: float
+	var z := 1.0  # its depth: 0 far, 1 near (Confetti.depth)
 
 
 class Sparkle:
@@ -138,6 +144,13 @@ func spray(count: int, shapes: Array, colours: Array, speed: Vector2, direction 
 		p.vel = Vector2.from_angle(a) * randf_range(speed.x, speed.y)
 		_setup(p, shapes, colours, size, life)
 		_pieces.append(p)
+	_sort_by_depth()
+
+
+## The far pieces first (drawn under the near ones).
+func _sort_by_depth() -> void:
+	if depth > 0.0:
+		_pieces.sort_custom(func(a: Piece, b: Piece) -> bool: return a.z < b.z)
 
 
 ## Lets `count` pieces fall from a strip `width` wide above the origin, over `stagger` seconds.
@@ -150,6 +163,7 @@ func rain(count: int, width: float, shapes: Array, colours: Array, size := 1.0,
 		_setup(p, shapes, colours, size, life)
 		p.age = -randf() * stagger
 		_pieces.append(p)
+	_sort_by_depth()
 
 
 ## Twinkling four-point stars that drift out and fade.
@@ -178,6 +192,13 @@ func _setup(p: Piece, shapes: Array, colours: Array, size: float, life: Vector2)
 	p.flip_speed = randf_range(6.0, 15.0) * (1.0 if randf() < 0.5 else -1.0)
 	p.glint_phase = randf() * TAU
 	p.life = randf_range(life.x, life.y)
+	if depth > 0.0:  # spread in depth: far pieces small, slow and hazy, near ones big
+		p.z = 1.0 - depth * pow(randf(), 0.8)
+		p.size *= lerpf(0.5, 1.25, p.z)
+		p.vel *= lerpf(0.72, 1.05, p.z)
+		var air := (1.0 - p.z) * 0.35
+		p.colour = p.colour.lerp(haze, air)
+		p.back = p.back.lerp(haze, air)
 
 
 func _process(delta: float) -> void:
@@ -329,7 +350,7 @@ func _shade(p: Piece) -> Color:
 			base = p.back
 		else:
 			lit *= 0.9 if p.shape in BRIGHT else 0.8
-	var c := Color(base.r * lit, base.g * lit, base.b * lit, _fade(p.age, p.life))
+	var c := Color(base.r * lit, base.g * lit, base.b * lit, _fade(p.age, p.life) * lerpf(0.7, 1.0, p.z))
 	if p.shape in BRIGHT:  # its shade warmer, not greyer: red holds, green and blue go
 		c = Color(base.r * (0.9 + 0.1 * lit), base.g * lit, base.b * lit * lit, c.a)
 	if glints:

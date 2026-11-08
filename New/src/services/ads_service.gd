@@ -31,12 +31,15 @@ var _fake_banner: CanvasLayer
 
 
 func _ready() -> void:
-	if "--fake-ads" in OS.get_cmdline_user_args():
+	if Config.is_debug and "--fake-ads" in OS.get_cmdline_user_args():
 		enable_fake_banner()
 
 
-## Shows a grey stand-in for the banner, to check layouts on a computer.
+## Shows a grey stand-in for the banner, to check layouts on a computer (debug builds only: a release
+## shows AdMob's own banner or nothing, never this box).
 func enable_fake_banner(viewport: Viewport = null) -> void:
+	if not Config.is_debug:
+		return
 	if not _fake_banner:
 		_fake_banner = _make_fake_banner()
 	_fake_banner.custom_viewport = viewport

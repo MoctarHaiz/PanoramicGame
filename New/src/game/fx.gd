@@ -369,6 +369,7 @@ class FireworkShow extends Node2D:
 	var _spark_from: Array[Vector2] = []
 	var _spark_col: Array[Color] = []
 	var _spark_kind: Array[int] = []
+	var _spark_size: Array[float] = []  # each spark's own size (not one uniform particle)
 
 	func launch(at: Vector2, vel: Vector2, delay: float, hue: int, kind := Kind.CHRYSANTHEMUM, size := 1.0) -> void:
 		_shells.append(Vector4(at.x, at.y, delay, hue))
@@ -423,6 +424,7 @@ class FireworkShow extends Node2D:
 				_spark_from.remove_at(i)
 				_spark_col.remove_at(i)
 				_spark_kind.remove_at(i)
+				_spark_size.remove_at(i)
 		if _shells.is_empty() and _bursts.is_empty() and _sparks.is_empty():
 			queue_free()
 		queue_redraw()
@@ -457,6 +459,7 @@ class FireworkShow extends Node2D:
 		_spark_from.append(from)
 		_spark_col.append(colour)
 		_spark_kind.append(kind)
+		_spark_size.append(randf_range(0.6, 1.45))
 
 	func _draw() -> void:
 		var tex := Confetti.atlas()
@@ -472,6 +475,9 @@ class FireworkShow extends Node2D:
 			var k := b.z / BLOOM
 			var r := radius * _burst_kind[i].y
 			var warm: Color = Fx.FIREWORK_HUES[int(b.w)].lerp(Color.WHITE, 0.25)
+			# the sky lit round it, far past its sparks (j15: "fireworks lighting nothing"): a broad wash of
+			# its colour that flares with the burst and dies with it
+			_light(tex, glow, at, Vector2.ONE * r * (2.4 + 0.6 * k), 0.0, Color(warm, 0.26 * pow(1.0 - k, 1.6)))
 			_light(tex, glow, at, Vector2.ONE * r * (0.8 + 0.35 * k), 0.0, Color(warm, 0.42 * (1.0 - k) * (1.0 - k)))
 			_light(tex, glow, at, Vector2.ONE * r * 0.4, 0.0, Color(warm, 0.5 * (1.0 - k) * (1.0 - k) * (1.0 - k)))
 			if b.z < 0.12:  # a hot point, not a white smudge
@@ -495,13 +501,14 @@ class FireworkShow extends Node2D:
 			var head := Vector2(s.x, s.y)
 			var length := minf(head.distance_to(_spark_from[i]) * lerpf(kind.trail.x, kind.trail.y, k), radius * 0.7)
 			draw_set_transform(head, _spark_vel[i].angle())  # its head at 0, its path along -x
+			var big := _spark_size[i]
 			if length > 3.0:
-				var w: float = kind.width * 0.5 * (1.0 - 0.35 * k)
+				var w: float = kind.width * 0.5 * (1.0 - 0.35 * k) * big
 				draw_texture_rect_region(tex, Rect2(-length, -w, length, w * 2.0), streak, Color(hue, fade))
 				draw_texture_rect_region(tex, Rect2(-length * 0.7, -w * 0.35, length * 0.7, w * 0.7), streak, Color(hot, fade))  # a bright core
 			var glitter := 0.3 if willow else 0.6  # from when it glitters (a willow almost at once)
 			if k < glitter or fmod(s.z * 22.0 + i * 0.37, 1.0) < 0.55:
-				var r: float = kind.head * 1.2 * (1.0 - 0.35 * k)
+				var r: float = kind.head * 1.2 * (1.0 - 0.35 * k) * big
 				draw_texture_rect_region(tex, Rect2(-r, -r, r * 2.0, r * 2.0).grow(r * 1.4), glow, Color(hue, 0.35 * fade))  # its glow
 				draw_texture_rect_region(tex, Rect2(-r, -r, r * 2.0, r * 2.0), dot, Color(hot, fade))
 				if k > 0.65 and i % 3 == 0:
@@ -929,14 +936,15 @@ static func coin_shower(parent: Node, width: float, height: float) -> void:
 		hero = _hero_rect(c, to_local)
 	card = card.grow(12.0)
 	var sides := [Vector2(0.0, maxf(card.position.x, 0.0)), Vector2(card.end.x, maxf(width - card.end.x, 0.0))]
-	for side: Vector2 in sides:  # behind: the paper of both margins
+	for side: Vector2 in sides:  # behind: a little paper drifting down the margins (the cannons throw the rest)
 		if side.y < 20.0:
 			continue
 		var paper := Confetti.make(parent, Vector2(side.x, 0.0))  # slow paper: in the air all the reveal
+		paper.depth = 0.8
 		paper.gravity = 520.0
 		paper.drag = 2.2
 		paper.flutter = 420.0
-		paper.rain(int(44 * side.y / width) + 6, side.y, WIN_SHAPES, PAPER_COLOURS, 1.15, Vector2(3.4, 4.2), 2.2)
+		paper.rain(int(16 * side.y / width) + 3, side.y, WIN_SHAPES, PAPER_COLOURS, 1.15, Vector2(3.4, 4.2), 2.2)
 	var left := (hero.position.x if hero.has_area() else card.position.x) - 8.0  # the sky left of him
 	var clear := [Vector3(0.0, left, 0.0), Vector3(card.end.x, width - card.end.x, 1.0)]
 	for strip: Vector3 in clear:  # in front: x, width, 1 right of the card
@@ -950,16 +958,45 @@ static func coin_shower(parent: Node, width: float, height: float) -> void:
 		coins.flutter = 40.0
 		coins.avoid = Rect2(avoid.position - coins.position, avoid.size)
 		coins.rain(int(30 * share) + 3, strip.y, [Confetti.Shape.COIN], GOLD, 1.6, Vector2(1.8, 2.4), 2.0)
-		var paper := Confetti.make(holder, Vector2(strip.x, 0.0))
-		paper.gravity = 560.0
-		paper.drag = 2.1
-		paper.flutter = 420.0
-		paper.avoid = coins.avoid
-		paper.rain(int(26 * share) + 3, strip.y, WIN_SHAPES, PAPER_COLOURS, 1.3, Vector2(3.2, 4.0), 2.2)
 		var motes := Confetti.make(holder, Vector2(strip.x + strip.y / 2.0, height * 0.35))
 		motes.avoid = Rect2(avoid.position - motes.position, avoid.size)
 		motes.sparkle(8, GOLD, Vector2(120, 420), 0.8, Vector2(0.6, 1.1), strip.y * 0.4)
 	Audio.play_sfx(&"coins")
+
+
+## The win's party cannons (j15: "confetti flat same-size rectangles with no burst origin"): two
+## confetti cannons at the screen's bottom corners fire up and inward, a flash at each muzzle; the paper
+## leaves fast, blurred by its speed, slows, then flutters down tumbling, spread in depth: most of it far
+## (behind him and the card, small, slow and hazy: `back`), a few big crisp pieces near (in front, in the
+## clear strips left of him and right of the card, fading where they would cover them: `front`).
+## `view`: the screen (effects units); `card`, `hero`: their rects there.
+static func cannons(back: Node2D, front: Node2D, view: Vector2, card: Rect2, hero: Rect2) -> void:
+	var left_clear := (hero.position.x if hero.has_area() else card.position.x)
+	for side: float in [-1.0, 1.0]:
+		var muzzle := Vector2(view.x * (0.5 + side * 0.49), view.y + 30.0)
+		var inward := -side  # the left one leans right, the right one left
+		glow(back, muzzle + Vector2(0, -40), Color(1, 0.86, 0.6, 0.7), 0.4, 1.6, 0.3)
+		var far := Confetti.make(back, muzzle)
+		far.depth = 0.9
+		far.haze = Color(1.0, 0.86, 0.68)
+		far.gravity = 900.0
+		far.drag = 1.45
+		far.flutter = 480.0
+		far.spray(46, WIN_SHAPES, PAPER_COLOURS, Vector2(1900, 2900), Vector2.from_angle(-PI / 2 + inward * 0.36), 15.0,
+				1.7, Vector2(3.0, 3.8), 24.0)
+		far.sparkle(10, GOLD, Vector2(300, 900), 1.0, Vector2(0.4, 0.8), 30.0)
+		var near := Confetti.make(front, muzzle)
+		near.depth = 0.25
+		near.gravity = 900.0
+		near.drag = 1.5
+		near.flutter = 460.0
+		var clear := Rect2(card.position - near.position, card.size) if side > 0.0 \
+				else Rect2((hero if hero.has_area() else card).position - near.position, (hero if hero.has_area() else card).size)
+		near.avoid = clear.grow(10.0)
+		var steep := 0.1 if side > 0.0 or left_clear > view.x * 0.12 else 0.04
+		near.spray(12, WIN_SHAPES, PAPER_COLOURS, Vector2(2000, 2800), Vector2.from_angle(-PI / 2 + inward * steep), 8.0,
+				2.4, Vector2(2.8, 3.4), 16.0)
+	Audio.play_sfx(&"firework", 1.5, 0.5)
 
 
 ## Panoramic's picture beside the results card (the panel's art: it carries a "tall" meta), in the

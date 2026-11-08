@@ -10,11 +10,13 @@ extends Screen
 ## colour. Every row is a thumb-sized target. Credits
 ## (About, the fonts and icons, the studio, the version) open over it.
 
-const ROW_H := 82.0  ## height of a row (the whole row takes the touch)
+const ROW_H := 96.0  ## height of a row (the whole row takes the touch; tall: the panel fills the screen)
 const BUTTON := 78.0  ## the header's back and info buttons
 const COLUMN_W := 380.0
 const HERO_ART := "res://assets/art/hero/hero_menu.png"
 const INK := Color("4a1e04")
+const HEAD_INK := Color("9a4214")  ## the section titles: lighter and warmer than the rows' ink
+const BACKDROP := "res://assets/art/ui/menu_keyart_soft.png"  ## the menu's key art, small and soft (1/8)
 
 var _credits: Control
 
@@ -29,25 +31,7 @@ func _build() -> void:
 	for child in get_children():
 		child.queue_free()
 	_credits = null
-	var backdrop := SunsetBackdrop.new()
-	backdrop.framing_tree = false
-	backdrop.motes = false
-	backdrop.clouds = true
-	backdrop.sun_at = Vector2(0.16, 0.6)
-	add_child(backdrop)
-	var shade := ColorRect.new()  # a scrim: the sunset steps back behind the panel
-	shade.color = Color(0.06, 0.01, 0.06, 0.3)
-	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(shade)
-	var vignette := TextureRect.new()
-	vignette.texture = Fx.vignette_texture()
-	vignette.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	vignette.stretch_mode = TextureRect.STRETCH_SCALE
-	vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	vignette.modulate = Color(0.02, 0.0, 0.02, 0.65)
-	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(vignette)
+	add_child(_backdrop())
 	var hero := _hero()
 	if hero:
 		add_child(hero)
@@ -56,7 +40,7 @@ func _build() -> void:
 	var page := Control.new()
 	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	area.add_child(page)
-	var card := Card.new(Vector4(44, 112, 44, 44))  # a header row under the ribbon: the back and info buttons
+	var card := Card.new(Vector4(44, 74, 44, 40))  # (the back and info buttons sit on its top corners: no header row)
 	var columns := HBoxContainer.new()
 	columns.add_theme_constant_override(&"separation", 22)
 	card.add_child(columns)
@@ -83,13 +67,13 @@ func _build() -> void:
 	if wide:
 		layout = [[_group("speaker-high-fill", tr("SOUND_AND_FEEL"), Ui.Tone.AMBER, [music, sounds, vibration])],
 				[_group("play-fill", tr("GENERAL"), Ui.Tone.SUNSET, [language, shake, calm])],
-				[_group("info-fill", tr("HELP"), Ui.Tone.CRIMSON, [tutorial] + help)]]
+				[_group("question-fill", tr("HELP"), Ui.Tone.CRIMSON, [tutorial] + help)]]  # (the "i" is the credits' alone)
 		switches = 1
 	else:
 		layout = [[_group("speaker-high-fill", tr("SOUND_GROUP"), Ui.Tone.AMBER, [music, sounds]),
 				_group("sparkle-fill", tr("FEEL"), Ui.Tone.CRIMSON, [vibration, shake, calm])],
 				[_group("play-fill", tr("GENERAL"), Ui.Tone.SUNSET, [language, tutorial]),
-				_group("info-fill", tr("HELP"), Ui.Tone.BLUE, help)]]  # (red is the effects' here)
+				_group("question-fill", tr("HELP"), Ui.Tone.BLUE, help)]]  # (red is the effects' here)
 	var more: Array = []  # the ad choices and the purchases, where they apply: under the first column
 	if Services.ads.privacy_options_required():
 		more.append(_button_row("megaphone-fill", tr("AD_PRIVACY"), "", Services.ads.show_privacy_options))
@@ -100,7 +84,7 @@ func _build() -> void:
 	if not more.is_empty():
 		layout[0].append(_group("star-four-fill", tr("MORE"), Ui.Tone.BLUE, more))
 	for i in layout.size():
-		var col := _column(COLUMN_W + 50.0 if i == switches else COLUMN_W)
+		var col := _column(COLUMN_W + 50.0 if i == switches else (COLUMN_W + 40.0 if i == 0 else COLUMN_W - 20.0))
 		for g: Control in layout[i]:
 			col.add_child(g)
 		columns.add_child(col)
@@ -113,7 +97,7 @@ func _build() -> void:
 	var info: JuicyButton = null  # the credits, at the header's other end (a wide screen: three rows a column)
 	if wide:
 		# lighter than the back button's dark wood (a heavy dark disc beside the content)
-		info = Ui.icon_button("info-fill", Ui.Tone.WHITE, BUTTON, BUTTON / 2)
+		info = Ui.wood_button("info-fill", Vector2(BUTTON, BUTTON), BUTTON / 2)  # the back button's twin
 		info.pressed.connect(_show_credits)
 		page.add_child(info)
 	var place := func() -> void:
@@ -121,7 +105,7 @@ func _build() -> void:
 		var top := banner.custom_minimum_size.y * 0.5
 		card.size = card.get_combined_minimum_size()
 		var slot := 0.0  # the back button is inside the panel now
-		var k := minf(1.0, minf((room.x - 120.0) / card.size.x, (room.y - top - 12.0) / card.size.y))  # side margins
+		var k := minf(1.0, minf((room.x - 70.0) / card.size.x, (room.y - top - 30.0) / card.size.y))  # side margins
 		card.scale = Vector2.ONE * k
 		var w := card.size.x * k
 		# Panoramic whole at the left when the panel leaves him room, else the panel in the middle
@@ -133,13 +117,13 @@ func _build() -> void:
 		banner.position = Vector2(left_x + w / 2 - banner.size.x / 2, card.position.y - top)
 		back_button.custom_minimum_size = Vector2(BUTTON, BUTTON) * k  # the panel's scale (its touch stays 86+)
 		back_button.size = back_button.custom_minimum_size
-		# docked inside the panel, on the hide at its top left under the frame (the panel's own header,
-		# its own row above the groups): neither floating beside it nor over its corner
-		back_button.position = card.position + Vector2(Card.FRAME + 20.0, Card.FRAME + 6.0) * k  # high: no dead band
-		if info:  # the same at the top right
+		# on the panel's top left corner, over its frame (as the close buttons of top games' pop-ups): the
+		# groups start right under the ribbon (a header row of their own left a dead band)
+		back_button.position = card.position + Vector2(-0.2, -0.2) * BUTTON * k
+		if info:  # the same on the top right corner
 			info.custom_minimum_size = back_button.custom_minimum_size
 			info.size = info.custom_minimum_size
-			info.position = card.position + Vector2(card.size.x - Card.FRAME - 20.0 - BUTTON, Card.FRAME + 6.0) * k
+			info.position = card.position + Vector2(card.size.x * k, 0.0) + Vector2(-0.8, -0.2) * BUTTON * k
 		if hero:
 			hero.visible = show_hero
 			var origin := area.get_global_rect().position + page.position
@@ -150,6 +134,27 @@ func _build() -> void:
 	page.resized.connect(place)
 	card.resized.connect(place)
 	place.call_deferred()
+
+
+## Behind the panel the menu's own key art, small and soft, graded as the pause's scrim
+## (soft_blur.gdshader: a warm dusk, a light behind the panel, closed corners): the settings stay in his
+## world (j15: a dark muddy sunset behind them).
+func _backdrop() -> TextureRect:
+	var art := TextureRect.new()
+	art.texture = load(BACKDROP)
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_SCALE
+	art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var m := ShaderMaterial.new()
+	m.shader = preload("res://src/ui/soft_blur.gdshader")
+	var g := {"shadow_tint": Color("140b2c"), "mid_tint": Color("6e2c50"), "light_tint": Color("f2a862"), "duo": 0.72,
+			"exposure": 0.8, "glow_colour": Color(1.0, 0.66, 0.38, 0.3), "glow_size": 1.0, "glow_at": Vector2(0.5, 0.52),
+			"vignette_colour": Color("0a0414"), "vignette": 0.75}
+	for key: String in g:
+		m.set_shader_parameter(StringName(key), g[key])
+	art.material = m
+	return art
 
 
 ## Panoramic in his stance (the art track's render), lit by the sunset; null when the render isn't
@@ -172,18 +177,22 @@ func _column(width := COLUMN_W) -> VBoxContainer:
 	return col
 
 
-## A group: a strong title (the heaviest weight, bigger than the rows, a gold icon, a rule running
-## to the column's edge), then its rows in one sunken card, a fine line between two rows.
+## A group: a section title clearly above its rows (j15: "no typographic hierarchy"): small capitals,
+## spaced, in a warm brown lighter than the rows, the group's glyph, a rule running to the column's
+## edge; then its rows in one sunken card, a fine line between two rows. Every row's tile is the same
+## cream tile, its glyph in the group's colour (j15: tiles of three colours in a column read as
+## arbitrary).
 func _group(icon_name: String, title: String, tone: Ui.Tone, rows: Array) -> VBoxContainer:
 	var g := VBoxContainer.new()
-	g.add_theme_constant_override(&"separation", 6)
+	g.add_theme_constant_override(&"separation", 8)
+	var c := Ui.tone_colours(tone)
 	var head := HBoxContainer.new()
-	head.add_theme_constant_override(&"separation", 10)
-	head.add_child(Ui.bold_icon(icon_name, 36, Ui.tone_colours(tone).bottom, Color("2e0d04")))
-	head.add_child(Ui.label(title, 34, INK, Ui.font_display, HORIZONTAL_ALIGNMENT_LEFT))
+	head.add_theme_constant_override(&"separation", 8)
+	head.add_child(Ui.bold_icon(icon_name, 26, c.bottom, Color("2e0d04")))
+	head.add_child(Ui.label(title.to_upper(), 23, HEAD_INK, Ui.title_font(700, 2), HORIZONTAL_ALIGNMENT_LEFT))
 	var rule := ColorRect.new()  # the title's rule, to the column's edge
-	rule.color = Color(0.55, 0.3, 0.1, 0.45)
-	rule.custom_minimum_size = Vector2(0, 3)
+	rule.color = Color(0.55, 0.3, 0.1, 0.4)
+	rule.custom_minimum_size = Vector2(0, 2)
 	rule.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	rule.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	head.add_child(rule)
@@ -195,33 +204,27 @@ func _group(icon_name: String, title: String, tone: Ui.Tone, rows: Array) -> VBo
 	s.set_outline(Color("6a3a14"), 3.0)
 	s.set_content_margin_all(4)
 	s.content_margin_left = 8
-	s.content_margin_right = 8
+	s.content_margin_right = 10
 	well.add_theme_stylebox_override(&"panel", s)
 	var list := VBoxContainer.new()
 	list.add_theme_constant_override(&"separation", 0)
 	for i in rows.size():
 		if i > 0:
 			var line := ColorRect.new()
-			line.color = Color(0.55, 0.32, 0.12, 0.35)
+			line.color = Color(0.55, 0.32, 0.12, 0.25)
 			line.custom_minimum_size = Vector2(0, 2)
 			list.add_child(line)
 		var row: Control = rows[i]
 		list.add_child(row)
 	well.add_child(list)
 	g.add_child(well)
-	for row: Control in rows:  # the group's colour on its rows' tiles
+	for row: Control in rows:  # the group's colour on its rows' glyphs
 		var tile := row.find_child("Tile", true, false) as PanelContainer
 		if tile:
-			var ts := Ui.candy_style(tone, 15.0, false, 5.0)
-			ts.set_content_margin_all(6)
-			ts.content_margin_bottom = 11
-			tile.add_theme_stylebox_override(&"panel", ts)
 			var icon := tile.get_child(0) as BoldIcon
 			if icon:
-				icon.outline = Ui.tone_colours(tone).outline
-				if tone == Ui.Tone.WHITE:  # on bone, the icon in the deep orange of the labels
-					icon.fill = Ui.LABEL_DEEP
-					icon.outline = Color(0, 0, 0, 0)
+				icon.fill = c.bottom
+				icon.outline = c.outline
 				icon.queue_redraw()
 	return g
 
@@ -234,18 +237,18 @@ func _row(icon_name: String, text: String, right: Control) -> Control:
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var tile := PanelContainer.new()
 	tile.name = "Tile"
-	var ts := Ui.candy_style(Ui.Tone.SUNSET, 15.0, false, 5.0)
+	var ts := Ui.candy_style(Ui.Tone.WHITE, 15.0, false, 5.0)  # one cream tile for every row; the glyph carries the colour
 	ts.set_content_margin_all(6)
 	ts.content_margin_bottom = 11
 	tile.add_theme_stylebox_override(&"panel", ts)
 	tile.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	tile.add_child(Ui.bold_icon(icon_name, 42, Ui.WHITE, Ui.tone_colours(Ui.Tone.SUNSET).outline))  # big icon tiles
+	tile.add_child(Ui.bold_icon(icon_name, 40, Ui.tone_colours(Ui.Tone.SUNSET).bottom, Ui.tone_colours(Ui.Tone.SUNSET).outline))
 	row.add_child(tile)
-	var l := Ui.label(text, 32, INK, Ui.font_title, HORIZONTAL_ALIGNMENT_LEFT)
+	var l := Ui.label(text, 30, INK, Ui.font_title, HORIZONTAL_ALIGNMENT_LEFT)
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l.custom_minimum_size.x = 140
+	l.custom_minimum_size.x = 120
 	row.add_child(l)
 	right.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(right)
@@ -271,7 +274,7 @@ func _toggle_row(icon_name: String, text: String, option: StringName) -> Control
 func _slider_row(icon_name: String, text: String, option: StringName, switch_option: StringName) -> Control:
 	var on: bool = Save.get(switch_option)
 	var slider := VolumeSlider.new(Save.get(option) if on else 0.0)
-	slider.custom_minimum_size.x = 160
+	slider.custom_minimum_size.x = 226
 	slider.changed.connect(func(v: float) -> void:
 		if v > 0.0:  # at 0 the volume before stays, for when it is turned up again
 			Save.set(option, v)

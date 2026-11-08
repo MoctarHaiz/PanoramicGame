@@ -84,10 +84,11 @@ func _draw() -> void:
 	var r := side * 0.5 - o
 	if not lit:  # the socket: a star pressed into the panel: a fine brown outline, shade inside under
 		# its upper edges, warm sand towards its foot, the panel's light caught on the lip below it
-		draw_colored_polygon(points(c + Vector2(0, o * 0.8), r + o * 0.5, 0.55), Color(1, 0.98, 0.9, 0.75))  # lit lip
-		draw_colored_polygon(points(c, r + o * 0.5, 0.55), Color("8a5424"))
-		_gradient(points(c, r - o * 0.4, 0.53), c, r, Color("a87038"), Color("f0d29a"))
-		_gradient(points(c + Vector2(0, o * 0.7), r - o * 1.5, 0.5), c, r, Color("c8965a"), Color("f6dca8"))
+		# (j15: "its empty third star invisible beige on cream": a deeper socket, clearly an empty place)
+		draw_colored_polygon(points(c + Vector2(0, o * 0.8), r + o * 0.5, 0.55), Color(1, 0.98, 0.9, 0.8))  # lit lip
+		draw_colored_polygon(points(c, r + o * 0.5, 0.55), Color("5e2e0c"))
+		_gradient(points(c, r - o * 0.4, 0.53), c, r, Color("6e3c16"), Color("b88450"))
+		_gradient(points(c + Vector2(0, o * 0.7), r - o * 1.5, 0.5), c, r, Color("94602e"), Color("d2a670"))
 		return
 	# its shadow on the panel, the ink outline (a fatter star), the bevel under the face, then the face
 	draw_colored_polygon(points(c + Vector2(o * 0.5, o * 2.4), r + o * 0.5, 0.55), Color(0.3, 0.1, 0.0, 0.32))
