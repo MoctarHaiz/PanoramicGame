@@ -36,6 +36,7 @@ uniform vec4 back_rim_colour : source_color = vec4(1.0, 0.6, 0.22, 1.0);
 uniform float back_rim_ink_px = 3.4;  // the ink round the outline, in texture pixels (no light on it; round 16: 3.0 lit
 // the edge of round 15's thinner ink, "a pale outer edge")
 uniform float back_rim_px = 2.2;  // the band's width inside the ink
+uniform vec4 region = vec4(0.0, 0.0, 1.0, 1.0);  // (round 20) the frame's rectangle in the atlas (UV position, size)
 #include "res://src/game/character.gdshaderinc"
 varying vec2 local_pos;
 
@@ -69,6 +70,20 @@ void fragment() {
 				min(texture(TEXTURE, uv + vec2(0.0, far.y)).a, texture(TEXTURE, uv - vec2(0.0, far.y)).a));
 		float lit = 1.0 - texture(TEXTURE, uv + normalize(light_dir) * far).a;
 		c.rgb = char_grade(c.rgb, bright, sum / max(weight, 0.001), 1.0 - smoothstep(0.2, 0.8, inside), lit);
+		// (round 20) the form: his side away from the sun in a soft cool shade, deepest at the edges turning away
+		// (the samples kept inside his frame of the atlas: `region`)
+		float away = 0.0;
+		if (form_amount > 0.0) {
+			vec2 d = -normalize(light_dir) * TEXTURE_PIXEL_SIZE * form_px;
+			vec2 q1 = uv + d * 0.5;
+			vec2 q2 = uv + d;
+			vec2 lo = region.xy;
+			vec2 hi = region.xy + region.zw;
+			float a1 = texture(TEXTURE, q1).a * step(lo.x, q1.x) * step(lo.y, q1.y) * step(q1.x, hi.x) * step(q1.y, hi.y);
+			float a2 = texture(TEXTURE, q2).a * step(lo.x, q2.x) * step(lo.y, q2.y) * step(q2.x, hi.x) * step(q2.y, hi.y);
+			away = 1.0 - 0.5 * (a1 + a2);
+		}
+		c.rgb = char_form(c.rgb, local_pos, away, form_amount);
 	}
 	if (rim > 0.0 && c.a > 0.0) {
 		// how much of this pixel's alpha is missing a few pixels towards the light: an edge facing it

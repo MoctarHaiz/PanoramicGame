@@ -21,6 +21,18 @@ uniform vec4 shade_colour : source_color = vec4(0.8, 0.8, 1.0, 1.0);  // the amb
 uniform float shade_amount = 0.0;
 uniform float saturation = 1.0;
 uniform float value = 1.0;
+// (round 20, the judges: "stickers: the hero lit flat from the front while every scene is back- or side-lit") the form:
+// the side of the figure away from the light (lower right: the sun is upper left) in a soft cool shade, deepest
+// along the silhouette's edges that face away from it (the form turning from the light), the lit side as drawn. No
+// rim, no glow, no glint on the lit side (the user's rule): the light only takes away.
+uniform float form_amount = 0.0;  // 0: flat, as drawn
+uniform vec4 form_colour : source_color = vec4(0.62, 0.6, 0.86, 1.0);  // the shade side's colour (multiplied): the sky's
+uniform float form_px = 9.0;  // texels to the silhouette that tell an edge turning away from the light
+// the figure's box in its node's local px (left, top, width, height): the shade side is measured from its middle
+// (HeroView sets it every frame; the default: a bandit's frame about its pivot, the ground under its body)
+uniform vec4 figure_box = vec4(-116.0, -264.0, 236.0, 250.0);
+uniform vec4 ambient : source_color = vec4(1.0);  // the scene's ambient over the whole figure (multiplied)
+uniform float ambient_amount = 0.0;
 
 float char_lum(vec3 c) {
 	return dot(c, vec3(0.3, 0.59, 0.11));
@@ -49,6 +61,23 @@ vec3 char_grade(vec3 c, float bright, vec3 mean, float silhouette, float lit) {
 	}
 	if (saturation != 1.0 || value != 1.0) {
 		c = mix(vec3(char_lum(c)), c, saturation) * value;
+	}
+	return c;
+}
+
+// (round 20) The light on the form. `local`: the pixel in the node's local px; `away`: 0..1, how near the silhouette's
+// edge facing away from the light is (1 - the alpha a few texels that way: the shader samples it); `strength`: the
+// shade's strength (the hero's form_amount; the bandits' own).
+vec3 char_form(vec3 c, vec2 local, float away, float strength) {
+	if (strength > 0.0) {
+		vec2 mid = figure_box.xy + figure_box.zw * 0.5;
+		vec2 p = (local - mid) / max(figure_box.w * 0.5, 1.0);  // -1..1 up his height, the same scale across
+		float side = smoothstep(-0.35, 0.75, dot(p, -normalize(light_dir)));  // the half away from the sun
+		float k = clamp(side * 0.55 + away * 0.75, 0.0, 1.0) * strength;
+		c *= mix(vec3(1.0), form_colour.rgb, k);
+	}
+	if (ambient_amount > 0.0) {
+		c *= mix(vec3(1.0), ambient.rgb, ambient_amount);
 	}
 	return c;
 }

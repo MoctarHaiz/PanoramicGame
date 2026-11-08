@@ -2110,6 +2110,10 @@ func _test_art() -> void:
 	w.ticks = 10
 	show.call(&"run", "running")
 	_check(hero.run_frame() >= 0 and hero.run_frame() < HeroView.RUN_FRAMES, "run_frame() while running (%d)" % hero.run_frame())
+	# (round 20, "a sticker lit flat from the front") his side away from the sun in shade, measured across the frame shown
+	var form: float = hero._material.get_shader_parameter(&"form_amount")
+	var box: Vector4 = hero._material.get_shader_parameter(&"figure_box")
+	_check(form > 0.0 and Vector2(box.z, box.w) == hero._sprite.region_rect.size, "a shade side across the frame he shows (form %.2f)" % form)
 	hero.threw()
 	hero.show_state(w, w.draw_hero(), 0.01)
 	_check(hero.pose() == &"throw", "throwing: throw (%s)" % hero.pose())

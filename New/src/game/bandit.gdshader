@@ -15,10 +15,31 @@ uniform float seed = 0.0;  // each bandit's own ripples
 #include "res://src/game/character.gdshaderinc"
 const float GLAZE_END = 0.6;  // the glaze covers him by then (banditMort6)
 const float TWIRL_FROM = 0.55;  // the twirl starts (banditMort7)
+// (round 20, the judges: "the bandits out-design him: as tall and flashier") their hues kept (the user's design), their
+// loudest colours (the teal hair, the gold) quietened past BanditView's grade, and the form's shade a little deeper
+// than his: they sit back in the scene's air, Panoramic the hottest, cleanest-lit figure on screen
+const float LOUD_SAT = 0.5;  // the saturation over which a colour is pulled down
+const float LOUD_KEEP = 0.42;  // how much of that excess stays
+const float FORM = 0.5;  // the form's shade (Panoramic's: HeroView.FORM)
+const vec3 AIR = vec3(0.93, 0.92, 1.0);  // the scene's air over them (the dusk's cool)
 varying vec4 vertex_colour;
+varying vec2 local_pos;
 
 void vertex() {
 	vertex_colour = COLOR;  // the node's modulate: the picture is sampled again below
+	local_pos = VERTEX;
+}
+
+// the loudest colours quietened: saturation above LOUD_SAT kept at LOUD_KEEP, the hue and the value kept
+vec3 quieten(vec3 c) {
+	float mx = max(c.r, max(c.g, c.b));
+	float mn = min(c.r, min(c.g, c.b));
+	float sat = (mx - mn) / max(mx, 0.0001);
+	if (sat <= LOUD_SAT) {
+		return c;
+	}
+	float target = LOUD_SAT + (sat - LOUD_SAT) * LOUD_KEEP;
+	return mix(vec3(mx), c, target / sat);
 }
 
 float hash(vec2 p) {
@@ -51,7 +72,11 @@ void fragment() {
 		float inside = min(min(texture(TEXTURE, UV + vec2(far.x, 0.0)).a, texture(TEXTURE, UV - vec2(far.x, 0.0)).a),
 				min(texture(TEXTURE, UV + vec2(0.0, far.y)).a, texture(TEXTURE, UV - vec2(0.0, far.y)).a));
 		float lit = 1.0 - texture(TEXTURE, UV + normalize(light_dir) * far).a;
-		c.rgb = char_grade(c.rgb, bright, sum / max(weight, 0.001), 1.0 - smoothstep(0.2, 0.8, inside), lit);
+		c.rgb = char_grade(quieten(c.rgb), bright, sum / max(weight, 0.001), 1.0 - smoothstep(0.2, 0.8, inside), lit);
+		// (round 20) the form's shade, as Panoramic's (character.gdshaderinc), and the scene's air
+		vec2 d = -normalize(light_dir) * TEXTURE_PIXEL_SIZE * form_px * 0.8;
+		float away = 1.0 - 0.5 * (texture(TEXTURE, UV + d * 0.5).a + texture(TEXTURE, UV + d).a);
+		c.rgb = char_form(c.rgb, local_pos, away, FORM) * AIR;
 	}
 	if (vanish > 0.0) {
 		vec2 l = (UV - region.xy) / region.zw;  // 0..1 across the frame

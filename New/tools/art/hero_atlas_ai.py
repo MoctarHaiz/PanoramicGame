@@ -82,7 +82,9 @@ ANIMS = {
 
 _cache = {}
 CALM = True  # (round 19) the skin's interior detail calmed at pack time: calm()
-TV_WEIGHT = 0.07  # how flat calm() makes the skin's value masses
+# (round 20, the judges: "the torso still over-cut, a bodybuilder chart") calmer: 0.07 -> 0.12, the grooves 0.64 -> 0.9
+TV_WEIGHT = 0.12  # how flat calm() makes the skin's value masses
+CALM_LINES = 0.9  # how much of the thin muscle grooves calm() fills (1: all)
 
 
 def _lum(rgb):
@@ -132,7 +134,7 @@ def calm(a):
     deep = edge_w ** 2  # well inside him: his black muscle lines too; near the silhouette (the hands) the black ink kept
     ink = np.clip((L - 0.08) / 0.1, 0, 1)
     line = np.clip((_lum(closed) - L - 0.03) / 0.1, 0, 1) * (ink + (1 - ink) * deep)
-    k = (line * w * 0.64)[..., None]
+    k = (line * w * CALM_LINES)[..., None]
     out = rgb * (1 - k) + closed * k
     sm = solid.astype(np.float32)
 
@@ -158,6 +160,54 @@ def calm(a):
     return res
 
 
+HEAD = 1.08  # (round 20) his head drawn this much bigger about his neck at pack time (bigger_head(); 1: as drawn)
+
+
+def bigger_head(a, s=HEAD):
+    """(round 20, the judges: "his head small for his bulky body: the face reads late") His head (the hair, the biggest
+    dark mass, and the face round it) drawn `s` times its size about his neck (the point of the head's disc towards his
+    body's middle); the bigger head covers the old one, the rest of him as drawn."""
+    if s <= 1.001:
+        return a
+    rgb, al = a[..., :3], a[..., 3]
+    solid = al > 0.5
+    L = _lum(rgb)
+    mx, mn = rgb.max(-1), rgb.min(-1)
+    sat = (mx - mn) / np.maximum(mx, 1e-4)
+    dark = ndi.binary_opening(solid & (L < 0.14) & (sat < 0.6), iterations=2)
+    lab, n = ndi.label(dark)
+    if not n:
+        return a
+    hair = lab == (1 + int(np.argmax(ndi.sum(dark, lab, range(1, n + 1)))))
+    ys, xs = np.nonzero(hair)
+    size = max(ys.max() - ys.min(), xs.max() - xs.min())
+    by, bx = np.nonzero(solid)
+    body = np.array([bx.mean(), by.mean()])
+    hc = np.array([xs.mean(), ys.mean()])
+    toward = (body - hc) / max(np.linalg.norm(body - hc), 1e-3)
+    centre = hc + toward * size * 0.28  # the head: the hair and the face below it
+    rad = size * 0.5
+    neck = centre + toward * rad
+    yy, xx = np.mgrid[0:a.shape[0], 0:a.shape[1]]
+    red = (rgb[..., 0] > 0.45) & (rgb[..., 1] < 0.3) & (rgb[..., 2] < 0.3) & (rgb[..., 0] > 1.6 * rgb[..., 1])  # the scarf
+    head = ((np.hypot(xx - centre[0], yy - centre[1]) <= rad) | ndi.binary_dilation(hair, iterations=3)) & (al > 0.004) & ~red
+    layer = np.where(head[..., None], a, 0.0)
+    pm = layer.copy()
+    pm[..., :3] *= pm[..., 3:4]
+    # scaled about the neck: out(p) = layer(neck + (p - neck) / s)
+    mat = np.eye(2) / s
+    off = np.array([neck[1], neck[0]]) * (1 - 1 / s)
+    big = np.dstack([ndi.affine_transform(pm[..., c], mat, off, order=1, mode="constant") for c in range(4)])
+    out = a.copy()
+    pa = a.copy()
+    pa[..., :3] *= pa[..., 3:4]
+    comp = big + pa * (1 - big[..., 3:4])
+    ca = comp[..., 3:4]
+    out[..., :3] = np.where(ca > 1e-4, comp[..., :3] / np.maximum(ca, 1e-4), 0)
+    out[..., 3] = ca[..., 0]
+    return np.clip(out, 0, 1)
+
+
 def load(path, factor):
     keyp = (path, factor)
     if keyp in _cache:
@@ -165,10 +215,13 @@ def load(path, factor):
     im = Image.open(path).convert("RGBA")
     k = STAND_ATLAS / STAND_GEN * factor
     a = np.asarray(im).astype(np.float32) / 255.0
+    if Path(path) == CUT / "r19/win.png":  # (round 20) the victory still's chakram: the one design (chakram())
+        a = chakram(a, "win")
     if CALM:
         a = calm(a)
+    a = bigger_head(a)
     pm = a.copy(); pm[..., :3] *= pm[..., 3:4]
-    w, h = round(im.width * k), round(im.height * k)
+    w, h = round(a.shape[1] * k), round(a.shape[0] * k)
     ch = [np.asarray(Image.fromarray(pm[..., c]).resize((w, h), Image.LANCZOS)) for c in range(4)]
     r = np.clip(np.dstack(ch), 0, 1)
     al = r[..., 3:4]
@@ -342,16 +395,89 @@ def build():
           "per slot %.1f px -> matched run fps %.1f" % (per_slot, matched))
 
 
+## (round 20) the victory still's chakram (anim/cut/r19/win.png): its outer edge, fitted (skimage EllipseModel, RANSAC on
+## the silhouette round it): x, y, the semi-axes, the turn
+WIN_RING = (707.39, 531.91, 104.55, 118.48, 0.11)
+WIN_BLADES_TURN = 0.0  # radians the blades turn in its plane (one tucked behind his hip, three clear of him)
+WIN_PAD_RIGHT = 56  # source px added on the right for them
+DEFEAT_RING_K = 0.92  # the knock-out still's chakram on the ground: its blade tips' footprint over the old ring's
+
+
+def chakram(a, still):
+    """(round 20, the judges: "FOUR chakram designs: one design everywhere, with blades and thickness") The stills carry
+    the one chakram (tools/art/ring_beadwork.py: the beadwork band, the grip bar, four hooked blades): the victory's ring
+    (in his armoured hand, its band and bar already the design's) gets its four blades, in its own plane, under him; the
+    knock-out's thin ring on the ground is replaced by the whole weapon lying flat, a little thickness under it."""
+    import ring_beadwork as rb
+    a = a.astype(np.float64)
+    if still == "win":  # (its ring reaches the picture's right edge: room made there for the blades)
+        a = np.pad(a, ((0, 0), (0, WIN_PAD_RIGHT), (0, 0)))
+        return rb.over(a, rb.blades_only(a.shape[:2], WIN_RING, WIN_BLADES_TURN)).astype(np.float32)
+    lab, n = ndi.label(a[..., 3] > 0.02)  # the old ring: the piece of its own on the ground, low in the picture
+    out = a.copy()
+    for i, sl in enumerate(ndi.find_objects(lab)):
+        piece = lab[sl] == i + 1
+        if sl[0].start < a.shape[0] * 0.7 or piece.sum() < 2000:
+            continue
+        ys, xs = np.nonzero(lab == i + 1)
+        c = ((xs.min() + xs.max()) / 2, (ys.min() + ys.max()) / 2)
+        ax, ay = (xs.max() - xs.min()) / 2, (ys.max() - ys.min()) / 2
+        out[ndi.binary_dilation(lab == i + 1, iterations=2), 3] = 0.0
+        # the blades' tips at 45 degrees round it (in its plane): the footprint ~ the old ring's
+        k = DEFEAT_RING_K / np.sqrt(0.5) * rb.R_TIP
+        ring = rb.flat(a.shape[:2], (c[0] - 6, c[1] - 2), ax * k, ay * k, phi=np.radians(45), thick=5, light=0.94)
+        out = rb.over(out, ring)
+    return out.astype(np.float32)
+
+
+FORM = 0.46  # (round 20) the stills' form shade: HeroView.FORM, the same light as in play
+FORM_COLOUR = np.array([0.6, 0.58, 0.86])  # HeroView.FORM_COLOUR
+LIGHT_DIR = np.array([-0.6, -0.8])  # towards the sun (character.gdshaderinc light_dir)
+FORM_PX = 9.0  # character.gdshaderinc form_px
+
+
+def form(a, stand_px, amount=FORM):
+    """(round 20, the judges: "a sticker lit flat from the front while the scenes are back-lit") character.gdshaderinc's
+    char_form() baked into a still: the half of him away from the sun (upper left) in a soft cool shade, deepest along
+    the silhouette's edges turning away from it. `stand_px`: his standing height in the picture (the edge's reach)."""
+    al = a[..., 3]
+    ys, xs = np.nonzero(al > 0.5)
+    mid = np.array([(xs.min() + xs.max()) / 2.0, (ys.min() + ys.max()) / 2.0])
+    half = max((ys.max() - ys.min()) / 2.0, 1.0)
+    yy, xx = np.mgrid[0:a.shape[0], 0:a.shape[1]]
+    L = LIGHT_DIR / np.linalg.norm(LIGHT_DIR)
+    along = -(((xx - mid[0]) / half) * L[0] + ((yy - mid[1]) / half) * L[1])
+    side = np.clip((along + 0.35) / 1.1, 0, 1)
+    side = side * side * (3 - 2 * side)
+    d = -L * stand_px * (FORM_PX / STAND_ATLAS)  # the shader's form_px (atlas texels) at this picture's scale
+    a1 = ndi.shift(al, (-d[1] * 0.5, -d[0] * 0.5), order=1)
+    a2 = ndi.shift(al, (-d[1], -d[0]), order=1)
+    away = 1.0 - 0.5 * (a1 + a2)
+    k = np.clip(side * 0.55 + away * 0.75, 0, 1) * amount
+    out = a.copy()
+    out[..., :3] = a[..., :3] * (1 - k[..., None] + FORM_COLOUR * k[..., None])
+    return out
+
+
+SHADOW_STRENGTH = 1.75  # (round 20, the judges: "a yellow bloom smudge at his feet instead of a dark contact shadow")
+
+
 def stills():
     """(round 19) The end screens' pictures from the kie.ai stills (anim/cut/r19): the victory (a fist punched to the sky,
     the chakram in his armoured hand: the judges, "a generic symmetric double-biceps") and the knock-out (slumped, dizzy
     spiral eyes: "lounging, sunbathing"), calmed like the atlas, each standing on its own soft contact shadow
-    (hero_atlas.grounded; ResultsPanel's "ground" meta is where his feet are)."""
+    (hero_atlas.grounded; ResultsPanel's "ground" meta is where his feet are).
+    (round 20) Each carries the one chakram (chakram()), the form's shade of play (form()) and a darker contact shadow;
+    the victory is also hero_menu.png (the share card's and the settings' picture: it was the old 3D render, the old
+    hero and a fifth chakram)."""
     import hero_atlas as ha
-    for src, name, height in (("win.png", "hero_win.png", WIN_STILL_PX), ("defeat.png", "hero_defeat.png", DEFEAT_STILL_PX)):
+    for src, name, height, stand in (("win.png", "hero_win.png", WIN_STILL_PX, WIN_STILL_PX),
+                                     ("defeat.png", "hero_defeat.png", DEFEAT_STILL_PX, DEFEAT_STILL_PX * 1.3)):
         a = np.asarray(Image.open(CUT / "r19" / src).convert("RGBA")).astype(np.float32) / 255.0
+        a = chakram(a, src[:-4])
         if CALM:
             a = calm(a)
+        a = bigger_head(a)
         k = height / a.shape[0]
         pm = a.copy()
         pm[..., :3] *= pm[..., 3:4]
@@ -360,10 +486,13 @@ def stills():
         r = np.clip(np.dstack(ch), 0, 1)
         al = r[..., 3:4]
         r[..., :3] = np.where(al > 1e-4, r[..., :3] / np.maximum(al, 1e-4), 0)
-        g = ha.grounded(r, strength=1.2)
+        r = form(r, stand)
+        g = ha.grounded(r, strength=SHADOW_STRENGTH)
         rows = np.nonzero(r[..., 3].max(1) > 0.5)[0]
         ha.OUT = OUT
         ha.save(g, name)
+        if name == "hero_win.png":
+            ha.save(g, "hero_menu.png")
         print(name, "ground at %.3f of its height" % ((rows.max() + 8) / (g.shape[0] + 16)))
 
 

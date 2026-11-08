@@ -1,12 +1,15 @@
 class_name RingView
 extends Node2D
 ## Panoramic's throwing ring: a blue-steel chakram whose face carries a band of Zulu beadwork, red and black
-## triangles on white (round 19: the old emblem "read as a brand logo"; assets/art/fx/ring_spin.png,
-## tools/art/ring_beadwork.py: 8 frames of a half turn), 40 units across, tumbling as it flies; a highlight racing
+## triangles on white (round 19: the old emblem "read as a brand logo"), a grip bar across its middle and four hooked
+## silver blades on its rim (round 20: ONE design everywhere, the key art's, the end screens' and this one;
+## assets/art/fx/ring_spin.png, tools/art/ring_beadwork.py: 8 frames of a half turn), its ring 36 units across and
+## its blades' tips 48, tumbling as it flies; a highlight racing
 ## round it, a flash where it leaves his hand, a soft tapered streak of light behind it and now and
 ## then a spark shed into the air.
 
 const RADIUS := 20.0
+const DRAW_RADIUS := 25.0  ## half the frame drawn (round 20: the blades reach past the ring, ring_beadwork.py R_TIP)
 const TEXTURE := preload("res://assets/art/fx/ring_spin.png")
 const SPIN_FRAMES := 8  ## ring_spin.png: a half turn, side by side
 const SPIN_FPS := 24.0
@@ -70,10 +73,10 @@ func _draw() -> void:
 	draw_set_transform(hand)
 	var f := int(_clock * SPIN_FPS) % SPIN_FRAMES
 	var px := TEXTURE.get_height()
-	draw_texture_rect_region(TEXTURE, Rect2(-RADIUS, -RADIUS, RADIUS * 2, RADIUS * 2), Rect2(f * px, 0, px, px))
+	draw_texture_rect_region(TEXTURE, Rect2(-DRAW_RADIUS, -DRAW_RADIUS, DRAW_RADIUS * 2, DRAW_RADIUS * 2), Rect2(f * px, 0, px, px))
 	var spin := _clock * 18.0
 	draw_set_transform(hand, 0.0, Vector2(_turn(), 1.0))
-	draw_arc(Vector2.ZERO, RADIUS * 0.62, spin, spin + 0.7, 12, Color(HOT, 0.55), 1.6, true)  # a glint running round the steel
+	draw_arc(Vector2.ZERO, DRAW_RADIUS * 0.67, spin, spin + 0.7, 12, Color(HOT, 0.55), 1.6, true)  # a glint running round the steel
 	draw_set_transform(Vector2.ZERO)
 
 
