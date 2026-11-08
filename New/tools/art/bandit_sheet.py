@@ -37,12 +37,12 @@ KIE = ROOT / "_agents/kie"
 OUT = NEW / "assets/art/bandit"
 ## kind -> (pose cells, keyed run clip, loop start, loop length, the clip's start picture, units tall)
 KINDS = {
-    "bandit": ("bandit3/cells", "video/bandit3_run_keyed", 47, 16, "bandit3/run_start.png", 112.0),
-    "bandit_strong": ("bandit3/cells_strong", "video/strong3_run_keyed", 48, 14, "bandit3/strong_run_start.png", 147.0),
+    "bandit": ("bandit4/cells", "video/bandit4_run_keyed", 47, 16, "bandit3/run_start.png", 112.0),
+    "bandit_strong": ("bandit4/cells_strong", "video/strong4_run_keyed", 48, 14, "bandit3/strong_run_start.png", 147.0),
 }
 ## his head and hair drawn this many times their size about his neck (the user, 2026-11-08: the bandit's head read
 ## bigger than the hero's on a smaller body; his big spiky hair made it so)
-HEAD_SCALE = {"bandit": 0.85}
+HEAD_SCALE = {}  # (2026-11-08: his head-wrap is compact; his spiky hair no longer needs shrinking)
 POSES = [1, 2, 3, 4, 5]  ## wait, swing (drawn back, thrown), hit, leap: the cells after the run pose
 PX_PER_UNIT = 2.2  ## sheet px a unit (the hero's atlas: 2.3)
 PAD = 3
