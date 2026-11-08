@@ -497,6 +497,123 @@ def loincloth(a, still):
     return out
 
 
+## (round 22, the judges: "his swirl eyes read as dark smudges at phone size") the knock-out still's two swirl eyes (source
+## px: the spiral's middle and its outer radius), drawn bigger (grown from their top, so the brows and lids stay) as a
+## pale eye with the spiral inked on it: the classic dizzy eyes, readable at phone size
+KO_EYES = ((658.0, 138.0, 15.5), (621.5, 176.0, 12.5))
+KO_EYE_GROW = 1.2
+KO_EYE_WHITE = np.array([0.95, 0.92, 0.86])
+KO_EYE_INK = np.array([0.13, 0.06, 0.04])
+
+
+def ko_eyes(a):
+    """(round 22) The knock-out's swirl eyes (KO_EYES) redrawn KO_EYE_GROW times bigger: a pale eye (KO_EYE_WHITE), the old
+    spiral's dark lines on it in a dark brown ink, a thin ring of that ink round it; his hair, the red paint on his cheek
+    and the lines round the old eye (the brows, the lids, the cheek's outline) kept over it."""
+    out = a.copy()
+    rgb, al = a[..., :3], a[..., 3]
+    L = _lum(rgb)
+    sat = (rgb.max(-1) - rgb.min(-1)) / np.maximum(rgb.max(-1), 1e-4)
+    hair = ndi.binary_dilation(ndi.binary_opening((L < 0.14) & (sat < 0.6) & (al > 0.5), iterations=2), iterations=1)
+    red = (rgb[..., 0] > 0.45) & (rgb[..., 1] < 0.3) & (rgb[..., 0] > 1.6 * rgb[..., 1])
+    for cx, cy, r in KO_EYES:
+        s = KO_EYE_GROW
+        ax, ay = cx, cy - r  # grown from its top
+        R = (r + 1.0) * s  # the new eye's radius
+        ncx, ncy = ax + (cx - ax) * s, ay + (cy - ay) * s
+        x0, y0 = int(ncx - R - 3), int(ncy - R - 3)
+        x1, y1 = int(ncx + R + 4), int(ncy + R + 4)
+        yy, xx = np.mgrid[y0:y1, x0:x1].astype(np.float64)
+        d = np.hypot(xx - ncx, yy - ncy)
+        inside = np.clip(R + 0.5 - d, 0, 1)
+        sx, sy = ax + (xx - ax) / s, ay + (yy - ay) / s  # the old eye's px it shows
+        Ls = ndi.map_coordinates(L.astype(np.float64), [sy, sx], order=1)
+        line = np.clip((0.36 - Ls) / 0.18, 0, 1) * (np.hypot(sx - cx, sy - cy) <= r + 1.0)
+        ring = np.clip(1.0 - np.abs(d - (R - 0.9)) / 1.0, 0, 1)
+        ink = np.maximum(line, ring)[..., None]
+        eye = KO_EYE_WHITE * (1 - ink) + KO_EYE_INK * ink
+        old = np.hypot(xx - cx, yy - cy)
+        sl = (slice(y0, y1), slice(x0, x1))
+        keep = hair[sl] | red[sl] | ((L[sl] < 0.3) & (old > r + 2.0))
+        w = (inside * (al[sl] > 0.5) * ~keep)[..., None]
+        out[sl][..., :3] = rgb[sl] * (1 - w) + eye * w
+    return out
+
+
+## (round 22, the judges: "the KO's legs spread at the camera with a hand by the crotch") his bare hand moved off his
+## crotch onto his knee: the forearm and hand traced in the source's px (KO_ARM, just outside their ink), the forearm
+## stretched from KO_ARM_TOP down to the wrist (KO_WRIST) so the hand comes KO_HAND_DOWN px lower, its fingers over the
+## knee guard's rim; where the hand was, the cloth beside it carried in
+KO_ARM = [(521, 400), (521, 500), (519, 530), (516, 550), (513, 575), (513, 595), (517, 606), (525, 616), (534, 625),
+          (548, 630), (561, 628), (573, 620), (584, 615), (593, 614), (598, 606), (597, 592), (592, 579), (584, 565),
+          (579, 552), (576, 540), (575, 520), (575, 490), (577, 460), (579, 400)]
+KO_ARM_TOP, KO_WRIST = 440.0, 545.0
+KO_HAND_DOWN = 30.0
+
+
+def ko_hand(a):
+    """(round 22) The knock-out's bare hand resting on his knee guard instead of by his crotch (KO_ARM): the cloth seen
+    beside it left where it is; the arm drawn again, its forearm stretched and its hand moved down; each run of
+    a row of the scene it uncovers carried in from the side of the old arm it touches (the cloth beside the hand)."""
+    h, w = a.shape[:2]
+    rgb = a[..., :3]
+    L = _lum(rgb)
+    sat = (rgb.max(-1) - rgb.min(-1)) / np.maximum(rgb.max(-1), 1e-4)
+    trace = _polygon((h, w), KO_ARM)
+    behind = ((sat < 0.3) & (L > 0.22)) | ((rgb[..., 2] >= rgb[..., 0]) & (L > 0.06))  # cloth (grey, the navy left)
+    arm = ndi.binary_fill_holes(trace & ~ndi.binary_opening(behind, iterations=1)) & trace  # (the gap between fingers kept)
+    layer = a.astype(np.float64)
+    layer[..., 3] *= ndi.gaussian_filter(arm.astype(np.float64), 0.5) * ndi.binary_dilation(arm)
+    layer[..., :3] *= layer[..., 3:4]
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float64)
+    top, wrist, down = KO_ARM_TOP, KO_WRIST, KO_HAND_DOWN
+    sy = np.where(yy < wrist + down, top + (yy - top) * (wrist - top) / (wrist + down - top), yy - down)
+    sy = np.where(yy < top, yy, sy)
+    moved = np.dstack([ndi.map_coordinates(layer[..., c], [sy, xx], order=1) for c in range(4)])
+    hole = ndi.binary_dilation(arm, iterations=3)
+    hole[:int(top)] = False
+    shown = hole & (moved[..., 3] < 0.98)
+    base = a.astype(np.float64)
+    for y in np.nonzero(shown.any(1))[0]:
+        hx = np.nonzero(hole[y])[0]
+        lo, hi = hx.min(), hx.max()
+        xs = np.nonzero(shown[y])[0]
+        for run in np.split(xs, np.nonzero(np.diff(xs) > 1)[0] + 1):
+            s, e = run[0], run[-1]
+            n = e - s + 1
+            for x in run:
+                if e >= hi - 1:
+                    src = x + n
+                elif s <= lo + 1:
+                    src = x - n
+                else:
+                    src = 2 * (lo - 1) - x if x - lo < hi - x else 2 * (hi + 1) - x
+                base[y, x] = a[y, int(np.clip(src, 0, w - 1))]
+    pb = base.copy()
+    pb[..., :3] *= pb[..., 3:4]
+    comp = moved + pb * (1 - moved[..., 3:4])
+    ca = comp[..., 3:4]
+    out = base
+    out[..., :3] = np.where(ca > 1e-4, comp[..., :3] / np.maximum(ca, 1e-4), 0)
+    out[..., 3] = ca[..., 0]
+    return np.clip(out, 0, 1).astype(a.dtype)
+
+
+## (round 22) the shade under his loincloth (source px: middle x, y, radii x, y, strength): the cloth between his thighs
+## pulled down into it (lower contrast, cooler), so the lit face, chest and scarf lead
+KO_SHADE = (606.0, 566.0, 48.0, 42.0, 0.55)
+KO_SHADE_COLOUR = np.array([0.46, 0.38, 0.5])
+
+
+def ko_shade(a):
+    cx, cy, rx, ry, k = KO_SHADE
+    yy, xx = np.mgrid[0:a.shape[0], 0:a.shape[1]]
+    w = (np.clip(1.0 - ((xx - cx) / rx) ** 2 - ((yy - cy) / ry) ** 2, 0, 1) ** 1.5 * k)[..., None]
+    out = a.copy()
+    out[..., :3] = a[..., :3] * (1 - w + KO_SHADE_COLOUR * w)
+    return out
+
+
 FORM = 0.7  # (round 20) the stills' form shade: HeroView.FORM, the same light as in play (round 21: 0.46 -> 0.7)
 FORM_REACH = 0.6  # HeroView.FORM_REACH
 FORM_COLOUR = np.array([0.6, 0.58, 0.86])  # HeroView.FORM_COLOUR
@@ -549,6 +666,8 @@ def stills():
                                      ("defeat.png", "hero_defeat.png", DEFEAT_STILL_PX, DEFEAT_STILL_PX * 1.3)):
         a = np.asarray(Image.open(CUT / "r19" / src).convert("RGBA")).astype(np.float32) / 255.0
         a = loincloth(chakram(a, src[:-4]), src[:-4])
+        if src == "defeat.png":  # (round 22) readable swirl eyes, the hand on his knee, the loincloth's shade
+            a = ko_shade(ko_eyes(ko_hand(a)))
         if CALM:
             a = calm(a)
         a = bigger_head(a)

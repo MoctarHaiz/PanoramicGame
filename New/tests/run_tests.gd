@@ -2137,6 +2137,12 @@ func _test_art() -> void:
 	# (round 21, "lit flat, the bandits read first") a warm key on his sun side; the bandits pushed back into the haze
 	var key: float = hero._material.get_shader_parameter(&"key_amount")
 	_check(key > 0.0 and BanditView.HAZE > 0.0, "a warm key on his sun side (%.2f), the bandits in the haze (%.2f)" % [key, BanditView.HAZE])
+	# (round 22, "a jog, not a sprint") at the ground's pace the drawing leans into the stride (his chest bent forward)
+	for i in 16:
+		w.tick()
+		hero.show_state(w, w.draw_hero(), World.TICK)
+	_check(hero.skew > 0.03 and hero._material.get_shader_parameter(&"bend_up") > 0.1, "the run leans into the stride (%.2f, %.2f)"
+			% [hero.skew, hero._material.get_shader_parameter(&"bend_up")])
 	hero.threw()
 	hero.show_state(w, w.draw_hero(), 0.01)
 	_check(hero.pose() == &"throw", "throwing: throw (%s)" % hero.pose())

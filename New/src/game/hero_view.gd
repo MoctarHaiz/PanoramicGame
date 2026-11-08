@@ -55,7 +55,6 @@ const HOLD := 0.1  ## seconds an animation shows at least before another replace
 const HURT_TIME := 0.33  ## seconds of the blow's reaction
 const STUMBLE := 0.14  ## seconds of the stumble after it, leaning back and catching himself
 const PULL := 0.16  ## seconds per hand-over-hand pull up a ledge
-const HAND_STEP := 0.2  ## seconds per hand step along the vine while hanging
 const LIGHT_GAIN := 1.18  ## his lit colours x this in play (actor.gdshader light_gain; the ink untouched; round 16:
 ## 1.28 -> 1.18, "traffic-cone orange")
 ## (round 19) the characters' one line and light system (character.gdshaderinc, shared with BanditView)
@@ -80,6 +79,30 @@ const VINE_INK_PX := 0.9  ## atlas px of ink added at the vine: hero_atlas.py's 
 const WALK_IN := 70.0  ## units he walks into the doorway at home
 const DIE_PUSH := 40.0  ## units the fatal blow knocks him back
 const DIE_MIN_X := 70.0  ## play x he is never drawn left of when caught (the death stays on screen)
+## (round 22, the judges: "the run upright with boxer-guard fists: a jog, not a sprint") the run leans into the stride:
+## his chest and head turned forward about his hips (actor.gdshader's bend: his legs and planted boots as drawn) and
+## the whole drawing slanted forward from the ground line (Node2D.skew: his boots stay on it; the rules' box as it was),
+## eased in with the ground's pace from a standstill, out at a jump's push-off, a landing, a blow
+const LEAN_CHEST := 0.2  ## radians his upper body turns forward about his hips at full pace
+const LEAN_SLANT := 0.07  ## radians the whole of him slants forward from the ground line
+const LEAN_IN := 5.0  ## easing into the lean (/s: most of it in ~0.45 s from a standstill)
+const LEAN_OUT := 18.0  ## out of it
+const LEAN_REACH := 16.0  ## units his front (the fist, the face) reaches further at full lean (held back from walls)
+const BEND_MARGIN := 60.0  ## atlas px his quad is drawn past the frame while bent: room for the turned parts
+const BEND_BLEND := 48.0  ## atlas px round his hips over which the bend blends
+## (round 22, the judges: "the hang a limp hung doll") hanging, he swings: a pendulum from his hands kept going (pumped
+## towards SWING_AMP once the catch's momentum is spent), his legs trailing the swing (bent back about his hips against
+## its speed, actor.gdshader's bend) and leading it at its ends, a little tuck there; his hands stay on the grip
+const SWING_K := 16.0  ## the pendulum's stiffness (/s^2: a swing of ~1.6 s)
+const SWING_AMP := 0.17  ## radians the swing settles to
+const SWING_PUMP := 1.6  ## how fast it settles there (/s)
+const SWING_CATCH := -1.5  ## rad/s the catch starts it with (-: legs forward, the jump's momentum)
+const SWING_WIND := 0.05  ## radians the wind of the run pushes the swing's middle back
+const HANG_BACK := 5  ## the hang clip's drawing with his feet furthest back (its feet-forward ones: 10-1)
+const LEG_LAG := 0.14  ## radians his legs bend back per rad/s of swing
+const LEG_PIKE := 0.8  ## radians his legs bend further out per radian of swing (at its ends: a pike in front, an arch behind)
+const LEG_MAX := 0.32
+const TUCK := 0.04  ## at the swing's ends he is drawn this much shorter (knees drawn up)
 
 enum Anchor { FEET, HIPS, HANDS }
 
@@ -111,6 +134,8 @@ var _was_climbing := false
 var _wall_shift := 0.0  # held back from a wall face (units, <= 0)
 var _swing := 0.0  # hanging: pendulum angle and speed
 var _swing_speed := 0.0
+var _legs := 0.0  # hanging: radians his legs are bent back about his hips (trailing the swing)
+var _lean := 0.0  # 0..1: how far into the run's lean
 var _was_hanging := false
 var _settle := 0.0  # rotation left over from a change, easing to 0
 var _end_time := 0.0
@@ -331,11 +356,15 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 				index = 2 + mini(int(t / 0.05), 1)
 			else:
 				anim = &"hang"
-				index = int(_clock * float(frames_data().anims.hang.fps)) % frames(anim).size()
-				# hand over hand along the vine: a small lift and lean at each grip
-				var step := sin((t - 0.1) * PI / HAND_STEP)
-				offset.y -= absf(step) * 3.0
-				tilt += 0.035 * signf(step)
+				var n := frames(anim).size()
+				index = int(_clock * float(frames_data().anims.hang.fps)) % n
+				# (round 22) the clip's own leg sway played by the swing (below): its feet-back drawing at the swing's
+				# back end, its feet-forward ones at the front, so the two move as one (they cancelled out on their
+				# own clocks); no lift and lean flipping at each grip (a 5 Hz shiver that lifted his hands off the vine)
+				var x := _swing - _wind(w)
+				var v := _swing_speed / sqrt(SWING_K)
+				if x * x + v * v > 0.03 * 0.03:
+					index = posmod(HANG_BACK + roundi(atan2(-v, x) / TAU * n), n)
 		&"climb":  # up a ledge hand over hand: a pull every PULL seconds, most of it at its start
 			anim = &"climb"
 			anchor = Anchor.HIPS
@@ -402,6 +431,13 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 		if roof >= 0.0 and roof > top - 40.0:
 			duck = clampf((p.y + World.HERO_SIZE.y / 2 + GameArt.FEET_SINK - roof + 2.0) / GameArt.HERO_DRAW_HEIGHT, 0.8, 1.0)
 			tilt += (1.0 - duck) * 0.8
+	# (round 22) the run's lean: as much as the ground's pace under him (none standing, walking in at home, blocked)
+	var lean_to := 0.0
+	if playing and anim in [&"run", &"throw"] and phase != &"home":
+		lean_to = smoothstep(0.2, 0.85, ground_speed / (World.SCROLL_SPEED / World.TICK))
+	_lean = lerpf(_lean, lean_to, 1.0 - exp(-dt * (LEAN_IN if lean_to > _lean else LEAN_OUT)))
+	if w.state != World.State.RUNNING:
+		_lean = 0.0
 	_set_anim(anim, index)
 
 	_was_climbing = w.climbing
@@ -421,18 +457,29 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 			anchor_px = grip
 			# his hips over his box
 			position = Vector2(p.x + (grip.x - float(f.hips[0])) * _units, VINE_Y)
-	# hanging: a damped pendulum from his hands, pushed back by the wind of the run
+	# hanging: a pendulum from his hands, pushed back by the wind of the run; (round 22) kept swinging: the catch's
+	# momentum spent down to SWING_AMP, then pumped to it (its energy measured as the amplitude it would reach)
+	var swing_end := 0.0  # 0..1: how near the end of a swing he is
 	if w.hanging and not _was_hanging:
-		_swing_speed = -1.6  # the jump's momentum swings his legs forward
+		_swing_speed = SWING_CATCH  # the jump's momentum swings his legs forward
 	_was_hanging = w.hanging
 	if w.hanging:
-		var wind := 0.0 if w.blocked else 0.05
-		var accel := -14.0 * (_swing - wind) - 1.4 * _swing_speed + sin(_clock * 3.7) * 0.18
+		var x := _swing - _wind(w)
+		var amp := sqrt(_swing_speed * _swing_speed / SWING_K + x * x)
+		var accel := -SWING_K * x + SWING_PUMP * (1.0 - amp / SWING_AMP) * _swing_speed
 		_swing_speed += accel * dt
 		_swing += _swing_speed * dt
+		swing_end = clampf(x * x / maxf(amp * amp, 0.0001), 0.0, 1.0) * clampf(amp / SWING_AMP, 0.0, 1.0)
 	else:
 		_swing = lerpf(_swing, 0.0, 1.0 - exp(-dt * 10.0))
 		_swing_speed = 0.0
+	# his legs trail the swing (against its speed) and lead it at its ends (piked forward at the front, arched back
+	# behind), springing after it: never hanging straight
+	var legs_to := 0.0
+	if w.hanging:
+		legs_to = clampf(LEG_PIKE * (_swing - _wind(w)) - LEG_LAG * _swing_speed, -LEG_MAX, LEG_MAX)
+	_legs = lerpf(_legs, legs_to, 1.0 - exp(-dt * 18.0))
+	duck *= 1.0 - TUCK * swing_end * swing_end
 	# the knock back of a blow: thrown back and up a little
 	if _knock > 0.0 and w.state == World.State.RUNNING:
 		var e := _knock * _knock
@@ -440,7 +487,7 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 	# at a wall: his picture reaches past the chest the rules stop, so it is held back from the face
 	# ahead (before and while it blocks him): his hands and knee rest on the wall
 	var shift := 0.0
-	var front := (float(region[2]) - anchor_px.x) * _units * _squash.x
+	var front := (float(region[2]) - anchor_px.x) * _units * _squash.x + LEAN_REACH * _lean
 	var face := w.wall_ahead(p.x, p.y, front + 4.0, w.draw_scroll()) if w.state == World.State.RUNNING and not w.hanging else -1.0
 	if face >= 0.0:
 		shift = minf(face - 4.0 - (p.x + front), 0.0)
@@ -449,10 +496,23 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 	position += offset
 	position.x = maxf(position.x, DIE_MIN_X) if w.state == World.State.DEAD else position.x  # the death stays on screen
 	rotation = tilt + _swing + _settle
+	skew = LEAN_SLANT * _lean
 	scale = _squash * _units * Vector2(1.0, duck)
 	_sprite.texture = _pages[int(f.page)]
-	_sprite.region_rect = Rect2(region[0], region[1], region[2], region[3])
-	_sprite.offset = -anchor_px
+	# (round 22) the bend about his hips: the run's lean (his chest forward), the hang's legs trailing the swing; while
+	# bent, his quad is drawn BEND_MARGIN past the frame (the shader keeps to the frame's own rectangle)
+	var bend_up := LEAN_CHEST * _lean
+	var bend_down := _legs
+	var bent := absf(bend_up) + absf(bend_down) > 0.001
+	var m := BEND_MARGIN if bent else 0.0
+	_sprite.region_rect = Rect2(float(region[0]) - m, float(region[1]) - m, float(region[2]) + 2.0 * m, float(region[3]) + 2.0 * m)
+	_sprite.offset = -anchor_px - Vector2(m, m)
+	_material.set_shader_parameter(&"bend_on", bent)
+	if bent:
+		_material.set_shader_parameter(&"bend_pivot", Vector2(f.hips[0], f.hips[1]) - anchor_px)
+		_material.set_shader_parameter(&"bend_up", bend_up)
+		_material.set_shader_parameter(&"bend_down", bend_down)
+		_material.set_shader_parameter(&"bend_blend", BEND_BLEND)
 	# (round 20) the form's shade is measured across this frame (its box about the anchor), its samples kept in it
 	var page_size := _sprite.texture.get_size()
 	_material.set_shader_parameter(&"region", Vector4(float(region[0]) / page_size.x, float(region[1]) / page_size.y,
@@ -494,6 +554,11 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 	_update_shadow(w, p)
 	if is_instance_valid(_under):
 		_under.queue_redraw()
+
+
+## Hanging: the swing's middle, pushed back by the wind of the run (none while a wall holds him).
+func _wind(w: World) -> float:
+	return 0.0 if w.blocked else SWING_WIND
 
 
 ## Standing with his middle past the end of the grass (the rules hold him while any of his box is

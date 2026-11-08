@@ -13,11 +13,17 @@ uniform float rim = 0.0;  // 0..1
 uniform float rim_px = 3.0;
 uniform vec4 rim_colour : source_color = vec4(1.0, 0.82, 0.55, 1.0);
 uniform vec2 rim_dir = vec2(0.8, -0.6);  // towards the light, in texture space (x right, y down)
-// The stance of a stride: everything below `warp_from` (a height in 0..1 of the picture: the
-// hips) slides sideways, more towards the feet, by up to `warp_px` texture pixels (+: back,
-// for a picture facing right). The picture is sampled again, so its fade comes from `opacity`.
-uniform float warp_px = 0.0;
-uniform float warp_from = 0.5;
+// (round 22) The bend: the figure turned about `bend_pivot` (the node's local px: his hips), the part above it by
+// `bend_up` radians and the part below it by `bend_down` (+: clockwise on screen), blended over `bend_blend` px round
+// the pivot: the run's lean (his chest and head into the stride, his legs and planted boots as drawn) and the hang's
+// legs trailing the swing (his hands on the grip). HeroView draws the quad past the frame (BEND_MARGIN) so the turned
+// parts have room; the picture is sampled again, only inside the frame's own rectangle of the atlas (`region`), so its
+// fade comes from `opacity`.
+uniform bool bend_on = false;
+uniform vec2 bend_pivot = vec2(0.0);
+uniform float bend_up = 0.0;
+uniform float bend_down = 0.0;
+uniform float bend_blend = 40.0;
 uniform float opacity = 1.0;
 // A warm bounce from one side (the home fire): the colours multiplied towards `bounce_colour`, more on the
 // side `bounce_dir` (texture space) points to; dark pixels (the ink) stay dark, no light fringe.
@@ -50,13 +56,22 @@ void vertex() {
 	local_pos = VERTEX;
 }
 
+// 1 inside the frame's rectangle of the atlas (`region`, UV), 0 outside (the bent quad reaches past it)
+float in_region(vec2 q) {
+	return step(region.x, q.x) * step(region.y, q.y) * step(q.x, region.x + region.z) * step(q.y, region.y + region.w);
+}
+
 void fragment() {
 	vec2 uv = UV;
 	vec4 c = COLOR;
-	if (warp_px != 0.0) {
-		float k = smoothstep(warp_from, 1.0, UV.y);
-		uv.x += warp_px * TEXTURE_PIXEL_SIZE.x * k * k;
-		c = texture(TEXTURE, uv);
+	if (bend_on) {  // (round 22) where this pixel of the bent figure comes from in the frame as drawn
+		float a = mix(bend_up, bend_down, smoothstep(bend_pivot.y - bend_blend, bend_pivot.y + bend_blend, local_pos.y));
+		vec2 d = local_pos - bend_pivot;
+		float s = sin(a);
+		float k = cos(a);
+		vec2 src = bend_pivot + vec2(k * d.x + s * d.y, k * d.y - s * d.x);
+		uv = UV + (src - local_pos) * TEXTURE_PIXEL_SIZE;
+		c = texture(TEXTURE, uv) * in_region(uv);
 		c.a *= opacity;
 	}
 	if (c.a > 0.0) {  // (round 19) the characters' one line and light system (character.gdshaderinc)
@@ -103,7 +118,8 @@ void fragment() {
 		float a = 0.0;
 		for (int i = 0; i < 8; i++) {
 			float t = float(i) * 0.7853982;
-			a = max(a, texture(TEXTURE, uv + vec2(cos(t), sin(t)) * px).a);
+			vec2 q = uv + vec2(cos(t), sin(t)) * px;
+			a = max(a, texture(TEXTURE, q).a * (bend_on ? in_region(q) : 1.0));
 		}
 		float o = a * outline_colour.a * outline_opacity;
 		// the outline sits behind the picture

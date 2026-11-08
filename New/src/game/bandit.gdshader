@@ -25,8 +25,9 @@ const vec3 AIR = vec3(0.93, 0.92, 1.0);  // the scene's air over them (the dusk'
 // (round 21, the judges: "the bandits read first: as big as him, higher, darker on the sky") their sizes are the user's
 // (the strong one as tall as Panoramic): pushed back in value instead, as far things are, into the air between them and
 // us: every colour drawn towards the sky's haze (the darks lifted most, the contrast lower, their ink softer), so he is
-// the clearest, highest-contrast shape on screen
-uniform vec4 haze : source_color = vec4(0.7, 0.71, 0.84, 1.0);
+// the clearest, highest-contrast shape on screen; (round 22, "lighter and more detailed than him") the other way: the
+// colour they are drawn towards is the scene's shade (BanditView.RECEDE), their whites pulled down most
+uniform vec4 haze : source_color = vec4(0.4, 0.31, 0.38, 1.0);
 uniform float haze_amount = 0.0;  // (BanditView.HAZE)
 varying vec4 vertex_colour;
 varying vec2 local_pos;
