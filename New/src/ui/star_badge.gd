@@ -3,8 +3,8 @@ extends Control
 ## A big shiny star (results, best run): a fat five-point star with a fine warm rim, a gold face
 ## lit from the top, a lit bevel inside its edge, a darker bevel along its lower edge, a glossy
 ## highlight on its upper left, its shadow on the panel, a warm glow behind it, sparkles twinkling
-## round it and now and then a twinkle on a tip. Unlit, a star not yet earned (UI r22, the judges of j18:
-## r21's dark hollow "reads burnt / broken"): a pale greyed star, flat, in a soft grey-brown rim.
+## round it and now and then a twinkle on a tip. Unlit, a star not yet earned (UI r23, the judges of j19: r22's
+## pale grey star "reads as disabled UI"): its socket, a dark recess in a bevelled gold edge, waiting for it.
 
 const INK := Color("2e0d04")
 const FACE_TOP := Color("fff47e")
@@ -81,13 +81,21 @@ func _draw() -> void:
 	var o := maxf(side * 0.06, 2.5)  # outline thickness
 	var c := size / 2 + Vector2(0, side * 0.04)
 	var r := side * 0.5 - o
-	if not lit:  # not yet earned (UI r22, the judges of j18: the dark hollow "reads burnt / broken"): a pale
-		# greyed star, flat (no gloss, no glow), a soft grey-brown rim: plainly a star still to win
-		draw_colored_polygon(points(c, r + o * 0.55, 0.55), Color(0.36, 0.28, 0.22, 0.5))  # its soft rim
-		_gradient(points(c, r - o * 0.15, 0.53), c, r, Color(0.86, 0.82, 0.77, 0.62), Color(0.7, 0.65, 0.6, 0.62))  # greyed, see-through
-		var inner := points(c, r - o * 0.95, 0.53)
-		inner.append(inner[0])
-		draw_polyline(inner, Color(1, 1, 1, 0.3), maxf(o * 0.3, 1.2), true)  # a faint bevel inside its edge
+	if not lit:  # not yet earned (UI r23, the judges of j19: r22's pale grey star "reads as disabled UI"): a
+		# star socket waiting for its star: a bevelled gold edge (lit at its top, deeper at its foot) round a
+		# dark recess sunk into the plate (shade under its upper walls, the light caught on its lower walls)
+		draw_colored_polygon(points(c, r + o * 0.55, 0.55), INK)
+		_gradient(points(c, r - o * 0.05, 0.55), c, r, Color("fff4b0"), Color("d0860e"))  # the gold edge, lit at its top
+		var wall := points(c, r - o * 1.45, 0.53)
+		_gradient(wall, c, r, Color("1c0a02"), Color("7a4618"))  # the recess: dark under its top, lit at its foot
+		_gradient(points(c + Vector2(0, o * 0.45), r - o * 2.2, 0.52), c, r, Color("2a1206"), Color("4e2a0e"))  # its floor
+		wall.append(wall[0])
+		draw_polyline(wall, Color(0.1, 0.03, 0.0, 0.95), maxf(o * 0.4, 1.2), true)  # the edge's inner ink
+		var lip := PackedVector2Array()  # the light caught along its lower walls (the feet and the lower notches)
+		var inner := points(c, r - o * 1.9, 0.53)
+		for i in [3, 4, 5, 6, 7]:
+			lip.append(inner[i])
+		draw_polyline(lip, Color(1, 0.8, 0.4, 0.55), maxf(o * 0.35, 1.0), true)
 		return
 	# its shadow on the panel, the ink outline (a fatter star), the bevel under the face, then the face
 	draw_colored_polygon(points(c + Vector2(o * 0.5, o * 2.4), r + o * 0.5, 0.55), Color(0.3, 0.1, 0.0, 0.32))

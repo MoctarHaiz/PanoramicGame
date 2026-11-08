@@ -4,15 +4,13 @@ extends Control
 ## the knob"): a thick groove sunk into the panel (UI r21, the judges of j17: "thin short sliders") with
 ## a notch at each step, filled with gold up to the value (a soft light along it), a round gold-rimmed
 ## knob bigger than the groove, a glossy dome (no grip lines: they read as a pause sign), to drag (or tap
-## the groove); the value written beside it, outside the groove ("80%", never under the knob), with air
-## after it. Steps of 10 %; at 0 the sound is off. A tick plays at each step while dragging.
+## the groove); no value written beside it (UI r23, the judges of j19: "the redundant 100 % labels": the
+## gold fill says it). Steps of 10 %; at 0 the sound is off. A tick plays at each step while dragging.
 
 signal changed(value: float)
 
 const INK := Color("4a1e04")
 const STEPS := 10
-const VALUE_W := 76.0  ## the value's room at the right end (outside the groove)
-const VALUE_PAD := 6.0  ## air after the value (it never touches the well's edge)
 
 var value := 1.0
 var _dragging := false
@@ -47,7 +45,7 @@ func _knob_r() -> float:
 
 func _ends() -> Vector2:
 	var r := _knob_r()
-	return Vector2(r, size.x - VALUE_W - r)
+	return Vector2(r, size.x - r)
 
 
 func _set_from(x: float) -> void:
@@ -95,16 +93,4 @@ func _draw() -> void:
 	# (round 20, the judges: the grip's two cuts "read as a pause button") a plain glossy dome: its light
 	# caught at its top left
 	draw_circle(centre + Vector2(-knob_r * 0.24, -knob_r * 0.28), knob_r * 0.24, Color(1, 1, 0.96, 0.9), true, -1, true)
-	_value_text()
 
-
-## The value beside the groove, right-aligned in its own room (never under the knob).
-func _value_text() -> void:
-	var french := TranslationServer.get_locale().begins_with("fr")
-	var words := ("%d %%" if french else "%d%%") % roundi(value * 100.0)
-	var font: Font = Ui.font_display
-	var px := 24
-	var w := font.get_string_size(words, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
-	var base := size.y / 2 + px * 0.36
-	draw_string(font, Vector2(size.x - VALUE_PAD - w, base), words, HORIZONTAL_ALIGNMENT_LEFT, -1, px,  # right-aligned
-			Color("8a4a14") if value > 0.0 else Color("a08a78"))

@@ -29,12 +29,45 @@ const vec3 AIR = vec3(0.93, 0.92, 1.0);  // the scene's air over them (the dusk'
 // colour they are drawn towards is the scene's shade (BanditView.RECEDE), their whites pulled down most
 uniform vec4 haze : source_color = vec4(0.4, 0.31, 0.38, 1.0);
 uniform float haze_amount = 0.0;  // (BanditView.HAZE)
+// (round 23, the judges: "ghosted, semi-transparent, a disabled state: plum-grey at the sky's value") a dark core instead:
+// every colour's value pulled down (core_value) and its saturation (core_sat), well under the sky and the mesas behind,
+// the form and the ink kept, so they read as solid figures; one costume accent of each kind (its head-wrap: the
+// bandit's indigo, the strong one's rust) keeps its colour (accent_*), found by its hue round the frame's head
+// (BanditView sets `head` with each frame); Panoramic stays the most saturated, highest-contrast figure
+uniform float core_sat = 1.0;
+uniform float core_value = 1.0;
+uniform vec4 core_tint : source_color = vec4(1.0);  // the grey the colours are muted towards (a warm umber: skin, not ash)
+uniform float core_floor = 0.0;  // the darkest value (their black cloth keeps its folds, under their ink: not a cut-out)
+uniform vec2 head = vec2(0.0);  // this frame's head (sheet px from the pivot: bandit.json head)
+uniform vec4 accent_hue = vec4(0.0, 0.0, 1.0, 1.0);  // its hues (degrees, from, to), the least saturation and value
+uniform float accent_vmax = 1.0;  // the brightest it is (the skin of the same hue is brighter)
+uniform vec4 accent_box = vec4(-80.0, -95.0, 95.0, 8.0);  // where round the head (sheet px: left, top, right, bottom)
+uniform float accent_sat = 1.0;  // its saturation and value, times the drawing's
+uniform float accent_value = 1.0;
 varying vec4 vertex_colour;
 varying vec2 local_pos;
 
 void vertex() {
 	vertex_colour = COLOR;  // the node's modulate: the picture is sampled again below
 	local_pos = VERTEX;
+}
+
+// (round 23) 0..1: how much this pixel (as drawn, at `local`) is the kind's costume accent
+float accent(vec3 c, vec2 local) {
+	float h = char_hue(c);
+	float s = char_sat(c);
+	float v = max(c.r, max(c.g, c.b));
+	vec2 r = local - head;
+	return smoothstep(accent_hue.x - 6.0, accent_hue.x + 2.0, h) * (1.0 - smoothstep(accent_hue.y - 2.0, accent_hue.y + 6.0, h))
+			* smoothstep(accent_hue.z - 0.06, accent_hue.z + 0.04, s) * smoothstep(accent_hue.w - 0.06, accent_hue.w + 0.04, v)
+			* (1.0 - smoothstep(accent_vmax - 0.04, accent_vmax + 0.04, v))
+			* smoothstep(accent_box.x - 10.0, accent_box.x, r.x) * (1.0 - smoothstep(accent_box.z, accent_box.z + 10.0, r.x))
+			* smoothstep(accent_box.y - 10.0, accent_box.y, r.y) * (1.0 - smoothstep(accent_box.w, accent_box.w + 10.0, r.y));
+}
+
+// 1 inside the frame's rectangle of the sheet (`region`, UV), 0 outside
+float in_region(vec2 q) {
+	return step(region.x, q.x) * step(region.y, q.y) * step(q.x, region.x + region.z) * step(q.y, region.y + region.w);
 }
 
 // the loudest colours quietened: saturation above LOUD_SAT kept at LOUD_KEEP, the hue and the value kept
@@ -79,11 +112,42 @@ void fragment() {
 		float inside = min(min(texture(TEXTURE, UV + vec2(far.x, 0.0)).a, texture(TEXTURE, UV - vec2(far.x, 0.0)).a),
 				min(texture(TEXTURE, UV + vec2(0.0, far.y)).a, texture(TEXTURE, UV - vec2(0.0, far.y)).a));
 		float lit = 1.0 - texture(TEXTURE, UV + normalize(light_dir) * far).a;
-		c.rgb = char_grade(quieten(c.rgb), bright, sum / max(weight, 0.001), 1.0 - smoothstep(0.2, 0.8, inside), lit);
+		vec3 drawn = c.rgb;
+		float acc = accent(drawn, local_pos);
+		c.rgb = char_grade(mix(quieten(c.rgb), c.rgb, acc), bright, sum / max(weight, 0.001), 1.0 - smoothstep(0.2, 0.8, inside), lit);
+		// (round 23) the dark core, the accent kept
+		float lum = char_lum(c.rgb);
+		vec3 core = mix(lum * core_tint.rgb, c.rgb, core_sat) * core_value + core_floor * core_tint.rgb;
+		vec3 hot = clamp(mix(vec3(lum), c.rgb, accent_sat) * accent_value, 0.0, 1.0);
+		c.rgb = mix(core, hot, acc);
 		// (round 20) the form's shade, as Panoramic's (character.gdshaderinc), and the scene's air
 		vec2 d = -normalize(light_dir) * TEXTURE_PIXEL_SIZE * form_px * 0.8;
 		float away = 1.0 - 0.5 * (texture(TEXTURE, UV + d * 0.5).a + texture(TEXTURE, UV + d).a);
-		c.rgb = mix(char_form(c.rgb, local_pos, away, FORM) * AIR, haze.rgb, haze_amount);
+		c.rgb = mix(char_form(c.rgb, local_pos, away, FORM, char_cloth(drawn)) * AIR, haze.rgb, haze_amount * (1.0 - acc));
+		// (round 23) the silhouette's ink, as Panoramic's: its own edge
+		if (sil_in_px > 0.0) {
+			vec2 sp = TEXTURE_PIXEL_SIZE * sil_in_px;
+			float amin = 1.0;
+			for (int i = 0; i < 8; i++) {
+				float t = float(i) * 0.7853982;
+				vec2 q = UV + vec2(cos(t), sin(t)) * sp;
+				amin = min(amin, texture(TEXTURE, q).a * in_region(q));
+			}
+			c.rgb = mix(c.rgb, sil_colour.rgb, smoothstep(0.1, 0.7, 1.0 - amin));
+		}
+	}
+	if (vanish <= 0.0 && sil_out_px > 0.0 && c.a < 1.0) {  // (round 23) and round its outside, behind it
+		vec2 px = TEXTURE_PIXEL_SIZE * sil_out_px;
+		float a = 0.0;
+		for (int i = 0; i < 8; i++) {
+			float t = float(i) * 0.7853982;
+			vec2 q = UV + vec2(cos(t), sin(t)) * px;
+			vec2 q2 = UV + vec2(cos(t + 0.3927), sin(t + 0.3927)) * px * 0.6;
+			a = max(a, max(texture(TEXTURE, q).a * in_region(q), texture(TEXTURE, q2).a * in_region(q2)));
+		}
+		float o = smoothstep(0.1, 0.55, a) * vertex_colour.a;  // (a crisp edge)
+		float out_a = c.a + o * (1.0 - c.a);
+		c = vec4((c.rgb * c.a + sil_colour.rgb * o * (1.0 - c.a)) / max(out_a, 0.001), out_a);
 	}
 	if (vanish > 0.0) {
 		vec2 l = (UV - region.xy) / region.zw;  // 0..1 across the frame

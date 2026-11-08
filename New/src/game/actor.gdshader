@@ -24,6 +24,13 @@ uniform vec2 bend_pivot = vec2(0.0);
 uniform float bend_up = 0.0;
 uniform float bend_down = 0.0;
 uniform float bend_blend = 40.0;
+// (round 23, the judges: "the hang a stiff diagonal plank / his hand on top of the vine") a second bend, before the first:
+// hanging, the part above `grip_pivot` (his fists, above his wrists) turned by `grip_turn` (HeroView: back against his
+// swing, so his fists stay level on the vine while his body swings from them), blended over `grip_blend` px
+uniform bool grip_on = false;
+uniform vec2 grip_pivot = vec2(0.0);
+uniform float grip_turn = 0.0;
+uniform float grip_blend = 12.0;
 uniform float opacity = 1.0;
 // A warm bounce from one side (the home fire): the colours multiplied towards `bounce_colour`, more on the
 // side `bounce_dir` (texture space) points to; dark pixels (the ink) stay dark, no light fringe.
@@ -61,15 +68,26 @@ float in_region(vec2 q) {
 	return step(region.x, q.x) * step(region.y, q.y) * step(q.x, region.x + region.z) * step(q.y, region.y + region.w);
 }
 
+// where the point `p` of a figure bent about `pivot` (the part above it by `up`, below it by `down`) comes from
+vec2 bent_from(vec2 p, vec2 pivot, float up, float down, float blend) {
+	float a = mix(up, down, smoothstep(pivot.y - blend, pivot.y + blend, p.y));
+	vec2 d = p - pivot;
+	float s = sin(a);
+	float k = cos(a);
+	return pivot + vec2(k * d.x + s * d.y, k * d.y - s * d.x);
+}
+
 void fragment() {
 	vec2 uv = UV;
 	vec4 c = COLOR;
-	if (bend_on) {  // (round 22) where this pixel of the bent figure comes from in the frame as drawn
-		float a = mix(bend_up, bend_down, smoothstep(bend_pivot.y - bend_blend, bend_pivot.y + bend_blend, local_pos.y));
-		vec2 d = local_pos - bend_pivot;
-		float s = sin(a);
-		float k = cos(a);
-		vec2 src = bend_pivot + vec2(k * d.x + s * d.y, k * d.y - s * d.x);
+	if (bend_on || grip_on) {  // (round 22) where this pixel of the bent figure comes from in the frame as drawn
+		vec2 src = local_pos;
+		if (grip_on) {  // (round 23) his fists kept level on the vine
+			src = bent_from(src, grip_pivot, grip_turn, 0.0, grip_blend);
+		}
+		if (bend_on) {
+			src = bent_from(src, bend_pivot, bend_up, bend_down, bend_blend);
+		}
 		uv = UV + (src - local_pos) * TEXTURE_PIXEL_SIZE;
 		c = texture(TEXTURE, uv) * in_region(uv);
 		c.a *= opacity;
@@ -90,7 +108,9 @@ void fragment() {
 		float inside = min(min(texture(TEXTURE, uv + vec2(far.x, 0.0)).a, texture(TEXTURE, uv - vec2(far.x, 0.0)).a),
 				min(texture(TEXTURE, uv + vec2(0.0, far.y)).a, texture(TEXTURE, uv - vec2(0.0, far.y)).a));
 		float lit = 1.0 - texture(TEXTURE, uv + normalize(light_dir) * far).a;
+		vec3 drawn = c.rgb;
 		c.rgb = char_grade(c.rgb, bright, sum / max(weight, 0.001), 1.0 - smoothstep(0.2, 0.8, inside), lit);
+		c.rgb = char_skin(c.rgb);  // (round 23) the skin's middle values a little lighter
 		c.rgb = char_hair(c.rgb, bright, local_pos);  // (round 21) home: his hair's top clear of the dark doorway
 		// (round 20) the form: his side away from the sun in a soft cool shade, deepest at the edges turning away
 		// (the samples kept inside his frame of the atlas: `region`)
@@ -105,7 +125,18 @@ void fragment() {
 			float a2 = texture(TEXTURE, q2).a * step(lo.x, q2.x) * step(lo.y, q2.y) * step(q2.x, hi.x) * step(q2.y, hi.y);
 			away = 1.0 - 0.5 * (a1 + a2);
 		}
-		c.rgb = char_form(c.rgb, local_pos, away, form_amount);
+		c.rgb = char_form(c.rgb, local_pos, away, form_amount, char_cloth(drawn));
+		// (round 23) the silhouette's ink: the figure's own edge, sil_in_px texels of it (the samples kept in his frame)
+		if (sil_in_px > 0.0) {
+			vec2 sp = TEXTURE_PIXEL_SIZE * sil_in_px;
+			float amin = 1.0;
+			for (int i = 0; i < 8; i++) {
+				float t = float(i) * 0.7853982;
+				vec2 q = uv + vec2(cos(t), sin(t)) * sp;
+				amin = min(amin, texture(TEXTURE, q).a * in_region(q));
+			}
+			c.rgb = mix(c.rgb, sil_colour.rgb, smoothstep(0.1, 0.7, 1.0 - amin));
+		}
 	}
 	if (rim > 0.0 && c.a > 0.0) {
 		// how much of this pixel's alpha is missing a few pixels towards the light: an edge facing it
@@ -113,15 +144,19 @@ void fragment() {
 		float edge = clamp(c.a - a, 0.0, 1.0);
 		c.rgb = mix(c.rgb, c.rgb + rim_colour.rgb * 0.75, edge * rim);
 	}
-	if (outline_px > 0.0 && c.a < 1.0) {
-		vec2 px = TEXTURE_PIXEL_SIZE * outline_px;
+	// the outline round the outside (behind the picture): (round 23) the silhouette's ink (sil_out_px) and the vine's extra
+	// (outline_px), sampled at its full width and at half of it (no gaps at the corners), kept in his frame
+	float out_px = sil_out_px + outline_px;
+	if (out_px > 0.0 && c.a < 1.0) {
+		vec2 px = TEXTURE_PIXEL_SIZE * out_px;
 		float a = 0.0;
 		for (int i = 0; i < 8; i++) {
 			float t = float(i) * 0.7853982;
 			vec2 q = uv + vec2(cos(t), sin(t)) * px;
-			a = max(a, texture(TEXTURE, q).a * (bend_on ? in_region(q) : 1.0));
+			vec2 q2 = uv + vec2(cos(t + 0.3927), sin(t + 0.3927)) * px * 0.6;
+			a = max(a, max(texture(TEXTURE, q).a * in_region(q), texture(TEXTURE, q2).a * in_region(q2)));
 		}
-		float o = a * outline_colour.a * outline_opacity;
+		float o = smoothstep(0.1, 0.55, a) * outline_colour.a * outline_opacity;  // (round 23: a crisp edge)
 		// the outline sits behind the picture
 		float out_a = c.a + o * (1.0 - c.a);
 		vec3 rgb = (c.rgb * c.a + outline_colour.rgb * o * (1.0 - c.a)) / max(out_a, 0.001);

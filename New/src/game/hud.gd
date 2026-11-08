@@ -8,7 +8,8 @@ extends Control
 ## - lives on the left: three glossy hearts; a lost one flashes, cracks in two and its halves fall
 ##   while the plate flashes red, leaving its socket hollow and cracked (not a flat tan heart); the last
 ##   one beats when it is all that is left;
-## - the way home in the middle: a thick dark groove cut into the wood ("a thin dashed line with tiny
+## - the way home in the middle: a thick dark groove cut into the wood, faint chevrons along it, a lit gold start
+##   ahead of his face from the first step (UI r23: near 0 % it "read as broken"; r21: "a thin dashed line with tiny
 ##   diamonds, unreadable on a phone"), filling with glowing gold as the level scrolls, Panoramic's face
 ##   big in its gold ring over the plate's edges running along it to the house on a gold disc (no studs
 ##   along it: UI r22, the judges of j18: "three grey dots read as a loading spinner");
@@ -326,15 +327,18 @@ func blocks(pos: Vector2) -> bool:
 	return _pause.global_hit_rect().has_point(pos)
 
 
-## The way home: a plain dark trail cut into the plate (_Groove, drawn once), a thick
-## bright gold fill with a lit top edge to where he is, Panoramic's
-## face big in a gold ring at its tip (over the plate's edges, as the icons of top games' counters),
-## and the house on a glowing gold disc at the end.
+## The way home: a dark trail cut into the plate (_Groove, drawn once) with faint chevrons along it pointing to
+## the house (a track to fill, not an empty slot), a thick bright gold fill with a lit top edge, Panoramic's face
+## big in a gold ring riding just behind its tip (over the plate's edges, as the icons of top games' counters),
+## and the house on a glowing gold disc at the end. The fill always leads his face by a lit segment with a spark
+## of light at its tip (UI r23, the judges of j19: near 0 % "an empty dark groove with the portrait at its start
+## reads as broken"): the run has started from the first step.
 class _Track extends Control:
 	const HEAD := preload("res://assets/art/ui/head.png")
 	const GROOVE := 30.0  ## the groove's height: thick, it reads on a phone
 	const X0 := 36.0  ## where the trail starts (room for his face at the start)
 	const FACE := 62.0  ## his portrait's side (bigger than the plate: over its edges)
+	const LEAD := 64.0  ## how far the gold's tip runs ahead of his face's middle (past his ring: the lit start)
 	var progress := 0.0:
 		set(value):
 			if not is_equal_approx(value, progress):
@@ -372,14 +376,16 @@ class _Track extends Control:
 		var y := size.y / 2
 		var x0 := X0
 		var w := Hud.TRACK_W - 34.0
-		var fill_w := maxf(w * progress, 0.0)
+		var tip := x0 + 2.0 + LEAD + clampf(progress, 0.0, 1.0) * (w - 4.0 - LEAD)  # the gold's tip, never at the start
 		GlossStyle.begin_batch()
 		# the way done: a glowing gold fill in the groove's own shape, a rounded end, a lit top inside
 		var groove := Rect2(x0, y - GROOVE / 2, w, GROOVE).grow(-2.0)
-		if fill_w > 2.0:  # its glow over the groove's rim
-			GlossStyle.fill_rounded(ci, Rect2(groove.position, Vector2(fill_w + 2.0, groove.size.y)).grow(3.0), groove.size.y / 2 + 3.0,
-					Color(1, 0.78, 0.25, 0.35), Color(1, 0.6, 0.15, 0.35))
-		GlossStyle.fill_bar(ci, groove, groove.size.y / 2, x0 + 2 + fill_w, Color("ffd84a"), Color("ec7c0a"), 0.8)
+		GlossStyle.fill_rounded(ci, Rect2(groove.position, Vector2(tip - groove.position.x + 2.0, groove.size.y)).grow(3.0),
+				groove.size.y / 2 + 3.0, Color(1, 0.78, 0.25, 0.35), Color(1, 0.6, 0.15, 0.35))  # its glow over the groove's rim
+		GlossStyle.fill_bar(ci, groove, groove.size.y / 2, tip, Color("ffd84a"), Color("ec7c0a"), 0.8)
+		var spark := 0.5 + 0.5 * sin(_clock * 5.0)  # a spark of light at its tip: the run going on
+		GlossStyle.fill_disc(ci, Vector2(tip - 6.0, y), GROOVE * (0.5 + 0.06 * spark), Color(1, 0.9, 0.5, 0.2 + 0.1 * spark), Vector2(1.5, 0.62))
+		GlossStyle.fill_disc(ci, Vector2(tip - 5.0, y - 1.0), GROOVE * 0.16, Color(1, 1, 0.9, 0.6), Vector2(1.8, 0.75))
 		# the house at the end, on a glowing gold disc
 		var hc := Vector2(x0 + w + 12, y)
 		var pulse := 0.5 + 0.5 * sin(_clock * 3.0)
@@ -389,8 +395,8 @@ class _Track extends Control:
 		GlossStyle.fill_disc(ci, hc + Vector2(0, -2), 22.0, Color("ffc93c"))
 		GlossStyle.fill_disc(ci, hc + Vector2(-7, -10), 5.5, Color(1, 1, 0.9, 0.5))
 		_house.position = hc - _house.size / 2 + Vector2(0, 1)
-		# the face in its gold ring, bobbing a little as it runs
-		var hx := x0 + 4 + fill_w
+		# the face in its gold ring just behind the tip, bobbing a little as it runs
+		var hx := tip - LEAD + 2.0
 		var bob := absf(sin(_clock * 8.0)) * 2.0
 		var c := Vector2(hx, y - bob)
 		var ring := FACE / 2 + 5.0
@@ -404,7 +410,8 @@ class _Track extends Control:
 
 
 ## The way home's groove (the _Track's, behind its fill): cut deep into the wood (dark, a shade under its
-## upper edge, the wood's lit lip under it), plain. Drawn once.
+## upper edge, the wood's lit lip under it), faint chevrons along it pointing to the house (UI r23: a track to
+## fill; the gold covers them as it comes). Drawn once.
 class _Groove extends Control:
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -421,6 +428,17 @@ class _Groove extends Control:
 		GlossStyle.fill_rounded(ci, g, r, Hud.GROOVE_TOP, Hud.GROOVE_BOTTOM)  # sunk: darkest under its upper edge
 		GlossStyle.fill_clipped(ci, g, r, Rect2(g.position.x, g.end.y - 6.0, w, 6.0),
 				Color(1, 0.75, 0.45, 0.0), Color(1, 0.75, 0.45, 0.16))  # a little light caught at its foot
+		var y := g.get_center().y
+		var x := g.position.x + _Track.LEAD + 18.0
+		while x < g.end.x - r - 4.0:  # the chevrons: two thin arms each, pointing on
+			var col := Color(1, 0.86, 0.6, 0.26)
+			var cols := PackedColorArray([col, col, col, col])
+			var arm := 2.6
+			GlossStyle._batch.add_fan(PackedVector2Array([Vector2(x - 4.0, y - 7.0), Vector2(x - 4.0 + arm, y - 7.0),
+					Vector2(x + 3.0 + arm, y), Vector2(x + 3.0, y)]), cols)
+			GlossStyle._batch.add_fan(PackedVector2Array([Vector2(x + 3.0, y), Vector2(x + 3.0 + arm, y),
+					Vector2(x - 4.0 + arm, y + 7.0), Vector2(x - 4.0, y + 7.0)]), cols)
+			x += 22.0
 		GlossStyle.end_batch(ci)
 
 

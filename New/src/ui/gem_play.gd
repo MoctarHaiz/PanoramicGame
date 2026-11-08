@@ -1,7 +1,7 @@
 class_name GemPlay
 extends Control
 ## The menu PLAY's emerald (UI r22, the judges of j18: "a stock glossy green pill" against the gritty key
-## art): the go colour as a cut gem set in the bronze: a dark socket and a bronze bezel round it, an
+## art): the go colour as a cut gem set in the button: a dark socket and a gold bezel round it, an
 ## octagonal emerald, its facets lit from the top left (light above, deep green below), a flat table in its
 ## middle with the play sign cut into it in cream, a glint on its upper left.
 
@@ -28,8 +28,9 @@ func _draw() -> void:
 	var r := minf(size.x, size.y) / 2 - 2.0
 	GlossStyle.fill_disc(ci, c + Vector2(0, 2.5), r + 2.0, Color(0.1, 0.03, 0.0, 0.45))  # its socket's shade
 	GlossStyle.fill_disc(ci, c, r + 1.5, INK)
-	GlossStyle.fill_disc(ci, c, r, Color("8a5218"))  # the bezel, bronze, lit at its top
-	GlossStyle.fill_disc(ci, c + Vector2(0, r * 0.06), r * 0.9, Color("4a2408"))
+	GlossStyle.fill_disc(ci, c, r, Color("f2c04a"))  # the bezel, gold (the button's bezel), lit at its top
+	GlossStyle.fill_disc(ci, c + Vector2(0, r * 0.08), r * 0.92, Color("a8640e"))
+	GlossStyle.fill_disc(ci, c + Vector2(0, r * 0.06), r * 0.86, Color("3a1c06"))
 	var g := r * 0.84
 	draw_colored_polygon(_octagon(c, g + 1.8), INK)
 	var outer := _octagon(c, g)

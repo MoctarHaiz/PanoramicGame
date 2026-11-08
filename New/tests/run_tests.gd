@@ -2062,12 +2062,18 @@ func _test_ux() -> void:
 		wanted.append(m[1])
 	for key: String in wanted:
 		_check(keys.has(key), "%s is translated" % key)
-	# (UI r22, the judges of j18: "no visible on/off state on Music/Sounds") the pause's tiles say it in words
-	var lamps: Array[PausePanel.Lamp] = [PausePanel.Lamp.new(true), PausePanel.Lamp.new(false)]
-	_check(keys.has("STATE_ON") and keys.has("STATE_OFF") and lamps[0]._word != lamps[1]._word,
-			"the pause's music and sounds tiles say on or off in words, translated (%s, %s)" % [lamps[0]._word, lamps[1]._word])
-	for lamp in lamps:
-		lamp.free()
+	# (UI r22, the judges of j18: "no visible on/off state") the settings' switches say it in words, translated; (UI r23)
+	# the pause's music and sounds tiles show it themselves, lit or unlit
+	var switch := ToggleSwitch.new()
+	var music: bool = Save.music_on
+	Save.music_on = false
+	var tile := PausePanel.SoundSwitch.new("music-notes-fill", "", &"music_on", "x")
+	var unlit := not tile.lit()
+	Save.music_on = music
+	_check(keys.has("STATE_ON") and keys.has("STATE_OFF") and switch._words[0] != switch._words[1] and unlit,
+			"switches say on or off in words, translated (%s, %s); a sound switched off is an unlit tile" % switch._words)
+	switch.free()
+	tile.free()
 
 
 # ------------------------------------------------------------------ art track
@@ -2090,7 +2096,9 @@ func _test_art() -> void:
 			var page: Texture2D = load(HeroView.DIR + str(data.pages[int(f.page)]))
 			var r: Array = f.region
 			inside = inside and r[0] >= 0 and r[1] >= 0 and r[0] + r[2] <= page.get_width() and r[1] + r[3] <= page.get_height()
-	_check(inside, "every hero frame lies inside its atlas page")
+			# (round 23) each frame's soles (their contact on the ground), each hanging frame's two fists (on the vine)
+			inside = inside and f.has("soles") and (name not in ["hang", "catch"] or (f.get("fists", []) as Array).size() == 2)
+	_check(inside, "every hero frame lies inside its atlas page, with its soles (and fists on the vine)")
 	# the planted boot moves back with the ground: the drawn run plays at the user's choice, 16 frames a second
 	# (2026-11-07), the pace the sprint was filmed at, where its boot moves back up to twice the ground's speed
 	# (the pace matching the ground, about 8 frames a second, looked choppy)
@@ -2134,9 +2142,12 @@ func _test_art() -> void:
 	var form: float = hero._material.get_shader_parameter(&"form_amount")
 	var box: Vector4 = hero._material.get_shader_parameter(&"figure_box")
 	_check(form > 0.0 and Vector2(box.z, box.w) == hero._sprite.region_rect.size, "a shade side across the frame he shows (form %.2f)" % form)
-	# (round 21, "lit flat, the bandits read first") a warm key on his sun side; the bandits pushed back into the haze
+	# (round 21, "lit flat, the bandits read first") a warm key on his sun side; (round 23, "ghosted bandits", "a dark
+	# smudge with thin ink") the bandits a dark core under him, his silhouette inked heavier than the lines inside him
 	var key: float = hero._material.get_shader_parameter(&"key_amount")
-	_check(key > 0.0 and BanditView.HAZE > 0.0, "a warm key on his sun side (%.2f), the bandits in the haze (%.2f)" % [key, BanditView.HAZE])
+	var sil: float = hero._material.get_shader_parameter(&"sil_out_px")
+	_check(key > 0.0 and BanditView.CORE_VALUE < 0.7 and sil > 1.0, "a warm key on his sun side (%.2f), the bandits' dark core (%.2f), his outer ink (%.1f px)"
+			% [key, BanditView.CORE_VALUE, sil])
 	# (round 22, "a jog, not a sprint") at the ground's pace the drawing leans into the stride (his chest bent forward)
 	for i in 16:
 		w.tick()

@@ -44,9 +44,64 @@ uniform float form_reach = 0.55;  // how much the half away from the sun is in s
 // over the mass (a sheen of the dusk sky on it), its outline and the ink inside him kept
 uniform float hair_lift = 0.0;
 uniform vec4 hair_colour : source_color = vec4(0.36, 0.36, 0.48, 1.0);
+// (round 23, the judges: "thin uniform ink: want a thicker outer silhouette line") the silhouette's ink, heavier than the
+// lines inside: sil_in_px texels of the figure's own edge drawn in it and sil_out_px texels round the outside (behind
+// the picture); the shader that includes this samples them (HeroView and BanditView: the same weight on screen)
+uniform vec4 sil_colour : source_color = vec4(0.17, 0.085, 0.06, 1.0);
+uniform float sil_in_px = 0.0;
+uniform float sil_out_px = 0.0;
+// (round 23) the split between the lit half and the shade half (character's box, along the light: from, to); the
+// hero's narrower, a cleaner light/shadow split (0.0 .. 1.1 wide: the old soft gradient)
+uniform vec2 form_split = vec2(-0.35, 0.75);
+// (round 23, the judges: "the loincloth's shadow lavender-grey, dirty") light near-neutral cloth (the loincloth's
+// cream) shaded warm, a cream-tan, never the sky's lavender: in the form's shade and under a scene's ambient
+uniform vec4 cloth_shade : source_color = vec4(0.9, 0.79, 0.66, 1.0);
+uniform float cloth_warm = 1.0;
+// (round 23, the judges: "dark skin + black ink over dark grass: a dark smudge") the skin's middle values lifted this
+// much (its darks and the ink kept), so his forms read at phone size
+uniform float skin_lift = 0.0;
 
 float char_lum(vec3 c) {
 	return dot(c, vec3(0.3, 0.59, 0.11));
+}
+
+float char_sat(vec3 c) {
+	float mx = max(c.r, max(c.g, c.b));
+	return (mx - min(c.r, min(c.g, c.b))) / max(mx, 0.0001);
+}
+
+// the hue in degrees (0: red, 60: yellow, 240: blue)
+float char_hue(vec3 c) {
+	float mx = max(c.r, max(c.g, c.b));
+	float d = max(mx - min(c.r, min(c.g, c.b)), 0.0001);
+	float h = (c.r - c.g) / d + 4.0;
+	if (mx == c.r) {
+		h = mod((c.g - c.b) / d, 6.0);
+	} else if (mx == c.g) {
+		h = (c.b - c.r) / d + 2.0;
+	}
+	return h * 60.0;
+}
+
+// (round 23) 1 on light near-neutral warm cloth (the loincloth's cream, a shirt's white), 0 elsewhere (the armour's
+// silver, a cool grey, keeps the cool shade)
+float char_cloth(vec3 c) {
+	return (1.0 - smoothstep(0.12, 0.3, char_sat(c))) * smoothstep(0.38, 0.62, char_lum(c)) * smoothstep(0.0, 0.03, c.r - c.b)
+			* cloth_warm;
+}
+
+// (round 23) The skin's middle values lifted (skin_lift): warm hues between orange and gold, mid saturation, mid value
+// (the red scarf, the blue armour, the white cloth and the dark ink untouched)
+vec3 char_skin(vec3 c) {
+	if (skin_lift <= 0.0) {
+		return c;
+	}
+	float h = char_hue(c);
+	float s = char_sat(c);
+	float lum = char_lum(c);
+	float k = smoothstep(8.0, 16.0, h) * (1.0 - smoothstep(40.0, 50.0, h)) * smoothstep(0.18, 0.3, s)
+			* (1.0 - smoothstep(0.78, 0.9, s)) * smoothstep(0.07, 0.17, lum) * (1.0 - smoothstep(0.5, 0.72, lum));
+	return c * (1.0 + skin_lift * k);
 }
 
 // c: the pixel (straight alpha); bright: the brightest neighbour's luminance (a transparent one counts as 1);
@@ -79,18 +134,21 @@ vec3 char_grade(vec3 c, float bright, vec3 mean, float silhouette, float lit) {
 // (round 20) The light on the form. `local`: the pixel in the node's local px; `away`: 0..1, how near the silhouette's
 // edge facing away from the light is (1 - the alpha a few texels that way: the shader samples it); `strength`: the
 // shade's strength (the hero's form_amount; the bandits' own). (round 21) The key's warmth on the rest (key_amount).
-vec3 char_form(vec3 c, vec2 local, float away, float strength) {
+// (round 23) `cloth`: char_cloth() of the pixel as drawn: its shade and the ambient over it warm (a cream-tan).
+vec3 char_form(vec3 c, vec2 local, float away, float strength, float cloth) {
 	if (strength > 0.0) {
 		vec2 mid = figure_box.xy + figure_box.zw * 0.5;
 		vec2 p = (local - mid) / max(figure_box.w * 0.5, 1.0);  // -1..1 up his height, the same scale across
-		float side = smoothstep(-0.35, 0.75, dot(p, -normalize(light_dir)));  // the half away from the sun
+		float side = smoothstep(form_split.x, form_split.y, dot(p, -normalize(light_dir)));  // the half away from the sun
 		float shade = clamp(side * form_reach + away * 0.75, 0.0, 1.0);
-		c *= mix(vec3(1.0), form_colour.rgb, shade * strength);
+		c *= mix(vec3(1.0), mix(form_colour.rgb, cloth_shade.rgb, cloth), shade * strength);
 		// (round 21) the key: the rest of him in the sun's warmth
 		c *= mix(vec3(1.0), key_colour.rgb, (1.0 - shade) * key_amount);
 	}
 	if (ambient_amount > 0.0) {
-		c *= mix(vec3(1.0), ambient.rgb, ambient_amount);
+		// (round 23) the cloth in the ambient's value, not its hue: warm, a little darker (no lavender cast)
+		vec3 amb = mix(ambient.rgb, vec3(char_lum(ambient.rgb)) * vec3(1.04, 0.99, 0.9), cloth);
+		c *= mix(vec3(1.0), amb, ambient_amount);
 	}
 	return c;
 }

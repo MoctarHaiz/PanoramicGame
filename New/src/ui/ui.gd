@@ -38,8 +38,9 @@ const SAND_DEEP := Color("dcb47c")
 ## highlight) in a thin bright brass ring (the panels' gold trim) over a deep drop shadow. GREEN is the
 ## go colour (one main action per screen: Play, Resume, Play again; also "on"), GOLD rewards and the
 ## pause's tiles, SUNSET the brand, BLUE the quiet buttons beside the main one, CRIMSON warnings,
-## WHITE (bone) the quietest choice, SLATE the defeat's cool title, STONE a switched-off tile (greyed).
-enum Tone { GREEN, GOLD, SUNSET, BLUE, CRIMSON, WHITE, SLATE, AMBER, STONE }
+## WHITE (bone) the quietest choice, SLATE the defeat's cool title, STONE a switched-off tile (unlit, dark),
+## TEAL the one cool accent on the warm screens (UI r23: the menu's PLAY, the settings' icons and switches).
+enum Tone { GREEN, GOLD, SUNSET, BLUE, CRIMSON, WHITE, SLATE, AMBER, STONE, TEAL }
 ## Per tone: face top, face bottom, edge (the bevel under the face), outline (and text outline).
 const TONES := {
 	Tone.GREEN: [Color("d2e874"), Color("68aa30"), Color("467c1e"), Color("1f3c0e")],  # warm leaf, not neon
@@ -50,7 +51,8 @@ const TONES := {
 	Tone.WHITE: [Color("fffaf0"), Color("f1e2c4"), Color("d2b48a"), Color("4a1e04")],
 	Tone.SLATE: [Color("9aaccc"), Color("4e5f86"), Color("34415e"), Color("141a2c")],  # dusk blue-grey
 	Tone.AMBER: [Color("ffcc4e"), Color("ec8c0c"), Color("b45a06"), Color("5a2604")],  # a richer gold (settings)
-	Tone.STONE: [Color("dcd6ce"), Color("a59d93"), Color("776f66"), Color("38322d")],  # greyed: switched off
+	Tone.STONE: [Color("6a6058"), Color("2e2824"), Color("1c1814"), Color("0e0b09")],  # unlit, dark: switched off
+	Tone.TEAL: [Color("4ae4fa"), Color("0674ac"), Color("05506e"), Color("032236")],  # lacquered turquoise
 }
 ## The ring around a button's face: thin bright brass (lit along its top, deeper at its foot), per
 ## tone: ring top, ring bottom, the thickness under it (edge), the outline around it all. A gold face
@@ -65,7 +67,8 @@ const FRAMES := {
 	Tone.WHITE: BRASS,
 	Tone.SLATE: [Color("dfe6f2"), Color("8c98ae"), Color("4a5468"), Color("141a2c")],
 	Tone.AMBER: [Color("ffc27a"), Color("d8641c"), Color("8a340a"), Color("3a1404")],
-	Tone.STONE: [Color("eeebe6"), Color("9e968c"), Color("5e5750"), Color("2a2622")],
+	Tone.STONE: [Color("a08a6c"), Color("5a4a38"), Color("3a2e22"), Color("0e0b09")],
+	Tone.TEAL: BRASS,
 }
 
 var font_title: FontVariation  ## Fredoka Bold: titles, buttons, numbers
@@ -360,35 +363,43 @@ func _candy_button(text: String, icon_name: String, c: Dictionary, height: int, 
 	return b
 
 
-## The menu's PLAY in the world's materials (UI r22, the judges of j18: "a stock glossy green pill, casual UI against
-## the gritty anime warrior"): a slab of polished bronze in a ring of dark bronze, a line engraved round its face, an
-## emerald set in it at its left with the play sign cut in it (the go colour as a gem: GemPlay), the word in white
-## display letters in a deep brown stroke. Still the screen's one main action: the biggest, brightest thing in the
-## column (call idle() and shine() on it).
-func bronze_button(text: String, height := 116.0, font_size := 60) -> JuicyButton:
-	var c := {"top": Color("ffd47a"), "bottom": Color("a8560e"), "edge": Color("5a2c08"), "outline": Color("2a1204"),
-			"frame": [Color("c98a42"), Color("5e2e0a"), Color("3e1e06"), Color("1e0c02")]}
+## The menu's PLAY, the screen's one call to action (UI r23, the judges of j19: r22's bronze slab read as "a wooden
+## plaque, not the main call to action", white on light bronze, the whole menu one warm temperature): the cool colour
+## the warm canyon lacks, so it is the brightest, most saturated thing on its half: a lacquered turquoise face (the
+## beadwork's turquoise; not the stock green pill) lit across its top with a crisp highlight, in a polished gold
+## bezel on a deep teal edge, over a strong drop shadow; a line engraved round its face; the cut emerald with the
+## play sign set at its left (GemPlay); the word in white display letters in a deep navy stroke. A slab, not a pill
+## (call idle() and shine() on it).
+func cta_button(text: String, height := 116.0, font_size := 60) -> JuicyButton:
+	var c := {"top": Color("4ae4fa"), "bottom": Color("0674ac"), "edge": Color("05506e"), "outline": Color("032236"),
+			"frame": [Color("fff4b0"), Color("e9a42e"), Color("7a4208"), Color("1a0a02")]}
 	var b := JuicyButton.new()
 	b.custom_minimum_size = Vector2(0, height)
 	var radius := height * 0.3
-	var depth := roundf(height * 0.09)
-	var ring := maxf(roundf(height * 0.065), 3.0)
-	var style := _framed(c, radius, false, depth, ring)
-	style.gloss = 0.3  # polished metal: a broad light across its top
-	b.add_theme_stylebox_override(&"normal", style)
-	b.add_theme_stylebox_override(&"hover", style)
-	var down := _framed(c, radius, true, depth, ring)
-	down.gloss = 0.3
-	b.add_theme_stylebox_override(&"pressed", down)
+	var depth := roundf(height * 0.1)
+	var ring := maxf(roundf(height * 0.07), 3.0)
+	var styles: Array[GlossStyle] = []
+	for pressed: bool in [false, true]:
+		var s := _framed(c, radius, pressed, depth, ring)
+		s.gloss = 0.22  # lacquer: a soft light across its top (the crisp band: _Engraved)
+		s.lip = 0.3
+		s.shadow.shadow_color = Color(0.03, 0.02, 0.04, 0.62)  # it stands well off the canyon
+		s.shadow.shadow_size = 10 if pressed else 24
+		s.shadow.shadow_offset = Vector2(0, 6 if pressed else 16)
+		styles.append(s)
+	b.add_theme_stylebox_override(&"normal", styles[0])
+	b.add_theme_stylebox_override(&"hover", styles[0])
+	b.add_theme_stylebox_override(&"pressed", styles[1])
+	var style := styles[0]
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override(&"separation", roundi(font_size * 0.3))
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(GemPlay.new(roundf(height * 0.64)))
-	var l := display_text(text, font_size, WHITE, Color("3a1606"), Color("fff0d0"))
-	l.outline_width = roundf(font_size * 0.09)
-	l.depth = roundf(font_size * 0.08)
-	l.shadow = Color(0, 0, 0, 0)
+	row.add_child(GemPlay.new(roundf(height * 0.62)))
+	var l := display_text(text, font_size, WHITE, Color("03263e"), Color("e6fbff"))
+	l.outline_width = roundf(font_size * 0.11)
+	l.depth = roundf(font_size * 0.09)
+	l.shadow = Color(0, 0.05, 0.1, 0.35)
 	l.refresh()
 	row.add_child(l)
 	var holder := _face_holder(row, style)
@@ -403,7 +414,8 @@ func bronze_button(text: String, height := 116.0, font_size := 60) -> JuicyButto
 	return b
 
 
-## A line engraved round a metal face, a little inside its edge: cut dark, lit along its lower lip.
+## A line engraved round a lacquered face, a little inside its edge: cut dark, lit along its lower lip; a crisp
+## highlight across the top of the face inside it (the lacquer catching the key light: one clear band, no glints).
 class _Engraved extends Control:
 	var radius := 20.0
 	var inset := 8.0  ## from the holder's sides to the face
@@ -416,7 +428,9 @@ class _Engraved extends Control:
 		if r.size.x < 20.0 or r.size.y < 12.0:
 			return
 		var rr := maxf(radius - 7.0, 4.0)
-		for line: Array in [[Vector2(0, 1.6), Color(1, 0.95, 0.75, 0.55)], [Vector2.ZERO, Color(0.36, 0.17, 0.03, 0.6)]]:
+		var band := Rect2(r.position + Vector2(rr * 0.5, 3.0), Vector2(r.size.x - rr, r.size.y * 0.34))
+		GlossStyle.fill_rounded(get_canvas_item(), band, band.size.y * 0.5, Color(1, 1, 1, 0.55), Color(1, 1, 1, 0.06))
+		for line: Array in [[Vector2(0, 1.6), Color(0.85, 1, 1, 0.5)], [Vector2.ZERO, Color(0.0, 0.2, 0.3, 0.55)]]:
 			var pts := GlossStyle.rounded_points(Rect2(r.position + (line[0] as Vector2), r.size), rr)
 			pts.append(pts[0])
 			draw_polyline(pts, line[1], 2.0, true)

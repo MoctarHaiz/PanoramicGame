@@ -466,7 +466,7 @@ def chakram(a, still):
 ## (round 21, the judges: "the loincloth rides up showing dark briefs") where the stills show dark cloth under the
 ## loincloth (source px boxes) and the colour it becomes: the loincloth's own white in its shade
 BRIEFS = {"defeat": (570, 500, 712, 612), "win": (514, 594, 556, 652)}
-CLOTH_SHADE = np.array([0.66, 0.63, 0.64])
+CLOTH_SHADE = np.array([0.7, 0.63, 0.55])  # (round 23, the judges: "lavender-grey, dirty": a warm cream-tan)
 
 
 def loincloth(a, still):
@@ -602,7 +602,7 @@ def ko_hand(a):
 ## (round 22) the shade under his loincloth (source px: middle x, y, radii x, y, strength): the cloth between his thighs
 ## pulled down into it (lower contrast, cooler), so the lit face, chest and scarf lead
 KO_SHADE = (606.0, 566.0, 48.0, 42.0, 0.55)
-KO_SHADE_COLOUR = np.array([0.46, 0.38, 0.5])
+KO_SHADE_COLOUR = np.array([0.5, 0.41, 0.4])  # (round 23: warm, the cloth's shade never lavender)
 
 
 def ko_shade(a):
@@ -621,6 +621,55 @@ LIGHT_DIR = np.array([-0.6, -0.8])  # towards the sun (character.gdshaderinc lig
 FORM_PX = 12.0  # HeroView.FORM_PX (round 21: 9 -> 12)
 KEY = 0.9  # (round 21) the warm key on the sun's side: HeroView.KEY, character.gdshaderinc key_colour
 KEY_COLOUR = np.array([1.07, 0.98, 0.86])
+CLOTH_WARM = np.array([0.9, 0.79, 0.66])  # (round 23) the cloth's shade: character.gdshaderinc cloth_shade
+
+
+def _smooth(e0, e1, x):
+    t = np.clip((x - e0) / (e1 - e0), 0, 1)
+    return t * t * (3 - 2 * t)
+
+
+## (round 23, the judges, j19: "sitting and resting, not knocked down: the spine vertical, the shoulders square") the
+## knock-out still slumped (source px): his upper body leaned over towards his knees about his waist (KO_WAIST) by
+## KO_LEAN radians and squashed to KO_SQUASH of its height (the shoulders dropped, rolled forward), his head drooped
+## further to his right about his neck (KO_NECK, where the lean moved it) by KO_DROOP radians and KO_DROP px lower;
+## each blended over rows round its pivot (his legs, the hand on his knee, the gauntlet on the ground as drawn)
+KO_WAIST, KO_WAIST_BLEND = (700.0, 470.0), (-60.0, 20.0)
+KO_NECK, KO_NECK_BLEND = (680.0, 250.0), (-20.0, 30.0)
+KO_LEAN, KO_SQUASH, KO_DROOP, KO_DROP = -0.11, 0.93, -0.2, 14.0
+
+
+def _turn(v, ang):
+    c, s = np.cos(ang), np.sin(ang)
+    return np.stack([c * v[0] - s * v[1], s * v[0] + c * v[1]])
+
+
+def ko_slump(a):
+    """(round 23) The knock-out's slump (KO_*): a smooth warp (cubic, premultiplied): each output px's source found by
+    undoing the head's droop (its weight at the output row), then the body's lean and squash (at that point's row)."""
+    W = np.array(KO_WAIST)
+    N = np.array(KO_NECK)
+
+    def torso_w(y):
+        return 1 - _smooth(W[1] + KO_WAIST_BLEND[0], W[1] + KO_WAIST_BLEND[1], y)
+
+    wn = torso_w(N[1])
+    d = N - W
+    nm = W + _turn(np.array([d[0], d[1] * (1 - (1 - KO_SQUASH) * wn)]), KO_LEAN * wn)  # the neck, leaned
+    h, w = a.shape[:2]
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float64)
+    q = np.stack([xx, yy])
+    wh = 1 - _smooth(nm[1] + KO_NECK_BLEND[0], nm[1] + KO_NECK_BLEND[1], q[1])
+    s1 = nm.reshape(2, 1, 1) + _turn(q - nm.reshape(2, 1, 1) - np.stack([np.zeros_like(wh), KO_DROP * wh]), -KO_DROOP * wh)
+    wt = torso_w(s1[1])
+    d = _turn(s1 - W.reshape(2, 1, 1), -KO_LEAN * wt)
+    src = W.reshape(2, 1, 1) + np.stack([d[0], d[1] / (1 - (1 - KO_SQUASH) * wt)])
+    pm = a.astype(np.float64)
+    pm[..., :3] *= pm[..., 3:4]
+    res = np.clip(np.dstack([ndi.map_coordinates(pm[..., c], [src[1], src[0]], order=3, mode="constant") for c in range(4)]), 0, 1)
+    al = res[..., 3:4]
+    res[..., :3] = np.where(al > 1e-4, res[..., :3] / np.maximum(al, 1e-4), 0)
+    return np.clip(res, 0, 1).astype(a.dtype)
 
 
 def form(a, stand_px, amount=FORM):
@@ -643,7 +692,14 @@ def form(a, stand_px, amount=FORM):
     shade = np.clip(side * FORM_REACH + away * 0.75, 0, 1)
     k = shade * amount
     out = a.copy()
-    out[..., :3] = a[..., :3] * (1 - k[..., None] + FORM_COLOUR * k[..., None])
+    # (round 23, the judges: "the loincloth's shadow lavender-grey, dirty") the light near-neutral cloth shaded a warm
+    # cream-tan (character.gdshaderinc char_cloth(), cloth_shade), the rest in the sky's cool
+    rgb = a[..., :3]
+    sat = (rgb.max(-1) - rgb.min(-1)) / np.maximum(rgb.max(-1), 1e-4)
+    cloth = (1 - _smooth(0.12, 0.3, sat)) * _smooth(0.38, 0.62, _lum(rgb.astype(np.float32))) \
+        * _smooth(0.0, 0.03, rgb[..., 0] - rgb[..., 2])  # (warm: the armour's silver, a cool grey, stays cool)
+    colour = FORM_COLOUR * (1 - cloth[..., None]) + CLOTH_WARM * cloth[..., None]
+    out[..., :3] = a[..., :3] * (1 - k[..., None] + colour * k[..., None])
     key = ((1 - shade) * KEY)[..., None]  # (round 21) the rest of him in the sun's warmth
     out[..., :3] = np.clip(out[..., :3] * (1 - key + KEY_COLOUR * key), 0, 1)
     return out
@@ -667,7 +723,7 @@ def stills():
         a = np.asarray(Image.open(CUT / "r19" / src).convert("RGBA")).astype(np.float32) / 255.0
         a = loincloth(chakram(a, src[:-4]), src[:-4])
         if src == "defeat.png":  # (round 22) readable swirl eyes, the hand on his knee, the loincloth's shade
-            a = ko_shade(ko_eyes(ko_hand(a)))
+            a = ko_slump(ko_shade(ko_eyes(ko_hand(a))))  # (round 23) slumped
         if CALM:
             a = calm(a)
         a = bigger_head(a)
@@ -697,4 +753,6 @@ DEFEAT_STILL_PX = 700
 if __name__ == "__main__":
     if os.environ.get("STILLS") != "only":
         build()
+        import hero_contacts  # (round 23) the soles' and fists' measures HeroView draws at
+        hero_contacts.main(OUT)
     stills()

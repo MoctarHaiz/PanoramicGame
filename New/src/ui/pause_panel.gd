@@ -4,10 +4,9 @@ extends RefCounted
 ## beige, a full-width web-banner Resume"): a row of three square candy tiles, each named under it (music
 ## and sounds, then controls), and under them the way out: a gold Home button beside a chunky green
 ## RESUME, the results' own pair (Home beside Play again). Music and sounds carry their state on the tile
-## itself, on or off alike (j18: "no visible on/off state, both on"): a lamp set in the tile's foot, a
-## small plate of dark leather with a glass bead and the word: on, the bead lit green and "ON" in cream on
-## a gold tile; off, the bead dark and "OFF" in grey on a greyed stone tile, its icon dimmed and struck
-## through (a speaker with a cross, the notes with a red bar). Controls (a gamepad: plainly "the
+## itself (UI r23, the judges of j19: r22's lamps, "tiny dark pills" under two tiles of three, made the row
+## uneven): on, the tile lit gold, its icon bright; off, the tile unlit and dark, its icon dimmed and struck
+## through (a speaker with a cross, the notes with a red bar); three even tiles. Controls (a gamepad: plainly "the
 ## controls") opens the five moves in the panel, each with its gesture played by a hand (the tutorial's
 ## pictures), so every control can be found again without crowding the pause.
 
@@ -15,7 +14,7 @@ const TILE := 128.0  ## side of a tile (big enough to read on a phone)
 const GAP := 44.0  ## between two tiles
 const ROW_W := 3 * TILE + 2 * GAP  ## the row of tiles: the panel's width inside
 const GO_H := 100.0  ## RESUME's height (the Home button beside it is as tall)
-const LAMP := Vector2(80, 30)  ## the on/off lamp's plate at a tile's foot
+const CAPTION_GAP := 12  ## between a tile and its name
 
 
 ## Opens the pause panel over `host`. `resume` and `home` are the two ways out; `hide`: what to
@@ -83,7 +82,7 @@ static func tr_key(key: String) -> String:
 ## A square candy tile with its name under it (the pause's row).
 static func _tile(icon_name: String, tone: Ui.Tone, caption: String) -> VBoxContainer:
 	var item := VBoxContainer.new()
-	item.add_theme_constant_override(&"separation", 10 + roundi(LAMP.y * 0.5))  # (level with the switches' names)
+	item.add_theme_constant_override(&"separation", CAPTION_GAP)
 	var holder := Control.new()
 	holder.custom_minimum_size = Vector2(TILE, TILE)
 	holder.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -135,10 +134,11 @@ static func moves_list() -> Array:
 			[Gesture.Kind.RIGHT, "MOVE_STEP"], [Gesture.Kind.TAP, "MOVE_THROW"]]
 
 
-## Music or sounds on and off, read at a glance on the tile itself, on or off alike: on, a gold tile and its
-## icon (notes, a speaker with its waves), its lamp lit green with "ON"; off, a greyed stone tile, the icon
-## dimmed and struck through (a speaker with a cross, or the notes struck by a red bar), its lamp dark with
-## "OFF". Its name under it. A tap flips it, the tile popping.
+## Music or sounds on and off, read at a glance on the tile itself (UI r23, the judges of j19: r22's lamps "tiny dark
+## pills" under two tiles of three, "the row uneven": show it on the button, lit vs dark): on, the tile lit, gold like
+## Controls beside it, its icon bright (notes, a speaker with its waves); off, the tile unlit, dark, its icon dimmed and
+## struck through (a speaker with a cross, or the notes struck by a red bar). Its name under it, as every tile's. A tap
+## flips it, the tile popping.
 class SoundSwitch extends VBoxContainer:
 	var _option: StringName
 	var _icon_name := ""
@@ -149,7 +149,7 @@ class SoundSwitch extends VBoxContainer:
 		_option = option
 		_icon_name = icon_name
 		_off_icon = off_icon
-		add_theme_constant_override(&"separation", 10 + roundi(PausePanel.LAMP.y * 0.5))  # (the lamp hangs under the tile)
+		add_theme_constant_override(&"separation", CAPTION_GAP)
 		_holder = Control.new()
 		_holder.custom_minimum_size = Vector2(TILE, TILE)
 		_holder.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -157,11 +157,15 @@ class SoundSwitch extends VBoxContainer:
 		add_child(PausePanel._caption(caption))
 		_fill(false)
 
+	## Whether the tile is lit (the option on).
+	func lit() -> bool:
+		return Save.get(_option)
+
 	## The tile for the option's state; `flipped`: it was just tapped (a little pop).
 	func _fill(flipped: bool) -> void:
 		for c in _holder.get_children():
 			c.queue_free()
-		var on: bool = Save.get(_option)
+		var on := lit()
 		var icon_name := _icon_name if on or _off_icon.is_empty() else _off_icon
 		var b := Ui.icon_button(icon_name, Ui.Tone.GOLD if on else Ui.Tone.STONE, TILE, 30.0)
 		b.size = _holder.custom_minimum_size
@@ -171,58 +175,15 @@ class SoundSwitch extends VBoxContainer:
 			_fill(true))
 		_holder.add_child(b)
 		if not on:
-			b.content.self_modulate.a = 0.7
+			b.content.self_modulate = Color(0.6, 0.58, 0.56)  # the icon dimmed on the unlit tile (its red bar not)
 			if _off_icon.is_empty():  # no off icon: struck through, a dark-edged red bar
 				var slash := _Slash.new()
 				slash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 				b.content.add_child(slash)
-		var lamp := Lamp.new(on)  # its state in words, set in the tile's foot (it sinks and pops with it)
-		lamp.position = Vector2((TILE - LAMP.x) / 2.0, TILE - LAMP.y * 0.5 - 2.0)
-		b.add_child(lamp)
 		if flipped and Prefs.motion():
 			b.pivot_offset = b.size / 2
 			b.create_tween().tween_property(b, "scale", Vector2.ONE, 0.25).from(Vector2.ONE * 0.9) \
 					.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-
-
-## An on/off lamp: a small plate of dark leather in an ink line, a glass bead at its left (on: lit green, a
-## glow round it and a glint; off: dark, unlit) and the word beside it (on: "ON" in cream; off: "OFF" in
-## grey), so the state reads in words as well as in colour.
-class Lamp extends Control:
-	var on := true
-	var _word := ""
-
-	func _init(is_on: bool) -> void:
-		on = is_on
-		_word = TranslationServer.translate("STATE_ON" if on else "STATE_OFF").to_upper()
-		custom_minimum_size = PausePanel.LAMP
-		size = custom_minimum_size
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-	func _draw() -> void:
-		var ci := get_canvas_item()
-		var r := Rect2(Vector2.ZERO, size)
-		var rad := size.y / 2.0
-		GlossStyle.fill_rounded(ci, Rect2(r.position + Vector2(0, 3), r.size), rad, Color(0.1, 0.03, 0.0, 0.35), Color(0.1, 0.03, 0.0, 0.35))
-		GlossStyle.fill_rounded(ci, r, rad, Card.INK, Card.INK)
-		GlossStyle.fill_rounded(ci, r.grow(-2.5), rad - 2.5, Color("4a2614") if on else Color("3c3632"), Color("26120a") if on else Color("221e1c"))
-		var bead := Vector2(rad + 1.0, rad)
-		if on:  # lit: a green glow, the bead, its glint
-			GlossStyle.fill_disc(ci, bead, rad * 0.78, Color(0.45, 1.0, 0.35, 0.25))
-			GlossStyle.fill_disc(ci, bead, rad * 0.52, Color("0e2a06"))
-			GlossStyle.fill_disc(ci, bead, rad * 0.44, Color("5ee03a"))
-			GlossStyle.fill_disc(ci, bead + Vector2(0, rad * 0.08), rad * 0.3, Color("b8ff8a"))
-			GlossStyle.fill_disc(ci, bead + Vector2(-rad * 0.14, -rad * 0.16), rad * 0.12, Color(1, 1, 1, 0.9))
-		else:  # dark glass, unlit
-			GlossStyle.fill_disc(ci, bead, rad * 0.52, Color("141210"))
-			GlossStyle.fill_disc(ci, bead, rad * 0.42, Color("5a5550"))
-			GlossStyle.fill_disc(ci, bead + Vector2(-rad * 0.12, -rad * 0.14), rad * 0.1, Color(1, 1, 1, 0.3))
-		var font: Font = Ui.font_display
-		var px := 19
-		var w := font.get_string_size(_word, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
-		var left := rad * 2.0
-		var at := Vector2(left + (size.x - left - rad * 0.55 - w) / 2.0, size.y / 2.0 + px * 0.36)
-		draw_string(font, at, _word, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color("fff3d0") if on else Color("a8a098"))
 
 
 ## A red bar struck across the icon it is in (drawn square in the middle of it: a BoldIcon on a coloured

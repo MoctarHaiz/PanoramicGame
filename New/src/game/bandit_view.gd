@@ -33,8 +33,8 @@ const STAR_RISE := 30.0  ## units the dazed stars circle above the middle of its
 ## (round 19) The characters' one line and light system (character.gdshaderinc, as Panoramic's): the same warm
 ## brown ink and dusk shade, and the bandits graded down (their hues kept: the user's design) so he stays the
 ## hottest, clearest shape on screen ("the cyan-haired bandits are the most saturated shapes, they read as the stars").
-const SATURATION := 0.5
-const VALUE := 0.85
+const SATURATION := 1.0  ## (round 23: the grade is the dark core's below)
+const VALUE := 1.0
 const SHADE := 0.2
 ## (round 21, the judges: "the bandits read first: as big as him, higher, darker on the sky") their sizes are the user's;
 ## pushed back in value instead, towards the sky's haze (round 22, the judges: "now lighter, bigger and more detailed
@@ -42,8 +42,25 @@ const SHADE := 0.2
 ## the muted plum of the rocks' shaded faces; SATURATION, VALUE above lower), their values pulled together (half the
 ## contrast, the whites of their shirts down to the shade's), so they sit back as figures in the shade and he, the one
 ## lit with a warm key, leads. (Tried: the darker shade (0.3, 0.23, 0.31) at 0.42 drew them as dark cut-outs on the sky.)
-const HAZE := 0.5
+## (round 23, the judges, j19: "ghosted, semi-transparent, a disabled state: plum-grey at the sky's value") a dark core
+## instead (bandit.gdshader): their values pulled down well under the sky's and the mesas' (CORE_VALUE), their colours
+## muted (CORE_SAT), their form and ink kept (solid figures, not black cut-outs), a breath of the scene's shade (HAZE),
+## and one costume accent of each kind kept in colour (ACCENT: its head-wrap); the silhouette's ink of Panoramic's
+## weight on screen (HeroView.SIL_IN, SIL_OUT at this sheet's scale). Panoramic stays the most saturated, highest-contrast.
+const HAZE := 0.08
 const RECEDE := Color(0.4, 0.31, 0.38)
+const CORE_SAT := 0.5
+const CORE_VALUE := 0.55
+const CORE_TINT := Color(1.1, 0.95, 0.86)  ## (the grey they are muted towards: a warm umber, skin not ash)
+const CORE_FLOOR := 0.05  ## their darkest value: their black trousers keep their folds over the ink (not a cut-out)
+const INK := Color(0.075, 0.04, 0.035)  ## their silhouette's ink: darker than Panoramic's brown, under their dark core
+## kind -> [its hues (degrees from, to, least saturation, least value), its brightest, where round its head (sheet px:
+## left, top, right, bottom), its saturation and value x as drawn]: the bandit's indigo wrap, the strong one's rust wrap
+## (its skin, the same hue, is brighter and less saturated; its crimson cape redder)
+const ACCENT := {
+	&"bandit": [Vector4(205.0, 268.0, 0.18, 0.18), 1.0, Vector4(-75.0, -95.0, 95.0, 8.0), 1.4, 1.12],
+	&"bandit_strong": [Vector4(6.0, 34.0, 0.58, 0.22), 0.8, Vector4(-80.0, -70.0, 70.0, 8.0), 1.1, 1.02],
+}
 const SHADOW_WIDTH := 84.0  ## units across its shadow on the ground (Panoramic's: 100)
 const SHADOW_SHIFT := 8.0  ## its shadow falls a little right of it, away from the sun (upper left), as his does
 
@@ -121,6 +138,21 @@ func _init(w: World, b: World.Bandit) -> void:
 	_material.set_shader_parameter(&"shade_amount", SHADE)
 	_material.set_shader_parameter(&"haze_amount", HAZE)
 	_material.set_shader_parameter(&"haze", RECEDE)
+	_material.set_shader_parameter(&"core_sat", CORE_SAT)
+	_material.set_shader_parameter(&"core_value", CORE_VALUE)
+	_material.set_shader_parameter(&"core_tint", CORE_TINT)
+	_material.set_shader_parameter(&"core_floor", CORE_FLOOR)
+	var acc: Array = ACCENT[kind]
+	_material.set_shader_parameter(&"accent_hue", acc[0])
+	_material.set_shader_parameter(&"accent_vmax", acc[1])
+	_material.set_shader_parameter(&"accent_box", acc[2])
+	_material.set_shader_parameter(&"accent_sat", acc[3])
+	_material.set_shader_parameter(&"accent_value", acc[4])
+	# the silhouette's ink as wide on screen as Panoramic's (his atlas texel over this sheet's)
+	var texel := float(HeroView.frames_data().units_per_px) * float(_d.texture_scale)
+	_material.set_shader_parameter(&"sil_colour", INK)
+	_material.set_shader_parameter(&"sil_in_px", HeroView.SIL_IN * texel)
+	_material.set_shader_parameter(&"sil_out_px", HeroView.SIL_OUT * texel)
 	_sprite.material = _material
 	add_child(_sprite)
 	_front = Node2D.new()
@@ -287,9 +319,13 @@ func _show(index: int) -> void:
 	var f: Array = _d.frames[index]
 	_sprite.region_rect = Rect2(f[0], f[1], f[2], f[3])
 	_sprite.offset = -Vector2(f[4], f[5])
-	if _ko:  # the disappearance turns this frame about its own middle (bandit.gdshader)
-		var size := Vector2(_tex.get_width(), _tex.get_height())
-		_material.set_shader_parameter(&"region", Vector4(f[0] / size.x, f[1] / size.y, f[2] / size.x, f[3] / size.y))
+	# (round 23) its frame (the ink's samples kept in it; the disappearance turns it about its own middle) and its head
+	# (where its accent is)
+	var size := Vector2(_tex.get_width(), _tex.get_height())
+	_material.set_shader_parameter(&"region", Vector4(f[0] / size.x, f[1] / size.y, f[2] / size.x, f[3] / size.y))
+	var head: Array = _d.head[index]
+	_material.set_shader_parameter(&"head", Vector2(head[0], head[1]))
+	if _ko:
 		_material.set_shader_parameter(&"aspect", float(f[2]) / float(f[3]))
 
 

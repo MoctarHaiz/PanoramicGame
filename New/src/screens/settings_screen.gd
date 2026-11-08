@@ -1,30 +1,28 @@
 extends Screen
-## Settings, in the game's own kit, over his savanna (the key art right of him: UI r21, the judges of
-## j17: "the blurred hero peeking above the panel reads as a layering mistake"), dimmed: a framed panel
-## with its ribbon, its back and info buttons set in its frame's top corners as medallions of the same
-## wood and gold (r20's cream buttons "bolted on"), floating with margins all round. Inside, few frames
-## (UI r22, the judges of j18: r21's "web form, three cards of rows, small labels, arbitrary header colours"):
-## titled groups straight on the panel's hide, each title in dark ink after a short bar in the one accent
-## colour (the beadwork's oxblood), its rows under it split by fine lines, big names (phone size), each
-## row's icon a bold glyph in the kit's orange with a dark outline (no tile round it); the columns split by
-## a beadwork divider (a fine rule with a beaded diamond in its middle), grouped so they end level (no empty
-## band), each as wide as its rows need. Three columns on a wide screen: Sound and feel (music and sounds
-## volumes, vibration), Game (language, screen shake, reduced motion), Help (replay the tutorial, rate,
-## privacy, credits); two on a narrower one: Sound and Effects, Game and Help; and More (the ad choices and
-## purchases) where they apply. A small medallion of his head set in the frame's foot (a little of the
-## game, no clutter). Every row is a thumb-sized target. Credits (About, the fonts and icons, the studio,
-## the version) open over it.
+## Settings, in the game's own kit, over his savanna (the key art, lightly blurred and dimmed): a framed panel
+## with its ribbon, its back and info buttons set in its frame's top corners as medallions of the same wood and
+## gold, floating with margins all round. Inside, laid out as a phone game's settings (UI r23, the judges of j19:
+## r22's "three dense columns and nine rows in one wide, short panel: a desktop preferences dialog"): two clear
+## columns of three big rows each, Sound and feel (music and sounds volumes, vibration) and Game (language,
+## screen shake, reduced motion), each row a thumb-sized target with its name big, its icon a chunky filled tile
+## (j19: "thin orange-brown outline glyphs": a white glyph in a dark stroke on a lacquered tile) and its control
+## big (long sliders with no "100 %" beside them, j19: "redundant"; switches that say ON and OFF); under them,
+## the help as three chunky gold buttons along the panel's foot (the tutorial again, rate, privacy), and the
+## ad choices and purchases beside them where they apply. One brown family and one accent (j19: "allow one
+## accent"): the turquoise of the menu's PLAY, on the icon tiles, the switches when on and the bar before
+## each column's title. No medallion of his head in the frame's foot (j19: "coin-sized and dark"). The
+## credits (About, the fonts and icons, the studio, the version) open over it from the info button.
 
-const ROW_H := 100.0  ## height of a row (the whole row takes the touch)
+const ROW_H := 92.0  ## height of a row (the whole row takes the touch)
 const BUTTON := 70.0  ## the back and info medallions on the frame's top corners
-const COLUMN_W := 290.0  ## a column's narrowest: each is as wide as its longest row (no gap after the names)
-const LABEL := 36  ## a row's name (phone size)
-const ICON := 44.0  ## a row's glyph
-const ICON_FILL := Color("f0841c")  ## the rows' glyphs: the kit's orange in a dark outline
-const ACCENT := Color("a8321a")  ## the one accent colour: the beadwork's oxblood, before every group's title
-const MEDALLION := 74.0  ## his head's medallion on the frame's foot
+const COLUMN_W := 470.0  ## each of the two columns (each as wide as its longest row needs, at least this)
+const COLUMN_GAP := 60.0  ## between the two columns
+const LABEL := 38  ## a row's name (phone size)
+const TILE := 62.0  ## a row's icon tile
+const HELP_H := 82.0  ## the help buttons along the foot
+const ACCENT := Ui.Tone.TEAL  ## the one accent (the menu's PLAY)
 const INK := Color("4a1e04")
-const HEAD_INK := Color("5a1a04")  ## the section titles: the rows' ink, darker still (they lead)
+const HEAD_INK := Color("5a1a04")  ## the columns' titles: the rows' ink, darker still (they lead)
 const BACKDROP := "res://assets/art/ui/menu_keyart_soft.png"  ## the menu's key art at 1/4 (tools/art/ui_keyart_soft.py)
 
 var _credits: Control
@@ -46,92 +44,75 @@ func _build() -> void:
 	var page := Control.new()
 	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	area.add_child(page)
-	var card := Card.new(Vector4(50, 70, 50, 52))  # (the back and info buttons sit on its top corners: no header row)
+	var card := Card.new(Vector4(54, 66, 54, 48))  # (the back and info buttons sit on its top corners: no header row)
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override(&"separation", 28)
+	card.add_child(body)
 	var columns := HBoxContainer.new()
-	columns.add_theme_constant_override(&"separation", 18)
-	card.add_child(columns)
-	# the rows are grouped so the columns end level (no empty block): on a wide screen three columns (big
-	# text, room to breathe) of three rows, the credits behind the info button in the header; on a narrower
-	# one two columns of five. One accent colour for every group's title.
-	var view := get_viewport().get_visible_rect().size
-	var wide := view.x >= view.y * 1.7
+	columns.add_theme_constant_override(&"separation", int(COLUMN_GAP))
+	body.add_child(columns)
 	var music := _slider_row("music-notes-fill", tr("MUSIC"), &"music_volume", &"music_on")
 	var sounds := _slider_row("speaker-high-fill", tr("SOUNDS"), &"sounds_volume", &"sounds_on")
+	var names: Array[Label] = [music.get_child(1) as Label, sounds.get_child(1) as Label]  # the two sliders start level
+	var name_w := 0.0
+	for l in names:
+		name_w = maxf(name_w, (Ui.font_title as Font).get_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL).x + 4.0)
+	for l in names:
+		l.custom_minimum_size.x = name_w
 	var vibration := _toggle_row("vibrate-fill", tr("VIBRATION"), &"vibration_on")
+	var language := _button_row("language-fill", tr("LANGUAGE"), tr("LANGUAGE_NAME"), _switch_language)
 	var shake := _toggle_row("screen-shake", tr("SCREEN_SHAKE"), &"screen_shake")
 	var calm := _toggle_row("gauge-low", tr("REDUCE_MOTION"), &"reduce_motion")
-	var language := _button_row("language-fill", tr("LANGUAGE"), tr("LANGUAGE_NAME"), _switch_language)
-	var tutorial := _button_row("hand-pointing-fill", tr("REPLAY_TUTORIAL"), "", _replay_tutorial)
-	var help: Array = [_button_row("star-fill", tr("RATE"), "", Config.open_store_review),
-			_button_row("shield-check-fill", tr("PRIVACY_POLICY"), "", Config.open_privacy_policy)]
-	if not wide:  # (a wide screen has the info button in the header)
-		help.append(_button_row("info-fill", tr("CREDITS_BUTTON"), "", _show_credits))
-	var layout: Array  # columns of groups
-	if wide:
-		layout = [[_group("speaker-high-fill", tr("SOUND_AND_FEEL"), Ui.Tone.AMBER, [music, sounds, vibration])],
-				[_group("play-fill", tr("GENERAL"), Ui.Tone.SUNSET, [language, shake, calm])],
-				[_group("question-fill", tr("HELP"), Ui.Tone.BLUE, [tutorial] + help)]]  # (the "i" is the credits' alone)
-	else:
-		layout = [[_group("speaker-high-fill", tr("SOUND_GROUP"), Ui.Tone.AMBER, [music, sounds]),
-				_group("sparkle-fill", tr("FEEL"), Ui.Tone.CRIMSON, [vibration, shake, calm])],
-				[_group("play-fill", tr("GENERAL"), Ui.Tone.SUNSET, [language, tutorial]),
-				_group("question-fill", tr("HELP"), Ui.Tone.BLUE, help)]]  # (red is the effects' here)
-	var more: Array = []  # the ad choices and the purchases, where they apply: under the first column
+	columns.add_child(_group(tr("SOUND_AND_FEEL"), [music, sounds, vibration]))
+	columns.add_child(_group(tr("GENERAL"), [language, shake, calm]))
+	# the help along the foot: big chunky buttons, three a line, as wide as the columns together; the ad choices
+	# and the purchases with them where they apply
+	var help := [_help_button("hand-pointing-fill", tr("REPLAY_TUTORIAL"), _replay_tutorial),
+			_help_button("star-fill", tr("RATE"), Config.open_store_review),
+			_help_button("shield-check-fill", tr("PRIVACY_POLICY"), Config.open_privacy_policy)]
 	if Services.ads.privacy_options_required():
-		more.append(_button_row("megaphone-fill", tr("AD_PRIVACY"), "", Services.ads.show_privacy_options))
+		help.append(_help_button("megaphone-fill", tr("AD_PRIVACY"), Services.ads.show_privacy_options))
 	if Services.store.enabled():
 		if not Save.ads_removed:
-			more.append(_button_row("prohibit-fill", tr("REMOVE_ADS"), Services.store.price(), Services.store.buy_remove_ads))
-		more.append(_button_row("arrows-clockwise-bold", tr("RESTORE_PURCHASES"), "", Services.store.restore))
-	if not more.is_empty():
-		layout[0].append(_group("star-four-fill", tr("MORE"), Ui.Tone.BLUE, more))
-	for i in layout.size():
-		if i > 0:  # a beadwork divider between two columns
-			columns.add_child(_Divider.new())
-		var col := _column()
-		for g: Control in layout[i]:
-			col.add_child(g)
-		columns.add_child(col)
+			help.append(_help_button("prohibit-fill", tr("REMOVE_ADS") + "  " + Services.store.price(), Services.store.buy_remove_ads))
+		help.append(_help_button("arrows-clockwise-bold", tr("RESTORE_PURCHASES"), Services.store.restore))
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.add_theme_constant_override(&"h_separation", 24)
+	grid.add_theme_constant_override(&"v_separation", 18)
+	for b: Control in help:
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		grid.add_child(b)
+	body.add_child(grid)
 	var banner := Banner.new(tr("SETTINGS"), Ui.Tone.SUNSET, 48)
-	card.top_clear = banner.custom_minimum_size.x
 	page.add_child(card)
 	page.add_child(banner)
-	var medallion := _Medallion.new()  # his head, set in the frame's foot
-	page.add_child(medallion)
 	var back_button := Ui.frame_button("arrow-left-bold", BUTTON)  # set in the frame's corner
 	back_button.pressed.connect(back)
 	page.add_child(back_button)
-	var info: JuicyButton = null  # the credits, at the header's other end (a wide screen: three rows a column)
-	if wide:
-		info = Ui.frame_button("info-bold", BUTTON)  # the back button's twin: a plain "i" as its arrow
-		info.pressed.connect(_show_credits)
-		page.add_child(info)
+	var info := Ui.frame_button("info-bold", BUTTON)  # the credits: the back button's twin, a plain "i" as its arrow
+	info.pressed.connect(_show_credits)
+	page.add_child(info)
 	var place := func() -> void:
 		var room := page.size
 		var top := banner.custom_minimum_size.y * 0.5
 		card.size = card.get_combined_minimum_size()
-		var slot := 0.0  # the back button is inside the panel now
 		# side margins; never more than 84 % of the width (round 20, the judges: "a desktop dialog"): his key art
 		# shows round it
 		var k := minf(1.0, minf(minf(room.x - 70.0, room.x * 0.84) / card.size.x, (room.y - top - 30.0) / card.size.y))
 		card.scale = Vector2.ONE * k
 		var w := card.size.x * k
-		var left_x := maxf((room.x - w) / 2, slot)
+		var left_x := (room.x - w) / 2
 		card.position = Vector2(left_x, top + (room.y - top - card.size.y * k) / 2)
 		banner.size = banner.custom_minimum_size
 		banner.position = Vector2(left_x + w / 2 - banner.size.x / 2, card.position.y - top)
-		back_button.custom_minimum_size = Vector2(BUTTON, BUTTON) * k  # the panel's scale (its touch stays 86+)
-		back_button.size = back_button.custom_minimum_size
-		# centred on the frame's top corners, where its beadwork's corner diamonds are: medallions of the
-		# frame (the groups start right under the ribbon: a header row of their own left a dead band)
+		# the medallions centred on the frame's top corners (the panel's scale: their touch stays 86+)
 		var corner := card.radius - (card.radius - card.frame_w * 0.5) * 0.7071
+		for b: JuicyButton in [back_button, info]:
+			b.custom_minimum_size = Vector2(BUTTON, BUTTON) * k
+			b.size = b.custom_minimum_size
 		back_button.position = card.position + Vector2(corner, corner) * k - back_button.size / 2
-		if info:  # the same on the top right corner
-			info.custom_minimum_size = back_button.custom_minimum_size
-			info.size = info.custom_minimum_size
-			info.position = card.position + Vector2(card.size.x - corner, corner) * k - info.size / 2
-		medallion.size = Vector2(MEDALLION, MEDALLION) * k  # in the middle of the frame's foot
-		medallion.position = card.position + Vector2(card.size.x * 0.5, card.size.y - card.frame_w * 0.5) * k - medallion.size / 2
+		info.position = card.position + Vector2(card.size.x - corner, corner) * k - info.size / 2
 	page.resized.connect(place)
 	card.resized.connect(place)
 	place.call_deferred()
@@ -150,42 +131,34 @@ func _backdrop() -> TextureRect:
 	var m := ShaderMaterial.new()
 	m.shader = preload("res://src/ui/soft_blur.gdshader")
 	var g := {"tame": 0.3, "shadow_tint": Color("160c2a"), "mid_tint": Color("5c2e4e"), "light_tint": Color("f2b47e"),
-			"duo": 0.24, "exposure": 0.8, "glow_colour": Color(1.0, 0.7, 0.42, 0.12), "glow_size": 1.0,
-			"glow_at": Vector2(0.5, 0.52), "vignette_colour": Color("0a0414"), "vignette": 0.55}
+			"duo": 0.24, "exposure": 0.72, "glow_colour": Color(1.0, 0.7, 0.42, 0.12), "glow_size": 1.0,
+			"glow_at": Vector2(0.5, 0.52), "vignette_colour": Color("0a0414"), "vignette": 0.6}
 	for key: String in g:
 		m.set_shader_parameter(StringName(key), g[key])
 	art.material = m
 	return art
 
 
-func _column(width := COLUMN_W) -> VBoxContainer:
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override(&"separation", 22)  # air between the groups
-	col.custom_minimum_size.x = width
-	return col
-
-
-## A group straight on the panel's hide (UI r22, the judges of j18: r21's sunken cards of rows "a web form"):
-## a clean section title, a short bar in the one accent colour (ACCENT, every group alike: j18 "arbitrary
-## header colours"), the title in dark ink, a faint rule to the column's edge; then its rows, a fine line
-## between two rows.
-func _group(_icon_name: String, title: String, _tone: Ui.Tone, rows: Array) -> VBoxContainer:
+## A column: its title (a short bar in the accent, the title in dark ink, a faint rule to the column's edge),
+## then its rows, a fine line between two rows.
+func _group(title: String, rows: Array) -> VBoxContainer:
 	var g := VBoxContainer.new()
-	g.add_theme_constant_override(&"separation", 6)
+	g.add_theme_constant_override(&"separation", 4)
+	g.custom_minimum_size.x = COLUMN_W
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override(&"separation", 12)
 	var accent := Panel.new()  # the one accent: a short rounded bar
 	var bar := StyleBoxFlat.new()
-	bar.bg_color = ACCENT
+	bar.bg_color = Ui.tone_colours(ACCENT).bottom as Color
 	bar.set_corner_radius_all(4)
 	bar.anti_aliasing = true
 	accent.add_theme_stylebox_override(&"panel", bar)
-	accent.custom_minimum_size = Vector2(8, 30)
+	accent.custom_minimum_size = Vector2(9, 32)
 	accent.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	accent.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	head.add_child(accent)
-	head.add_child(Ui.label(title, 32, HEAD_INK, Ui.title_font(700, 1), HORIZONTAL_ALIGNMENT_LEFT))
-	var rule := ColorRect.new()  # a faint rule to the column's edge
+	head.add_child(Ui.label(title, 34, HEAD_INK, Ui.title_font(700, 1), HORIZONTAL_ALIGNMENT_LEFT))
+	var rule := ColorRect.new()
 	rule.color = Color(0.45, 0.24, 0.08, 0.22)
 	rule.custom_minimum_size = Vector2(0, 2)
 	rule.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -193,30 +166,26 @@ func _group(_icon_name: String, title: String, _tone: Ui.Tone, rows: Array) -> V
 	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	head.add_child(rule)
 	g.add_child(head)
-	var list := VBoxContainer.new()
-	list.add_theme_constant_override(&"separation", 0)
 	for i in rows.size():
 		if i > 0:
 			var line := ColorRect.new()
 			line.color = Color(0.55, 0.32, 0.12, 0.18)
 			line.custom_minimum_size = Vector2(0, 2)
 			line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			list.add_child(line)
-		var row: Control = rows[i]
-		list.add_child(row)
-	g.add_child(list)
+			g.add_child(line)
+		g.add_child(rows[i])
 	return g
 
 
-## A row: its icon (a bold glyph in the kit's orange, a dark outline: no tile round it), its name, and `right`.
+## A row: its icon (a chunky filled tile in the accent, a white glyph in a dark stroke), its name, and `right`.
 func _row(icon_name: String, text: String, right: Control) -> Control:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override(&"separation", 14)
+	row.add_theme_constant_override(&"separation", 18)
 	row.custom_minimum_size.y = ROW_H
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var glyph := Ui.bold_icon(icon_name, ICON, ICON_FILL, Color("4a1a04"))
-	glyph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.add_child(glyph)
+	var tile := IconTile.new(icon_name, TILE, ACCENT)
+	tile.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(tile)
 	var l := Ui.label(text, LABEL, INK, Ui.font_title, HORIZONTAL_ALIGNMENT_LEFT)
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL  # (on one line: the column takes its width, in every language)
 	row.add_child(l)
@@ -244,7 +213,7 @@ func _toggle_row(icon_name: String, text: String, option: StringName) -> Control
 func _slider_row(icon_name: String, text: String, option: StringName, switch_option: StringName) -> Control:
 	var on: bool = Save.get(switch_option)
 	var slider := VolumeSlider.new(Save.get(option) if on else 0.0)
-	slider.custom_minimum_size.x = 236  # (UI r21: "thin short sliders") a long groove
+	slider.custom_minimum_size = Vector2(230, 62)  # a long, thick groove
 	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL  # the slider takes the room, not a gap after the name
 	slider.changed.connect(func(v: float) -> void:
 		if v > 0.0:  # at 0 the volume before stays, for when it is turned up again
@@ -258,6 +227,8 @@ func _slider_row(icon_name: String, text: String, option: StringName, switch_opt
 	return row
 
 
+## A row that opens something or steps through values (the language): its value in the accent's dark ink, a
+## chevron after it.
 func _button_row(icon_name: String, text: String, value: String, action: Callable) -> Control:
 	var b := Button.new()
 	b.focus_mode = Control.FOCUS_NONE
@@ -266,9 +237,10 @@ func _button_row(icon_name: String, text: String, value: String, action: Callabl
 	var right := HBoxContainer.new()
 	right.add_theme_constant_override(&"separation", 6)
 	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var deep: Color = Ui.tone_colours(ACCENT).edge
 	if not value.is_empty():
-		right.add_child(Ui.label(value, 26, Color("b43c16"), Ui.font_title))
-	right.add_child(Ui.bold_icon("caret-right-bold", 26, ICON_FILL, Color("5a2408")))
+		right.add_child(Ui.label(value, 32, deep, Ui.font_title))
+	right.add_child(Ui.bold_icon("caret-right-bold", 28, Ui.tone_colours(ACCENT).bottom, Ui.tone_colours(ACCENT).outline))
 	var row := _row(icon_name, text, right)
 	b.add_child(row)
 	var fit := func() -> void: b.custom_minimum_size = row.get_combined_minimum_size()  # its row's whole width (its
@@ -285,6 +257,13 @@ func _button_row(icon_name: String, text: String, value: String, action: Callabl
 		Audio.play_sfx(&"button")
 		Haptics.tap()
 		action.call())
+	return b
+
+
+## A help button along the panel's foot: the kit's chunky gold candy, its icon and its name.
+func _help_button(icon_name: String, text: String, action: Callable) -> JuicyButton:
+	var b := Ui.candy_button(text, icon_name, Ui.Tone.GOLD, int(HELP_H), 32)
+	b.pressed.connect(action)
 	return b
 
 
@@ -377,49 +356,28 @@ func back() -> void:
 		Nav.go(&"menu")
 
 
-## Between two columns, a beadwork divider: a fine rule cut into the hide (dark, lit beside it), fading at
-## both ends, with the frame's beaded diamond (Card.MOTIFS) in its middle.
-class _Divider extends Control:
-	const SIDE := 30.0  ## the diamond's box
+## A row's icon: a chunky candy tile in a tone (the kit's outlined, bevelled shape, lit across its top), a white
+## glyph in a dark stroke with its depth on it (the kit's display icons), not a thin coloured glyph.
+class IconTile extends Control:
+	var _style: GlossStyle
+	var _glyph: BoldIcon
 
-	func _init() -> void:
-		custom_minimum_size = Vector2(SIDE, 0)
-		size_flags_vertical = Control.SIZE_FILL
+	func _init(icon_name: String, side: float, tone: Ui.Tone) -> void:
+		custom_minimum_size = Vector2(side, side)
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var c := Ui.tone_colours(tone)
+		_style = Ui.candy_style(tone, side * 0.28, false, roundf(side * 0.09))
+		_style.shadow.shadow_size = 6
+		_style.shadow.shadow_offset = Vector2(0, 4)
+		_glyph = Ui.bold_icon(icon_name, side * 0.56, Ui.WHITE, c.outline)
+		add_child(_glyph)
+		resized.connect(_place)
+
+	func _place() -> void:
+		var face := _style.face_rect(Rect2(Vector2.ZERO, size))
+		_glyph.size = _glyph.custom_minimum_size
+		_glyph.position = face.get_center() - _glyph.size / 2
+		queue_redraw()
 
 	func _draw() -> void:
-		var x := size.x * 0.5
-		var mid := size.y * 0.5
-		for half: float in [-1.0, 1.0]:  # each half of the rule, from the diamond out, fading to its end
-			var a := Vector2(x, mid + half * SIDE * 0.42)
-			var b := Vector2(x, mid + half * (size.y * 0.5 - 6.0))
-			draw_polyline_colors(PackedVector2Array([a, b]), PackedColorArray([Color(0.4, 0.18, 0.05, 0.4), Color(0.4, 0.18, 0.05, 0.0)]), 2.0, true)
-			draw_polyline_colors(PackedVector2Array([a + Vector2(2, 0), b + Vector2(2, 0)]),
-					PackedColorArray([Color(1, 0.96, 0.85, 0.45), Color(1, 0.96, 0.85, 0.0)]), 1.5, true)
-		var src := Card.CORNER
-		draw_texture_rect_region(Card.MOTIFS, Rect2(Vector2(x, mid) - Vector2(SIDE, SIDE) * 0.5, Vector2(SIDE, SIDE)), src)
-
-
-## A small medallion of his head set in the frame's foot: a ring of the frame's gold in an ink line, his
-## portrait (the HUD's) in it, a soft light across its top.
-class _Medallion extends Control:
-	const HEAD := preload("res://assets/art/ui/head.png")
-
-	func _init() -> void:
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
-		resized.connect(queue_redraw)
-
-	func _draw() -> void:
-		var ci := get_canvas_item()
-		var c := size / 2
-		var r := minf(size.x, size.y) / 2
-		if r < 4.0:
-			return
-		GlossStyle.fill_disc(ci, c + Vector2(0, r * 0.12), r, Color(0.1, 0.02, 0.0, 0.45))  # its shadow on the frame
-		GlossStyle.fill_disc(ci, c, r, Card.INK)
-		GlossStyle.fill_disc(ci, c, r - 2.5, Card.TRIM_BOTTOM)
-		GlossStyle.fill_disc(ci, c - Vector2(0, r * 0.04), r - 4.5, Card.TRIM_TOP)
-		GlossStyle.fill_disc(ci, c, r * 0.8, Card.INK)
-		var face := r * 0.8 - 1.5
-		draw_texture_rect(HEAD, Rect2(c - Vector2(face, face), Vector2(face, face) * 2.0), false)
-		GlossStyle.fill_disc(ci, c + Vector2(-r * 0.3, -r * 0.62), r * 0.14, Color(1, 1, 0.92, 0.7), Vector2(1.6, 0.6), -0.5)  # a glint on the ring
+		draw_style_box(_style, Rect2(Vector2.ZERO, size))

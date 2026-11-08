@@ -1,6 +1,6 @@
 class_name ToggleSwitch
 extends Control
-## An on/off switch in the interface's candy style: an outlined track sunk into the panel, green with
+## An on/off switch in the interface's candy style: an outlined track sunk into the panel, teal (the one accent) with
 ## "ON" in white when on, a dark grey with "OFF" in pale grey when off (the state reads in words, not only
 ## in colour: UI r22, the judges of j18: "low-contrast off toggles"), and a candy knob that slides over with
 ## a spring: cream in a gold ring when on, greyed when off.
@@ -57,7 +57,7 @@ func _set_knob(v: float) -> void:
 
 func _draw() -> void:
 	var k := clampf(_knob, 0, 1)
-	var green := Ui.tone_colours(Ui.Tone.GREEN)
+	var green := Ui.tone_colours(Ui.Tone.TEAL)  # (UI r23) on: the screens' one cool accent
 	var r := size.y / 2
 	var ow := 4.0
 	var rect := Rect2(Vector2.ZERO, size)
@@ -78,7 +78,7 @@ func _draw() -> void:
 	var free := size.x - r * 2.0  # the track beside the knob
 	var cx := (free + ow) * 0.5 if k > 0.5 else r * 2.0 + (free - ow) * 0.5
 	var at := Vector2(cx - ww * 0.5, r + px * 0.36)
-	draw_string_outline(font, at, word, HORIZONTAL_ALIGNMENT_LEFT, -1, px, 5, Color("1f3c0e") if k > 0.5 else Color("2a2420"))
+	draw_string_outline(font, at, word, HORIZONTAL_ALIGNMENT_LEFT, -1, px, 5, Color("032236") if k > 0.5 else Color("2a2420"))
 	draw_string(font, at, word, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color.WHITE if k > 0.5 else Color("ddd6ce"))
 	# the knob: a candy ball in a ring, its shadow under it: cream in a gold ring when on, a greyed ball in a
 	# grey ring when off (it reads switched off at a glance)

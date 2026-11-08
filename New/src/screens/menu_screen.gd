@@ -5,14 +5,15 @@ extends Screen
 ## embers streaming out of his launch along the leap (_embers); on the right one clean column with even
 ## gutters, clear of his hand: the CHAKA ZULU logo (gold lettering locked up with a Zulu shield and
 ## crossed assegais), its subtitle on a ribbon across the shield's foot, and under it, with no board round
-## them (UI r22, the judges of j18: r21's board "stacks five borders" and its "stock glossy green pill" read
-## as casual UI pasted on the gritty key art): one hero button, PLAY in the world's materials (polished
-## bronze, an engraved line, an emerald set in it with the play sign: Ui.bronze_button), and one frame,
-## the best run on a slim plate of dark glass with a gold line (the Red Bob, "BEST" over the count, the
-## three stars, the ones still to win pale grey); a deeper shade on the sky behind the column; the
-## settings on a round button of the panels' carved wood in a gold ring, anchored in the top left corner
-## of the screen (j18: "floating near his boot"), clear of his ring (the top right one where his ring
-## reaches that corner). Everything arrives in a short
+## them (UI r22, the judges of j18: r21's board "stacks five borders"): one hero button, PLAY (UI r23, the
+## judges of j19: r22's bronze "a wooden plaque, not the call to action", the menu "one warm temperature"): a
+## lacquered turquoise slab in a gold bezel, the one cool, saturated thing on the warm canyon, with a crisp
+## highlight and a strong drop shadow, the emerald play gem set in it (Ui.cta_button), and one frame, the best
+## run on a slim plate of dark glass with a gold line (the Red Bob, "BEST" over the count, the three stars, the
+## ones still to win dark gold-edged sockets); the subtitle's ribbon, PLAY and the plate exactly as wide (j19:
+## "three different widths, ragged"); a deeper shade on the sky behind the column; the settings on a round
+## button of the panels' carved wood in a gold ring, anchored in the top right corner of the screen, in the
+## sky over the title (j19: the top left one "collides with the chakram's top blade"). Everything arrives in a short
 ## choreography: the logo drops and bounces, the ribbon unrolls, PLAY pops, the rest fades in. Then the
 ## logo catches the light now and then and PLAY breathes.
 
@@ -21,16 +22,17 @@ const TAIL_TRIM := 8  ## px cut off each end of the ribbon's tails (its notch is
 const LOGO := "res://assets/art/ui/logo.png"  ## loaded with the menu (a preload held it all run long)
 const KEYART := "res://assets/art/ui/menu_keyart.png"  ## the painted title key art (hero + scene in one picture)
 ## Where things are in the key art, as shares of its size: the tip of his gauntleted hand (the title
-## column keeps clear of it), the left edge of his ring (never pushed off the screen), and the dust
-## cloud of his launch (the embers come out of it).
+## column keeps clear of it), the left edge of his ring (never pushed off the screen: a tablet shifts the
+## picture left), and the dust cloud of his launch (the embers come out of it).
 const HAND_U := 0.548
 const RING_U := 0.17
 const DUST := Rect2(0.0, 0.6, 0.24, 0.38)
 const COLUMN_W := 480.0  ## the title column's width (PLAY and the best run)
-const PLAY_W := 412.0  ## PLAY's width (the best run's plate is as wide)
-const PLAY_H := 116.0
+const PLAY_W := 440.0  ## PLAY's width: the subtitle's ribbon and the best run's plate exactly as wide (one edge)
+const PLAY_H := 122.0
 const GUTTER := 28.0  ## between his hand and the column, and between the column and the screen's edge
 const GEAR := 84.0  ## the settings button's side
+const LETTERS_U := 0.22  ## where the logo's lettering starts under its spears, a share of its height
 
 var _backdrop: SunsetBackdrop  # only when the key art is missing
 var _art: TextureRect
@@ -102,7 +104,7 @@ func enter(_data: Dictionary) -> void:
 		shine.set_shader_parameter(&"offset", 1.2)
 		_logo.material = shine
 	_logo_box.add_child(_logo)
-	_ribbon = ribbon(tr("MENU_SUBTITLE"), 29)
+	_ribbon = ribbon(tr("MENU_SUBTITLE"), 29, PLAY_W)
 	_ribbon_fit = Control.new()
 	_ribbon_fit.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ribbon_fit.add_child(_ribbon)
@@ -124,7 +126,7 @@ func enter(_data: Dictionary) -> void:
 	_play_pop = Control.new()
 	_play_pop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_play_box.add_child(_play_pop)
-	_play = Ui.bronze_button(tr("PLAY"), PLAY_H, 62)
+	_play = Ui.cta_button(tr("PLAY"), PLAY_H, 64)
 	_play.pressed.connect(func() -> void: Nav.go(&"game", {}, _play.get_global_rect().get_center()))
 	_play.idle(0.06)
 	_play.shine(3.2, 0)  # the sweep only: lens-flare glints read as stock
@@ -157,12 +159,12 @@ func _gear_button() -> JuicyButton:
 	return Ui.frame_button("gear-chunky", GEAR)
 
 
-## The best run on a slim plate of dark glass with a gold line, as wide as PLAY: the Red Bob, "BEST" over
-## the count, and at its right end the three stars (the ones still to win pale grey). Compact.
+## The best run on a slim plate of dark glass with a gold line, exactly as wide as PLAY: the Red Bob, "BEST" over
+## the count, and at its right end the three stars (the ones still to win dark gold-edged sockets). Compact.
 func _best_strip() -> Card:
 	var strip := Card.new(Vector4(16, 8, 20, 8), true)
 	strip.radius = 24.0
-	strip.custom_minimum_size.x = PLAY_W - 24.0
+	strip.custom_minimum_size.x = PLAY_W
 	strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override(&"separation", 12)
@@ -195,16 +197,21 @@ func _best_strip() -> Card:
 
 
 ## The subtitle on the beadwork ribbon (its folded ends stay their size: 9-sliced; trimmed a little:
-## round 11's tails were oversized).
-static func ribbon(text: String, font_size: int) -> Control:
+## round 11's tails were oversized). `width` (UI r23, the judges of j19: "the subtitle ribbon, Play and the
+## BEST panel are three different widths"): the ribbon exactly that wide, tail tip to tail tip, its words a
+## little smaller if they need to be to fit between its tails.
+static func ribbon(text: String, font_size: int, width := 0.0) -> Control:
 	var holder := Control.new()
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var label := Ui.display_text(text, font_size, Ui.WHITE, Color("5a0c04"), Color("ffe2c6"))
 	label.depth = 2.0
 	label.shadow = Color(0, 0, 0, 0)
 	label.refresh()
+	while width > 0.0 and label.get_combined_minimum_size().x + font_size * 2.5 * 1.45 > width and font_size > 18:
+		font_size -= 1
+		label.font_size = font_size
 	var h := font_size * 2.5
-	var w := label.get_combined_minimum_size().x + h * 2.0
+	var w := width if width > 0.0 else label.get_combined_minimum_size().x + h * 2.0
 	var k := h / RIBBON.get_height()
 	var band := NinePatchRect.new()
 	band.texture = RIBBON
@@ -354,38 +361,50 @@ func _layout() -> void:
 	_board.size = Vector2(PLAY_W, _board.get_combined_minimum_size().y)
 	_board.scale = Vector2(_fit, _fit)
 	_board_fit.custom_minimum_size = _board.size * _fit
-	# the settings anchored in a corner of the screen (UI r22, the judges of j18: "the gear floats by his
-	# boot"): the top left one, in the sky clear of his raised ring (round 20: "the gear collides with the
-	# chakram"); where his ring reaches that corner (a tablet, a 16:9 phone), the top right one, the column
-	# under it
-	var ring_left := _art.position.x + RING_U * _art.size.x if _art else v.x
-	var gear_left := insets.x + 22.0 + GEAR + 16.0 <= ring_left
+	# the settings anchored in the top right corner of the screen (UI r23, the judges of j19: in the top left one
+	# "the gear collides with the chakram's top blade"): in the sky over the title, clear of all of his art; the
+	# logo's lettering keeps under it (only its spears rise beside it)
 	_gear.size = _gear.custom_minimum_size
-	_gear.position = Vector2(insets.x + 22.0 if gear_left else v.x - insets.z - 22.0 - GEAR, insets.y + 18.0)
+	_gear.position = Vector2(v.x - insets.z - 22.0 - GEAR, insets.y + 16.0)
+	var gear_foot := _gear.position.y + GEAR + 26.0
 	# the logo takes the height left
-	var top := insets.y + 18.0 + (0.0 if gear_left else GEAR + 10.0)
+	var top := insets.y + 18.0
 	var bottom := v.y - Device.bottom_with_banner() - Device.ad_gap() - 18.0
 	var rest := _board.size.y * _fit + 18.0
-	var rk := minf(1.0, (w + GUTTER) / _ribbon.size.x)  # the ribbon a little wider than the column: its tails out
+	var rk := minf(1.0, PLAY_W * _fit / _ribbon.size.x)  # the ribbon exactly as wide as PLAY
 	_ribbon_fit.scale = Vector2(rk, rk)
 	var ribbon_size := _ribbon.size * rk
+	var centre_x := col_left + col_w / 2.0
 	var logo_h := clampf(bottom - top - rest - ribbon_size.y * 0.55, 150.0, 330.0)
-	var logo_w := logo_h * _logo_tex.get_width() / _logo_tex.get_height()
-	if logo_w > w * 1.02:
-		logo_w = w * 1.02
-		logo_h = logo_w * _logo_tex.get_height() / _logo_tex.get_width()
+	var logo_w := 0.0
+	var y := top
+	for i in 4:  # (pushed down under the gear, shrunk if it then runs off the bottom)
+		logo_w = logo_h * _logo_tex.get_width() / _logo_tex.get_height()
+		if logo_w > w * 1.02:
+			logo_w = w * 1.02
+			logo_h = logo_w * _logo_tex.get_height() / _logo_tex.get_width()
+		var h := logo_h + ribbon_size.y * 0.45 + rest
+		y = top + (bottom - top - h) / 2.0
+		if centre_x + logo_w * 0.5 < _gear.position.x - 8.0:
+			break
+		var clear := gear_foot - (y + logo_h * LETTERS_U)
+		if clear <= 0.0:
+			break
+		if y + clear + h <= bottom:
+			y += clear
+			break
+		logo_h = maxf(logo_h - (y + clear + h - bottom), 150.0)
 	var box_w := maxf(logo_w, ribbon_size.x)
 	_logo_box.custom_minimum_size = Vector2(box_w, logo_h + ribbon_size.y * 0.45)
 	_logo.size = Vector2(logo_w, logo_h)
 	_logo.position = Vector2((box_w - logo_w) / 2, 0)
 	_logo.pivot_offset = _logo.size / 2
 	_ribbon_fit.position = Vector2((box_w - ribbon_size.x) / 2, logo_h - ribbon_size.y * 0.55)  # across the shield's foot
-	var centre_x := col_left + col_w / 2.0
 	_column.size = Vector2(box_w, 0)
 	_column.reset_size()
-	var h := _column.get_combined_minimum_size().y
-	_column.size = Vector2(maxf(box_w, w), h)
-	_column.position = Vector2(centre_x - _column.size.x / 2, top + (bottom - top - h) / 2)
+	var col_h := _column.get_combined_minimum_size().y
+	_column.size = Vector2(maxf(box_w, w), col_h)
+	_column.position = Vector2(centre_x - _column.size.x / 2, y)
 
 
 ## The entrance, played as the transition opens.

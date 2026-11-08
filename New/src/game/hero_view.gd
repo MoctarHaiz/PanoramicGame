@@ -31,6 +31,24 @@ const MANTLE := 0.16  ## seconds standing up after a climb over a ledge
 const BLINK_HZ := 8.0  ## the mercy pulse after a hit (smooth, not a strobe)
 const VINE_Y := 6.0  ## where his hands grip the vine
 const GRIP_UP := 14.0  ## atlas px from his wrists up to his grip
+## (round 23, the judges: "his hand sits on top of the vine: he seems to float under it") hanging, the middle of his two
+## fists (hero_frames.json "fists": tools/art/hero_contacts.py) on the rope's middle line (VineView's spans: their top
+## and a quarter of the rope's rows), the vine through his fists: its front, the lower part of the rope as VineView
+## draws it there, drawn again over his fingers (_over), his knuckles over its top
+const ROPE_MID := VineView.Y + VineView.ROPE_PX * 0.25
+const FRONT_FROM := 0.56  ## share of the rope's thickness from its top where its front over his fingers starts
+const WRIST_PX := 14.0  ## atlas px from his fists' middle down to his wrists: above them his fists are kept level
+const WRIST_BLEND := 10.0  ## atlas px round his wrists over which they bend
+const FIST_HALF := 6.5  ## units from a fist's middle to its sides
+const FRONT_FADE := 3.0  ## units the front fades out past them (into the same rope drawn behind)
+## (round 23, the judges: "a floating dark oval under him: contact occlusion, not an oval") in play, under each sole
+## (hero_frames.json "soles") a soft occlusion as dark as the sole is near the ground, gone by SOLE_FADE units up; the
+## broad soft shadow under him kept faint (SHADOW_PLAY on the ground, SHADOW_AIR in the air: where he will land)
+const SOLE_FADE := 14.0
+const STANCE_UP := 7.0  ## units a planted far boot of a three-quarter stance is drawn above the near one's ground
+const SOLE_DARK := 0.6
+const SHADOW_PLAY := 0.22
+const SHADOW_AIR := 0.6
 const WIN_LOOP := 10  ## the cheer at home loops from this frame
 const WIN_POSE := 3  ## the win's frame where the landing crouch springs into the victory pose (hero_atlas_ai.py)
 const JUMP_RISE := [2, 9]  ## jump frames of the rise (vertical speed -JUMP_SPEED .. -TOP)
@@ -60,7 +78,7 @@ const LIGHT_GAIN := 1.18  ## his lit colours x this in play (actor.gdshader ligh
 ## (round 19) the characters' one line and light system (character.gdshaderinc, shared with BanditView)
 const LINE := Color(0.17, 0.085, 0.06)  ## his ink: a dark warm brown, not black
 const LINE_INSIDE := 0.55  ## the brown lines inside him (the muscles' grooves, folds) softened towards the colours round them
-const SHADE := 0.14  ## his shade tinted towards the dusk's cool ambient
+const SHADE := 0.22  ## his shade tinted towards the dusk's cool ambient (round 23: 0.14 -> 0.22, "lit his own neutral way")
 ## (round 20, the judges: "a sticker: lit flat from the front while the scenes are back- and side-lit") the form: the
 ## half of him away from the sun (upper left) in a soft cool shade, deepest along the edges turning away from it
 ## (character.gdshaderinc char_form()); no rim, no glow on the lit side (the user)
@@ -76,6 +94,15 @@ const KEY := 0.9  ## the warm key on the sun's side (0: none)
 const KEY_HOME := 0.4  ## at home the fire's own warmth is on that side (bounce)
 const HAIR_LIFT := 0.45  ## (round 21) at home the top of his hair a little lighter, clear of the dark doorway (no rim)
 const VINE_INK_PX := 0.9  ## atlas px of ink added at the vine: hero_atlas.py's 3.2 x (1 / 0.78 - 1), the vine framing's zoom
+## (round 23, the judges: "dark skin and black ink over dark grass: a dark smudge; thin uniform ink: want a thicker outer
+## silhouette line") the silhouette's ink, heavier than the lines inside him (character.gdshaderinc sil_*): atlas texels
+## of his own edge drawn in it and round his outside (about 3.5 px on a 1179 px screen with the drawn line; the
+## bandits' the same on screen)
+const SIL_IN := 1.4
+const SIL_OUT := 2.1
+const SKIN_LIFT := 0.2  ## his skin's middle values lighter (character.gdshaderinc char_skin)
+const FORM_SPLIT := Vector2(-0.12, 0.42)  ## (round 23) a cleaner split between his lit and shade halves (was -0.35 .. 0.75)
+const SHADE_COLOUR := Color(0.8, 0.77, 0.98)  ## (round 23) his shadow tones a little towards the dusk's ambient
 const WALK_IN := 70.0  ## units he walks into the doorway at home
 const DIE_PUSH := 40.0  ## units the fatal blow knocks him back
 const DIE_MIN_X := 70.0  ## play x he is never drawn left of when caught (the death stays on screen)
@@ -149,7 +176,12 @@ var _world: World
 var _visible := 1.0
 var _vine_ink := 0.0  # 0..1: the extra ink while the camera frames the vine
 var _home := 0.0  # 0..1: at home (his shadow there a soft occlusion under his stride: SHADOW_HOME)
+var _lift := 0.0  # (round 23) 0..1: his feet lifted HOME_LIFT of the sink (at home, on his marks): his shadow with them
+var _stand := 0.0  # (round 23) 0..1: standing on his marks (his feet lifted), eased
 var _mid := 0.0  # units from his anchor to the middle of the frame shown (his stride's middle at home)
+var _over: Node2D  # (round 23) the vine's front over his fingers, drawn over him by a node of his parent
+var _fist_px: Array[Vector2] = []  # hanging: his fists' middles (the frame's px from his anchor)
+var _sole_px: Array[Vector3] = []  # each sole: its two ends' x and its y (the frame's px from his anchor)
 
 
 static func frames_data() -> Dictionary:
@@ -197,6 +229,12 @@ func _init() -> void:
 	_material.set_shader_parameter(&"form_px", FORM_PX)
 	_material.set_shader_parameter(&"form_reach", FORM_REACH)
 	_material.set_shader_parameter(&"key_amount", KEY)
+	_material.set_shader_parameter(&"sil_colour", LINE)  # (round 23) the silhouette's ink, his skin, the light's split
+	_material.set_shader_parameter(&"sil_in_px", SIL_IN)
+	_material.set_shader_parameter(&"sil_out_px", SIL_OUT)
+	_material.set_shader_parameter(&"skin_lift", SKIN_LIFT)
+	_material.set_shader_parameter(&"form_split", FORM_SPLIT)
+	_material.set_shader_parameter(&"shade_colour", SHADE_COLOUR)
 	# (round 12, "top runners light the hero brightest on screen") his lit side raised in the level's light
 	_material.set_shader_parameter(&"light_gain", LIGHT_GAIN)
 	_sprite.material = _material
@@ -211,11 +249,22 @@ func _ready() -> void:
 	_under.draw.connect(_draw_under)
 	get_parent().add_child.call_deferred(_under)
 	get_parent().move_child.call_deferred(_under, get_index())
+	_over = Node2D.new()
+	_over.draw.connect(_draw_over)
+	_add_over.call_deferred()
+
+
+## (round 23) The node over him (the vine's front over his fingers): the next child of his parent after him.
+func _add_over() -> void:
+	get_parent().add_child(_over)
+	get_parent().move_child(_over, get_index() + 1)
 
 
 func _exit_tree() -> void:
 	if is_instance_valid(_under):
 		_under.queue_free()
+	if is_instance_valid(_over):
+		_over.queue_free()
 
 
 func landed() -> void:
@@ -297,6 +346,7 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 	var tilt := 0.0
 	var sink := 0.0  # 0..1: how far he has gone under a pool's surface
 	var duck := 1.0  # under a low roof: drawn this much shorter (at home: his breath)
+	var stand_lift := 0.0  # (round 23) 1: standing on his marks, lifted as at home (HOME_LIFT)
 	var air_y := p.y + _hips_dy  # where his hips are drawn in the air
 	var phase := w.move_phase()  # gameplay's hooks: what he is doing and since when
 	var t := w.phase_time()
@@ -349,6 +399,9 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 		&"idle":  # on his marks: standing, breathing
 			anim = &"idle"
 			index = int(_clock * float(frames_data().anims.idle.fps)) % frames(&"idle").size()
+			# (round 23) standing, his back boot's toe reached under the grass's front edge (a blue scrap under the
+			# ground, its new ink round it): he stands as at home, HOME_LIFT of the sink higher (eased: _stand)
+			stand_lift = 1.0
 		&"hang":  # the last of the catch, then hanging by his hands
 			anchor = Anchor.HANDS
 			if t < 0.1:
@@ -424,6 +477,10 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 				tilt -= 0.17 * (1.0 - (_hurt_time - HURT_TIME) / STUMBLE)
 			if anim == &"run" and _over_edge(w, p):  # held by the back of his box: leaning off the edge
 				tilt = 0.08
+	# (round 23) on his marks, lifted (eased off as he runs; at once on the first frame)
+	_stand = stand_lift if _anim == &"" else lerpf(_stand, stand_lift, 1.0 - exp(-dt * 10.0))
+	offset.y -= GameArt.FEET_SINK * HOME_LIFT * _stand
+	stand_lift = _stand
 	# under the tunnel's roof he ducks (his picture is taller than his box)
 	if w.state == World.State.RUNNING and not w.hanging:
 		var roof := w.ceiling_above(p.x, p.y - World.HERO_SIZE.y / 2, w.draw_scroll())
@@ -453,10 +510,24 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 			anchor_px = Vector2(f.hips[0], f.hips[1])
 			position = Vector2(p.x, air_y)
 		Anchor.HANDS:
-			grip = Vector2((float(f.hand_r[0]) + float(f.hand_l[0])) / 2.0, minf(f.hand_r[1], f.hand_l[1]) - GRIP_UP)
+			var grip_y := VINE_Y
+			if f.has("fists") and (f.fists as Array).size() == 2:  # (round 23) his fists' middle on the rope's middle
+				grip = (Vector2(f.fists[0][0], f.fists[0][1]) + Vector2(f.fists[1][0], f.fists[1][1])) / 2.0
+				grip_y = ROPE_MID
+			else:
+				grip = Vector2((float(f.hand_r[0]) + float(f.hand_l[0])) / 2.0, minf(f.hand_r[1], f.hand_l[1]) - GRIP_UP)
 			anchor_px = grip
 			# his hips over his box
-			position = Vector2(p.x + (grip.x - float(f.hips[0])) * _units, VINE_Y)
+			position = Vector2(p.x + (grip.x - float(f.hips[0])) * _units, grip_y)
+	# (round 23) his fists on the vine (the strand over his fingers) and his soles (their contact on the ground)
+	_fist_px.clear()
+	if anchor == Anchor.HANDS and f.has("fists"):
+		for q: Array in f.fists:
+			_fist_px.append(Vector2(q[0], q[1]) - anchor_px)
+	_sole_px.clear()
+	if f.has("soles"):
+		for s: Array in f.soles:
+			_sole_px.append(Vector3(float(s[0]) - anchor_px.x, float(s[1]) - anchor_px.x, float(s[2]) - anchor_px.y))
 	# hanging: a pendulum from his hands, pushed back by the wind of the run; (round 22) kept swinging: the catch's
 	# momentum spent down to SWING_AMP, then pumped to it (its energy measured as the amplitude it would reach)
 	var swing_end := 0.0  # 0..1: how near the end of a swing he is
@@ -504,9 +575,17 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 	var bend_up := LEAN_CHEST * _lean
 	var bend_down := _legs
 	var bent := absf(bend_up) + absf(bend_down) > 0.001
-	var m := BEND_MARGIN if bent else 0.0
+	# (round 23) hanging, his fists turned back against his swing (above his wrists): level on the vine, his body
+	# swinging from them
+	var gripped := not _fist_px.is_empty()
+	var m := BEND_MARGIN if bent or gripped else 0.0
 	_sprite.region_rect = Rect2(float(region[0]) - m, float(region[1]) - m, float(region[2]) + 2.0 * m, float(region[3]) + 2.0 * m)
 	_sprite.offset = -anchor_px - Vector2(m, m)
+	_material.set_shader_parameter(&"grip_on", gripped)
+	if gripped:
+		_material.set_shader_parameter(&"grip_pivot", Vector2(0.0, WRIST_PX))
+		_material.set_shader_parameter(&"grip_turn", -rotation)
+		_material.set_shader_parameter(&"grip_blend", WRIST_BLEND)
 	_material.set_shader_parameter(&"bend_on", bent)
 	if bent:
 		_material.set_shader_parameter(&"bend_pivot", Vector2(f.hips[0], f.hips[1]) - anchor_px)
@@ -533,7 +612,7 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 		_material.set_shader_parameter(&"amount", 0.32 if flicker else 0.0)
 		_material.set_shader_parameter(&"tint", Color(1.0, 0.45, 0.35))
 	_material.set_shader_parameter(&"opacity", visible_k)
-	_material.set_shader_parameter(&"outline_opacity", visible_k * 0.9)  # (his white wraps against the pale sky)
+	_material.set_shader_parameter(&"outline_opacity", visible_k)  # (round 23: the silhouette's ink solid)
 	# round 10 ("hanging from the vine he is pale, nearly vanishes into the sky"): the camera pulls out to frame
 	# the vine (about 0.8 of the run's zoom) and his baked ink thins on screen with him; the shader adds ink
 	# outside it so its weight on screen stays the run's
@@ -547,6 +626,7 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 	_material.set_shader_parameter(&"key_amount", lerpf(KEY, KEY_HOME, home_k))
 	_material.set_shader_parameter(&"hair_lift", HAIR_LIFT * home_k)
 	_home = home_k
+	_lift = maxf(home_k, stand_lift)
 	# (round 19, the user: no rim light on him; the judges: "backlit by the door into a halo") no back rim at home
 	_material.set_shader_parameter(&"back_rim", 0.0)
 	# (round 14: round 13's darker front "merged with the dark doorway": his front light kept at home)
@@ -554,6 +634,8 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 	_update_shadow(w, p)
 	if is_instance_valid(_under):
 		_under.queue_redraw()
+	if is_instance_valid(_over):
+		_over.queue_redraw()
 
 
 ## Hanging: the swing's middle, pushed back by the wind of the run (none while a wall holds him).
@@ -588,7 +670,7 @@ func _update_shadow(w: World, p: Vector2) -> void:
 	var feet := p.y + World.HERO_SIZE.y / 2
 	for r in range(maxi(floori((feet - 8.0) / Level.TILE), 0), Level.ROWS):
 		if w.level.kind_at(col, r) == Level.Kind.TOP:
-			var ground := r * Level.TILE + GameArt.FEET_SINK * (1.0 - HOME_LIFT * _home) - 3.0
+			var ground := r * Level.TILE + GameArt.FEET_SINK * (1.0 - HOME_LIFT * _lift) - 3.0
 			_shadow = Vector2(p.x, ground)
 			_shadow.x = p.x + _wall_shift + lerpf(SHADOW_SHIFT, _mid + SHADOW_HOME_SHIFT, _home) \
 					+ (_death.x if w.state == World.State.DEAD else 0.0)
@@ -599,10 +681,100 @@ func _update_shadow(w: World, p: Vector2) -> void:
 func _draw_under() -> void:
 	if _shadow.x < 0.0:
 		return
-	# (round 20, the judges: "a yellow bloom smudge at his feet at home instead of a dark contact shadow") at home, in the
-	# fire's light on the ground, his shadow under his stride; (round 21: "a hard black hole") soft, its core no longer black
+	# (round 23) each sole's contact: where it is (his transform as drawn: the vine's sag, the squash), as dark as it is
+	# near the ground
+	var feet := _shadow.y + 3.0
+	var t := transform
+	var lowest := INF  # units his lowest sole is above the ground
+	# standing in a three-quarter stance (on his marks, the victory, the crouch) his far boot is drawn higher on the
+	# picture and still planted: its contact under it, where it stands; in the run's side view the ground is one line
+	var stance := _anim in [&"idle", &"win", &"crouch"]
+	for s in _sole_px:
+		var a := t * Vector2(s.x, s.z)
+		var b := t * Vector2(s.y, s.z)
+		var h := feet - maxf(a.y, b.y)
+		lowest = minf(lowest, h)
+		var k := 1.0 - smoothstep(STANCE_UP if stance else 0.0, SOLE_FADE, h)
+		if k <= 0.0:
+			continue
+		var at := Vector2((a.x + b.x) * 0.5, minf(maxf(a.y, b.y), feet) - 1.5 if stance else feet - 1.5)
+		var half := absf(b.x - a.x) * 0.5 + 3.0
+		_under.draw_set_transform(at, 0.0, Vector2(1.0, 0.26))
+		var r := half * 1.9 * (1.0 + 0.4 * (1.0 - k))
+		_under.draw_texture_rect(_blob(), Rect2(-r, -r, r * 2.0, r * 2.0), false, Color(SHADOW, k * 0.45 * _visible))
+		_under.draw_set_transform(at, 0.0, Vector2(1.0, 0.24))
+		r = half * 1.15
+		_under.draw_texture_rect(_blob(), Rect2(-r, -r, r * 2.0, r * 2.0), false,
+				Color(CONTACT, k * k * SOLE_DARK * _visible * lerpf(1.0, CONTACT_HOME, _home)))
+	_under.draw_set_transform(Vector2.ZERO)
+	# the broad soft shadow under him: (round 23) in play faint while he stands on the ground (the soles' contacts ground
+	# him), a drop shadow when he is in the air; (round 20, the judges: "a yellow bloom smudge at his feet at home instead
+	# of a dark contact shadow") at home, in the fire's light on the ground, his shadow under his stride; (round 21: "a hard
+	# black hole") soft, its core no longer black
+	var air := smoothstep(4.0, 30.0, lowest) if lowest < INF else 1.0
+	var broad := lerpf(lerpf(SHADOW_PLAY, SHADOW_AIR, air), SHADOW_HOME.y, _home)
 	contact_shadow(_under, _shadow, SHADOW_WIDTH * lerpf(1.0, SHADOW_HOME.x, _home), _shadow_k,
-			_visible * lerpf(1.0, SHADOW_HOME.y, _home), _shadow_w, lerpf(1.0, CONTACT_HOME, _home))
+			_visible * broad, _shadow_w, CONTACT_HOME * _home)
+
+
+## (round 23) The vine through his fists: over each, the front of the rope (its lower part, from FRONT_FROM of its
+## thickness down, with the ink under it) drawn again as VineView draws it there (its span's picture, thickness and
+## sag, read from it), fading out past the fist into the same rope behind him; his knuckles show over it.
+func _draw_over() -> void:
+	var vine := _find_vine()
+	if _fist_px.is_empty() or _visible <= 0.0 or vine == null:
+		return
+	var t := transform
+	var tex := VineView.TEXTURE
+	var th := float(tex.get_height())
+	var vh := th / float(VineView.VARIANTS)
+	var rows := VineView.ROPE_PX - 5.0  # (the rows of each span's picture VineView draws as the rope)
+	var solid := Color(1, 1, 1, _visible)
+	var clear := Color(1, 1, 1, 0)
+	var ink := Color(VineView.INK, _visible)
+	var ink_clear := Color(VineView.INK, 0)
+	for q in _fist_px:
+		var wrist := Vector2(0.0, WRIST_PX)
+		var x := (t * (wrist + (q - wrist).rotated(-rotation))).x  # (where the shader draws it: kept level)
+		var i := vine._span_at(x + vine.scroll)
+		var rope_h := VineView.ROPE_H * (0.82 + 0.36 * VineView._rand(i * 19 + 2))
+		var v := posmod(i * 7 + (i >> 2) * 3, VineView.VARIANTS)
+		var mirrored := posmod(i * 5 + (i >> 1), 3) == 0
+		var left := vine._knot_x(i) - vine.scroll
+		var length := vine._knot_x(i + 1) - vine._knot_x(i)
+		var v0 := (v * vh + rows * FRONT_FROM) / th
+		var v1 := (v * vh + rows) / th
+		var xs := [x - FIST_HALF - FRONT_FADE, x - FIST_HALF, x + FIST_HALF, x + FIST_HALF + FRONT_FADE]
+		for k in 3:
+			var xa: float = xs[k]
+			var xb: float = xs[k + 1]
+			var ya := VineView.Y + vine._drawn_sag(xa) - (rope_h - VineView.ROPE_PX * 0.5) * 0.5
+			var yb := VineView.Y + vine._drawn_sag(xb) - (rope_h - VineView.ROPE_PX * 0.5) * 0.5
+			var ua := (xa - left) / length
+			var ub := (xb - left) / length
+			if mirrored:
+				ua = 1.0 - ua
+				ub = 1.0 - ub
+			var ca := solid if k > 0 else clear
+			var cb := solid if k < 2 else clear
+			# the ink under the rope (VineView's: 1.3 units below it), then the rope's front over his fingers
+			_over.draw_polygon(PackedVector2Array([Vector2(xa, ya + rope_h), Vector2(xb, yb + rope_h),
+					Vector2(xb, yb + rope_h + 1.3), Vector2(xa, ya + rope_h + 1.3)]),
+					PackedColorArray([ink if k > 0 else ink_clear, ink if k < 2 else ink_clear, ink if k < 2 else ink_clear,
+					ink if k > 0 else ink_clear]))
+			_over.draw_polygon(PackedVector2Array([Vector2(xa, ya + rope_h * FRONT_FROM), Vector2(xb, yb + rope_h * FRONT_FROM),
+					Vector2(xb, yb + rope_h), Vector2(xa, ya + rope_h)]), PackedColorArray([ca, cb, cb, ca]),
+					PackedVector2Array([Vector2(ua, v0), Vector2(ub, v0), Vector2(ub, v1), Vector2(ua, v1)]), tex)
+
+
+var _vine: VineView
+
+
+## (round 23) The vine he hangs from (WorldView's "Vine", beside his parent): drawn again over his fists.
+func _find_vine() -> VineView:
+	if not is_instance_valid(_vine) and get_parent() and get_parent().get_parent():
+		_vine = get_parent().get_parent().get_node_or_null(^"Vine") as VineView
+	return _vine
 
 
 ## (round 19) Every character's shadow on the ground (Panoramic's, the bandits'): one soft blob, darkest under the

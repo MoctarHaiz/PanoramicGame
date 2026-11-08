@@ -6,13 +6,12 @@ extends Control
 ## blocks, one draw call; no screen-sized copy kept) and graded (_grade): the frozen scene dimmed but
 ## recognisable (round 20, the judges: "a blurred purple-brown smear, a dirty screen"), its own colours
 ## nudged into one mood, a soft light behind the card, closed corners, so the scene steps back and the
-## panel owns the screen: a warm dusk for the pause, the place where he fell cool and drained for a
-## defeat, the home at a cool blue dusk for a win (the warm hero and the gold card stand out on it). A
-## Card in the middle of the safe area, its title on a ribbon over its top edge; a character (`art`) at
-## its left, overlapping its edge, standing on his own contact shadow on the scene's ground lit where he
-## stands (UI r21, the judges of j17: "the hero floats, no ground or contact shadow"; UI r22, the judges of
-## j18: r21's round dais "a hockey puck"): a patch of earth in a soft spotlight, a few tufts of dry grass at
-## its edges (_Dais); the group is centred. The card pops in opaque (0.7 -> 1.06 -> 1,
+## panel owns the screen: a deep warm dusk for the pause, the place where he fell cool, soft and still
+## coloured for a defeat, the home flooded with warm golden light for a win, soft rays turning behind him
+## and the card (UI r23, the judges of j19). A Card in the middle of the safe area, its title on a ribbon
+## over its top edge; a character (`art`) at its left, standing on his own contact occlusion on a patch of
+## ground drawn under him and lit (UI r23, the judges of j19: r22's "dim spotlight oval with a grass tuft on
+## each side, a stage prop"; _Dais); the group is centred. The card pops in opaque (0.7 -> 1.06 -> 1,
 ## a back-ease), the ribbon drops in after it, the character slides in; never a see-through crossfade.
 
 const SOFT_BLUR := preload("res://src/ui/soft_blur.gdshader")
@@ -79,9 +78,9 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 	veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	back.add_child(veil)
 	if rays:  # a radiance behind the card: soft shafts of light turning (hard-edged rays read as
-		# wallpaper stripes) in a warm light blooming, close round the card only (round 20, the judges: "all
-		# orange, the hero melts into the backdrop": he stands in the cool dusk beside it)
-		_rays = Rays.new(1600, Color(1, 0.86, 0.5, 0.16), 22, true)
+		# wallpaper stripes) in a warm light blooming behind him and the card (UI r23, the judges of j19: "flood
+		# it with warm light: a radial glow or rays behind the panel and hero")
+		_rays = Rays.new(1600, Color(1, 0.84, 0.48, 0.3), 22, true)
 		_rays.material = Fx.additive()
 		add_child(_rays)
 		if Prefs.motion():
@@ -90,13 +89,13 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 		_halo.texture = Fx.glow_texture()
 		_halo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		_halo.material = Fx.additive()
-		_halo.modulate = Color(1, 0.74, 0.36, 0.42)
+		_halo.modulate = Color(1, 0.76, 0.4, 0.5)
 		_halo.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(_halo)
 		if Prefs.motion():  # it breathes
 			var t := _halo.create_tween().set_loops()
-			t.tween_property(_halo, "modulate:a", 0.52, 1.6).set_trans(Tween.TRANS_SINE)
-			t.tween_property(_halo, "modulate:a", 0.34, 1.6).set_trans(Tween.TRANS_SINE)
+			t.tween_property(_halo, "modulate:a", 0.6, 1.6).set_trans(Tween.TRANS_SINE)
+			t.tween_property(_halo, "modulate:a", 0.42, 1.6).set_trans(Tween.TRANS_SINE)
 	_pop = Control.new()  # placed by hand in the safe area (_place): what the entrance animates
 	_pop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_pop)
@@ -105,7 +104,6 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 	card.add_child(body)
 	banner = Banner.new(title, tone, 54)
 	banner.size = banner.custom_minimum_size
-	card.top_clear = banner.size.x  # no motif block under it
 	_top = banner.size.y * 0.55
 	_min_w = maxf(banner.size.x + 60.0, 600.0)
 	art = character
@@ -143,26 +141,28 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 	_place()
 
 
-## The scrim's grade per mood (soft_blur.gdshader): the frozen scene dimmed but still readable (round 20, the
-## judges: "a blurred purple-brown smear, a dirty screen"; the game over "a cold grey void"), its own colours
-## mostly kept, nudged into one mood, a soft light behind the card, closed corners. The pause: a warm dusk;
-## a defeat: the place where he fell, drained and cool; a win: the home at a cool blue dusk, darker, so
-## the warm hero and the gold card stand out on it (no all-orange), a warm light behind the card only.
+## The scrim's grade per mood (soft_blur.gdshader): the frozen scene softened, its own colours nudged into one
+## mood, a soft light behind the card, closed corners (UI r23, the judges of j19):
+## - a win: flooded with warm light ("a gloomy navy-purple blur on a WIN"): the home in a bright golden haze,
+##   a warm light blooming behind him and the card, warm corners;
+## - a defeat: the place where he fell, still coloured and lit ("a desaturated grey-blue mud") but softer and
+##   cooler, a cool light behind the group and a deep vignette;
+## - the pause: dimmed well down ("still bright and muddy"), a warm dusk, so the panel lifts off it.
 func _grade(m: ShaderMaterial) -> void:
 	var g: Dictionary
 	match _mood:
 		&"loss":
-			g = {"grey": 0.35, "shadow_tint": Color("0a0c1c"), "mid_tint": Color("343c5e"), "light_tint": Color("a6aecb"),
-					"duo": 0.5, "exposure": 0.74, "glow_colour": Color(0.62, 0.68, 0.95, 0.1), "glow_size": 1.0,
-					"vignette_colour": Color("04050c"), "vignette": 0.75}
+			g = {"grey": 0.05, "tame": 0.25, "shadow_tint": Color("0a1230"), "mid_tint": Color("3c5490"), "light_tint": Color("b8ccf2"),
+					"duo": 0.5, "exposure": 0.84, "glow_colour": Color(0.5, 0.66, 1.0, 0.2), "glow_size": 0.95,
+					"vignette_colour": Color("02030c"), "vignette": 0.9}
 		&"win":
-			g = {"tame": 0.45, "shadow_tint": Color("090a24"), "mid_tint": Color("2c3466"), "light_tint": Color("d9b494"),
-					"duo": 0.68, "exposure": 0.76, "glow_colour": Color(1.0, 0.7, 0.34, 0.26), "glow_size": 0.75,
-					"vignette_colour": Color("05061a"), "vignette": 0.72}
-		_:  # (UI r21, the judges of j17: "a murky dark background") the scene readable in a warm dusk tint
-			g = {"tame": 0.3, "shadow_tint": Color("2a1a2c"), "mid_tint": Color("8a5a56"), "light_tint": Color("ffd8b0"),
-					"duo": 0.14, "exposure": 1.0, "glow_colour": Color(1.0, 0.74, 0.46, 0.08), "glow_size": 1.0,
-					"vignette_colour": Color("140a1e"), "vignette": 0.38}
+			g = {"tame": 0.2, "shadow_tint": Color("4a2010"), "mid_tint": Color("c47838"), "light_tint": Color("ffe8b4"),
+					"duo": 0.62, "exposure": 1.0, "glow_colour": Color(1.0, 0.82, 0.5, 0.5), "glow_size": 1.1,
+					"vignette_colour": Color("3a1406"), "vignette": 0.45}
+		_:  # (UI r21, the judges of j17: "a murky dark background"; j19: "still bright and muddy") a deep warm dusk
+			g = {"tame": 0.4, "shadow_tint": Color("140a1a"), "mid_tint": Color("5a3442"), "light_tint": Color("d8a888"),
+					"duo": 0.4, "exposure": 0.62, "glow_colour": Color(1.0, 0.74, 0.46, 0.05), "glow_size": 1.0,
+					"vignette_colour": Color("08040c"), "vignette": 0.62}
 	for key: String in g:
 		m.set_shader_parameter(StringName(key), g[key])
 
@@ -285,8 +285,9 @@ func _place() -> void:
 	var ground := float(art.get_meta(&"ground", 0.99)) if art else 0.99
 	var lift := maxf((art.size.y * ground - 4.0) - (card_size.y + _top), 0.0) if art else 0.0
 	var below := maxf(art.size.y * (1.0 - ground) - 4.0, 0.0) if art else 0.0
-	if art:  # and the lit ground under his feet (_Dais)
-		below = maxf(below, _Dais.depth_under(art.size.x * float((art.get_meta(&"dais", Vector2(0.5, 0.5)) as Vector2).y)))
+	if art:  # and the lit ground under him (_Dais: its middle may lie up his picture, the floor seen from above)
+		var dy := art.size.y * (float(art.get_meta(&"dais_y", ground)) - ground)
+		below = maxf(below, dy + _Dais.depth_under(art.size.x * float((art.get_meta(&"dais", Vector2(0.5, 0.5)) as Vector2).y)))
 	var whole := Vector2(card_size.x + art_w, card_size.y + _top + lift + below)
 	var insets := Device.insets()
 	var side_l := maxf(insets.x + 12.0, size.x * 0.06)  # never near an edge (the group would lean)
@@ -301,17 +302,20 @@ func _place() -> void:
 	_pop.position = centre - whole / 2
 	_pop.scale = Vector2.ONE * _u * _k
 	var at := centre + (Vector2(art_w + card_size.x / 2, _top + lift + card_size.y / 2) - whole / 2) * _k  # the card's middle
-	if _halo:  # centred on the card, reaching well past its edges
-		_halo.size = card_size * _k * Vector2(1.45, 1.7)
-		_halo.position = at - _halo.size / 2
+	# (UI r23, the judges of j19: a win's backdrop "gloomy navy-purple") the warm light floods from behind the whole
+	# group, him and the card: its middle between them, a little high
+	var group := centre + (Vector2(whole.x * 0.5, _top + lift + card_size.y * 0.42) - whole / 2) * _k
+	if _halo:  # reaching well past the group's edges
+		_halo.size = whole * _k * Vector2(1.5, 1.9)
+		_halo.position = group - _halo.size / 2
 	if _rays:
-		var d := maxf(card_size.x, card_size.y) * _k * 1.6
+		var d := maxf(whole.x, whole.y) * _k * 1.7
 		_rays.size = Vector2(d, d)
 		_rays.pivot_offset = _rays.size / 2
-		_rays.position = at - _rays.size / 2
+		_rays.position = group - _rays.size / 2
 		_rays.queue_redraw()
 	if size.x > 0.0 and size.y > 0.0:  # the scrim's light behind the card
-		(_picture.material as ShaderMaterial).set_shader_parameter(&"glow_at", at / size)
+		(_picture.material as ShaderMaterial).set_shader_parameter(&"glow_at", (group if _rays else at) / size)
 	card.position = Vector2(art_w, _top + lift)
 	if _gild:
 		_gild.position = card.position
@@ -325,13 +329,12 @@ func _place() -> void:
 		_shadow.visible = not art.has_meta(&"ground")
 		_ground.size = Vector2(art.size.x * 1.6, art.size.x * 0.55)
 		_ground.position = feet - _ground.size / 2
+		_ground.visible = not art.has_meta(&"dais")  # (the drawn ground carries its own light)
 		_shadow.size = Vector2(art.size.x * 0.9, art.size.x * 0.16)
 		_shadow.position = feet - _shadow.size / 2
 		var d: Vector2 = art.get_meta(&"dais", Vector2(0.5, 0.5))  # its middle and half width, shares of his picture's width
-		# (the tufts no further left than his picture's edge, the first one on it: it hides where the still's own
-		# contact shadow is cut by the picture's edge; the group's margin keeps them on the screen)
-		_dais.place(art.position + Vector2(art.size.x * d.x, art.size.y * ground), art.size.x * d.y,
-				art.position.x - art.size.x * d.y * 0.25)
+		var dais_y := float(art.get_meta(&"dais_y", ground))  # and how far down his picture its middle is
+		_dais.place(art.position + Vector2(art.size.x * d.x, art.size.y * dais_y), art.size.x * d.y)
 
 
 ## A win's gilding over its card (added light): a soft band of light sweeping across the panel now and
@@ -372,23 +375,27 @@ class _Gilding extends Control:
 					draw_polygon(poly, cols)
 
 
-## The ground he stands on beside the card (UI r22, the judges of j18: r21's round stone dais read as "a grey
-## hockey puck / cake stand"): no object, the scene's own ground lit where he stands: a shade on the scene round
-## it, a patch of earth lit in its middle whose edge melts into the scene (warm after a win, cool and dim after
-## a defeat), a soft spotlight added over it, a soft contact shadow under him, and at its edges a few tufts of
-## dry grass, dark and inked like the characters, lit towards their tips. Placed by place(): his feet's point
-## and the patch's half width.
+## The ground he stands on beside the card (UI r23, the judges of j19: r22's "dim spotlight oval with a grass tuft
+## on each side, like a stage prop"): no oval, no tufts: a patch of the scene's ground, drawn as the world is
+## (cel planes, ink strokes) and lit where he is: a broad soft shade on the scene round it, the earth itself in an
+## irregular shape whose edge melts into the scene, seen from a little above (as the knocked-out still's chakram
+## lies on it), warm and bright after a win, cool and dim after a defeat; a light added over its middle; a few cel
+## strokes on it (cracks in ink with their lit lips, small pebbles) fading out towards its edge. His contact
+## occlusion is his picture's own (results_panel: under each boot; his hips, hand and heels). Placed by place():
+## the patch's middle and its half width.
 class _Dais extends Control:
-	const SQUASH := 0.2  ## the pool's height over its width (the ground seen a little from above)
-	## the tufts at the patch's edges, framing it, clear of his boots (x along it, a share of its half width;
-	## their height, a share of it)
-	const TUFTS: Array[Vector2] = [Vector2(-1.24, 0.27), Vector2(-1.02, 0.17), Vector2(0.96, 0.22), Vector2(1.14, 0.14)]
+	const SQUASH := 0.27  ## the patch's depth over its width (the ground seen a little from above)
+	## the cel strokes on the earth: [where (shares of the half width and of the depth), length (share of the
+	## half width), bend]
+	const CRACKS: Array[Vector4] = [Vector4(-0.7, 0.3, 0.22, 0.06), Vector4(-0.3, 0.7, 0.18, -0.08),
+			Vector4(0.42, 0.62, 0.2, 0.05), Vector4(0.78, 0.0, 0.14, -0.06), Vector4(-0.86, -0.3, 0.12, 0.05)]
+	## pebbles on it: [x, y (shares as above), size (share of the half width)]
+	const PEBBLES: Array[Vector3] = [Vector3(-0.62, 0.46, 0.032), Vector3(-0.54, 0.54, 0.02), Vector3(0.7, 0.38, 0.028),
+			Vector3(0.86, -0.2, 0.02), Vector3(0.16, 0.8, 0.022)]
 	var mood := &""
 	var _half := 0.0
-	var _plane: Control  # the shade round it and the lit earth (normal)
-	var _light: Control  # the pool of light (added)
-	var _things: Control  # his contact shadow and the tufts (normal, over the light)
-	var _min_x := -INF  # the farthest left a tuft may stand (its own units)
+	var _plane: Control  # the shade round it, the earth and its strokes (normal)
+	var _light: Control  # the light over it (added)
 	var _pool_tex: GradientTexture2D
 
 	func _init() -> void:
@@ -396,7 +403,6 @@ class _Dais extends Control:
 		_plane = _layer(_draw_plane)
 		_light = _layer(_draw_light)
 		_light.material = Fx.additive()
-		_things = _layer(_draw_things)
 
 	func _layer(painter: Callable) -> Control:
 		var c := Control.new()
@@ -406,44 +412,29 @@ class _Dais extends Control:
 		add_child(c)
 		return c
 
-	## How far it reaches under his feet, for a half width `half`.
+	## How far it reaches under its middle, for a half width `half`.
 	static func depth_under(half: float) -> float:
-		return half * SQUASH * 0.6 + 8.0
+		return half * SQUASH * 0.95 + 4.0
 
-	## The pool's middle, in its own units.
+	## The patch's middle, in its own units.
 	func _centre() -> Vector2:
-		return Vector2(size.x * 0.5, _half * 0.5)
+		return size * 0.5
 
-	## What it draws that the eye takes as solid (the tufts, the lit earth's middle), in its own units.
+	## What it draws that the eye takes as solid (the earth), in its own units.
 	func drawn_rect() -> Rect2:
 		var c := _centre()
-		var w := _half
-		var left := maxf(c.x - w * 1.6, _min_x)
-		return Rect2(Vector2(left, c.y - w * 0.3), Vector2(c.x + w * 1.3 - left, w * (0.3 + SQUASH * 0.6)))
+		return Rect2(c - Vector2(_half, _half * SQUASH) * 0.95, Vector2(_half, _half * SQUASH) * 1.9)
 
-	## `left`: the farthest left a tuft may stand, in its parent's units (the group's own edge: on the screen).
-	func place(feet: Vector2, half: float, left := -INF) -> void:
+	## `centre`: the patch's middle; `half`: its half width (the earth's solid part), in its parent's units.
+	func place(centre: Vector2, half: float) -> void:
 		_half = half
-		size = Vector2(half * 4.4, half * 1.2)
-		position = feet - _centre()
-		_min_x = left - position.x
-		for c: Control in [_plane, _light, _things]:
+		size = Vector2(half * 4.8, half * SQUASH * 4.8)
+		position = centre - _centre()
+		for c: Control in [_plane, _light]:
 			c.queue_redraw()
 
-	func _draw_plane() -> void:
-		if _half <= 1.0:
-			return
-		var c := _centre()
-		var w := _half
-		var pool := _pool()
-		var dark := Color(0.03, 0.02, 0.06, 0.5) if mood == &"win" else Color(0.02, 0.02, 0.04, 0.55)
-		_plane.draw_texture_rect(pool, Rect2(c - Vector2(w * 2.0, w * 0.48), Vector2(w * 4.0, w * 0.96)), false, dark)
-		# the ground itself where the light falls: a patch of earth, lit in its middle, its edge melting into the scene
-		var earth := Color(0.55, 0.4, 0.28, 0.9) if mood == &"win" else Color(0.5, 0.49, 0.55, 0.9)
-		_plane.draw_texture_rect(pool, Rect2(c - Vector2(w * 1.55, w * 0.32), Vector2(w * 3.1, w * 0.64)), false, earth)
-
-	## A round patch: solid through most of its middle, then a soft falloff to its edge (the glow texture's
-	## hot centre and long tail read as a light, not as ground). Its own (a static one outlived the game).
+	## A soft round patch texture: solid through its middle, then a soft falloff to its edge. Its own (a static
+	## one outlived the game).
 	func _pool() -> GradientTexture2D:
 		if not _pool_tex:
 			_pool_tex = GradientTexture2D.new()
@@ -453,59 +444,71 @@ class _Dais extends Control:
 			_pool_tex.fill_from = Vector2(0.5, 0.5)
 			_pool_tex.fill_to = Vector2(1.0, 0.5)
 			_pool_tex.gradient = Gradient.new()
-			_pool_tex.gradient.offsets = PackedFloat32Array([0.0, 0.45, 1.0])
-			_pool_tex.gradient.colors = PackedColorArray([Color(1, 1, 1, 1), Color(1, 1, 1, 0.82), Color(1, 1, 1, 0)])
+			_pool_tex.gradient.offsets = PackedFloat32Array([0.0, 0.5, 1.0])
+			_pool_tex.gradient.colors = PackedColorArray([Color(1, 1, 1, 1), Color(1, 1, 1, 0.85), Color(1, 1, 1, 0)])
 		return _pool_tex
+
+	## An irregular blob round `c` (radii `r`), its edge wobbling (`seed`), filled with `colour` fading out to its
+	## edge (the pool texture mapped on it: the falloff follows its own shape, not a circle).
+	func _blob(ci: CanvasItem, c: Vector2, r: Vector2, colour: Color, seed: float) -> void:
+		var n := 40
+		var pts := PackedVector2Array([c])
+		var uvs := PackedVector2Array([Vector2(0.5, 0.5)])
+		var cols := PackedColorArray([colour])
+		var idx := PackedInt32Array()
+		for i in n:
+			var a := i * TAU / n
+			var k := 1.0 + 0.09 * sin(2.0 * a + seed) + 0.06 * sin(3.0 * a + seed * 2.3) + 0.04 * sin(5.0 * a + seed * 0.7)
+			pts.append(c + Vector2(cos(a) * r.x, sin(a) * r.y) * k)
+			uvs.append(Vector2(0.5, 0.5) + Vector2(cos(a), sin(a)) * 0.5)
+			cols.append(colour)
+			idx.append_array([0, 1 + i, 1 + (i + 1) % n])
+		RenderingServer.canvas_item_add_triangle_array(ci.get_canvas_item(), idx, pts, cols, uvs, PackedInt32Array(),
+				PackedFloat32Array(), _pool().get_rid())
+
+	func _draw_plane() -> void:
+		if _half <= 1.0:
+			return
+		var win := mood == &"win"
+		var c := _centre()
+		var w := _half
+		var d := w * SQUASH  # its half depth
+		_blob(_plane, c, Vector2(w * 2.2, d * 2.2), Color(0.05, 0.02, 0.0, 0.22) if win else Color(0.01, 0.02, 0.05, 0.5), 1.3)
+		_blob(_plane, c, Vector2(w * 1.75, d * 1.75), Color("9a6e46") if win else Color("5a5e76"), 0.4)  # the earth
+		_blob(_plane, c + Vector2(0, d * 0.12), Vector2(w * 1.2, d * 1.2), Color("c89c66") if win else Color("7a809e"), 2.1)  # lit in its middle
+		# the cel strokes (fine cracks, a gentle curve each, their lower lip lit), fading out towards its edge
+		var ink := Color("3a1e0c") if win else Color("1e2030")
+		var lit := Color("f2d2a0") if win else Color("a8b2d0")
+		for s in CRACKS:
+			var at := c + Vector2(s.x * w, s.y * d)
+			var fade := clampf(1.15 - Vector2(s.x, s.y).length() * 0.75, 0.0, 1.0)
+			var length := s.z * w
+			var line := PackedVector2Array()
+			for k in 5:
+				var u := k / 4.0 - 0.5
+				line.append(at + Vector2(u * length, (0.25 - u * u) * s.w * length * 4.0))
+			_plane.draw_polyline(line, Color(ink, 0.45 * fade), maxf(w * 0.01, 1.3), true)
+			var lip := PackedVector2Array()
+			for p in line:
+				lip.append(p + Vector2(0, maxf(w * 0.011, 1.3)))
+			_plane.draw_polyline(lip, Color(lit, 0.35 * fade), maxf(w * 0.007, 1.0), true)
+		for p in PEBBLES:
+			var at := c + Vector2(p.x * w, p.y * d)
+			var r := p.z * w
+			var fade := clampf(1.15 - Vector2(p.x, p.y).length() * 0.7, 0.0, 1.0)
+			GlossStyle.fill_disc(_plane.get_canvas_item(), at + Vector2(r * 0.3, r * 0.45), r * 1.05, Color(ink, 0.35 * fade), Vector2(1.0, 0.55))  # its shadow
+			GlossStyle.fill_disc(_plane.get_canvas_item(), at, r, Color(ink, 0.8 * fade), Vector2(1.0, 0.62))
+			GlossStyle.fill_disc(_plane.get_canvas_item(), at - Vector2(0, r * 0.12), r * 0.78, Color(lit.darkened(0.25), fade), Vector2(1.0, 0.55))
+			GlossStyle.fill_disc(_plane.get_canvas_item(), at - Vector2(r * 0.25, r * 0.3), r * 0.3, Color(lit, 0.8 * fade), Vector2(1.0, 0.6))
 
 	func _draw_light() -> void:
 		if _half <= 1.0:
 			return
 		var c := _centre()
 		var w := _half
-		var outer := Color(1.0, 0.72, 0.42, 0.34) if mood == &"win" else Color(0.66, 0.74, 1.0, 0.3)
-		var core := Color(1.0, 0.86, 0.62, 0.26) if mood == &"win" else Color(0.78, 0.84, 1.0, 0.16)
+		var d := w * SQUASH
 		var glow := Fx.glow_texture()
-		_light.draw_texture_rect(glow, Rect2(c - Vector2(w * 1.5, w * SQUASH * 1.5), Vector2(w * 3.0, w * SQUASH * 3.0)), false, outer)
-		_light.draw_texture_rect(glow, Rect2(c - Vector2(w * 0.85, w * SQUASH * 0.8), Vector2(w * 1.7, w * SQUASH * 1.6)), false, core)
-
-	func _draw_things() -> void:
-		if _half <= 1.0:
-			return
-		var c := _centre()
-		var w := _half
-		var win := mood == &"win"
-		# his contact shadow: soft, flat under him
-		_things.draw_texture_rect(Fx.glow_texture(), Rect2(c - Vector2(w * 0.85, w * 0.09), Vector2(w * 1.7, w * 0.2)), false,
-				Color(0.02, 0.0, 0.03, 0.5))
-		var ink := Color(0.06, 0.02, 0.02, 0.9)
-		var base := Color("1a160e") if win else Color("141618")
-		var tip := Color("b09a5a") if win else Color("6c766e")  # lit along their tops (warm, or the night's grey)
-		var rng := RandomNumberGenerator.new()
-		rng.seed = 2207
-		for t in TUFTS:
-			var x := maxf(c.x + t.x * w, _min_x + t.y * w * 0.9)  # (never past the group's edge: on the screen)
-			_tuft(Vector2(x, c.y + rng.randf_range(-0.02, 0.04) * w), t.y * w, rng, ink, base, tip)
-
-	## A tuft of dry grass rooted at `at`, `h` tall: thin blades fanning out, curved, inked, dark at their
-	## root and lit towards their tips.
-	func _tuft(at: Vector2, h: float, rng: RandomNumberGenerator, ink: Color, base: Color, tip: Color) -> void:
-		var n := 9
-		var blades: Array[PackedVector2Array] = []
-		for i in n:
-			var lean := lerpf(-0.8, 0.8, (i + rng.randf_range(-0.3, 0.3)) / (n - 1))
-			var length := h * rng.randf_range(0.55, 1.0) * (1.0 - absf(lean) * 0.3)
-			var root := at + Vector2(lean * h * 0.26, 0)
-			var dir := Vector2.from_angle(-PI / 2 + lean)
-			var side := dir.orthogonal()
-			var bw := maxf(h * 0.075, 1.6)
-			var bend := side * length * 0.12 * signf(lean + 0.001)
-			blades.append(PackedVector2Array([root - side * bw, root + dir * length * 0.55 + bend - side * bw * 0.55,
-					root + dir * length + bend * 2.2, root + dir * length * 0.55 + bend + side * bw * 0.55, root + side * bw]))
-		for b in blades:  # the ink round them all first, then the blades
-			var line := b.duplicate()
-			line.append(b[0])
-			_things.draw_polyline(line, ink, 2.2, true)
-		for b in blades:
-			var cols := PackedColorArray([base, base.lerp(tip, 0.55), tip, base.lerp(tip, 0.55), base])
-			_things.draw_polygon(b, cols)
-
+		var outer := Color(1.0, 0.78, 0.48, 0.3) if mood == &"win" else Color(0.6, 0.7, 1.0, 0.16)
+		var core := Color(1.0, 0.9, 0.7, 0.22) if mood == &"win" else Color(0.75, 0.82, 1.0, 0.1)
+		_light.draw_texture_rect(glow, Rect2(c - Vector2(w * 1.6, d * 1.6), Vector2(w * 3.2, d * 3.2)), false, outer)
+		_light.draw_texture_rect(glow, Rect2(c - Vector2(w * 0.9, d * 0.9), Vector2(w * 1.8, d * 1.8)), false, core)

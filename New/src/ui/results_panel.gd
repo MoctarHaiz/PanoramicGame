@@ -3,18 +3,20 @@ extends RefCounted
 ## The end of a run, over the game (GamePanel), told in order so the eye can follow it:
 ## - Home: a red ribbon on the gilded card; the three stars (the middle one bigger, raised) slam into
 ##   their places one after the other, each with a burst and its note (the third shakes the card); a
-##   star not earned stays a pale greyed star (StarBadge); a calm party (UI r21, the judges of j17: "confetti
-##   chaotic"): one burst from behind the stars, a few clustered bursts in the sky beside him and the
-##   card, spread in depth, none over him, a few fireworks; then the Red Bobs roll up with ticks in a
+##   star not earned stays its dark gold-edged socket (StarBadge); the party (UI r23, the judges of j19: r22's
+##   "sparse flat rectangles at the edges, plus one thin firework"): ONE dense burst of lit, tumbling confetti
+##   thrown high from behind the stars over the whole scene; then the Red Bobs roll up with ticks in a
 ##   groove cut into the parchment; a NEW BEST burst badge slams in last beside the count (its place
 ##   kept in the count's row from the start: nothing moves, nothing is covered, no empty band).
-##   Panoramic stands at the left with his arms up on the lit ground, a big burst of rays turning behind
-##   the card.
-## - A lost run, in another mood: the world behind drained grey, the card in smoked wood, old bronze
-##   and dusty hide, a red GAME OVER ribbon and what happened under it; the Red Bobs roll up, then the
-##   bar of the way home fills to where he got (the house at its end in a gold disc: the goal); the
-##   buttons are there at once; a new best is the same seal as a win's, quieter (BurstBadge.calm).
-##   Panoramic dazed on the ground in a cold, dim light.
+##   Panoramic stands at the left with his fist up on a drawn patch of lit ground, his contact shade under
+##   each boot, close to the card, the scene behind flooded with warm light, soft rays turning behind
+##   him and the card.
+## - A lost run, in another mood: the world behind cool and soft but still coloured and lit, a deep vignette,
+##   the card in smoked wood, old bronze and dusty hide, a red GAME OVER ribbon and what happened under it in
+##   one punchy word; the Red Bobs roll up, then the bar of the way home fills to where he got (the house at
+##   its end in a gold disc: the goal); the buttons are there at once; a new best is the same seal as a
+##   win's, quieter (BurstBadge.calm). Panoramic dazed on the floor in a cool light, sitting on it (the shade
+##   of his hips, hand and heels, the chakram lying on it in its own shade).
 ## PLAY AGAIN (the big green one) between Home and Share, two gold ones (apart from the red ribbon
 ## and the brown wood: orange was too close to them, bone read as disabled, blue fought the green).
 
@@ -23,15 +25,14 @@ const HERO_LOSE := "res://assets/art/hero/hero_defeat.png"  # the art track's de
 const HERO_STAND := "res://assets/art/ui/hero_stand.png"  ## fallbacks, loaded only when used (a preload
 const HERO_DOWN := "res://assets/art/ui/hero_down.png"  ## kept them in texture memory all the time)
 const KO_HEAD := Vector2(0.57, 0.04)  ## (round 19) over the knock-out still's head (hero_defeat.png): its stars circle there
-## (round 21, the judges: "on the win screen he is lit bright and neutral on a night scene, floating, no ground") the
-## victory still in the scene's light (actor.gdshader, the characters' own: no new shader to compile): the night's cool
-## ambient over him and the fireworks' and the card's warm light spilling over his right side (broad, multiplied: no rim);
-## he stands in a pool of their light on the ground, his own contact shadow in it
-const NIGHT := Color(0.78, 0.78, 0.95)
-const FIREWORK := Color(1.16, 0.94, 0.84)
-const FIREWORK_SPILL := 0.55
-const WIN_GROUND := Color(1.0, 0.72, 0.55, 0.3)  ## the pool of light he stands in (additive; round 20: 0.16, unseen)
-## his shadow on that ground, under the victory still (hero_win.png, shares of its size): a soft occlusion under his
+## (UI r23) where the knock-out still meets the floor (hero_defeat.png, shares of its size): x, y, width (a share of its
+## width), darkness: his hips, the hand planted behind him, the heel on the ground, the boot he holds up (fainter)
+const KO_CONTACTS: Array[Vector4] = [Vector4(0.655, 0.79, 0.26, 0.85), Vector4(0.905, 0.763, 0.14, 0.85),
+		Vector4(0.33, 0.918, 0.11, 0.9), Vector4(0.11, 0.9, 0.17, 0.4)]
+const KO_SQUASH := 0.34  ## the floor's depth over its width there (the chakram lying on it is as flat)
+const KO_RING := Vector4(0.849, 0.852, 0.32, 0.115)  ## the chakram's shade ring on the floor: middle, width, height
+const WIN_GROUND := Color(1.0, 0.72, 0.55, 0.3)  ## the pool of light a fallback crop stands in (additive)
+## his shadow on the ground, under the victory still (hero_win.png, shares of its size): a soft occlusion under his
 ## stride and each boot's contact where it stands (the back boot higher up the picture: further back on the ground)
 const WIN_POOL := Vector3(0.46, 0.935, 0.9)  ## its middle (x, y) and width
 const WIN_BOOTS: Array[Vector3] = [Vector3(0.13, 0.936, 0.2), Vector3(0.735, 0.907, 0.22)]  ## each boot's: x, y, width
@@ -50,17 +51,18 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 	if won:
 		body.add_child(_stars_stage(stars))
 	else:
-		# what happened: cream display letters in a thick deep-red stroke with its depth, as the ribbon's
-		# title (j15: red letters on the beige hide had a middling contrast)
+		# what happened, in one punchy word (UI r23, the judges of j19: r22's "The bandits caught Panoramic!", red
+		# letters in a cream stroke on the cream hide, "fussy and low contrast"): big heavy letters in one solid deep
+		# red, a hairline of the same red darker round them, no stroke, no depth
 		var why := Ui.display_text(TranslationServer.translate("FELL" if world.death_reason == &"fall" else "CAUGHT"),
-				38, Color("fffaf0"), Color("6e1006"), Color("ffe0c0"))
-		why.outline_width = 6.0
-		why.depth = 3.0
-		why.tracking = 2.0
-		why.shadow = Color(0.2, 0.03, 0.0, 0.3)
+				60, Color("9e1608"), Color("6a0c04"))
+		why.outline_width = 1.5
+		why.depth = 0.0
+		why.tracking = 1.0
+		why.shadow = Color(0, 0, 0, 0)
 		why.refresh()
 		var air := MarginContainer.new()  # air round it (not edge to edge), room for a crown under it
-		air.add_theme_constant_override(&"margin_bottom", 14)
+		air.add_theme_constant_override(&"margin_bottom", 10)
 		air.add_theme_constant_override(&"margin_left", 34)
 		air.add_theme_constant_override(&"margin_right", 34)
 		air.add_child(why)
@@ -239,26 +241,29 @@ static func _hero(won: bool) -> TextureRect:
 	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
 	if rendered:  # the stills stand on their own contact shadow (hero_atlas_ai.py stills()): the panel adds none
 		art.set_meta(&"ground", 0.935)  # (round 19) where his feet are, a share of the picture's height
-		# (UI r21) the ground under him (GamePanel._Dais; UI r22: a patch of lit earth, no dais): its middle and half
-		# width, shares of the picture's width (the victory stance's feet span it; knocked out, he sits on its right
-		# part, a boot in the air on the left)
-		art.set_meta(&"dais", Vector2(0.47, 0.55) if won else Vector2(0.62, 0.43))
-	if rendered and won:  # (round 21) in the night's light, the fireworks' on his right
-		var night := ShaderMaterial.new()
-		night.shader = preload("res://src/game/actor.gdshader")
-		night.set_shader_parameter(&"line_amount", 0.0)  # (the still's own ink)
-		night.set_shader_parameter(&"ambient", NIGHT)
-		night.set_shader_parameter(&"ambient_amount", 1.0)
-		night.set_shader_parameter(&"spill", FIREWORK_SPILL)
-		night.set_shader_parameter(&"spill_colour", FIREWORK)
-		art.material = night
-		var ground := Control.new()  # his shadow on the ground, behind the still (not in the night's shader)
+		# (UI r21) the ground under him (GamePanel._Dais; UI r23: a drawn patch of lit earth seen a little from above):
+		# its middle and half width, shares of the picture's width, and its middle's height, a share of its height
+		# (standing, under his stride; knocked out, under where he sits, the hand behind him and the chakram lying on it)
+		art.set_meta(&"dais", Vector2(0.47, 0.55) if won else Vector2(0.6, 0.5))
+		art.set_meta(&"dais_y", 0.925 if won else 0.86)
+		# (UI r23, the judges of j19: he must sit on the ground, not float on it) his contact occlusion, behind the still:
+		# under each boot after a win; under his hips, his hand, his heels and round the chakram after a defeat
+		var ground := Control.new()
 		ground.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		ground.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		ground.show_behind_parent = true
-		ground.draw.connect(_draw_win_ground.bind(ground))
+		ground.draw.connect((_draw_win_ground if won else _draw_ko_ground).bind(ground))
 		ground.resized.connect(ground.queue_redraw)
 		art.add_child(ground)
+		if won:  # (UI r23) its own shadow band ran to the picture's edges: a hard cut on the drawn ground, softened
+			var edges := ShaderMaterial.new()
+			edges.shader = preload("res://src/ui/still_mask.gdshader")
+			edges.set_shader_parameter(&"edge_fade", 0.05)
+			edges.set_shader_parameter(&"edge_from", 0.85)
+			edges.set_shader_parameter(&"edge_fade_low", 0.16)
+			edges.set_shader_parameter(&"edge_low_from", 0.94)
+			art.material = edges
+	# (UI r23) in a clean, neutral light (the still's own): no night tint, no warm spill on him
 	if won:
 		# (round 19, the judges: "the hero small on the win screen") the victory still, a fist punched to the sky: he
 		# stands taller than the card
@@ -275,6 +280,10 @@ static func _hero(won: bool) -> TextureRect:
 			art.set_meta(&"overlap", -0.03)
 			if rendered:
 				art.add_child(_dizzy(KO_HEAD))
+				var mask := ShaderMaterial.new()  # (UI r23) its own side-view shadow under the chakram: gone (_draw_ko_ground)
+				mask.shader = preload("res://src/ui/still_mask.gdshader")
+				mask.set_shader_parameter(&"cut", Vector4(0.69, 0.907, 1.1, 1.1))
+				art.material = mask
 		elif tex_size.x > tex_size.y * 0.8:  # seated (wide): on the ground beside the card, big enough
 			art.set_meta(&"tall", 0.66)  # not to float small in the dark
 			art.set_meta(&"overlap", -0.03)
@@ -294,13 +303,68 @@ static func _hero(won: bool) -> TextureRect:
 	return art
 
 
-## (round 21) The victory still's shadow on the ground (WIN_POOL, WIN_BOOTS): the characters' own soft shadow
-## (HeroView.contact_shadow), the stride's occlusion without a hard core, each boot's contact under it.
+## (round 21) The victory still's shadow on the ground (WIN_POOL, WIN_BOOTS): the stride's soft occlusion, each boot's
+## contact under it, a near-black core where its sole meets the ground. (UI r23) Drawn with the panel's own soft
+## shades (_soft: no mipmapped edge, so no seam where a squashed blob's rect ends; r22's tufts hid one).
 static func _draw_win_ground(ground: Control) -> void:
 	var s := ground.size
-	HeroView.contact_shadow(ground, Vector2(WIN_POOL.x, WIN_POOL.y) * s, WIN_POOL.z * s.x, 1.0, 0.75, 1.0, 0.0)
+	var pool := Vector2(WIN_POOL.z, WIN_POOL.z * 0.2) * s.x * 0.5
+	ground.draw_texture_rect(_soft(), Rect2(Vector2(WIN_POOL.x, WIN_POOL.y) * s - pool, pool * 2.0), false, Color(0.12, 0.05, 0.02, 0.45))
 	for boot in WIN_BOOTS:
-		HeroView.contact_shadow(ground, Vector2(boot.x, boot.y) * s, boot.z * s.x, 1.0, 0.8)
+		var r := Vector2(boot.z, boot.z * 0.24) * s.x * 0.5
+		var at := Vector2(boot.x, boot.y) * s
+		ground.draw_texture_rect(_soft(), Rect2(at - r, r * 2.0), false, Color(0.08, 0.03, 0.01, 0.7))
+		ground.draw_texture_rect(_soft(), Rect2(at - r * Vector2(0.62, 0.5), r * Vector2(1.24, 1.0)), false, Color(0.03, 0.01, 0.0, 0.8))
+
+
+## (UI r23, the judges of j19: "give him contact occlusion where he sits: hips, hand and heels"; "the chakram on the
+## floor is a flat ellipse, a decal") The knocked-out still's occlusion on the floor it sits on (the floor seen a little
+## from above, as the chakram lies on it): a soft dark pool under his hips, under the hand behind him, under the heel
+## on the ground and, fainter and wider, under the boot he holds up; round the chakram a soft ring of shade where its
+## rim meets the floor (its hole stays lit), so it lies on the ground. KO_CONTACTS: shares of the picture.
+static func _draw_ko_ground(ground: Control) -> void:
+	var s := ground.size
+	for c in KO_CONTACTS:
+		var r := Vector2(c.z, c.z * KO_SQUASH) * s.x * 0.5
+		ground.draw_texture_rect(_soft(), Rect2(Vector2(c.x, c.y) * s - r, r * 2.0), false, Color(0.02, 0.01, 0.04, c.w))
+	var ring := Vector2(KO_RING.z, KO_RING.w) * s.x * 0.5
+	var at := Vector2(KO_RING.x, KO_RING.y) * s
+	ground.draw_texture_rect(_soft(), Rect2(at + Vector2(0, ring.y * 0.25) - ring * 1.08, ring * 2.16), false, Color(0.02, 0.01, 0.04, 0.3))  # its shade on the floor
+	ground.draw_texture_rect(_ring(), Rect2(at - ring, ring * 2.0), false, Color(0.02, 0.01, 0.04, 0.95))  # where its rim meets it
+
+
+static var _soft_tex: GradientTexture2D
+static var _ring_tex: GradientTexture2D
+
+
+## A soft round shade: full in its middle, easing out to nothing at its edge.
+static func _soft() -> GradientTexture2D:
+	if not _soft_tex:
+		_soft_tex = _radial(PackedFloat32Array([0.0, 0.3, 0.65, 1.0]), PackedFloat32Array([1.0, 0.85, 0.35, 0.0]))
+	return _soft_tex
+
+
+## A soft ring of shade (a ring lying on the floor): clear in its middle, darkest just inside its edge.
+static func _ring() -> GradientTexture2D:
+	if not _ring_tex:
+		_ring_tex = _radial(PackedFloat32Array([0.0, 0.5, 0.72, 0.86, 1.0]), PackedFloat32Array([0.0, 0.0, 0.9, 0.7, 0.0]))
+	return _ring_tex
+
+
+static func _radial(offsets: PackedFloat32Array, alphas: PackedFloat32Array) -> GradientTexture2D:
+	var t := GradientTexture2D.new()
+	t.width = 64
+	t.height = 64
+	t.fill = GradientTexture2D.FILL_RADIAL
+	t.fill_from = Vector2(0.5, 0.5)
+	t.fill_to = Vector2(1.0, 0.5)
+	t.gradient = Gradient.new()
+	t.gradient.offsets = offsets
+	var cols := PackedColorArray()
+	for a in alphas:
+		cols.append(Color(1, 1, 1, a))
+	t.gradient.colors = cols
+	return t
 
 
 ## (round 19, the judges: "the game over reads lounging, sunbathing, not knocked out") Dazed stars circling over his
@@ -349,19 +413,13 @@ static func _reveal(game: Control, panel: GamePanel, world: World, stars: Array[
 			back.scale = Vector2.ONE * 0.5
 			panel.add_child(back)
 			panel.move_child(back, panel.card.get_parent().get_index())
-			var front := Node2D.new()  # in front of everything (it keeps off him and the card)
-			front.scale = Vector2.ONE * 0.5
-			panel.add_child(front)
-			var to_local := back.get_global_transform().affine_inverse()
-			var card: Rect2 = to_local * panel.card.get_global_rect()
-			var hero := Rect2()
-			if panel.art and panel.art.visible:
-				hero = to_local * panel.art.get_global_rect()
-			# (UI r21, the judges of j17: "confetti chaotic"): one burst from behind the stars, clustered bursts
-			# in the clear sky beside them, a few fireworks; no rain, no cannons, nothing over him
-			Fx.confetti_burst(back, stars[1].get_global_rect().get_center() * 2.0, true, hero.grow(12.0))
-			Fx.card_bursts(back, panel.card)
-			Fx.party_bursts(back, front, panel.size * 2.0, card, hero))
+			var group := panel.card.get_parent()
+			var over := Node2D.new()  # over the card, under him and the title's ribbon
+			over.scale = Vector2.ONE * 0.5
+			group.add_child(over)
+			group.move_child(over, panel.card.get_index() + 1)
+			var star := stars[1].get_global_rect().get_center()
+			_party(back, back.get_global_transform().affine_inverse() * star, over, over.get_global_transform().affine_inverse() * star))
 	_count_up(tree, bobs, world.bobs, total, t, panel)
 	t += COUNT_TIME + 0.1
 	if bar:
@@ -369,6 +427,41 @@ static func _reveal(game: Control, panel: GamePanel, world: World, stars: Array[
 		t += 0.6
 	if best:
 		_stamp(tree, panel, slot, t + 0.1, not won)
+
+
+## The win's party (UI r23, the judges of j19: r22's "sparse flat rectangles at the edges, plus one thin firework":
+## make "one dense, lit, tumbling burst"): one burst from behind the card's stars, a flash of warm light at its
+## heart, its paper thrown high and wide over the scene and floating down for seconds, every piece turning and
+## flipping, shaded by how it faces the light and glinting when it faces it (Confetti), in three depths: far,
+## small, slow and hazy with the warm air, behind everything (`back`, at `back_at`); the bulk crisp and two-tone
+## with gold streamers and sparks, and a few big soft pieces near the eye, over the card but under him and the
+## title's ribbon (`over`, at `over_at`), so his face and the title stay clean.
+static func _party(back: Node2D, back_at: Vector2, over: Node2D, over_at: Vector2) -> void:
+	Fx.glow(back, back_at, Color(1, 0.88, 0.6, 0.95), 0.4, 2.6, 0.5)
+	var far := Confetti.make(back, back_at)
+	far.depth = 0.9
+	far.haze = Color(1.0, 0.9, 0.74)
+	far.gravity = 300.0
+	far.drag = 1.7
+	far.flutter = 380.0
+	far.spray(100, Fx.WIN_SHAPES, Fx.PAPER_COLOURS, Vector2(800, 1800), Vector2.UP, 88.0, 1.2, Vector2(4.0, 5.2), 40.0)
+	var mid := Confetti.make(over, over_at)
+	mid.gravity = 320.0
+	mid.drag = 1.6
+	mid.flutter = 420.0
+	mid.spray(120, Fx.WIN_SHAPES, Fx.PAPER_COLOURS, Vector2(700, 1800), Vector2.UP, 86.0, 2.0, Vector2(4.0, 5.0), 36.0)
+	mid.spray(14, Fx.STREAMERS, Fx.STREAMER_COLOURS, Vector2(700, 1600), Vector2.UP, 70.0, 1.6, Vector2(3.6, 4.6), 28.0)
+	mid.sparkle(36, Fx.GOLD, Vector2(500, 1500), 1.1, Vector2(1.6, 2.6))
+	var near := Confetti.make(over, over_at)  # out of focus, closest to the eye
+	near.gravity = 260.0
+	near.drag = 1.3
+	near.flutter = 180.0
+	near.glints = false
+	var colours: Array[Color] = []
+	for c in Fx.PAPER_COLOURS:
+		colours.append(Color(c, 0.8))
+	near.spray(7, [Confetti.Shape.BOKEH], colours, Vector2(900, 1900), Vector2.UP, 80.0, 3.4, Vector2(3.4, 4.4), 30.0)
+	Audio.play_sfx(&"firework", 1.4, 0.5)
 
 
 ## A star slams into its socket: from big and turned to a little small, then its size, a burst of
