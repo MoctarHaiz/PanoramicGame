@@ -106,6 +106,9 @@ var _hit_left := 0.0  # seconds of the recoil still to show
 var _grounded := true
 var _air_hold := 0.0  # seconds its leap is still shown after it stands again
 const AIR_HOLD := 0.12
+var _air_time := 0.0  # seconds since it left the ground
+const TAKEOFF_TIME := 0.1  ## seconds its take-off frame shows as it leaves the ground
+const JUMP_DY := 6.0  ## units a tick: faster up is its rise, faster down its fall, between them the top
 var _head := Vector2.ZERO  # the middle of its hair in this frame, local units
 # knocked out
 var _ko := false
@@ -186,6 +189,27 @@ func show_state(grounded: bool, delta := 0.0) -> void:
 	else:
 		_air_hold = maxf(_air_hold - delta, 0.0)
 	_grounded = _air_hold <= 0.0
+	_air_time = 0.0 if _grounded else _air_time + delta
+
+
+## (the user, 2026-11-08, the jump drawn with kie.ai: bandit.json "jump") its jump frame in the air, by how it moves
+## this tick: the take-off as it leaves the ground, the rise while it climbs fast, tucked at the top, the fall coming
+## down (`force`: that phase, 0..3). Without the jump frames: its one leap pose.
+func _jump_frame(force := -1) -> int:
+	if not _d.has("jump"):
+		return int(_d.leap)
+	var k := force
+	if k < 0:
+		var dy := bandit.y - bandit.prev_y
+		if _air_time < TAKEOFF_TIME and dy < 0.0:
+			k = 0
+		elif dy < -JUMP_DY:
+			k = 1
+		elif dy <= JUMP_DY:
+			k = 2
+		else:
+			k = 3
+	return int((_d.jump as Array)[k])
 
 
 ## A ring hit it (knocked_out: the second one).
@@ -238,8 +262,8 @@ func _process(delta: float) -> void:
 		frame = int(_d.run) + int(_run)
 		if bandit.hurt:
 			rock = DAZE_ROCK * sin(_star_turn * 0.8)
-		if not _grounded:  # hopping a wall: the leap
-			frame = int(_d.leap)
+		if not _grounded:  # in the air (a leap over a ring, hopping a wall, off a ledge): its jump
+			frame = _jump_frame()
 		var swing := _swing_frame()
 		if swing >= 0 and _grounded:
 			frame = int(_d.swing) + swing
@@ -258,7 +282,7 @@ func _process(delta: float) -> void:
 		_vault = minf(_vault + dt / VAULT_TIME, 1.0)
 		lift = VAULT_HEIGHT * 4.0 * _vault * (1.0 - _vault)
 		_lift = lift
-		frame = int(_d.leap)  # the leap over him
+		frame = _jump_frame(2)  # the leap over him: the top of its jump, tucked
 		rotation = -0.35 * sin(_vault * PI)
 	elif _vault >= 1.0:
 		rotation = 0.0

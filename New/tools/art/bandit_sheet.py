@@ -44,6 +44,18 @@ KINDS = {
 ## bigger than the hero's on a smaller body; his big spiky hair made it so)
 HEAD_SCALE = {}  # (2026-11-08: his head-wrap is compact; his spiky hair no longer needs shrinking)
 POSES = [1, 2, 3, 4, 5]  ## wait, swing (drawn back, thrown), hit, leap: the cells after the run pose
+## (the user, 2026-11-08: "the height and size of the bandit are not the same when changing animation cycle") each pose
+## drawn at this share of the generator's scale, set by eye against the run (lined up on one ground: the bandit's
+## poses came ~0.85 of his run; the strong one's hit pose small); replaces the hair-area fit (the wraps hide the hair)
+POSE_SCALE = {
+    "bandit": {1: 1.13, 2: 1.15, 3: 1.12, 4: 1.15, 5: 1.15},
+    "bandit_strong": {1: 1.0, 2: 1.0, 3: 1.0, 4: 1.12, 5: 1.0},
+}
+## the jump (the user, 2026-11-08, kie.ai: _agents/kie/bandit5/bandit5_jump_0.png cut by bandit5/cut_jump.py): take-off,
+## rise, top, fall, all at this share of the generator's scale (set by eye against the run; one scale for the four:
+## the generator drew the bandit's first two heads a little bigger, not his body: evening the heads shrank his body)
+JUMP = {"bandit": ("bandit5/jump", 1.17), "bandit_strong": ("bandit5/jump_strong", 1.0)}
+JUMP_CELL = {"bandit": [0.87, 0.9, 1.0, 1.0], "bandit_strong": [1.0, 1.08, 1.08, 1.04]}  ## each cell's own (by eye)
 PX_PER_UNIT = 2.2  ## sheet px a unit (the hero's atlas: 2.3)
 PAD = 3
 LEAP_LIFT = 24.0  ## canvas px his boots are drawn above the ground in the leap
@@ -195,16 +207,25 @@ def build(kind: str) -> None:
 
     for a in run:
         add(a, np.array([mid, ground]))
-    ref_hair = hair_area(run_pose)
     for c in POSES:
         img = Image.open(KIE / cells / f"{c}.png").convert("RGBA")
         # the generator drew some poses bigger than the run pose (the strong one's crouch): those are brought down to
         # the run pose's head size (only down: a pose's hair shows less than the run's, so the measure overshoots up)
-        fit = float(np.clip(np.sqrt(ref_hair / hair_area(np.asarray(img).astype(np.float32) / 255.0)), 0.8, 1.0))
+        fit = POSE_SCALE[kind][c]
         img = img.resize((round(img.width * cell_to_canvas * fit), round(img.height * cell_to_canvas * fit)), Image.LANCZOS)
         a = smaller_head(np.asarray(img).astype(np.float32) / 255.0, hs)
         bottom = float(np.nonzero(a[..., 3] > 0.5)[0].max())
         add(a, np.array([middle_x(a), bottom + (LEAP_LIFT if c == 5 else 0.0)]))
+    # the jump: its head where the run's is (the run's height over his feet), so he doesn't grow or shrink as he leaps
+    run_h = float(np.median([ground - np.nonzero(a[..., 3] > 0.5)[0].min() for a in run]))
+    jdir, jscale = JUMP[kind]
+    jcells = [Image.open(KIE / jdir / f"{c}.png").convert("RGBA") for c in range(4)]
+    for im, jk in zip(jcells, JUMP_CELL[kind]):
+        f = cell_to_canvas * jscale * jk
+        im = im.resize((round(im.width * f), round(im.height * f)), Image.LANCZOS)
+        a = np.asarray(im).astype(np.float32) / 255.0
+        top = float(np.nonzero(a[..., 3] > 0.5)[0].min())
+        add(a, np.array([middle_x(a), top + run_h]))
     sizes = [(f.shape[1], f.shape[0]) for f, _ in frames]
     best = None
     for width in range((max(s[0] for s in sizes) + 3) // 4 * 4, 2049, 4):  # (blocks of 4 for VRAM compression)
@@ -225,7 +246,8 @@ def build(kind: str) -> None:
     fps = BANDIT_SPEED / step if step > 0 else 24.0
     n = length
     data = {"texture_scale": PX_PER_UNIT, "frames": rects, "run": 0, "wait": n, "swing": n + 1, "hit": n + 3,
-            "leap": n + 4, "run_frames": n, "swing_frames": 2, "run_fps": round(fps, 2), "head": heads,
+            "leap": n + 4, "jump": [n + 5, n + 6, n + 7, n + 8], "run_frames": n, "swing_frames": 2, "run_fps": round(fps, 2),
+            "head": heads,
             "vanish": [v % n for v in VANISH]}
     (OUT / f"{kind}.json").write_text(json.dumps(data, indent=1))
     print(f"{kind}.png {width} x {height}: {len(frames)} frames ({n} run), {stand:.0f} units tall, "
