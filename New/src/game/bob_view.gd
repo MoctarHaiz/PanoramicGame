@@ -23,9 +23,38 @@ const SPEC_K := 0.85  ## the steady specular spark on its glint
 ## shrinks a little (the bandit, drawn over it, reads whole; the Bob is still there to take), and every Bob has a
 ## thin warm-cream ring just outside its rim, inside its dark one, so it reads as a pickup on any backdrop (the
 ## acacias' crowns, the plain, the pink mesas). Their places are the rules': never moved.
-const RIM := Color(1.0, 0.9, 0.74, 0.9)
-const BEHIND_ALPHA := 0.3  ## a Bob behind a bandit: this opaque
+## Round 21 (the judges, j17: "Red Bob rows still cross the leader's head: one knot"; "far piles read as scenery,
+## the size of the background trees"): a Bob behind a bandit's head is hidden (behind its body all but hidden), its
+## neighbours just outside fade a little, so the row parts round the bandit; every Bob has a gold rim (treasure, not
+## a berry) and a shine sweeping across it every few seconds, the next one in a row a beat later (a wave of light
+## running along a row or a pile: a pickup, never a painted thing of the backdrop).
+const RIM := Color(1.0, 0.8, 0.36, 0.95)
+const BEHIND_ALPHA := 0.12  ## a Bob behind a bandit's body: this opaque (behind its head: hidden)
 const BEHIND_GROW := Vector2(14.0, 24.0)  ## units a bandit's drawn body (hair, cape) reaches past its box
+const HEAD_SHARE := 0.42  ## the top of a bandit's drawn box (with BEHIND_GROW) that is its head and shoulders
+const PART := 14.0  ## units round a bandit over which a Bob fades back in (the row parts round it)
+const SHINE := """
+shader_type canvas_item;
+// Round 21: a band of light sweeping across a Red Bob (its own beat from where it is: a wave along a row).
+uniform float frame_px = 128.0;
+uniform float period = 3.2;
+varying vec2 local;
+varying float phase;
+
+void vertex() {
+	local = VERTEX / frame_px + 0.5;
+	phase = COLOR.b;  // (its beat, handed in as its self_modulate's blue: the Bob is drawn white)
+	COLOR.b = COLOR.g;
+}
+
+void fragment() {
+	float t = fract(TIME / period + phase);
+	float sweep = t * 7.0 - 1.2;
+	float diag = local.x * 0.8 + local.y * 0.6;
+	float band = exp(-pow((diag - sweep) / 0.09, 2.0)) + 0.5 * exp(-pow((diag - sweep + 0.22) / 0.04, 2.0));
+	COLOR.rgb += vec3(1.0, 0.92, 0.8) * band * 0.5 * COLOR.a;
+}
+"""
 
 static var _sheet: Texture2D
 static var _frame_px := 128
@@ -35,6 +64,7 @@ static var _glint: Texture2D
 static var _halo: Texture2D
 static var _additive: CanvasItemMaterial
 static var _ring: Texture2D
+static var _shine_material: ShaderMaterial  # round 21: the sweep of light (one for every Bob: they batch)
 static var _bandits_frame := -1  # the frame _bandit_rects was worked out in (one look per frame for every Bob)
 static var _bandit_rects: Array[Rect2] = []  # round 20: the bandits' drawn bodies this frame, in level units
 
@@ -51,7 +81,7 @@ var _scale := 1.0
 var _unit := 1.0  # the scale that draws it SIZE wide
 var _tilt := 0.0  # its own lean (radians): no two alike
 var _face := Face.SMILE  # its own face (round 7: a row was "identical tomatoes"): happy, laughing, winking
-var _behind := 0.0  # round 20: 1 while behind a bandit (eased)
+var _behind := 0.0  # round 20: how far it is hidden behind a bandit (eased; round 21: 1 behind its head)
 var _rim: Sprite2D
 
 
@@ -70,6 +100,11 @@ static func load_art() -> void:
 	_glint = _make_glint()
 	_halo = _make_halo()
 	_ring = _make_ring()
+	var shine := Shader.new()
+	shine.code = SHINE
+	_shine_material = ShaderMaterial.new()
+	_shine_material.shader = shine
+	_shine_material.set_shader_parameter(&"frame_px", float(_frame_px))
 	_warm_up_world.call_deferred()  # (made and added at once, when the tree is idle: never left an orphan)
 
 
@@ -84,7 +119,7 @@ static func _warm_up_world() -> void:
 	var holder := Node2D.new()
 	holder.name = &"WorldShaderWarmUp"
 	holder.process_mode = Node.PROCESS_MODE_ALWAYS  # (gone in half a second even if the game is paused)
-	for shader: Shader in [TerrainView.UNDERSIDE, TerrainView.SPIRE_SHADER, HomeView.Fire.FIRE_SHADER]:
+	for shader: Shader in [TerrainView.UNDERSIDE, TerrainView.SPIRE_SHADER, HomeView.Fire.FIRE_SHADER, _shine_material.shader]:
 		var r := ColorRect.new()
 		r.size = Vector2.ONE
 		r.modulate.a = 0.02
@@ -155,6 +190,8 @@ func _init(column := 0, row := 0) -> void:
 	_sprite = Sprite2D.new()
 	_sprite.texture = _faces[Face.SMILE]
 	_sprite.scale = Vector2.ONE * _scale
+	_sprite.material = _shine_material
+	_sprite.self_modulate = Color(1, 1, fposmod(column * 0.137 + row * 0.071, 1.0))  # (its shine's beat: SHINE)
 	add_child(_sprite)
 	var spec := Sprite2D.new()  # the steady spark on its glint, turning and floating with it
 	spec.texture = _glint
@@ -174,7 +211,7 @@ func _init(column := 0, row := 0) -> void:
 	_scale *= 0.88 + 0.22 * h
 	_tilt = (fposmod(h * 7.31, 1.0) - 0.5) * 0.7
 	_glow.scale = Vector2.ONE * (SIZE * GLOW_R * 2.0 / 64.0) * (_scale / _unit)
-	_rim.scale = Vector2.ONE * ((SIZE + 4.0) / 64.0) * (_scale / _unit)
+	_rim.scale = Vector2.ONE * ((SIZE + 5.0) / 64.0) * (_scale / _unit)
 	_face = [Face.SMILE, Face.JOY, Face.SMILE, Face.WINK, Face.JOY][int(h * 97.0) % 5]
 	_pace = 2.6 + 1.4 * fposmod(h * 37.1, 1.0)
 	_clock = 0.0
@@ -193,12 +230,12 @@ func _process(delta: float) -> void:
 	_sprite.rotation = _tilt + 0.09 * sin(_clock * 2.1 - _phase * 0.7)
 	_glow.position = _sprite.position
 	_rim.position = _sprite.position
-	_rim.scale = Vector2.ONE * ((SIZE + 4.0) / 64.0) * (_sprite.scale.x / _unit)
-	# round 20: behind a bandit it dims and shrinks a little (the bandit reads whole over it)
-	var behind := _behind_bandit()
-	_behind = move_toward(_behind, 1.0 if behind else 0.0, delta * 5.0)
-	modulate.a = lerpf(1.0, BEHIND_ALPHA, _behind)
-	scale = Vector2.ONE * lerpf(1.0, 0.82, _behind)
+	_rim.scale = Vector2.ONE * ((SIZE + 5.0) / 64.0) * (_sprite.scale.x / _unit)
+	# round 20: behind a bandit it dims and shrinks a little (the bandit reads whole over it); round 21: hidden behind
+	# its head, all but hidden behind its body, fading a little just outside it
+	_behind = move_toward(_behind, _behind_bandit(), delta * 6.0)
+	modulate.a = 1.0 - _behind
+	scale = Vector2.ONE * lerpf(1.0, 0.82, minf(_behind * 1.2, 1.0))
 	# blink every few seconds; once in a while a wink
 	var face := _face
 	if _clock >= _blink_at:
@@ -215,9 +252,10 @@ func _process(delta: float) -> void:
 		_shine.queue_redraw()
 
 
-## Round 20: whether a bandit's drawn body is over this Bob now (the bandits are looked up once a frame, for
-## every Bob: WorldView holds the world, this Bob's level holds it).
-func _behind_bandit() -> bool:
+## Round 20: how far a bandit's drawn body is over this Bob now (the bandits are looked up once a frame, for
+## every Bob: WorldView holds the world, this Bob's level holds it). Round 21: 1 behind its head and shoulders,
+## 1 - BEHIND_ALPHA behind the rest of it, less and less within PART units of it, 0 clear of it.
+func _behind_bandit() -> float:
 	var frame := Engine.get_process_frames()
 	if frame != _bandits_frame:
 		_bandits_frame = frame
@@ -238,13 +276,18 @@ func _behind_bandit() -> bool:
 				_bandit_rects.append(Rect2(bx + body.position.x, by + body.position.y, body.size.x, body.size.y)
 						.grow_individual(BEHIND_GROW.x, BEHIND_GROW.y, BEHIND_GROW.x, 4.0))
 	if _bandit_rects.is_empty():
-		return false
+		return 0.0
 	var r := SIZE * 0.4
-	var me := Rect2(position - Vector2(r, r), Vector2(r, r) * 2.0)
+	var cover := 0.0
 	for rect in _bandit_rects:
+		var me := Rect2(position - Vector2(r, r), Vector2(r, r) * 2.0)
 		if rect.intersects(me):
-			return true
-	return false
+			var head := position.y < rect.position.y + rect.size.y * HEAD_SHARE
+			cover = maxf(cover, 1.0 if head else 1.0 - BEHIND_ALPHA)
+		else:
+			var gap := maxf(maxf(rect.position.x - me.end.x, me.position.x - rect.end.x), maxf(rect.position.y - me.end.y, me.position.y - rect.end.y))
+			cover = maxf(cover, 0.45 * (1.0 - smoothstep(0.0, PART, gap)))
+	return cover
 
 
 ## Round 20: a thin ring (64 px), for the cream rim just outside the ball.

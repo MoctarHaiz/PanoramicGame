@@ -51,6 +51,7 @@ var _end_col := 0
 var _level: Level
 var _solid: Callable
 var _dressing_total := 0.0
+var _ink: ShaderMaterial  # round 21: the props' material (it clears the band round his hands)
 
 
 class Chunk extends Node2D:
@@ -66,6 +67,7 @@ func build(level: Level, solid: Callable, first_col: int, end_col: int) -> void:
 	var ink := ShaderMaterial.new()  # round 5: inked like the hero (ink.gdshader)
 	ink.shader = preload("res://src/game/ink.gdshader")
 	material = ink
+	_ink = ink
 	_level = level
 	_solid = solid
 	_first_col = first_col
@@ -75,6 +77,27 @@ func build(level: Level, solid: Callable, first_col: int, end_col: int) -> void:
 		_tree_anchor[StringName(name)] = float(info[name].anchor_x)
 	for d: Array in DRESSING:
 		_dressing_total += d[1]
+
+
+## Round 21 (the judges, j17: "a sapling lines up with his forward hand: he carries a twig"): running on the
+## ground, the band where his arms and hands are drawn (from his back to his forward hand's reach, from his
+## shoulders to his waist) is kept clear of the props behind him (ink.gdshader fades them there, softly), in level
+## units: the trees of the map are the only props that reach it (the dressing stands lower).
+func _process(_delta: float) -> void:
+	if not _ink:
+		return
+	var view := get_parent().get_parent() if get_parent() else null
+	var w: Variant = view.get("world") if view else null
+	if not (w is World):
+		return
+	var world := w as World
+	var box := Vector4.ZERO
+	if world.on_ground and not world.hanging and not world.climbing:
+		var p := world.draw_hero()
+		var feet := p.y + World.HERO_SIZE.y / 2.0
+		var x := p.x + world.draw_scroll()
+		box = Vector4(x - 40.0, feet - 158.0, x + 78.0, feet - 72.0)
+	_ink.set_shader_parameter(&"clear", box)
 
 
 ## The props standing in columns c0 .. c1 - 1 (anchored there).

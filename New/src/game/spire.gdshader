@@ -7,9 +7,15 @@ shader_type canvas_item;
 // shadow at some joints, lighter at the top and darker to its flared foot, moss dripping from the cap. Each one
 // its own: width, taper, waist, chips out of its sides, a small ledge on some, its tint (`seed`). In the river its
 // foot sinks into the water (murky, then gone) with foam lapping round it.
+// Round 21 (the judges, j17: "the river pillars thin straight telephone poles / bamboo, no base"): a body that
+// tapers from its top (the walkable cell, unchanged) to a foot twice as wide or more (`base_w`), two broken ledges
+// jutting from its sides (a lit, mossy top, a dark underside, a jagged end), and a base of fallen boulders heaped
+// round its foot, half sunk in the water (or the ground), foam lapping round them.
 
 uniform vec2 size = vec2(96.0, 400.0);  // units: the rectangle (the column is centred in it)
-uniform float half_w = 22.0;  // units: the shaft's half width at its middle
+uniform float half_w = 22.0;  // units: the shaft's half width under its cap
+uniform float base_w = 40.0;  // round 21: units: its half width at its foot
+uniform float rubble = 1.0;  // round 21: 1: boulders heaped round its foot (0: over a pit, none)
 uniform float water_y = -1.0;  // units from the top to the waterline (< 0: standing on the ground)
 uniform float foot_y = 400.0;  // units from the top to its foot (where it meets the ground or the waterline)
 uniform float level_x = 0.0;  // level x of the rectangle's left side (the water's waves)
@@ -43,6 +49,13 @@ void fragment() {
 	float down = clamp(y / max(height, 1.0), 0.0, 1.0);
 	// (each leans its own way a little: its top stays on the walkable cell, its foot drifts)
 	float cx = size.x * 0.5 + (hash(seed * 12.7) - 0.5) * 18.0 * down * down;
+	// (round 21: its rectangle is wide for its foot and boulders: what lies past the widest it can be at this height,
+	// its ledges included, is left at once, before the work)
+	float reach_max = half_w * 1.45 + (base_w - half_w) * pow(down, 1.25) + 26.0;
+	float base_y = water_y > 0.0 ? water_y : foot_y;
+	if (abs(p.x - cx) > reach_max && (rubble < 0.5 || y < base_y - 46.0)) {
+		discard;
+	}
 	// the cap rock and the undercut under it
 	float cap_h = 22.0 + 6.0 * hash(seed * 1.3);
 	float cap = 1.0 - smoothstep(cap_h - 2.0, cap_h + 2.0, y);
@@ -55,38 +68,54 @@ void fragment() {
 	float bfr = fract(bc);
 	float step_l = (hash(bk * 7.7 + seed) - 0.5) * 0.24;
 	float step_r = (hash(bk * 5.3 + seed * 1.9) - 0.5) * 0.24;
-	// its width down its height: a waist, a taper to the top, a flared foot
+	// its width down its height (round 21): from its cap's width down to base_w at its foot, a waist, a flare
 	float waist = 0.45 + 0.25 * hash(seed * 4.1);
-	float prof = 1.0 - 0.14 * hash(seed * 3.3) * exp(-pow((down - waist) / 0.22, 2.0));
-	prof *= mix(0.86, 1.0, smoothstep(0.0, 0.6, down));
-	prof += (water_y > 0.0 ? 0.28 : 0.45) * pow(smoothstep(0.72, 1.0, down), 2.0);
+	float spread = base_w / max(half_w, 1.0) - 1.0;
+	float prof = 1.0 + spread * pow(down, 1.25);
+	prof *= 1.0 - 0.1 * hash(seed * 3.3) * exp(-pow((down - waist) / 0.2, 2.0));
+	prof += 0.3 * pow(smoothstep(0.8, 1.0, down), 2.0);
 	float hl = half_w * (prof + step_l * smoothstep(cap_h + 20.0, cap_h + 40.0, y)) - 6.0 * tuck;
 	float hr = half_w * (prof + step_r * smoothstep(cap_h + 20.0, cap_h + 40.0, y)) - 6.0 * tuck;
 	hl = mix(hl, half_w * 1.12, cap);
 	hr = mix(hr, half_w * 1.12, cap);
 	// a gentle wobble, and chips knocked out of its sides
-	hl += (noise(y * 0.06 + seed * 3.0) - 0.5) * 3.0;
-	hr += (noise(y * 0.07 + seed * 5.0) - 0.5) * 3.0;
+	hl += (noise(y * 0.06 + seed * 3.0) - 0.5) * 4.0;
+	hr += (noise(y * 0.07 + seed * 5.0) - 0.5) * 4.0;
 	for (int i = 0; i < 3; i++) {
 		float fi = float(i);
 		float at = (0.22 + 0.6 * hash(seed + fi * 3.7)) * height;
-		float chip = max(0.0, 1.0 - abs(y - at) / (6.0 + 6.0 * hash(seed + fi * 1.1))) * (3.0 + 5.0 * hash(seed + fi * 8.3));
+		float chip = max(0.0, 1.0 - abs(y - at) / (6.0 + 6.0 * hash(seed + fi * 1.1))) * (3.0 + 6.0 * hash(seed + fi * 8.3));
 		if (hash(seed + fi * 2.2) < 0.5) {
 			hl -= chip;
 		} else {
 			hr -= chip;
 		}
 	}
-	// a small ledge out of one side on some (moss on its top)
-	float has_ledge = step(0.45, hash(seed * 6.6));
-	float ledge_y = (0.32 + 0.3 * hash(seed * 7.9)) * height;
-	float ledge_side = hash(seed * 8.8) < 0.5 ? -1.0 : 1.0;
-	float lt = (y - ledge_y) / 20.0;
-	float ledge_out = has_ledge * (lt > 0.0 && lt < 1.0 ? (8.0 + 5.0 * hash(seed * 9.4)) * sqrt(max(1.0 - lt * lt, 0.0)) * smoothstep(0.0, 0.12, lt) : 0.0);
-	if (ledge_side < 0.0) {
-		hl += ledge_out;
-	} else {
-		hr += ledge_out;
+	// round 21: two broken ledges jutting out of its sides (one each side), each a shelf with a rounded underside
+	// and a jagged end; their tops lit and mossy
+	float on_ledge = 0.0;  // 1 on a ledge's shelf, its depth into it 0..1 in lt_on
+	float lt_on = 0.0;
+	float under_ledge = 0.0;  // the shadow a ledge casts on the shaft under it
+	float first_side = hash(seed * 8.8) < 0.5 ? -1.0 : 1.0;
+	for (int i = 0; i < 2; i++) {
+		float fi = float(i);
+		float ly = (0.26 + 0.3 * fi + 0.1 * hash(seed * 7.9 + fi)) * height;
+		float side = fi < 0.5 ? first_side : -first_side;
+		float thick = 16.0 + 8.0 * hash(seed * 2.1 + fi);
+		float lt = (y - ly) / thick;
+		float reach = (9.0 + 9.0 * hash(seed * 9.4 + fi)) * (0.75 + 0.5 * noise(y * 0.4 + seed + fi * 9.0));
+		float jut = (lt > 0.0 && lt < 1.0) ? reach * sqrt(max(1.0 - lt * lt, 0.0)) * smoothstep(0.0, 0.1, lt) : 0.0;
+		if (side < 0.0) {
+			hl += jut;
+		} else {
+			hr += jut;
+		}
+		float zone = side < 0.0 ? step(p.x, cx - hl + jut + 2.0) : step(cx + hr - jut - 2.0, p.x);
+		float here = step(0.0, lt) * step(lt, 1.0) * zone;
+		on_ledge = max(on_ledge, here);
+		lt_on = here > 0.5 ? lt : lt_on;
+		under_ledge = max(under_ledge, smoothstep(0.95, 1.15, lt) * (1.0 - smoothstep(1.15, 2.6, lt))
+				* (side < 0.0 ? 1.0 - smoothstep(0.0, 0.6, (p.x - (cx - hl)) / max(hl + hr, 1.0)) : smoothstep(0.4, 1.0, (p.x - (cx - hl)) / max(hl + hr, 1.0))));
 	}
 	float left = cx - hl;
 	float right = cx + hr;
@@ -97,7 +126,36 @@ void fragment() {
 	body *= smoothstep(-0.5, 1.0, y - 2.0 - 4.0 * pow(abs(p.x - cx) / max(half_w * 1.12, 1.0), 4.0) * 4.0);
 	// over a pit: it fades out under the screen
 	body *= 1.0 - smoothstep(size.y - 30.0, size.y, y);
-	if (body <= 0.002) {
+	// round 21: boulders fallen from it, heaped round its foot (half sunk in the water or the ground), each lit
+	// from the upper left, dark under, a soft ink rim
+	float base_line = water_y > 0.0 ? water_y : foot_y;
+	float rub = 0.0;
+	vec3 rub_c = vec3(0.0);
+	if (rubble > 0.5 && y > base_line - 46.0) {
+		for (int i = 0; i < 7; i++) {
+			float fi = float(i);
+			float u = (fi + 0.2 + 0.6 * hash(seed * 3.1 + fi)) / 7.0;
+			float bx = cx + (u * 2.0 - 1.0) * (base_w + 20.0);
+			float r = (10.0 + 12.0 * hash(seed * 5.7 + fi * 1.3)) * (1.0 - 0.4 * abs(u * 2.0 - 1.0));
+			float by = base_line + 4.0 - r * 0.55;
+			vec2 q = (p - vec2(bx, by)) / vec2(1.3, 1.0);
+			float d = length(q) - r;
+			d += (noise(atan(q.y, q.x) * 1.6 + fi * 7.0 + seed) - 0.5) * r * 0.3;
+			float m = 1.0 - smoothstep(-0.7, 0.7, d);
+			if (m > 0.001) {
+				vec2 n = q / max(r, 1.0);
+				float lit = clamp(0.5 - n.x * 0.55 - n.y * 0.75, 0.0, 1.0);
+				vec3 bc = mix(vec3(0.24, 0.15, 0.19), vec3(0.8, 0.54, 0.42), lit) * (0.8 + 0.3 * hash(seed + fi * 4.4));
+				bc = mix(bc, vec3(0.3, 0.38, 0.16) * (0.7 + 0.6 * lit), smoothstep(0.55, 0.8, noise2(p * 0.16 + fi * 3.0)) * step(n.y, -0.2) * 0.7);  // (moss on some tops)
+				bc *= 0.92 + 0.12 * noise2(p * 0.35 + fi);
+				bc *= mix(1.0, 0.62, smoothstep(base_line - 5.0, base_line + 1.0, y));  // (wet at the waterline)
+				bc = mix(bc, vec3(0.2, 0.1, 0.12), smoothstep(-2.2, -0.2, d) * 0.7);
+				rub_c = mix(rub_c, bc, m);
+				rub = max(rub, m);
+			}
+		}
+	}
+	if (body <= 0.002 && rub <= 0.002) {
 		discard;
 	}
 	float ue = clamp(in_l / max(hl + hr, 1.0), 0.0, 1.0);
@@ -133,11 +191,10 @@ void fragment() {
 	c *= 1.0 - 0.55 * smoothstep(cap_h - 4.0, cap_h + 1.0, y) * exp(-max(y - cap_h, 0.0) / 14.0);
 	c = mix(c, c * vec3(0.8, 0.78, 1.0), exp(-max(y - cap_h, 0.0) / 24.0) * smoothstep(cap_h - 4.0, cap_h, y) * 0.6);
 	// the ledge: its top lit and mossy, a shadow under it on the shaft
-	float ledge_zone = ledge_side < 0.0 ? step(in_l, ledge_out + 2.0) : step(in_r, ledge_out + 2.0);
-	float on_ledge = has_ledge * step(0.0, lt) * step(lt, 1.0) * ledge_zone;
-	c = mix(c, vec3(0.42, 0.56, 0.2), on_ledge * (1.0 - smoothstep(0.12, 0.32, lt)) * 0.9);
-	c *= 1.0 - 0.3 * on_ledge * smoothstep(0.5, 1.0, lt);  // (its rounded underside turning from the light)
-	c *= 1.0 - 0.35 * has_ledge * smoothstep(0.9, 1.2, lt) * (1.0 - smoothstep(1.2, 2.6, lt));
+	c = mix(c, min(c * 1.2 + vec3(0.05, 0.03, 0.0), vec3(1.0)), on_ledge * (1.0 - smoothstep(0.0, 0.2, lt_on)));
+	c = mix(c, vec3(0.4, 0.54, 0.19), on_ledge * (1.0 - smoothstep(0.08, 0.26, lt_on)) * 0.85 * step(0.4, hash(seed * 5.5)));
+	c *= 1.0 - 0.38 * on_ledge * smoothstep(0.45, 1.0, lt_on);  // (its rounded underside turning from the light)
+	c *= 1.0 - 0.4 * under_ledge;
 	// moss: dripping from under the cap in a few thin tongues
 	float tongue = cap_h + 1.0 + 14.0 * pow(noise(p.x * 0.11 + seed * 7.0), 3.0) + 26.0 * pow(noise(p.x * 0.19 + seed), 8.0);
 	float moss = (1.0 - smoothstep(tongue - 1.0, tongue + 1.0, y)) * step(cap_h - 3.0, y);
@@ -154,7 +211,8 @@ void fragment() {
 	float edge = min(in_l, in_r);
 	c = mix(c, min(c * 1.35 + vec3(0.06, 0.03, 0.0), vec3(1.0)), (1.0 - smoothstep(1.5, 3.0, in_l)) * step(1.2, in_l) * (1.0 - cap) * 0.5);
 	c = mix(c, vec3(0.2, 0.1, 0.12), (1.0 - smoothstep(0.6, 1.6, edge)) * 0.75);
-	float a = body;
+	c = mix(c, rub_c, rub);
+	float a = max(body, rub);
 	// in the river: under the waterline murky and bluer, then gone; foam lapping round it
 	if (water_y > 0.0) {
 		float x = p.x + level_x;

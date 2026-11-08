@@ -3,10 +3,10 @@ extends Node2D
 ## The level's sky and the savanna behind the play, at golden hour. World redraw: the sky, the
 ## strips, the trees and the animals are painted with kie.ai in the menu key art's style (from the
 ## old pictures of tools/art/savanna.py and tools/art/trees.py as layouts). Back to front:
-##   sky (one painted panorama, its clouds drifting), sun glow (additive), far escarpments, far
-##   hills with tiny acacias,
-##   god rays (additive), mid hills, acacias and baobabs at three depths (warm haze laid over the
-##   farther ones), tall golden grass, pollen motes in the light, a few birds.
+##   sky (one painted panorama, its clouds drifting), sun glow (additive), far escarpments (round 21: three
+##   rows of landforms, the clouds' shadows sliding over the nearer two), far hills with tiny acacias,
+##   god rays (additive), mid hills, acacias and baobabs at three depths in groves (warm haze laid over the
+##   farther ones), tall golden grass, pollen motes in the light, a few birds (round 21: and a far skein).
 ## Farther layers scroll slower; the trees are placed from the level's x with a fixed hash, so the
 ## same tree is always in the same place. Everything is drawn from baked textures (cheap on phones):
 ## each layer is one canvas item redrawn every frame with a handful of rectangles.
@@ -41,21 +41,32 @@ const STRIPS := {
 	&"near_grass": [0.42, 646.0, 0.5],
 }
 ## Round 20 (the judges, j16: "the same mesa shape x4, no atmospheric layering"): the escarpments placed one
-## landform at a time (far_mesa_pieces.png, tools/art/world_mesas.py) in two rows: scroll factor, bottom y,
-## scale range, haze amount, foot haze, haze colour, tint. The far row smaller, paler and cooler (some mirrored:
-## its light is lost in the haze); the near row bigger, warmer and darker, never mirrored (lit from the left).
+## landform at a time (far_mesa_pieces.png, tools/art/world_mesas.py). Round 21 (the judges, j17: "still the same
+## flat-topped striped block, stamped, evenly spaced"): twelve landforms (the strip's five and seven painted ones: a
+## spire, hoodoos, an arch, a broken arch, a cracked butte, a cuesta), in three rows of depth, each in
+## clusters of one to three overlapping landforms with stretches of open plain between, each landform its own
+## scale, proportions and sink into the haze (so its visible height varies). Per row: scroll factor, bottom y,
+## scale range, haze amount, foot haze, haze colour, tint, share mirrored, gap range (units of that row), weights
+## of the kinds (block, spire, arch, low), cloud shadows.
+## The farthest row a pale range of big forms melting into the sky (aerial perspective), the far row smaller, paler
+## and cooler, the near row bigger, warmer and darker, never mirrored (lit from the left).
 const MESA_ROWS := [
-	[0.022, 470.0, Vector2(0.5, 0.74), 0.36, 0.22, Color(0.7, 0.73, 0.88), Color(1, 1, 1)],
-	[0.038, 494.0, Vector2(0.86, 1.2), 0.08, 0.3, Color(0.6, 0.56, 0.7), Color(0.98, 0.92, 0.88)],
+	{scroll = 0.012, bottom = 456.0, scale = Vector2(0.62, 1.0), haze = 0.5, foot = 0.26, haze_colour = Color(0.68, 0.71, 0.85),
+		tint = Color(1, 1, 1), mirror = 0.4, gap = Vector2(40.0, 260.0), kinds = [3.0, 1.5, 1.2, 0.4], cloud = 0.0},
+	{scroll = 0.022, bottom = 470.0, scale = Vector2(0.48, 0.74), haze = 0.36, foot = 0.22, haze_colour = Color(0.7, 0.73, 0.88),
+		tint = Color(1, 1, 1), mirror = 0.3, gap = Vector2(60.0, 330.0), kinds = [2.0, 2.0, 1.0, 1.0], cloud = 0.5},
+	{scroll = 0.038, bottom = 494.0, scale = Vector2(0.78, 1.18), haze = 0.08, foot = 0.3, haze_colour = Color(0.6, 0.56, 0.7),
+		tint = Color(0.98, 0.92, 0.88), mirror = 0.0, gap = Vector2(120.0, 520.0), kinds = [2.0, 2.0, 1.6, 1.4], cloud = 1.0},
 ]
-const MESA_SLOTS := 7  ## landforms in a row before its order repeats
+const MESA_KINDS := ["block", "spire", "arch", "low"]
+const MESA_CLUSTERS := 6  ## clusters in a row before its order repeats
 ## Round 20 (the judges, j16: "home all orange, no cool complement: the hero melts into the backdrop"): over the
 ## last stretch to home dusk falls: the sky cools from the top to a blue-violet, the escarpments and the far
 ## plain to rose and mauve (each multiplied by these, as `dusk` goes 0 -> 1); the warm hut, fire and hero stand
 ## out against it.
 const DUSK_HIGH := Color(0.56, 0.6, 1.0)
 const DUSK_LOW := Color(0.8, 0.74, 0.96)
-const DUSK_MESAS := [Color(0.7, 0.72, 1.0), Color(0.74, 0.66, 0.92)]
+const DUSK_MESAS := [Color(0.66, 0.68, 1.0), Color(0.7, 0.72, 1.0), Color(0.74, 0.66, 0.92)]
 const DUSK_STRIPS := {&"far_hills": Color(0.78, 0.78, 1.0), &"mid_hills": Color(0.9, 0.86, 0.98)}
 ## Tree rows: scroll factor, spacing (level units of that layer), size (of the picture's height in
 ## units), ground y, haze, foot haze, share of empty slots, haze colour (the far rows sink into the
@@ -95,10 +106,13 @@ var _tree_anchor: Array[float] = []
 var _painters: Array[Node2D] = []
 var front: Node2D  ## the foreground grass (WorldView adds it above the actors)
 var hero_x := -999.0  ## round 7: his play x (WorldView): the near trees fade where they pass behind him
+var _hero_box := Rect2()  # round 21: his arms, hands and head this frame (play units; empty: not known)
 var dusk := 0.0  ## round 20: 0..1, how far dusk has fallen (the last stretch to home)
 var _mesa_src: Array[Rect2] = []  # round 20: each landform in far_mesa_pieces.png
-var _mesa_slots := []  # per row: [[piece, x, scale, mirrored, height factor], ...] (units of that row)
+var _mesa_kind: Array[int] = []  # round 21: its kind (MESA_KINDS)
+var _mesa_slots := []  # per row: [[piece, x, scale, mirrored, height factor, sink], ...] (units of that row)
 var _mesa_span: Array[float] = []  # per row: units before its order repeats
+var _mesa_mats: Array[ShaderMaterial] = []  # round 21: per row (the clouds' shadows slide over them)
 
 
 class Painter extends Node2D:
@@ -126,9 +140,14 @@ func _ready() -> void:
 	# (world redraw: the clouds are painted in the sky now, the drifting cloud sprites are gone)
 	# (round 9: the mesas' feet in cool air, not pale milk: the middle of the screen read washed out)
 	_place_mesas()
-	for row in MESA_ROWS.size():  # (round 20: two rows of landforms, the far one paler and cooler)
-		var m: Array = MESA_ROWS[row]
-		_painter(_draw_mesas.bind(row)).material = _haze([0, 0, 0, 0, m[3], m[4], 0, m[5]], m[6])
+	for row in MESA_ROWS.size():  # (round 21: three rows of landforms, the farther ones paler and cooler)
+		var m: Dictionary = MESA_ROWS[row]
+		var hz := _haze([0, 0, 0, 0, m.haze, m.foot, 0, m.haze_colour], m.tint)
+		hz.set_shader_parameter(&"cloud", m.cloud)
+		_painter(_draw_mesas.bind(row)).material = hz
+		_mesa_mats.append(hz)
+		if row == 0:  # (a soft band of the air's colour over the foot of the farthest range: it rises out of haze)
+			_painter(_draw_band.bind(452.0, 70.0, 0.05))
 	_painter(_draw_band.bind(470.0, 110.0, 0.035))  # (round 4: haze only around the far layers; round 9: fainter)
 	# (round 9: the far hills slate blue and darker: they were the pale milky band)
 	# (world redraw: the new far plain is painted pale: a little darker and cooler, not a milky band)
@@ -181,8 +200,24 @@ func _process(delta: float) -> void:
 	_clock += delta
 	# round 20: dusk falls over the last stretch to home
 	dusk = smoothstep(HomeView.LEFT - 1800.0, HomeView.LEFT - 150.0, scroll)
+	_hero_box = _find_hero_box()
+	for row in _mesa_mats.size():  # round 21: the clouds' shadows over the landforms, sliding with the wind
+		if float(MESA_ROWS[row].cloud) > 0.0:
+			_mesa_mats[row].set_shader_parameter(&"cloud_x", scroll * float(MESA_ROWS[row].scroll) - _clock * 7.0)
 	for p in _painters:
 		p.queue_redraw()
+
+
+## Round 21: the box round his arms, hands and head as drawn this frame (play units, as the trees are placed), from
+## the world WorldView draws (its parent); running, the forward hand reaches ~60 units ahead of his middle.
+func _find_hero_box() -> Rect2:
+	var view := get_parent()
+	var w: Variant = view.get("world") if view else null
+	if not (w is World):
+		return Rect2()
+	var p: Vector2 = (w as World).draw_hero()
+	var feet := p.y + World.HERO_SIZE.y / 2.0
+	return Rect2(p.x - 62.0, feet - 172.0, 150.0, 132.0)
 
 
 ## Round 20: the dusk's colour over a layer (white: none).
@@ -254,57 +289,102 @@ func _draw_rays(ci: CanvasItem) -> void:
 	ci.draw_texture_rect(tex, Rect2(_sun() - RAYS_ORIGIN * k, RAYS_SIZE * k), false, Color(1, 1, 1, a))
 
 
-## Round 20: each row's order of landforms, worked out once: never the same one twice in a row (nor across
-## the repeat), each its own size, overlapping a little or with a stretch of plain between.
+## Round 20: each row's order of landforms, worked out once. Round 21 (the judges, j17: "stamped, evenly spaced"):
+## clusters of one to three landforms overlapping (the bigger behind), a stretch of open plain between two clusters;
+## never the same landform twice in a row (nor across the repeat); each its own scale, proportions (a spire stands
+## taller, a low one squats) and sink into the haze (its foot hidden lower: its visible height varies).
 func _place_mesas() -> void:
 	var info: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(DIR + "far_mesa_pieces.json"))
 	var h := float(info["height"])
 	for p: Array in info["pieces"]:
-		_mesa_src.append(Rect2(float(p[0]), 0.0, float(p[1]), h))
+		_mesa_src.append(Rect2(float(p[0]), float(p[1]), float(p[2]), h))
+		_mesa_kind.append(maxi(MESA_KINDS.find(String(p[3])), 0))
 	for row in MESA_ROWS.size():
-		var scales: Vector2 = MESA_ROWS[row][2]
+		var m: Dictionary = MESA_ROWS[row]
+		var scales: Vector2 = m.scale
+		var weights: Array = m.kinds
 		var slots := []
 		var x := 0.0
 		var prev := -1
 		var first := -1
-		for i in MESA_SLOTS:
-			var piece := int(_hash(i * 37 + row * 101 + 5) * _mesa_src.size()) % _mesa_src.size()
-			while piece == prev or (i == MESA_SLOTS - 1 and piece == first):
-				piece = (piece + 1) % _mesa_src.size()
-			if i == 0:
-				first = piece
-			prev = piece
-			var k := lerpf(scales.x, scales.y, _hash(i * 13 + row * 57 + 2))
-			if _mesa_src[piece].size.x > 500.0:
-				k *= 0.82  # (the long plateau: never a wall across the whole view)
-			var mirrored := row == 0 and _hash(i * 19 + row * 7 + 3) < 0.4
-			# (its own proportions too: a butte stands taller or squats wider, so no two read as twins)
-			var tall := 0.74 + _hash(i * 29 + row * 11 + 4) * 0.46
-			slots.append([piece, x, k, mirrored, tall])
-			x += _mesa_src[piece].size.x * k * (0.78 + _hash(i * 23 + row * 3 + 9) * 0.4)
+		var n := 0
+		for cluster in MESA_CLUSTERS:
+			var count := 1 + int(_hash(cluster * 41 + row * 17 + 1) * 2.6)  # one to three landforms
+			var group := []
+			for j in count:
+				var seed := n * 37 + row * 101 + 5
+				n += 1
+				var piece := _pick_mesa(weights, _hash(seed))
+				var tries := 0
+				while (piece == prev or (cluster == MESA_CLUSTERS - 1 and j == count - 1 and piece == first)) and tries < 12:
+					piece = _pick_mesa(weights, _hash(seed + 7 + tries * 3))
+					tries += 1
+				if first < 0:
+					first = piece
+				prev = piece
+				var kind := _mesa_kind[piece]
+				var k := lerpf(scales.x, scales.y, _hash(seed + 2))
+				if _mesa_src[piece].size.x > 500.0:
+					k *= 0.8  # (the long plateau: never a wall across the whole view)
+				var tall := 0.78 + _hash(seed + 4) * 0.4
+				if kind == 1:
+					tall += 0.18  # (a spire stands taller)
+				elif kind == 3:
+					tall -= 0.1
+				var sink := _hash(seed + 6) * 46.0 * k if j > 0 or _hash(seed + 8) < 0.5 else 0.0
+				var mirrored := _hash(seed + 3) < float(m.mirror)
+				group.append([piece, x, k, mirrored, tall, sink])
+				# the next one in the cluster overlaps this one; after the last, open plain
+				x += _mesa_src[piece].size.x * k * (0.42 + _hash(seed + 9) * 0.34)
+			x += _mesa_src[group[-1][0]].size.x * float(group[-1][2]) * 0.5 + lerpf(m.gap.x, m.gap.y, _hash(cluster * 23 + row * 3 + 9))
+			# the bigger landforms behind, the smaller in front of them
+			group.sort_custom(func(a: Array, b: Array) -> bool: return a[2] * a[4] > b[2] * b[4])
+			slots.append_array(group)
 		_mesa_slots.append(slots)
 		_mesa_span.append(x)
 
 
+## A landform of a kind drawn by its weight (0..1 `u`), then one of that kind.
+func _pick_mesa(weights: Array, u: float) -> int:
+	var total := 0.0
+	for wk: float in weights:
+		total += wk
+	var pick := u * total
+	var kind := 0
+	for i in weights.size():
+		pick -= float(weights[i])
+		if pick <= 0.0:
+			kind = i
+			break
+	var of_kind: Array[int] = []
+	for i in _mesa_src.size():
+		if _mesa_kind[i] == kind:
+			of_kind.append(i)
+	if of_kind.is_empty():
+		return int(u * _mesa_src.size()) % _mesa_src.size()
+	return of_kind[int(fposmod(u * 97.13, 1.0) * of_kind.size()) % of_kind.size()]
+
+
 func _draw_mesas(ci: CanvasItem, row: int) -> void:
 	var tex: Texture2D = _tex[&"far_mesa_pieces"]
-	var m: Array = MESA_ROWS[row]
+	var m: Dictionary = MESA_ROWS[row]
 	var x0 := _x0()
 	var x1 := _x1()
-	var offset := scroll * float(m[0]) + (900.0 if row == 0 else 0.0)  # (the rows never line up)
+	var offset: float = scroll * float(m.scroll) + [1700.0, 900.0, 0.0][row]  # (the rows never line up)
 	var span: float = _mesa_span[row]
-	var bottom: float = m[1]
+	var bottom: float = m.bottom
+	var colour := _dusk(DUSK_MESAS[row])
 	for cycle in range(floori((x0 + offset) / span) - 1, floori((x1 + offset) / span) + 1):
 		for slot: Array in _mesa_slots[row]:
 			var src: Rect2 = _mesa_src[slot[0]]
 			var k: float = slot[2]
 			var ky: float = k * float(slot[4])
-			var rect := Rect2(cycle * span + float(slot[1]) - offset, bottom - src.size.y * ky, src.size.x * k, src.size.y * ky)
+			var rect := Rect2(cycle * span + float(slot[1]) - offset, bottom + float(slot[5]) - src.size.y * ky, src.size.x * k, src.size.y * ky)
 			if rect.end.x < x0 or rect.position.x > x1:
 				continue
 			if slot[3]:
 				rect.size.x = -rect.size.x  # mirrored in place
-			ci.draw_texture_rect_region(tex, rect, src, _dusk(DUSK_MESAS[row]))
+			ci.draw_texture_rect_region(tex, rect, src, colour)
 
 
 func _draw_strip(ci: CanvasItem, name: StringName) -> void:
@@ -385,65 +465,82 @@ func _draw_band(ci: CanvasItem, y: float, height: float, alpha: float) -> void:
 			Color(1, 1, 1, alpha))
 
 
+## Round 21 (the judges, j17: "acacias evenly spaced like wallpaper"): each row in groves of one to six trees
+## standing close (the middle ones taller), with long stretches of open plain between (an animal or a termite mound
+## alone in some), so the rows read as clumps and gaps. Round 21 (the judges: "a background sapling lines up with
+## his forward hand: he carries a twig"): a near tree whose picture would reach into the box round his arms, hands
+## and head (_hero_box) fades out as it slides behind him (round 7 only dimmed it to 0.3).
 func _draw_trees(ci: CanvasItem, row_index: int) -> void:
 	var row: Array = TREE_ROWS[row_index]
 	var factor: float = row[0]
-	var spacing: float = row[1]
+	var grove_gap: float = row[1] * 2.6  # (units of this row between two groves' places)
 	var x0 := _x0()
 	var x1 := _x1()
 	var offset := scroll * factor
-	var first := floori((x0 + offset) / spacing) - 2
-	for slot in range(first * 2, (first + int((x1 - x0) / spacing) + 4) * 2):
-		# round 2: groves and open plain, not an even stamp: slots in groups of three share a
-		# density; a dense group gets a second, smaller tree beside each (odd slots)
-		var i := slot >> 1
-		var grove := _hash(floori(i / 3.0) * 7 + row_index * 131)
-		var seed := i * 31 + row_index * 977 + (slot & 1) * 5003
-		if slot & 1 == 1 and (grove < 0.62 or _hash(seed + 11) < 0.35):
+	var first := floori((x0 + offset) / grove_gap) - 2
+	for g in range(first, first + int((x1 - x0) / grove_gap) + 5):
+		var gseed := g * 131 + row_index * 977
+		var u := _hash(gseed)
+		# (how many in this grove: none, a lone tree, a few, a thick clump; the far rows have the bigger clumps)
+		var count := 0 if u < float(row[6]) * 0.7 else (1 if u < 0.55 else (2 + int(_hash(gseed + 1) * (3.0 if row_index == 2 else 5.0))))
+		var cx := g * grove_gap + _hash(gseed + 2) * grove_gap * 0.7 - offset
+		if count == 0:
+			if row_index < 2 and _hash(gseed + 3) < 0.45:  # (round 2) the open plain: animals (giraffes, an elephant, a herd)
+				_draw_animal(ci, int(_hash(gseed + 4) * ANIMALS.size()), cx, row[3], row[2] / 132.0 * 0.7, _hash(gseed + 5) < 0.5)
+			elif row_index > 0 and _hash(gseed + 6) < 0.5:  # or a termite mound
+				var mound: Texture2D = _tex[&"prop_termite"]
+				var mh := float(row[2]) * 0.42 * (0.8 + _hash(gseed + 7) * 0.4)
+				var mk := mh / mound.get_height()
+				_draw_tree(ci, row_index, mound, mound.get_width() / 2.0, Vector2(cx, row[3]), Vector2(mk, mk), false, 0.0, 0.92, 0.0)
 			continue
-		if _hash(seed) < (row[6] + 0.3 if grove < 0.38 else row[6] * 0.4):
-			continue
-		var t := int(_hash(seed + 1) * _trees.size()) % _trees.size()
-		# round 19 ("identical stamps"): never the same tree as the slot before it in this row
-		if t == int(_hash(seed - 31 * 2 + 1) * _trees.size()) % _trees.size() or t == int(_hash(seed - 31 + 1) * _trees.size()) % _trees.size():
-			t = (t + 1 + slot % 3) % _trees.size()
-		var tex := _trees[t]
-		var height: float = row[2] * (0.5 + _hash(seed + 2) * 0.95) * (0.62 if slot & 1 == 1 else 1.0)  # (round 10: more unequal)
-		if tex.get_height() > tex.get_width():  # baobabs: taller pictures, same tree scale
-			height *= 1.15
-		var anchor := _tree_anchor[t]
-		if row_index > 0 and _hash(seed + 5) < 0.14:  # now and then a termite mound instead
-			tex = _tex[&"prop_termite"]
-			height = row[2] * 0.42 * (0.8 + _hash(seed + 2) * 0.4)
-			anchor = tex.get_width() / 2.0
-		elif row_index < 2 and _hash(seed + 8) < 0.16:  # (round 2) or animals: giraffes, an elephant, a herd
-			_draw_animal(ci, int(_hash(seed + 9) * ANIMALS.size()), i * spacing + _hash(seed + 3) * spacing * 0.9 - offset,
-					row[3], row[2] / 132.0 * 0.7, _hash(seed + 4) < 0.5)
-			continue
-		var k := height / tex.get_height()
-		var x := i * spacing + _hash(i * 31 + row_index * 977 + 3) * spacing * 0.9 - offset
-		if slot & 1 == 1:  # beside the tree of its slot
-			x += (0.22 + _hash(seed + 12) * 0.2) * spacing * (1.0 if _hash(seed + 13) < 0.5 else -1.0)
-		var flip := _hash(seed + 4) < 0.5
-		var wide := 0.78 + _hash(seed + 6) * 0.55  # wider or narrower crowns: no two trees alike
-		var size := tex.get_size() * k * Vector2(wide, 1.0)
-		var ax := anchor * k * wide
-		if flip:
-			ax = size.x - ax
-		var rect := Rect2(x - ax, row[3] - size.y, size.x, size.y)
-		if rect.end.x < x0 or rect.position.x > x1:
-			continue
-		if flip:  # a negative width mirrors the picture in place
-			rect.size.x = -size.x
-		# round 4: each tree leans its own way (a skew about its foot): no two alike
-		var foot := Vector2(x, row[3])
-		ci.draw_set_transform_matrix(Transform2D(0.0, Vector2.ONE, (_hash(seed + 14) - 0.5) * 0.36, foot))
-		var behind := 1.0 - 0.7 * (1.0 - smoothstep(40.0, 110.0, absf(x - hero_x))) if row_index == 2 else 1.0
-		# (round 12, "tree clones": each its own shade, a little greener, yellower or darker)
-		var v := 0.86 + _hash(seed + 15) * 0.26
-		var warm := (_hash(seed + 16) - 0.5) * 0.16
-		ci.draw_texture_rect(tex, Rect2(rect.position - foot, rect.size), false, Color(v + warm, v, v - warm, behind))
-		ci.draw_set_transform_matrix(Transform2D.IDENTITY)
+		var spread := float(row[1]) * (0.16 + _hash(gseed + 8) * 0.12)  # (units between two trees of the grove)
+		var prev := -1
+		for j in count:
+			var seed := gseed * 7 + j * 31
+			var t := int(_hash(seed + 1) * _trees.size()) % _trees.size()
+			if t == prev:  # round 19 ("identical stamps"): never the same tree as the one beside it
+				t = (t + 1 + j) % _trees.size()
+			prev = t
+			var tex := _trees[t]
+			var mid := 1.0 - absf(j - (count - 1) * 0.5) / maxf(count * 0.5, 1.0)  # 1 in the grove's middle
+			var height: float = row[2] * (0.45 + _hash(seed + 2) * 0.5 + 0.35 * mid) * (1.0 if count < 3 else 0.86)
+			if tex.get_height() > tex.get_width():  # baobabs: taller pictures, same tree scale
+				height *= 1.15
+			var k := height / tex.get_height()
+			var x := cx + (j - (count - 1) * 0.5) * spread * (0.7 + _hash(seed + 3) * 0.6)
+			var wide := 0.78 + _hash(seed + 6) * 0.55  # wider or narrower crowns: no two trees alike
+			# (round 12, "tree clones": each its own shade, a little greener, yellower or darker)
+			var v := 0.86 + _hash(seed + 15) * 0.26
+			var warm := (_hash(seed + 16) - 0.5) * 0.16
+			_draw_tree(ci, row_index, tex, _tree_anchor[t], Vector2(x, row[3]), Vector2(k * wide, k), _hash(seed + 4) < 0.5,
+					(_hash(seed + 14) - 0.5) * 0.36, v, warm)
+
+
+## One tree (or mound) standing at `foot`: its picture `scale`d, mirrored, leaning (a skew about its foot), its
+## shade; faded out where it would show by his hands and head (_hero_box()).
+func _draw_tree(ci: CanvasItem, row_index: int, tex: Texture2D, anchor: float, foot: Vector2, scale_k: Vector2, flip: bool,
+		lean: float, v: float, warm: float) -> void:
+	var size := tex.get_size() * scale_k
+	var ax := anchor * scale_k.x
+	if flip:
+		ax = size.x - ax
+	var rect := Rect2(foot.x - ax, foot.y - size.y, size.x, size.y)
+	if rect.end.x < _x0() - 40.0 or rect.position.x > _x1() + 40.0:
+		return
+	var alpha := 1.0
+	if row_index > 0 and _hero_box.size.x > 0.0:
+		# (its crown and trunk, leaning: the box it sweeps; a gap of 36 units fades it back in)
+		var swept := Rect2(rect.position.x - absf(lean) * size.y, rect.position.y, rect.size.x + absf(lean) * size.y * 2.0, rect.size.y)
+		var gap := maxf(maxf(_hero_box.position.x - swept.end.x, swept.position.x - _hero_box.end.x), 0.0)
+		if swept.position.y < _hero_box.end.y:
+			alpha = smoothstep(0.0, 36.0, gap)
+	if alpha <= 0.01:
+		return
+	if flip:  # a negative width mirrors the picture in place
+		rect.size.x = -size.x
+	ci.draw_set_transform_matrix(Transform2D(0.0, Vector2.ONE, lean, foot))
+	ci.draw_texture_rect(tex, Rect2(rect.position - foot, rect.size), false, Color(v + warm, v, v - warm, alpha))
+	ci.draw_set_transform_matrix(Transform2D.IDENTITY)
 
 
 ## One of the animals in animals.png (ANIMALS), standing on `ground` at x, `k` times its size, its
@@ -493,6 +590,21 @@ func _draw_birds(ci: CanvasItem) -> void:
 		var s := 0.62 - v * 0.06
 		ci.draw_texture_rect_region(tex, Rect2(cx + cos(a) * r * 1.6, 300.0 + v * 14.0 + sin(a) * r * 0.45, fw * s, fh * s),
 				Rect2(flap * fw, 0, fw, fh), Color(0.32, 0.24, 0.26, 0.9))
+	# round 21 (the judges, j17: "~60 % of the hang shot empty sky"): a skein of birds far off, small and hazy,
+	# gliding slowly across the middle of the sky in a loose V, each flapping on its own beat
+	# (over the open middle and right of the sky, where he rarely is: crossing it slowly to the left, fading in at
+	# its right and out at its middle, then again)
+	var leg := fposmod(_clock / 90.0 + 0.3, 1.0)
+	var lead := x0 + w * lerpf(0.95, 0.42, leg)
+	var seen := smoothstep(0.0, 0.12, leg) * (1.0 - smoothstep(0.85, 1.0, leg))
+	for i in 9:
+		var rank := (i + 1) / 2
+		var side := -1.0 if i % 2 == 1 else 1.0
+		var bx := lead + rank * 17.0 + sin(_clock * 0.6 + i * 1.7) * 2.5
+		var by := 182.0 + rank * 7.5 * side + sin(_clock * 0.9 + i) * 2.0 + rank * 2.0
+		var frame := int(fposmod(_clock * (3.2 + 0.4 * (i % 3)) + i * 1.9, 4.0)) if fposmod(_clock * 0.35 + i * 0.13, 1.0) < 0.4 else 1
+		var s := 0.26 - rank * 0.008
+		ci.draw_texture_rect_region(tex, Rect2(bx, by, fw * s, fh * s), Rect2(frame * fw, 0, fw, fh), Color(0.36, 0.32, 0.42, 0.62 * seen))
 	var period := 38.0
 	var t := fposmod(_clock + 9.0, period) / period
 	for i in 5:

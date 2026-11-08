@@ -13,6 +13,11 @@ const DIR := "res://assets/art/world/"
 const LEFT := Level.WIDTH - World.VIEW_W  ## level x of the last screen (the camera stops here)
 const GROUND := (Level.ROWS - 2) * Level.TILE  ## the top of the ground at the end
 const DOOR_RIGHT := 840.0  ## play x of the doorway's right edge: he stops in it at 790 (World.HOME_X)
+## Round 21 (the judges, j17: "the hut dwarfs him: its door 2.5x his height, cut off at the top"): the main hut drawn
+## at this share of its picture's size, about its doorway's right edge (DOOR_RIGHT: where he stops and the jamb goes
+## over him are unchanged): its doorway a little taller than him, the whole dome in the pushed-in shot with sky over
+## it, so he leads the picture.
+const HUT_K := 0.8
 
 var back: Node2D
 var yard: Node2D  ## over the ground's grass, under the actors (WorldView adds it after the ground)
@@ -23,6 +28,9 @@ var _spill: Sprite2D  # firelight on the ground before the doorway
 var _pour: Sprite2D  # round 10: the light pouring out of the doorway onto the grass
 var _fire_light: Sprite2D  # round 19: the campfire's light on the hut, the sign and the fence
 var _fire_pool: Sprite2D  # round 19: and on the grass round it
+var _fire_reach: Sprite2D  # round 21: its light running along the grass to his left side
+var _fire_side: Sprite2D  # round 21: and on the hut's thatch by the doorway, at his left
+var _door_lift: Sprite2D  # round 21: the firelight inside the doorway, behind his head
 var _clock := 0.0
 var _welcome := 0.0  # the fire flares when he walks in (1 -> 0)
 
@@ -38,7 +46,9 @@ func build() -> void:
 	yard = Node2D.new()
 	yard.name = &"HomeYard"
 	var hut_info: Dictionary = info["home_hut"]
-	var hut_left: float = LEFT + DOOR_RIGHT - float(hut_info["front_x"])
+	var hut_left: float = LEFT + DOOR_RIGHT - float(hut_info["front_x"]) * HUT_K
+	var door_x: float = hut_left + float(hut_info["door_x"]) * HUT_K  # the doorway's middle (level x)
+	var hut_size := Vector2(float(hut_info["size"][0]), float(hut_info["size"][1])) * HUT_K
 	# the back of the homestead: huts and a granary behind the palisade
 	_put(back, "home_granary", LEFT + 330.0, 0.95, Color(0.9, 0.88, 0.9)).material = form(1.0)
 	_put(back, "home_hut_small", LEFT + 1120.0, 0.9, Color(0.92, 0.9, 0.93)).material = form(1.0)
@@ -47,10 +57,11 @@ func build() -> void:
 	_fence(back, LEFT + 960.0, LEFT + 1900.0)
 	# (round 7: no shadow copy of the sign behind it: it read as a faint duplicate arrow)
 	_put(back, "home_sign", LEFT + 548.0, 1.35, Color.WHITE).material = form(0.0, 0.6)
-	_put(back, "home_pot", hut_left + float(hut_info["door_x"]) - 62.0, 1.0, Color.WHITE)
+	_put(back, "home_pot", door_x - 58.0, 1.0, Color.WHITE)
 	# round 3: the homestead is alive: a cooking fire in the yard, and people at it who greet him
 	_fire = Fire.new()
-	_fire.position = Vector2(LEFT + 622.0, GROUND - 8.0)  # (round 7: by the hut, in the pushed-in shot)
+	# (round 7: by the hut, in the pushed-in shot; round 21: nearer him, its light reaching his left side)
+	_fire.position = Vector2(LEFT + 644.0, GROUND - 8.0)
 	_fire.scale = Vector2(2.3, 2.3)  # (round 9: a little bigger: it reads at phone size; round 19: bigger still)
 	back.add_child(_fire)
 	var fire_smoke := _smoke()
@@ -59,7 +70,7 @@ func build() -> void:
 	back.add_child(fire_smoke)
 	# (round 5: the family drawn at the fire read as placeholders two rounds running: gone)
 	var path := _sprite("home_yard", 1.0)  # trodden earth up to the doorway
-	path.position = Vector2(hut_left + float(hut_info["door_x"]) - 70.0, GROUND - 10.0 + 30.0)
+	path.position = Vector2(door_x - 70.0, GROUND - 10.0 + 30.0)
 	path.offset = Vector2(-path.texture.get_width() / 2.0, -path.texture.get_height())
 	# (round 5: no patch of trodden earth: it read as his boots standing in the dirt under the grass
 	# line; the grass runs on to the doorway)
@@ -67,7 +78,7 @@ func build() -> void:
 	_spill = _sprite("home_glow", 1.0)  # the fire's light on the ground before the doorway
 	_spill.centered = true
 	_spill.offset = Vector2.ZERO
-	_spill.position = Vector2(hut_left + float(hut_info["door_x"]) + 10.0, GROUND + 6.0)
+	_spill.position = Vector2(door_x + 10.0, GROUND + 6.0)
 	_spill.scale = Vector2(3.6, 0.62)  # (round 2: a long warm pool along the ground)
 	var spill_add := CanvasItemMaterial.new()
 	spill_add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
@@ -79,7 +90,7 @@ func build() -> void:
 	_pour.texture = load(DIR + "home_door_light.png")
 	_pour.centered = false
 	_pour.offset = Vector2(-128, 0)
-	_pour.position = Vector2(hut_left + float(hut_info["door_x"]) + 4.0, GROUND - 14.0)
+	_pour.position = Vector2(door_x + 4.0, GROUND - 14.0)
 	_pour.scale = Vector2(0.9, 0.42)
 	_pour.material = spill_add
 	yard.add_child(_pour)
@@ -87,20 +98,29 @@ func build() -> void:
 	shade.texture = TerrainView.cast_shade()  # grass of the yard, long: the sun is low on the left)
 	shade.centered = false
 	shade.modulate = Color(0.16, 0.08, 0.16, 0.6)
-	var hut_w := float(hut_info["size"][0])
+	var hut_w := hut_size.x
 	shade.position = Vector2(hut_left + hut_w * 0.45, GROUND - 16.0)
 	shade.scale = Vector2(hut_w * 1.3 / 64.0, 34.0 / 32.0)
 	yard.add_child(shade)
-	var hut := _sprite("home_hut", 1.0)
+	var hut := _sprite("home_hut", HUT_K)
 	hut.position = Vector2(hut_left, GROUND + 4.0)
 	hut.material = form(1.0)
 	back.add_child(hut)
+	# round 21 (the judges, j17: "his black hair melts into the dark doorway"): the firelight inside lifts the dark
+	# behind his head a little (warm, soft, inside the doorway's arch), so his hair stands off it
+	_door_lift = _sprite("home_glow", 1.0)
+	_door_lift.centered = true
+	_door_lift.offset = Vector2.ZERO
+	_door_lift.position = Vector2(door_x - 6.0, GROUND - 108.0)
+	_door_lift.scale = Vector2(0.52, 0.62)
+	_door_lift.material = _add_material()
+	back.add_child(_door_lift)
 	var smoke := _smoke()
-	smoke.position = Vector2(hut_left + float(hut_info["size"][0]) / 2.0, GROUND + 4.0 - float(hut_info["size"][1]) + 18.0)
+	smoke.position = Vector2(hut_left + hut_size.x / 2.0, GROUND + 4.0 - hut_size.y + 18.0 * HUT_K)
 	back.add_child(smoke)
 	# in front of him: the wall right of the doorway, the shade inside, the firelight on him
-	var wall := _sprite("home_hut_front", 1.0)
-	wall.position = hut.position + Vector2(float(hut_info.get("front_crop_x", 0.0)), 0.0)  # (stored cropped)
+	var wall := _sprite("home_hut_front", HUT_K)
+	wall.position = hut.position + Vector2(float(hut_info.get("front_crop_x", 0.0)) * HUT_K, 0.0)  # (stored cropped)
 	front.add_child(wall)
 	# round 19 (the judges: "the campfire flat triangles casting no glow"): its light reaches the hut's
 	# side, the sign's post and the fence (added over them), and pools warm on the grass round it
@@ -118,10 +138,27 @@ func build() -> void:
 	_fire_pool.scale = Vector2(1.3, 0.3)
 	_fire_pool.material = spill_add
 	yard.add_child(_fire_pool)
+	# round 21 (the judges, j17: "the fire's glow doesn't reach him"): its light runs on along the grass to his left
+	# foot, fading as it goes (brightest at the fire), and warms the thatch by the doorway at his left; the doorway
+	# behind him and the ground under him stay as they were (no bloom at his feet)
+	_fire_reach = Sprite2D.new()
+	_fire_reach.texture = TerrainView.cast_shade()  # (darkest on its left edge, fading out to the right: the light here)
+	_fire_reach.centered = false
+	_fire_reach.position = _fire.position + Vector2(-6, -20)
+	_fire_reach.scale = Vector2((door_x - 46.0 - _fire.position.x) / 64.0, 34.0 / 32.0)
+	_fire_reach.material = spill_add
+	yard.add_child(_fire_reach)
+	_fire_side = _sprite("home_glow", 1.0)
+	_fire_side.centered = true
+	_fire_side.offset = Vector2.ZERO
+	_fire_side.position = Vector2(door_x - 62.0, GROUND - 52.0)
+	_fire_side.scale = Vector2(0.62, 0.95)
+	_fire_side.material = spill_add
+	back.add_child(_fire_side)
 	_glow = _sprite("home_glow", 1.0)
 	_glow.centered = true
 	_glow.offset = Vector2.ZERO
-	_glow.position = Vector2(hut_left + float(hut_info["door_x"]) + 6.0, GROUND - 20.0)
+	_glow.position = Vector2(door_x + 6.0, GROUND - 20.0)
 	_glow.scale = Vector2(1.1, 0.8)
 	var add := CanvasItemMaterial.new()
 	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
@@ -146,6 +183,9 @@ func _process(delta: float) -> void:
 		# (round 20: kept round the fire, not over the whole left of the home: the dusk's cool reads round it)
 		_fire_light.modulate = Color(1, 0.6, 0.3, 0.18 + flick + 0.1 * _welcome)
 		_fire_pool.modulate = Color(1, 0.66, 0.34, 0.45 + flick * 1.5 + 0.15 * _welcome)
+		_fire_reach.modulate = Color(1, 0.62, 0.3, 0.42 + flick * 1.2 + 0.12 * _welcome)
+		_fire_side.modulate = Color(1, 0.58, 0.28, 0.2 + flick * 0.8 + 0.08 * _welcome)
+		_door_lift.modulate = Color(0.78, 0.5, 0.32, 0.3 + f * 0.1 + 0.08 * _welcome)
 
 
 ## He is home: the fire flares up to welcome him.
@@ -162,6 +202,13 @@ func _sprite(name: String, k: float) -> Sprite2D:
 	s.scale = Vector2(k, k) * 0.5  # pictures are 2 px per unit
 	s.offset = Vector2(0, -s.texture.get_height())
 	return s
+
+
+## An additive material (light laid over what is under it).
+static func _add_material() -> CanvasItemMaterial:
+	var m := CanvasItemMaterial.new()
+	m.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	return m
 
 
 ## New: the huts were painted flat ("no shadow side, no rim: a sticker"); form.gdshader lights each

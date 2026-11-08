@@ -235,14 +235,17 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 		# ruled lines): a carved column painted by spire.gdshader, each its own width, waist, chips, ledge and tint
 		var w := float(span / 10000)
 		var end := span % 100
-		var half_w := T * 0.5 * w * (0.95 + 0.9 * _hash(c, 21, 100) / 100.0)
+		# round 21 (the judges, j17: "thin telephone poles / bamboo, no base"): its top as wide as its cell (the
+		# walkable top is unchanged), its body tapering out to a foot two to two and a half times as wide
+		var half_w := T * 0.5 * w * (1.02 + 0.16 * _hash(c, 21, 100) / 100.0)
+		var base_w := half_w * ((2.0 if w < 1.5 else 1.5) + 0.5 * _hash(c, 23, 100) / 100.0) + 4.0
 		# its foot: at the waterline in the river, on the ground under a stack, none over a pit
 		var river := end >= Level.ROWS and _kind(c - 1, Level.ROWS - 2) == Level.Kind.WATER
 		var base := (Level.ROWS - 2) * T + 8.0 if river else end * T + 4.0
 		var footed := river or end < Level.ROWS
 		var top := y - 3.0
 		var h := (base - top) + (FOOT_SINK + 10.0 if river else (8.0 if footed else 40.0))
-		var room := half_w * 3.0 + 56.0  # (its flared foot, its lean and a ledge reach out past its shaft)
+		var room := base_w * 2.0 + 120.0  # (its flared foot, its lean, its ledges and boulders reach out past its shaft)
 		var rock := UnderRock.new()
 		rock.white = _white
 		rock.rect = Rect2(x + T * w / 2 - room / 2, top, room, h)
@@ -250,6 +253,9 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 		m.shader = SPIRE_SHADER
 		m.set_shader_parameter(&"size", rock.rect.size)
 		m.set_shader_parameter(&"half_w", half_w)
+		m.set_shader_parameter(&"base_w", base_w)
+		# (boulders only where it stands in the river or on wider ground: not under a stack that ends in the air)
+		m.set_shader_parameter(&"rubble", 1.0 if river or (end < Level.ROWS and solid(c, end)) else 0.0)
 		m.set_shader_parameter(&"water_y", (Level.ROWS - 2) * T + 7.0 - top if river else -1.0)
 		m.set_shader_parameter(&"foot_y", base - top)
 		m.set_shader_parameter(&"level_x", rock.rect.position.x)
