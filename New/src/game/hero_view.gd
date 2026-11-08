@@ -42,8 +42,15 @@ const SHADOW_SHIFT := 10.0  ## units the ground shadow falls right of him (the s
 const SHADOW_WIDTH := 100.0  ## units across his shadow on the ground, standing on it
 const SHADOW := Color(0.11, 0.04, 0.07)  ## the characters' shadows: the dusk's warm plum shade
 const CONTACT := Color(0.05, 0.02, 0.03)  ## (round 20) the tight contact under the feet: near black
-const SHADOW_HOME := Vector2(1.9, 1.3)  ## (round 20) at home his shadow this much wider (x) and darker (y)
-const SHADOW_HOME_SHIFT := -16.0  ## units: at home under both boots of his stride (its middle is left of his hips)
+## (round 21, the judges: "at home his shadow a hard black ellipse offset to the left, a hole") at home a soft occlusion
+## right under his stride: this much wider (x) and darker (y) than in play, its near-black contact softened (CONTACT_HOME),
+## its middle under his frame's middle a little right of it, away from the fire on his left (SHADOW_HOME_SHIFT units)
+const SHADOW_HOME := Vector2(1.15, 1.15)
+const SHADOW_HOME_SHIFT := 5.0
+const CONTACT_HOME := 0.5
+## (round 21) at home, where the dark front grass clears to show the ground line, his feet stand this share of
+## GameArt.FEET_SINK higher (in play the grass hides the sink; at home his back boot's toe showed under the ground)
+const HOME_LIFT := 0.6
 const HOLD := 0.1  ## seconds an animation shows at least before another replaces it (no flicker)
 const HURT_TIME := 0.33  ## seconds of the blow's reaction
 const STUMBLE := 0.14  ## seconds of the stumble after it, leaning back and catching himself
@@ -58,9 +65,17 @@ const SHADE := 0.14  ## his shade tinted towards the dusk's cool ambient
 ## (round 20, the judges: "a sticker: lit flat from the front while the scenes are back- and side-lit") the form: the
 ## half of him away from the sun (upper left) in a soft cool shade, deepest along the edges turning away from it
 ## (character.gdshaderinc char_form()); no rim, no glow on the lit side (the user)
-const FORM := 0.46
+## (round 21, the judges: "still lit flat from the front, his skin on the gold grass's value") the shade side deeper and
+## cooler (0.46 -> 0.7, reaching further over the half away from the sun), and a warm key on the sun's side (character.gdshaderinc key_colour): a lit form, the skin warmer
+## than the grass on one side and darker than it on the other
+const FORM := 0.7
+const FORM_REACH := 0.6  ## how much of the half away from the sun is in that shade (character.gdshaderinc form_reach)
 const FORM_COLOUR := Color(0.6, 0.58, 0.86)  ## the shade's colour: the sky's cool, multiplied
 const FORM_HOME := 0.22  ## at home the fire's bounce already shades his far side cool (actor.gdshader bounce)
+const FORM_PX := 12.0  ## atlas texels the edges turning away from the sun reach in (round 20: 9)
+const KEY := 0.9  ## the warm key on the sun's side (0: none)
+const KEY_HOME := 0.4  ## at home the fire's own warmth is on that side (bounce)
+const HAIR_LIFT := 0.45  ## (round 21) at home the top of his hair a little lighter, clear of the dark doorway (no rim)
 const VINE_INK_PX := 0.9  ## atlas px of ink added at the vine: hero_atlas.py's 3.2 x (1 / 0.78 - 1), the vine framing's zoom
 const WALK_IN := 70.0  ## units he walks into the doorway at home
 const DIE_PUSH := 40.0  ## units the fatal blow knocks him back
@@ -108,7 +123,8 @@ var _shadow_w := 1.0  # the shadow's width (lying down: longer)
 var _world: World
 var _visible := 1.0
 var _vine_ink := 0.0  # 0..1: the extra ink while the camera frames the vine
-var _home := 0.0  # 0..1: at home (his shadow there wider and darker: SHADOW_HOME)
+var _home := 0.0  # 0..1: at home (his shadow there a soft occlusion under his stride: SHADOW_HOME)
+var _mid := 0.0  # units from his anchor to the middle of the frame shown (his stride's middle at home)
 
 
 static func frames_data() -> Dictionary:
@@ -153,6 +169,9 @@ func _init() -> void:
 	_material.set_shader_parameter(&"shade_amount", SHADE)
 	_material.set_shader_parameter(&"form_amount", FORM)  # (round 20) a shade side (figure_box, region: show_state())
 	_material.set_shader_parameter(&"form_colour", FORM_COLOUR)
+	_material.set_shader_parameter(&"form_px", FORM_PX)
+	_material.set_shader_parameter(&"form_reach", FORM_REACH)
+	_material.set_shader_parameter(&"key_amount", KEY)
 	# (round 12, "top runners light the hero brightest on screen") his lit side raised in the level's light
 	_material.set_shader_parameter(&"light_gain", LIGHT_GAIN)
 	_sprite.material = _material
@@ -262,6 +281,7 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 			# he lands at the door, the victory beat (turns to us, fists up), then walks into the
 			# doorway (the hut's jamb is drawn over him by HomeView.front)
 			_end_time = t
+			offset.y -= GameArt.FEET_SINK * HOME_LIFT * clampf(t / World.HOME_LAND, 0.0, 1.0)
 			if t < World.HOME_LAND:
 				anim = &"jump"
 				index = JUMP_LAND[0] + mini(int(t / World.HOME_LAND * 4.0), 3)
@@ -438,6 +458,7 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 	_material.set_shader_parameter(&"region", Vector4(float(region[0]) / page_size.x, float(region[1]) / page_size.y,
 			float(region[2]) / page_size.x, float(region[3]) / page_size.y))
 	_material.set_shader_parameter(&"figure_box", Vector4(-anchor_px.x, -anchor_px.y, float(region[2]), float(region[3])))
+	_mid = (float(region[2]) * 0.5 - anchor_px.x) * _units
 	# a white flash on the blow, then (while bandits can't hurt him) a warm red flicker, 4 frames
 	# on, 4 off: he stays solid (a faded ghost vanished against the bright savanna); under a
 	# pool's surface he fades
@@ -463,6 +484,8 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 	var home_k := clampf(_end_time / 0.5, 0.0, 1.0) if phase == &"home" else 0.0
 	_material.set_shader_parameter(&"bounce", 0.6 * home_k)
 	_material.set_shader_parameter(&"form_amount", lerpf(FORM, FORM_HOME, home_k))
+	_material.set_shader_parameter(&"key_amount", lerpf(KEY, KEY_HOME, home_k))
+	_material.set_shader_parameter(&"hair_lift", HAIR_LIFT * home_k)
 	_home = home_k
 	# (round 19, the user: no rim light on him; the judges: "backlit by the door into a halo") no back rim at home
 	_material.set_shader_parameter(&"back_rim", 0.0)
@@ -500,9 +523,10 @@ func _update_shadow(w: World, p: Vector2) -> void:
 	var feet := p.y + World.HERO_SIZE.y / 2
 	for r in range(maxi(floori((feet - 8.0) / Level.TILE), 0), Level.ROWS):
 		if w.level.kind_at(col, r) == Level.Kind.TOP:
-			var ground := r * Level.TILE + GameArt.FEET_SINK - 3.0
+			var ground := r * Level.TILE + GameArt.FEET_SINK * (1.0 - HOME_LIFT * _home) - 3.0
 			_shadow = Vector2(p.x, ground)
-			_shadow.x = p.x + _wall_shift + SHADOW_SHIFT + (_death.x if w.state == World.State.DEAD else 0.0) + SHADOW_HOME_SHIFT * _home
+			_shadow.x = p.x + _wall_shift + lerpf(SHADOW_SHIFT, _mid + SHADOW_HOME_SHIFT, _home) \
+					+ (_death.x if w.state == World.State.DEAD else 0.0)
 			_shadow_k = clampf(1.0 - (ground - feet) / 360.0, 0.0, 1.0)
 			return
 
@@ -511,15 +535,16 @@ func _draw_under() -> void:
 	if _shadow.x < 0.0:
 		return
 	# (round 20, the judges: "a yellow bloom smudge at his feet at home instead of a dark contact shadow") at home, in the
-	# fire's light on the ground, his shadow wider (his stride) and darker
-	contact_shadow(_under, _shadow, SHADOW_WIDTH * lerpf(1.0, SHADOW_HOME.x, _home), _shadow_k, _visible * lerpf(1.0, SHADOW_HOME.y, _home), _shadow_w)
+	# fire's light on the ground, his shadow under his stride; (round 21: "a hard black hole") soft, its core no longer black
+	contact_shadow(_under, _shadow, SHADOW_WIDTH * lerpf(1.0, SHADOW_HOME.x, _home), _shadow_k,
+			_visible * lerpf(1.0, SHADOW_HOME.y, _home), _shadow_w, lerpf(1.0, CONTACT_HOME, _home))
 
 
 ## (round 19) Every character's shadow on the ground (Panoramic's, the bandits'): one soft blob, darkest under the
 ## feet (round 14: no stacked rings, "like a puddle"), a tight darker contact where they stand (grounded, not
 ## hovering), both in the dusk's warm plum shade, smaller and lighter the higher `k` (1: on the ground, 0: high
-## above it). `stretch` widens it (lying down).
-static func contact_shadow(target: CanvasItem, at: Vector2, width: float, k: float, opacity := 1.0, stretch := 1.0) -> void:
+## above it). `stretch` widens it (lying down); `core`: the near-black contact's share (round 21: softer at home).
+static func contact_shadow(target: CanvasItem, at: Vector2, width: float, k: float, opacity := 1.0, stretch := 1.0, core := 1.0) -> void:
 	var w := width * 0.5 * (0.45 + 0.55 * k)
 	var a := (1.0 - pow(1.0 - (0.2 * k + 0.05), 6.0)) * opacity
 	target.draw_set_transform(at, 0.0, Vector2(stretch, 0.24))
@@ -527,7 +552,7 @@ static func contact_shadow(target: CanvasItem, at: Vector2, width: float, k: flo
 	# (round 20, the judges: "no visible contact shadow in play") the contact: where the boots meet the ground, near black
 	var c := w * 0.6
 	target.draw_set_transform(at, 0.0, Vector2(stretch, 0.15))
-	target.draw_texture_rect(_blob(), Rect2(-c, -c, c * 2.0, c * 2.0), false, Color(CONTACT, k * k * 0.85 * opacity))
+	target.draw_texture_rect(_blob(), Rect2(-c, -c, c * 2.0, c * 2.0), false, Color(CONTACT, k * k * 0.85 * opacity * core))
 	target.draw_set_transform(Vector2.ZERO)
 
 

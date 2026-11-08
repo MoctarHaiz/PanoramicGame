@@ -37,6 +37,12 @@ uniform float back_rim_ink_px = 3.4;  // the ink round the outline, in texture p
 // the edge of round 15's thinner ink, "a pale outer edge")
 uniform float back_rim_px = 2.2;  // the band's width inside the ink
 uniform vec4 region = vec4(0.0, 0.0, 1.0, 1.0);  // (round 20) the frame's rectangle in the atlas (UV position, size)
+// (round 21, the judges: "on the win screen he is lit bright and neutral on a night scene") a still in a scene's light:
+// a coloured light spilling over one side of the picture (UV: the win screen's fireworks and its card, on his right),
+// multiplied and broad, over the whole of that side, never a band along the edge (no rim: the user)
+uniform float spill = 0.0;
+uniform vec4 spill_colour : source_color = vec4(1.12, 0.95, 0.86, 1.0);
+uniform vec2 spill_dir = vec2(1.0, -0.3);  // where it comes from, across the picture (UV, y down)
 #include "res://src/game/character.gdshaderinc"
 varying vec2 local_pos;
 
@@ -70,6 +76,7 @@ void fragment() {
 				min(texture(TEXTURE, uv + vec2(0.0, far.y)).a, texture(TEXTURE, uv - vec2(0.0, far.y)).a));
 		float lit = 1.0 - texture(TEXTURE, uv + normalize(light_dir) * far).a;
 		c.rgb = char_grade(c.rgb, bright, sum / max(weight, 0.001), 1.0 - smoothstep(0.2, 0.8, inside), lit);
+		c.rgb = char_hair(c.rgb, bright, local_pos);  // (round 21) home: his hair's top clear of the dark doorway
 		// (round 20) the form: his side away from the sun in a soft cool shade, deepest at the edges turning away
 		// (the samples kept inside his frame of the atlas: `region`)
 		float away = 0.0;
@@ -129,6 +136,10 @@ void fragment() {
 		float far = smoothstep(0.1, -0.7, x);
 		c.rgb *= mix(vec3(1.0), bounce_colour.rgb, bounce * side);
 		c.rgb *= mix(vec3(1.0), bounce_cool.rgb, bounce * far);
+	}
+	if (spill > 0.0) {
+		float side = smoothstep(-0.3, 0.45, dot(UV - vec2(0.5), normalize(spill_dir)));
+		c.rgb *= mix(vec3(1.0), spill_colour.rgb, side * spill);
 	}
 	c.rgb = mix(c.rgb, tint.rgb, amount);
 	COLOR = c;

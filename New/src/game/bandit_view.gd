@@ -36,6 +36,10 @@ const STAR_RISE := 30.0  ## units the dazed stars circle above the middle of its
 const SATURATION := 0.7
 const VALUE := 0.9
 const SHADE := 0.2
+## (round 21, the judges: "the bandits read first: as big as him, higher, darker on the sky") their sizes are the user's;
+## pushed back in value instead: every colour drawn this far towards the sky's haze (bandit.gdshader haze), their darks
+## lifted, their contrast and ink softer, so Panoramic is the clearest, highest-contrast shape on screen
+const HAZE := 0.36
 const SHADOW_WIDTH := 84.0  ## units across its shadow on the ground (Panoramic's: 100)
 const SHADOW_SHIFT := 8.0  ## its shadow falls a little right of it, away from the sun (upper left), as his does
 
@@ -111,6 +115,7 @@ func _init(w: World, b: World.Bandit) -> void:
 	_material.set_shader_parameter(&"saturation", SATURATION)
 	_material.set_shader_parameter(&"value", VALUE)
 	_material.set_shader_parameter(&"shade_amount", SHADE)
+	_material.set_shader_parameter(&"haze_amount", HAZE)
 	_sprite.material = _material
 	add_child(_sprite)
 	_front = Node2D.new()

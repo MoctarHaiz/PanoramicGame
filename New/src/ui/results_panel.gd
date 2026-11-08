@@ -20,6 +20,18 @@ const HERO_LOSE := "res://assets/art/hero/hero_defeat.png"  # the art track's de
 const HERO_STAND := "res://assets/art/ui/hero_stand.png"  ## fallbacks, loaded only when used (a preload
 const HERO_DOWN := "res://assets/art/ui/hero_down.png"  ## kept them in texture memory all the time)
 const KO_HEAD := Vector2(0.57, 0.04)  ## (round 19) over the knock-out still's head (hero_defeat.png): its stars circle there
+## (round 21, the judges: "on the win screen he is lit bright and neutral on a night scene, floating, no ground") the
+## victory still in the scene's light (actor.gdshader, the characters' own: no new shader to compile): the night's cool
+## ambient over him and the fireworks' and the card's warm light spilling over his right side (broad, multiplied: no rim);
+## he stands in a pool of their light on the ground, his own contact shadow in it
+const NIGHT := Color(0.78, 0.78, 0.95)
+const FIREWORK := Color(1.16, 0.94, 0.84)
+const FIREWORK_SPILL := 0.55
+const WIN_GROUND := Color(1.0, 0.72, 0.55, 0.3)  ## the pool of light he stands in (additive; round 20: 0.16, unseen)
+## his shadow on that ground, under the victory still (hero_win.png, shares of its size): a soft occlusion under his
+## stride and each boot's contact where it stands (the back boot higher up the picture: further back on the ground)
+const WIN_POOL := Vector3(0.46, 0.935, 0.9)  ## its middle (x, y) and width
+const WIN_BOOTS: Array[Vector3] = [Vector3(0.13, 0.936, 0.2), Vector3(0.735, 0.907, 0.22)]  ## each boot's: x, y, width
 const STAR_STEP := 0.32  ## seconds between two stars
 const COUNT_TIME := 0.7  ## seconds the Red Bobs take to roll up
 const BADGE := 62.0  ## the NEW BEST badge's radius (its spikes)
@@ -121,7 +133,7 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 	# shadow: only a faint light on the ground round them
 	if won:  # radiant: a red ribbon on the gold (gold on gold was lost), the home at a cool dusk behind
 		panel = GamePanel.open(game, title, Ui.Tone.CRIMSON, body, _hero(true), Color(0.04, 0.03, 0.1, 0.3),
-				Color(1, 0.84, 0.6, 0.16), true, hide, &"win")
+				WIN_GROUND, true, hide, &"win")
 	else:  # drained and dim: where he fell, cool and dark, old bronze, a red ribbon
 		panel = GamePanel.open(game, title, Ui.Tone.CRIMSON, body, _hero(false), Color(0.06, 0.04, 0.06, 0.45),
 				Color(0.75, 0.8, 1.0, 0.1), false, hide, &"loss")
@@ -209,6 +221,22 @@ static func _hero(won: bool) -> TextureRect:
 	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
 	if rendered:  # the stills stand on their own contact shadow (hero_atlas_ai.py stills()): the panel adds none
 		art.set_meta(&"ground", 0.935)  # (round 19) where his feet are, a share of the picture's height
+	if rendered and won:  # (round 21) in the night's light, the fireworks' on his right
+		var night := ShaderMaterial.new()
+		night.shader = preload("res://src/game/actor.gdshader")
+		night.set_shader_parameter(&"line_amount", 0.0)  # (the still's own ink)
+		night.set_shader_parameter(&"ambient", NIGHT)
+		night.set_shader_parameter(&"ambient_amount", 1.0)
+		night.set_shader_parameter(&"spill", FIREWORK_SPILL)
+		night.set_shader_parameter(&"spill_colour", FIREWORK)
+		art.material = night
+		var ground := Control.new()  # his shadow on the ground, behind the still (not in the night's shader)
+		ground.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		ground.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		ground.show_behind_parent = true
+		ground.draw.connect(_draw_win_ground.bind(ground))
+		ground.resized.connect(ground.queue_redraw)
+		art.add_child(ground)
 	if won:
 		# (round 19, the judges: "the hero small on the win screen") the victory still, a fist punched to the sky: he
 		# stands taller than the card
@@ -242,6 +270,15 @@ static func _hero(won: bool) -> TextureRect:
 			lit.set_shader_parameter(&"shade", 0.55)
 		art.material = lit
 	return art
+
+
+## (round 21) The victory still's shadow on the ground (WIN_POOL, WIN_BOOTS): the characters' own soft shadow
+## (HeroView.contact_shadow), the stride's occlusion without a hard core, each boot's contact under it.
+static func _draw_win_ground(ground: Control) -> void:
+	var s := ground.size
+	HeroView.contact_shadow(ground, Vector2(WIN_POOL.x, WIN_POOL.y) * s, WIN_POOL.z * s.x, 1.0, 0.75, 1.0, 0.0)
+	for boot in WIN_BOOTS:
+		HeroView.contact_shadow(ground, Vector2(boot.x, boot.y) * s, boot.z * s.x, 1.0, 0.8)
 
 
 ## (round 19, the judges: "the game over reads lounging, sunbathing, not knocked out") Dazed stars circling over his

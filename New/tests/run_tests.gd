@@ -2114,6 +2114,9 @@ func _test_art() -> void:
 	var form: float = hero._material.get_shader_parameter(&"form_amount")
 	var box: Vector4 = hero._material.get_shader_parameter(&"figure_box")
 	_check(form > 0.0 and Vector2(box.z, box.w) == hero._sprite.region_rect.size, "a shade side across the frame he shows (form %.2f)" % form)
+	# (round 21, "lit flat, the bandits read first") a warm key on his sun side; the bandits pushed back into the haze
+	var key: float = hero._material.get_shader_parameter(&"key_amount")
+	_check(key > 0.0 and BanditView.HAZE > 0.0, "a warm key on his sun side (%.2f), the bandits in the haze (%.2f)" % [key, BanditView.HAZE])
 	hero.threw()
 	hero.show_state(w, w.draw_hero(), 0.01)
 	_check(hero.pose() == &"throw", "throwing: throw (%s)" % hero.pose())

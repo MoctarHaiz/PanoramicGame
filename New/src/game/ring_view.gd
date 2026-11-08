@@ -1,7 +1,8 @@
 class_name RingView
 extends Node2D
 ## Panoramic's throwing ring: a blue-steel chakram whose face carries a band of Zulu beadwork, red and black
-## triangles on white (round 19: the old emblem "read as a brand logo"), a grip bar across its middle and four hooked
+## triangles on white (round 19: the old emblem "read as a brand logo"), its hole open (round 21: the grip bar across
+## its middle "read as a steering wheel": a short leather grip on its inner lip now) and four hooked
 ## silver blades on its rim (round 20: ONE design everywhere, the key art's, the end screens' and this one;
 ## assets/art/fx/ring_spin.png, tools/art/ring_beadwork.py: 8 frames of a half turn), its ring 36 units across and
 ## its blades' tips 48, tumbling as it flies; a highlight racing

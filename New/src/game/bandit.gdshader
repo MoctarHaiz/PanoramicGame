@@ -22,6 +22,12 @@ const float LOUD_SAT = 0.5;  // the saturation over which a colour is pulled dow
 const float LOUD_KEEP = 0.42;  // how much of that excess stays
 const float FORM = 0.5;  // the form's shade (Panoramic's: HeroView.FORM)
 const vec3 AIR = vec3(0.93, 0.92, 1.0);  // the scene's air over them (the dusk's cool)
+// (round 21, the judges: "the bandits read first: as big as him, higher, darker on the sky") their sizes are the user's
+// (the strong one as tall as Panoramic): pushed back in value instead, as far things are, into the air between them and
+// us: every colour drawn towards the sky's haze (the darks lifted most, the contrast lower, their ink softer), so he is
+// the clearest, highest-contrast shape on screen
+uniform vec4 haze : source_color = vec4(0.7, 0.71, 0.84, 1.0);
+uniform float haze_amount = 0.0;  // (BanditView.HAZE)
 varying vec4 vertex_colour;
 varying vec2 local_pos;
 
@@ -76,7 +82,7 @@ void fragment() {
 		// (round 20) the form's shade, as Panoramic's (character.gdshaderinc), and the scene's air
 		vec2 d = -normalize(light_dir) * TEXTURE_PIXEL_SIZE * form_px * 0.8;
 		float away = 1.0 - 0.5 * (texture(TEXTURE, UV + d * 0.5).a + texture(TEXTURE, UV + d).a);
-		c.rgb = char_form(c.rgb, local_pos, away, FORM) * AIR;
+		c.rgb = mix(char_form(c.rgb, local_pos, away, FORM) * AIR, haze.rgb, haze_amount);
 	}
 	if (vanish > 0.0) {
 		vec2 l = (UV - region.xy) / region.zw;  // 0..1 across the frame
@@ -116,6 +122,7 @@ void fragment() {
 		}
 		c.a *= 1.0 - smoothstep(0.8, 1.0, vanish);
 		c.rgb = char_grade(c.rgb, 0.0, c.rgb, 0.0, 0.0);  // (the grade, no line)
+		c.rgb = mix(c.rgb, haze.rgb, haze_amount * (1.0 - m));  // (the chrome bright in the air)
 	}
 	c.rgb = mix(c.rgb, tint.rgb, amount);
 	COLOR = c;

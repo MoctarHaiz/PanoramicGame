@@ -216,7 +216,7 @@ def load(path, factor):
     k = STAND_ATLAS / STAND_GEN * factor
     a = np.asarray(im).astype(np.float32) / 255.0
     if Path(path) == CUT / "r19/win.png":  # (round 20) the victory still's chakram: the one design (chakram())
-        a = chakram(a, "win")
+        a = loincloth(chakram(a, "win"), "win")  # (round 21) and no dark briefs under the loincloth
     if CALM:
         a = calm(a)
     a = bigger_head(a)
@@ -396,23 +396,56 @@ def build():
 
 
 ## (round 20) the victory still's chakram (anim/cut/r19/win.png): its outer edge, fitted (skimage EllipseModel, RANSAC on
-## the silhouette round it): x, y, the semi-axes, the turn
+## the silhouette round it): x, y, the semi-axes, the turn (round 21: what is painted out)
 WIN_RING = (707.39, 531.91, 104.55, 118.48, 0.11)
-WIN_BLADES_TURN = 0.0  # radians the blades turn in its plane (one tucked behind his hip, three clear of him)
-WIN_PAD_RIGHT = 56  # source px added on the right for them
+## (round 21) his armoured forearm and fist where they cross that ring (source px, traced just inside their ink): kept
+WIN_HAND = [(590, 489), (601, 494.5), (612, 498.5), (625, 503), (636, 507), (645, 510.5), (650, 510.5), (660, 510),
+            (668, 510), (671, 504), (676, 490), (681, 487.5), (690, 486.5), (698, 488), (702, 491), (703, 499), (721, 499), (730, 506),
+            (734, 515), (735, 528), (734, 537), (729, 543), (727, 551), (722, 560), (716, 566), (708, 568), (700, 567),
+            (690, 566), (680, 566.5), (670, 565), (660, 564.5), (640, 563.5), (620, 562), (600, 561.5), (590, 561.5)]
+WIN_FIST = (701.0, 528.0)  # the middle of his grip: the new chakram's grip runs under it
+WIN_TURN = 0.64  # radians the chakram is turned about its upright axis (cos 0.8: a 3/4 view, its edge's thickness showing)
+WIN_PAD_RIGHT = 110  # source px added on the right for it
 DEFEAT_RING_K = 0.92  # the knock-out still's chakram on the ground: its blade tips' footprint over the old ring's
+
+
+def _polygon(shape, pts):
+    from skimage.draw import polygon
+    m = np.zeros(shape, bool)
+    rr, cc = polygon([p[1] for p in pts], [p[0] for p in pts], shape)
+    m[rr, cc] = True
+    return m
 
 
 def chakram(a, still):
     """(round 20, the judges: "FOUR chakram designs: one design everywhere, with blades and thickness") The stills carry
-    the one chakram (tools/art/ring_beadwork.py: the beadwork band, the grip bar, four hooked blades): the victory's ring
-    (in his armoured hand, its band and bar already the design's) gets its four blades, in its own plane, under him; the
-    knock-out's thin ring on the ground is replaced by the whole weapon lying flat, a little thickness under it."""
+    the one chakram (tools/art/ring_beadwork.py: the beadwork band, four hooked blades, round 21 a leather grip on its
+    inner lip and no bar): the knock-out's thin ring on the ground is replaced by the whole weapon lying flat, a little
+    thickness under it. (round 21, the judges: "its blue cross-bar makes it a steering wheel / a no-entry sign") the
+    victory's ring, gripped by a bar across its middle, is painted out round his forearm and fist and the whole weapon
+    drawn behind them, held by its grip: his fist on its inner lip, the bladed ring clear to the right of it, turned to a
+    3/4 view (its thickness showing)."""
     import ring_beadwork as rb
     a = a.astype(np.float64)
-    if still == "win":  # (its ring reaches the picture's right edge: room made there for the blades)
+    if still == "win":
         a = np.pad(a, ((0, 0), (0, WIN_PAD_RIGHT), (0, 0)))
-        return rb.over(a, rb.blades_only(a.shape[:2], WIN_RING, WIN_BLADES_TURN)).astype(np.float32)
+        h, w = a.shape[:2]
+        xc, yc, ra, rb_, th = WIN_RING
+        yy, xx = np.mgrid[0:h, 0:w]
+        dx, dy = xx - xc, yy - yc
+        u = (dx * np.cos(th) + dy * np.sin(th)) / (ra + 6.0)
+        v = (-dx * np.sin(th) + dy * np.cos(th)) / (rb_ + 6.0)
+        old = u * u + v * v <= 1.0  # the old ring and its antialiased edge
+        hand = _polygon((h, w), WIN_HAND)
+        rgb = a[..., :3]
+        ink = (_lum(rgb.astype(np.float32)) < 0.13) & (a[..., 3] > 0.5)
+        red = (rgb[..., 0] > 0.45) & (rgb[..., 1] < 0.3) & (rgb[..., 0] > 1.6 * rgb[..., 1])  # its beadwork's red
+        keep = (hand & ~red) | (ink & ndi.binary_dilation(hand, iterations=1))  # (his outline just outside the trace)
+        a[old & ~keep, 3] = 0.0
+        b = rb_ * 0.98
+        off = rb.lip_offset(b, WIN_TURN)
+        c = np.array(WIN_FIST) - rb.rot(th) @ off  # its grip under his fist, the ring leaned as the old one
+        return rb.over(a, rb.held(a.shape[:2], c, b, WIN_TURN, th)).astype(np.float32)
     lab, n = ndi.label(a[..., 3] > 0.02)  # the old ring: the piece of its own on the ground, low in the picture
     out = a.copy()
     for i, sl in enumerate(ndi.find_objects(lab)):
@@ -430,10 +463,47 @@ def chakram(a, still):
     return out.astype(np.float32)
 
 
-FORM = 0.46  # (round 20) the stills' form shade: HeroView.FORM, the same light as in play
+## (round 21, the judges: "the loincloth rides up showing dark briefs") where the stills show dark cloth under the
+## loincloth (source px boxes) and the colour it becomes: the loincloth's own white in its shade
+BRIEFS = {"defeat": (570, 500, 712, 612), "win": (514, 594, 556, 652)}
+CLOTH_SHADE = np.array([0.66, 0.63, 0.64])
+
+
+def loincloth(a, still):
+    """(round 21) The dark briefs under his loincloth closed: in the stills' box (BRIEFS), the dark cloth (the defeat's
+    navy, the victory's dark brown-grey wedge: not his skin, nor the ink) repainted as the loincloth's white in shade,
+    its own light and dark kept (the folds), a little darker deeper in."""
+    if still not in BRIEFS:
+        return a
+    x0, y0, x1, y1 = BRIEFS[still]
+    rgb = a[y0:y1, x0:x1, :3].astype(np.float64)
+    L = _lum(rgb.astype(np.float32)).astype(np.float64)
+    if still == "defeat":  # the navy briefs: bluer than red
+        dark = (rgb[..., 2] >= rgb[..., 0] - 0.005) & (L > 0.07) & (L < 0.32)
+    else:  # the wedge: greyer than his skin's shade
+        dark = (rgb[..., 0] - rgb[..., 2] < 0.17) & (L > 0.1) & (L < 0.36)
+    dark &= a[y0:y1, x0:x1, 3] > 0.5
+    dark = ndi.binary_opening(dark, iterations=1)
+    if not dark.any():
+        return a
+    lm = L[dark].mean()
+    ys = np.nonzero(dark)[0]
+    deep = np.clip((np.arange(y1 - y0)[:, None] - ys.min()) / max(ys.max() - ys.min(), 1), 0, 1)  # lower = deeper
+    shade = np.clip(0.95 + (L - lm) * 2.2 - 0.22 * deep, 0.55, 1.05)
+    soft = ndi.gaussian_filter(dark.astype(np.float64), 0.7) * dark  # (its edge into the ink antialiased)
+    k = np.clip(soft * 1.6, 0, 1)[..., None]
+    out = a.copy()
+    out[y0:y1, x0:x1, :3] = (rgb * (1 - k) + CLOTH_SHADE * shade[..., None] * k).astype(a.dtype)
+    return out
+
+
+FORM = 0.7  # (round 20) the stills' form shade: HeroView.FORM, the same light as in play (round 21: 0.46 -> 0.7)
+FORM_REACH = 0.6  # HeroView.FORM_REACH
 FORM_COLOUR = np.array([0.6, 0.58, 0.86])  # HeroView.FORM_COLOUR
 LIGHT_DIR = np.array([-0.6, -0.8])  # towards the sun (character.gdshaderinc light_dir)
-FORM_PX = 9.0  # character.gdshaderinc form_px
+FORM_PX = 12.0  # HeroView.FORM_PX (round 21: 9 -> 12)
+KEY = 0.9  # (round 21) the warm key on the sun's side: HeroView.KEY, character.gdshaderinc key_colour
+KEY_COLOUR = np.array([1.07, 0.98, 0.86])
 
 
 def form(a, stand_px, amount=FORM):
@@ -453,13 +523,17 @@ def form(a, stand_px, amount=FORM):
     a1 = ndi.shift(al, (-d[1] * 0.5, -d[0] * 0.5), order=1)
     a2 = ndi.shift(al, (-d[1], -d[0]), order=1)
     away = 1.0 - 0.5 * (a1 + a2)
-    k = np.clip(side * 0.55 + away * 0.75, 0, 1) * amount
+    shade = np.clip(side * FORM_REACH + away * 0.75, 0, 1)
+    k = shade * amount
     out = a.copy()
     out[..., :3] = a[..., :3] * (1 - k[..., None] + FORM_COLOUR * k[..., None])
+    key = ((1 - shade) * KEY)[..., None]  # (round 21) the rest of him in the sun's warmth
+    out[..., :3] = np.clip(out[..., :3] * (1 - key + KEY_COLOUR * key), 0, 1)
     return out
 
 
 SHADOW_STRENGTH = 1.75  # (round 20, the judges: "a yellow bloom smudge at his feet instead of a dark contact shadow")
+SOLES = 0.85  # (round 21) the victory's per-boot contact pools (hero_atlas.grounded soles: his back boot is higher)
 
 
 def stills():
@@ -474,7 +548,7 @@ def stills():
     for src, name, height, stand in (("win.png", "hero_win.png", WIN_STILL_PX, WIN_STILL_PX),
                                      ("defeat.png", "hero_defeat.png", DEFEAT_STILL_PX, DEFEAT_STILL_PX * 1.3)):
         a = np.asarray(Image.open(CUT / "r19" / src).convert("RGBA")).astype(np.float32) / 255.0
-        a = chakram(a, src[:-4])
+        a = loincloth(chakram(a, src[:-4]), src[:-4])
         if CALM:
             a = calm(a)
         a = bigger_head(a)
@@ -487,7 +561,8 @@ def stills():
         al = r[..., 3:4]
         r[..., :3] = np.where(al > 1e-4, r[..., :3] / np.maximum(al, 1e-4), 0)
         r = form(r, stand)
-        g = ha.grounded(r, strength=SHADOW_STRENGTH)
+        # (round 21, the judges: "floats, no contact shadow" on the win screen) each boot on its own contact too
+        g = ha.grounded(r, strength=SHADOW_STRENGTH, soles=SOLES if name == "hero_win.png" else 0.0)
         rows = np.nonzero(r[..., 3].max(1) > 0.5)[0]
         ha.OUT = OUT
         ha.save(g, name)
