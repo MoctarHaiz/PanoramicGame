@@ -467,22 +467,23 @@ func round_button(icon_name: String, diameter := 112, face := WHITE, edge := EDG
 	return _icon_button(icon_name, face_colours(face, edge), Vector2(diameter, diameter), diameter / 2.0, icon_color)
 
 
-## A button in the panels' own wood: a cream parchment face in a wooden frame ring, a brown icon (the
+## (the user, 2026-11-08: "no woody effect: sleeker, modern") the round buttons (the gear, back, info, pause): dark navy
+## glass in a thin bright gold ring, a cream glyph (the HUD's material).
+const GLASS := {"top": Color("34425f"), "bottom": Color("141b2d"), "edge": Color("0a0e18"), "outline": Color("0a0e18"),
+		"frame": [Color("fff0a8"), Color("e0a030"), Color("8a5a14"), Color("0a0e18")]}
+
+
+## (Before 2026-11-08: a button in the panels' own wood: a cream parchment face in a wooden frame ring, a brown icon (the
 ## settings' back button, the menu's gear: they match the panels around them, not the candy tiles).
 func wood_button(icon_name: String, button_size := Vector2(84, 84), radius := 42.0) -> JuicyButton:
-	var c := {"top": Color("fff6e0"), "bottom": Color("efd29a"), "edge": Color("c08a48"), "outline": Color("4a1e04"),
-			"frame": [Color("d8763a"), Color("7a2a0c"), Color("4a1604"), Color("2e0d04")]}
-	var b := _icon_button(icon_name, c, button_size, radius, Color("6a2a08"))
-	return b
+	return _icon_button(icon_name, GLASS, button_size, radius, CREAM)
 
 
 ## A round button set in a panel's frame (the settings' back and info, centred on its top corners): the
 ## frame's own carved wood for its face, the frame's gold trim for its ring, a cream glyph in a dark
 ## outline (UI r21, the judges of j17: r20's cream buttons in a wood ring read "bolted on").
 func frame_button(icon_name: String, side: float) -> JuicyButton:
-	var c := {"top": Card.FRAME_TOP.lightened(0.1), "bottom": Card.FRAME_BOTTOM, "edge": Color("4a1604"), "outline": Card.INK,
-			"frame": [Card.TRIM_TOP, Card.TRIM_BOTTOM, Color("8a4a0c"), Card.INK]}
-	return _icon_button(icon_name, c, Vector2(side, side), side / 2.0, Color("fff2d6"))
+	return _icon_button(icon_name, GLASS, Vector2(side, side), side / 2.0, CREAM)
 
 
 ## A square-ish candy icon button in a tone (the menu's records and settings).
@@ -555,8 +556,8 @@ func counter(icon_control: Control, text: String, font_size := 42) -> Control:
 ## resource pills of top games): a golden face, darker at its foot, a firm ink outline and a deep
 ## shadow, so it holds its own on the dark ground; dark brown text on it.
 func plaque_style(radius := 30.0, pressed := false) -> GlossStyle:
-	var s := GlossStyle.new(Color("fff1cc"), Color("f0c272"), Color("a8601c"), radius, 7.0, pressed)
-	s.set_outline(Color("3a1606"), 4.0)
+	var s := GlossStyle.new(Color("fffaf0"), Color("f0e0be"), Color("c9a468"), radius, 6.0, pressed)  # (2026-11-08: clean, not parchment)
+	s.set_outline(Color("4a2e10"), 3.0)
 	s.set_frame(4.0, BRASS[0], BRASS[1], Color("7a3c0c"))
 	s.rim = 0.55
 	s.lip = 0.3

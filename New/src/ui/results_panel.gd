@@ -168,9 +168,10 @@ static func _home_sign(game: Control) -> Array:
 ## smoked and quieter after a loss: smooth gradients and a soft inner shadow.
 static func _dark_well(won: bool) -> InsetStyle:
 	var s := InsetStyle.new(22.0)
-	s.top = Color("6a2e10") if won else Color("2a1810")  # a win's warmer (dark chocolate dulled the gold)
-	s.bottom = Color("9c5420") if won else Color("5c3e2c")  # a loss's smoked leather
-	s.outline = Card.INK
+	# (the user, 2026-11-08: "no woody effect: sleeker, modern") the HUD's navy glass: a win's a richer blue
+	s.top = Color("13203c") if won else Color("121722")
+	s.bottom = Color("2c4474") if won else Color("2a3244")
+	s.outline = Color("0a0e18")
 	s.content_margin_top = 12
 	s.content_margin_bottom = 14
 	return s

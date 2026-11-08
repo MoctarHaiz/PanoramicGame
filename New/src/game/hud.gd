@@ -24,12 +24,14 @@ const BOB_ICON := 46.0  ## size of the Red Bob on the counter
 const GEM_ICON := "res://assets/art/bob/icon.png"  ## art's ruby icon for the counter, when it is there
 const TRACK_W := 300.0
 const HEART := 39.0
-const PLATE_TOP := Color("a65c2c")  ## carved wood, lit at its top
-const PLATE_BOTTOM := Color("6c3214")
-const PLATE_EDGE := Color("3e1606")  ## its thickness under it
-const PLATE_LINE := Color("2e0d04")  ## the kit's ink: outlines
-const GROOVE_TOP := Color("2a1206")  ## the way home's groove, cut deep into the wood
-const GROOVE_BOTTOM := Color("4e2812")
+## (the user, 2026-11-08: "I don't like the woody effect: sleeker, more modern") dark navy glass, a thin gold rim
+const PLATE_TOP := Color(0.2, 0.25, 0.36, 0.9)  ## lit at its top
+const PLATE_BOTTOM := Color(0.07, 0.09, 0.15, 0.92)
+const PLATE_EDGE := Color(0.03, 0.04, 0.08, 0.9)  ## its thickness under it
+const PLATE_LINE := Color("0a0e18")  ## the kit's ink: text outlines
+const PLATE_RIM := Color("e9bf5a")  ## its thin gold rim
+const GROOVE_TOP := Color("05070d")  ## the way home's groove, sunk into the glass
+const GROOVE_BOTTOM := Color("1a2236")
 
 var world: World
 var _hearts: Array[Control] = []
@@ -423,7 +425,7 @@ class _Groove extends Control:
 		var r := _Track.GROOVE / 2
 		GlossStyle.begin_batch()  # the groove in one draw call
 		GlossStyle.fill_rounded(ci, Rect2(g.position + Vector2(0, 2.5), g.size).grow(2.0), r + 2.0,
-				Color(1, 0.8, 0.55, 0.35), Color(1, 0.8, 0.55, 0.35))  # the wood's lit lip under it
+				Color(1, 0.85, 0.5, 0.22), Color(1, 0.85, 0.5, 0.22))  # a lit lip under it
 		GlossStyle.fill_rounded(ci, g.grow(2.0), r + 2.0, Hud.PLATE_LINE, Hud.PLATE_LINE)
 		GlossStyle.fill_rounded(ci, g, r, Hud.GROOVE_TOP, Hud.GROOVE_BOTTOM)  # sunk: darkest under its upper edge
 		GlossStyle.fill_clipped(ci, g, r, Rect2(g.position.x, g.end.y - 6.0, w, 6.0),
@@ -486,9 +488,9 @@ class _Heart extends Control:
 ## j18: r21's row of beads along its foot "noise at phone size").
 class _Plate extends GlossStyle:
 	func _init(r: float, is_pressed := false) -> void:
-		super(Hud.PLATE_TOP, Hud.PLATE_BOTTOM, Hud.PLATE_EDGE, r, 4.0, is_pressed)
-		set_outline(Hud.PLATE_LINE, 2.5)
-		rim = 0.3
+		super(Hud.PLATE_TOP, Hud.PLATE_BOTTOM, Hud.PLATE_EDGE, r, 3.0, is_pressed)
+		set_outline(Hud.PLATE_RIM, 2.0)
+		rim = 0.35
 		gloss = 0.0
 		lip = 0.25
 		shadow.shadow_color = Color(0.12, 0.03, 0.0, 0.4)  # it stands off the vine and the sky behind it
@@ -501,8 +503,7 @@ class _Plate extends GlossStyle:
 		var fr := face_radius(rect)
 		if face.size.x < fr * 2.0 + 12.0:
 			return
-		GlossStyle.begin_batch()
-		for k: float in [0.3, 0.52]:  # the grain: faint darker lines along it
-			GlossStyle.fill_clipped(ci, face, fr, Rect2(face.position.x, face.position.y + face.size.y * k, face.size.x, 1.6),
-					Color(0.2, 0.06, 0.0, 0.12), Color(0.2, 0.06, 0.0, 0.12))
+		GlossStyle.begin_batch()  # (2026-11-08) glass: a soft sheen across its upper half, no wood grain
+		GlossStyle.fill_clipped(ci, face, fr, Rect2(face.position.x, face.position.y, face.size.x, face.size.y * 0.45),
+				Color(1, 1, 1, 0.14), Color(1, 1, 1, 0.0))
 		GlossStyle.end_batch(ci)
