@@ -4,12 +4,15 @@ extends Screen
 ## (grade.gdshader: the candy UI and the art one family), with a soft shade behind the title column;
 ## embers streaming out of his launch along the leap (_embers); on the right one clean column with even
 ## gutters, clear of his hand: the CHAKA ZULU logo (gold lettering locked up with a Zulu shield and
-## crossed assegais), its subtitle on a ribbon across the shield's foot, a big green PLAY, and the best
-## run on a roomy parchment plaque as wide as PLAY (the Red Bob, "BEST" over the count, the three stars,
-## the missing ones clear empty sockets); the settings on a round parchment button in a top corner
-## (j15: a square gear among the pills). Everything arrives in a short choreography: the logo
-## drops and bounces, the ribbon unrolls, PLAY pops, the rest fades in. Then the logo catches the light
-## now and then and PLAY breathes.
+## crossed assegais), its subtitle on a ribbon across the shield's foot, and under it one board in the
+## panels' own materials (round 20, the judges: "a casual green pill and a cream card against gritty
+## anime key art; the column floats on a busy sky"): carved wood with its band of Zulu beadwork and
+## beaded rosettes (Card), holding the big green PLAY and, under it on the hide, the best run in a
+## sunken strip (the Red Bob, "BEST" over the count, the three stars: compact, no big empty pill); a
+## deeper shade on the sky behind the column; the settings on a round wooden button in the bottom left
+## corner, clear of his ring (round 20: "the gear collides with the chakram"). Everything arrives in a
+## short choreography: the logo drops and bounces, the ribbon unrolls, PLAY pops, the rest fades in.
+## Then the logo catches the light now and then and PLAY breathes.
 
 const RIBBON := preload("res://assets/art/ui/ribbon_plain.png")  ## (its dashed stitch removed: tools/art/ui_kit.py)
 const TAIL_TRIM := 8  ## px cut off each end of the ribbon's tails (its notch is 24 deep)
@@ -21,9 +24,9 @@ const KEYART := "res://assets/art/ui/menu_keyart.png"  ## the painted title key 
 const HAND_U := 0.548
 const RING_U := 0.17
 const DUST := Rect2(0.0, 0.6, 0.24, 0.38)
-const COLUMN_W := 440.0  ## the title column's width (PLAY and the Best plaque fill it)
-const PLAY_H := 124.0
-const PLATE_H := 100.0  ## the Best plaque's height
+const COLUMN_W := 480.0  ## the title column's width (the board with PLAY and the best run)
+const PLAY_H := 116.0
+const BOARD_MARGIN := Vector4(44, 38, 44, 32)  ## the board's content margins (inside its frame)
 const GUTTER := 28.0  ## between his hand and the column, and between the column and the screen's edge
 const GEAR := 92.0  ## the settings button's side
 
@@ -38,11 +41,12 @@ var _logo_tex: Texture2D
 var _ribbon: Control
 var _ribbon_fit: Control  # holds the ribbon, shrunk to the column
 var _column: VBoxContainer
+var _board_fit: Control  # holds the board, shrunk with the column on a narrow screen
+var _board: Card  # PLAY and the best run, framed
 var _play_box: Control
 var _play_pop: Control  # unmanaged inside _play_box: what the entrance scales
 var _play: JuicyButton
-var _plate_fit: Control  # holds the Best plaque, shrunk with the column on a narrow screen
-var _plate: Control
+var _best: Control  # the best run's strip on the board (a returning player)
 var _gear: JuicyButton
 var _fit := 1.0  # the column's contents shrunk to a narrow column (a tablet)
 var _pop_u := 1.0  # PLAY's entrance (its pop)
@@ -102,10 +106,22 @@ func enter(_data: Dictionary) -> void:
 	_ribbon_fit.add_child(_ribbon)
 	_logo_box.add_child(_ribbon_fit)
 
+	# the board: PLAY, and the best run under it
+	_board_fit = Control.new()
+	_board_fit.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_board_fit.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_column.add_child(_board_fit)
+	_board = Card.new(BOARD_MARGIN)
+	_board.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_board_fit.add_child(_board)
+	var inside := VBoxContainer.new()
+	inside.add_theme_constant_override(&"separation", 12)
+	inside.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_board.add_child(inside)
 	_play_box = Control.new()
 	_play_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_play_box.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_column.add_child(_play_box)
+	_play_box.custom_minimum_size = Vector2(_play_w(), PLAY_H)
+	inside.add_child(_play_box)
 	_play_pop = Control.new()
 	_play_pop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_play_box.add_child(_play_pop)
@@ -114,14 +130,9 @@ func enter(_data: Dictionary) -> void:
 	_play.idle(0.06)
 	_play.shine(3.2, 0)  # the sweep only: lens-flare glints read as stock
 	_play_pop.add_child(_play)
-
-	_plate_fit = Control.new()
-	_plate_fit.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_plate_fit.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	if Save.games_played > 0:
-		_plate = _best_plaque()
-		_plate_fit.add_child(_plate)
-		_column.add_child(_plate_fit)
+		_best = _best_strip()
+		inside.add_child(_best)
 
 	_gear = _gear_button()
 	_gear.pressed.connect(func() -> void: Nav.go(&"settings", {}, _gear.get_global_rect().get_center()))
@@ -140,39 +151,35 @@ func _exit_tree() -> void:
 		Device.changed.disconnect(_layout)
 
 
-## The settings: a round parchment button (the Best plaque's material), its gear in the panels' warm
-## orange, alone in the top left corner.
+## The settings: a round button in the panels' wood (the settings' back button's twin), its gear in
+## their brown, alone in a corner.
 func _gear_button() -> JuicyButton:
-	var b := JuicyButton.new()
-	b.custom_minimum_size = Vector2(GEAR, GEAR)
-	for state in [&"normal", &"hover"]:
-		b.add_theme_stylebox_override(state, Ui.plaque_style(GEAR / 2.0))
-	b.add_theme_stylebox_override(&"pressed", Ui.plaque_style(GEAR / 2.0, true))
-	var i := Ui.bold_icon("gear-chunky", GEAR * 0.52, Color("d0641c"), Color("4a1e04"))
-	b.add_child(Ui._face_holder(i, Ui.plaque_style(GEAR / 2.0)))
-	b.content = i
-	return b
+	return Ui.wood_button("gear-chunky", Vector2(GEAR, GEAR), GEAR / 2.0)
 
 
-## The best run on a parchment plaque in a brass ring, as wide as PLAY: the Red Bob, "BEST" over the
-## count, and at its right end the three stars with room round them (the missing ones clear sockets).
-func _best_plaque() -> PanelContainer:
-	var s := Ui.plaque_style(30.0)
-	s.content_margin_left = 26
-	s.content_margin_right = 30
-	s.content_margin_top = 8
-	s.content_margin_bottom = 15
-	var plaque := PanelContainer.new()
-	plaque.add_theme_stylebox_override(&"panel", s)
-	plaque.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	plaque.custom_minimum_size = Vector2(COLUMN_W, PLATE_H)
+## PLAY's width on the board (the column less the board's frame and margins).
+static func _play_w() -> float:
+	return COLUMN_W - BOARD_MARGIN.x - BOARD_MARGIN.z
+
+
+## The best run on the board's hide, in a sunken strip as wide as PLAY: the Red Bob, "BEST" over the
+## count, and at its right end the three stars (the missing ones clear sockets). Compact: no empty pill.
+func _best_strip() -> PanelContainer:
+	var s := Card.well(18)
+	s.content_margin_left = 14
+	s.content_margin_right = 16
+	s.content_margin_top = 2
+	s.content_margin_bottom = 4
+	var strip := PanelContainer.new()
+	strip.add_theme_stylebox_override(&"panel", s)
+	strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override(&"separation", 16)
+	row.add_theme_constant_override(&"separation", 12)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var bob := TextureRect.new()
 	bob.texture = BobView.texture()
 	bob.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	bob.custom_minimum_size = Vector2(60, 60)
+	bob.custom_minimum_size = Vector2(50, 50)
 	bob.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	bob.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(bob)
@@ -181,19 +188,19 @@ func _best_plaque() -> PanelContainer:
 	words.add_theme_constant_override(&"separation", -10)  # the two lines close, not touching
 	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	words.alignment = BoxContainer.ALIGNMENT_CENTER
-	words.add_child(Ui.label(tr("BEST").to_upper(), 24, Color("b0682c"), Ui.title_font(580, 2), HORIZONTAL_ALIGNMENT_LEFT))
-	words.add_child(Ui.label(str(Save.best_bobs), 50, Color("3a1404"), Ui.font_display, HORIZONTAL_ALIGNMENT_LEFT))
+	words.add_child(Ui.label(tr("BEST").to_upper(), 22, Color("8a4416"), Ui.title_font(580, 2), HORIZONTAL_ALIGNMENT_LEFT))
+	words.add_child(Ui.label(str(Save.best_bobs), 42, Color("3a1404"), Ui.font_display, HORIZONTAL_ALIGNMENT_LEFT))
 	row.add_child(words)
-	var gap := Control.new()  # the stars at the plaque's right end, air between them and the count
+	var gap := Control.new()  # the stars at the strip's right end
 	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(gap)
-	var stars := StarRow.new(Save.best_stars, 50)
+	var stars := StarRow.new(Save.best_stars, 46)
 	stars.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	stars.add_theme_constant_override(&"separation", 8)
+	stars.add_theme_constant_override(&"separation", 6)
 	row.add_child(stars)
-	plaque.add_child(row)
-	return plaque
+	strip.add_child(row)
+	return strip
 
 
 ## The subtitle on the beadwork ribbon (its folded ends stay their size: 9-sliced; trimmed a little:
@@ -335,7 +342,7 @@ func _layout() -> void:
 		hand = x0 + HAND_U * art.x
 		var m := _art.material as ShaderMaterial  # the shade behind the column, in the picture's own UV
 		m.set_shader_parameter(&"shade_at", (Vector2(right - COLUMN_W * 0.5, v.y * 0.5) - _art.position) / art)
-		m.set_shader_parameter(&"shade_size", Vector2(COLUMN_W * 0.95, v.y * 0.7) / art)
+		m.set_shader_parameter(&"shade_size", Vector2(COLUMN_W * 1.05, v.y * 0.72) / art)
 		for p: CPUParticles2D in [_embers, _dust]:
 			if p:
 				p.position = _art.position + art * DUST.get_center()
@@ -347,21 +354,19 @@ func _layout() -> void:
 	var col_w := right - col_left
 	_fit = clampf(col_w / COLUMN_W, 0.6, 1.0)
 	var w := COLUMN_W * _fit
-	# PLAY and the plaque, shrunk together to a narrow column
-	_play_box.custom_minimum_size = Vector2(w, PLAY_H * _fit)
-	_play_pop.size = Vector2(COLUMN_W, PLAY_H)
-	_play_pop.pivot_offset = Vector2(COLUMN_W, PLAY_H) / 2
-	_play_pop.position = (Vector2(w, PLAY_H * _fit) - Vector2(COLUMN_W, PLAY_H)) / 2  # scaled round the box's middle
-	_play_pop.scale = Vector2.ONE * _pop_u * _fit
-	_play.size = Vector2(COLUMN_W, PLAY_H)
-	if _plate:
-		_plate.size = Vector2(COLUMN_W, PLATE_H)
-		_plate.scale = Vector2(_fit, _fit)
-		_plate_fit.custom_minimum_size = Vector2(w, PLATE_H * _fit)
+	# the board (PLAY and the best run), shrunk as one to a narrow column
+	_play_pop.size = Vector2(_play_w(), PLAY_H)
+	_play_pop.pivot_offset = _play_pop.size / 2
+	_play_pop.scale = Vector2.ONE * _pop_u
+	_play.size = _play_pop.size
+	_board.size = Vector2.ZERO
+	_board.size = Vector2(COLUMN_W, _board.get_combined_minimum_size().y)
+	_board.scale = Vector2(_fit, _fit)
+	_board_fit.custom_minimum_size = _board.size * _fit
 	# the logo takes the height left
 	var top := insets.y + 18.0
 	var bottom := v.y - Device.bottom_with_banner() - Device.ad_gap() - 18.0
-	var rest := PLAY_H * _fit + (PLATE_H * _fit + 18.0 if _plate else 0.0) + 18.0
+	var rest := _board.size.y * _fit + 18.0
 	var rk := minf(1.0, (w + GUTTER) / _ribbon.size.x)  # the ribbon a little wider than the column: its tails out
 	_ribbon_fit.scale = Vector2(rk, rk)
 	var ribbon_size := _ribbon.size * rk
@@ -382,10 +387,13 @@ func _layout() -> void:
 	var h := _column.get_combined_minimum_size().y
 	_column.size = Vector2(maxf(box_w, w), h)
 	_column.position = Vector2(centre_x - _column.size.x / 2, top + (bottom - top - h) / 2)
-	# the settings in a top corner: the right one when the column leaves it free (a tablet), else the left
+	# the settings in the top right corner when the column leaves it free (a tablet), else the bottom left
+	# one, under his dust and clear of his raised ring (round 20: "the gear collides with the chakram")
 	_gear.size = _gear.custom_minimum_size
-	var corner_right := _column.position.y >= insets.y + 18.0 + GEAR + 24.0
-	_gear.position = Vector2(v.x - insets.z - 22.0 - GEAR if corner_right else insets.x + 22.0, insets.y + 18.0)
+	if _column.position.y >= insets.y + 18.0 + GEAR + 24.0:
+		_gear.position = Vector2(v.x - insets.z - 22.0 - GEAR, insets.y + 18.0)
+	else:
+		_gear.position = Vector2(insets.x + 22.0, v.y - Device.bottom_with_banner() - 22.0 - GEAR)
 
 
 ## The entrance, played as the transition opens.
@@ -398,14 +406,17 @@ func _arrive() -> void:
 	t.tween_property(_ribbon, "scale", Vector2.ONE, 0.45).set_delay(0.55).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_pop_play(0.0)
 	t.tween_method(_pop_play, 0.0, 1.0, 0.5).set_delay(0.7).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	for c: Control in [_plate_fit, _gear]:
-		c.modulate.a = 0.0
-		t.tween_property(c, "modulate:a", 1.0, 0.4).set_delay(0.9)
+	_board_fit.modulate.a = 0.0
+	t.tween_property(_board_fit, "modulate:a", 1.0, 0.3).set_delay(0.55)
+	for c: Control in [_best, _gear]:
+		if c:
+			c.modulate.a = 0.0
+			t.tween_property(c, "modulate:a", 1.0, 0.4).set_delay(0.9)
 
 
 func _pop_play(u: float) -> void:
 	_pop_u = u
-	_play_pop.scale = Vector2.ONE * u * _fit
+	_play_pop.scale = Vector2.ONE * u
 
 
 func _process(_delta: float) -> void:

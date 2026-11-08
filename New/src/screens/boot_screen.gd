@@ -43,7 +43,7 @@ func enter(_data: Dictionary) -> void:
 	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	logo.custom_minimum_size = Vector2(420, 250)
-	var plaque := Card.new(Vector4(48, 40, 48, 40))
+	var plaque := Card.new(Vector4(52, 44, 52, 44))
 	plaque.add_child(logo)
 	var column := VBoxContainer.new()
 	column.alignment = BoxContainer.ALIGNMENT_CENTER

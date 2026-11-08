@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c71pdiye22dex"
-path="res://.godot/imported/snail.svg-711bbd986ad54b831f1c0371a171e6de.ctex"
+uid="uid://bsdvft7motcc3"
+path="res://.godot/imported/gamepad-fill.svg-0108d1847476d94e1eda91c1b378a20b.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/icons/snail.svg"
-dest_files=["res://.godot/imported/snail.svg-711bbd986ad54b831f1c0371a171e6de.ctex"]
+source_file="res://assets/icons/gamepad-fill.svg"
+dest_files=["res://.godot/imported/gamepad-fill.svg-0108d1847476d94e1eda91c1b378a20b.ctex"]
 
 [params]
 

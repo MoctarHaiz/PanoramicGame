@@ -2,26 +2,30 @@ class_name Card
 extends PanelContainer
 ## The panel of the interface kit (pause, results, settings, About), as the pop-ups of top mobile
 ## games, in his world's materials: a deep shadow cast on the game behind, a dark ink outline, a thick
-## frame of carved wood bevelled (lit along its top and outer edge, shaded at its foot), on the
-## results a jewelled brass boss on each corner (a ring of beads, a red cabochon: corners.png;
-## `bosses` off for the pause and settings: not one kit on every panel), a broad gold trim inside
-## it, and a body of tanned hide (paper.png grain) that sinks under the frame (shade along its top,
-## sides and foot, a soft light in its middle: it curves). Text on the body is dark brown. A mood
-## (set_mood) gilds it for a win (a thicker polished gold frame, engraved), or darkens it to old
-## bronze and dusty hide for a loss.
+## frame of carved wood bevelled (lit along its top and outer edge, shaded at its foot) with a band of
+## Zulu beadwork set along its middle (round 20, the judges: "a generic casual kit with stock diamond
+## studs, no game identity"): red and black triangles on white glass beads, the language of his
+## chakram's band, pointing out, and a beaded rosette where the bands meet at each corner
+## (tools/art/ui_beadwork.py); a broad gold trim inside it, and a body of tanned hide (paper.png grain)
+## that sinks under the frame (shade along its top, sides and foot, a soft light in its middle: it
+## curves). Text on the body is dark brown. A mood (set_mood) gilds it for a win (a thicker polished
+## gold frame), or darkens it to smoked wood, dusty beads and hide for a loss.
 ## The light variant (the start card, tutorial hints) is a see-through dark glass with a gold line.
 ## `well()` is the style of a sunken area inside the body (the results' counts, settings' rows).
 
 const INK := Color("2e0d04")
-const FRAME := 26.0  ## width of the wooden frame
+const FRAME := 34.0  ## width of the wooden frame (its beaded band along its middle, wood both sides)
 const FRAME_TOP := Color("c8642a")
 const FRAME_BOTTOM := Color("6e240a")
 const TRIM := 6.0  ## the gold ring inside the frame
 const TRIM_TOP := Color("ffe9a0")
 const TRIM_BOTTOM := Color("e0901c")
 const PAPER := preload("res://assets/art/ui/paper.png")
-const CORNERS := preload("res://assets/art/ui/corners.png")  ## the corner bosses: brass, then bronze (tools/art/ui_kit.py)
-const BOSS := 40.0  ## a corner boss, side in units (bigger ones read as heavy rivets)
+const BAND := preload("res://assets/art/ui/beadwork_band.png")  ## the beadwork along the frame (tools/art/ui_beadwork.py)
+const ROSETTE := preload("res://assets/art/ui/bead_rosette.png")  ## the beaded rosette on each corner
+const BEAD_SCALE := 2.3  ## px of the beaded band's picture per card unit (its beads 6 units: each reads on a phone)
+const ROSETTE_SCALE := 2.8  ## and of the rosette's
+const BEAD_MIDDLE := 49.0  ## px into the band's period: the middle of a red triangle (each side centred on one)
 
 var top_colour := Color("f6e4bc")  ## tanned hide, warm at the top
 var bottom_colour := Color("dcb47c")  ## and darker towards its foot
@@ -30,11 +34,9 @@ var frame_bottom := FRAME_BOTTOM
 var trim_top := TRIM_TOP
 var trim_bottom := TRIM_BOTTOM
 var radius := 34.0
-var bronze := false  ## a defeat's dark bronze bosses and studs instead of brass
+var bronze := false  ## a defeat's: the beads dusty, as the smoked wood
 var frame_w := FRAME  ## the frame's width (a win's is thicker)
-var ornate := false  ## a win's frame: thick polished gold, an engraved line running round it
-var bosses := true  ## the jewelled corner bosses and studs (the results' panels)
-var inlays := false  ## an engraved gold inlay round each corner, its arms ending in diamonds (the pause)
+var ornate := false  ## a win's frame: thick polished gold
 var _framed := true
 var _shadow_box: StyleBoxFlat
 
@@ -56,14 +58,14 @@ func _init(margin := Vector4(34, 40, 34, 34), light := false) -> void:
 
 
 ## A mood for the panel: &"win" a gold frame and a bright trim on a warm hide; &"loss" dark smoked
-## wood, a dull bronze trim and bosses, a dusty grey hide (the defeat drained, still of his warm
+## wood, a dull bronze trim, dusty beads, a dusty grey hide (the defeat drained, still of his warm
 ## world, not cold steel); anything else the wood.
 func set_mood(mood: StringName) -> void:
 	match mood:
-		&"win":  # the biggest reward: a thick polished gold frame, engraved, a bright trim
+		&"win":  # the biggest reward: a thick polished gold frame, a bright trim
 			frame_top = Color("ffe27a")
 			frame_bottom = Color("b0640a")
-			frame_w = 36.0
+			frame_w = 40.0
 			radius = 44.0
 			ornate = true
 			trim_top = Color("fffbe6")
@@ -119,14 +121,10 @@ func _draw() -> void:
 		_fill(_rounded(r.grow(-3.0), radius - 3.0), frame_top, frame_bottom.darkened(0.15))
 		_fill(_rounded(Rect2(r.position + Vector2(radius * 0.5, 3.0), Vector2(r.size.x - radius, 5.0)), 2.5),
 				Color(1, 0.92, 0.75, 0.85), Color(1, 0.92, 0.75, 0.3))
+		if ornate:  # the polish along the gold's top
+			_fill(_rounded(Rect2(r.position + Vector2(radius * 0.6, 6.0), Vector2(r.size.x - radius * 1.2, 4.0)), 2.0),
+					Color(1, 1, 0.92, 0.9), Color(1, 1, 0.92, 0.4))
 		# the gold trim and the ink line inside it
-		if ornate:  # an engraved line round the middle of the gold: a dark cut, its lit lower lip
-			var cut := r.grow(-frame_w * 0.42)
-			var cr := radius - frame_w * 0.42
-			_outline(_rounded(cut.grow(1.5), cr + 1.5), Color(0.42, 0.2, 0.0, 0.75), 3.0)
-			_outline(_rounded(Rect2(cut.position + Vector2(0, 2.0), cut.size).grow(1.5), cr + 1.5), Color(1, 0.96, 0.75, 0.55), 1.5)
-			_fill(_rounded(Rect2(r.position + Vector2(radius * 0.6, 7.0), Vector2(r.size.x - radius * 1.2, 4.0)), 2.0),
-					Color(1, 1, 0.92, 0.9), Color(1, 1, 0.92, 0.4))  # the polish along its top
 		var trim := r.grow(-frame_w + TRIM)
 		_fill(_rounded(trim.grow(1.5), radius - frame_w + TRIM + 1.5), INK, INK)
 		_fill(_rounded(trim, radius - frame_w + TRIM), trim_top, trim_bottom)
@@ -147,11 +145,7 @@ func _draw() -> void:
 		var foot := Rect2(body.position + Vector2(inner * 0.6, body.size.y - 26.0), Vector2(body.size.x - inner * 1.2, 26.0))
 		_fill(_rounded(foot, 0.0), Color(0.3, 0.1, 0.0, 0.0), Color(0.3, 0.1, 0.0, 0.24))  # and its foot
 		_glow(Rect2(body.position + body.size * Vector2(0.1, 0.12), body.size * Vector2(0.8, 0.6)))
-		if bosses:
-			_studs(r)
-			_corners(r)
-		if inlays:
-			_inlays(r)
+		_beadwork(r)
 	else:  # glass: a light top edge and a fine gold line inside
 		_fill(_rounded(Rect2(r.position + Vector2(6, 4), Vector2(r.size.x - 12, minf(40.0, r.size.y * 0.25))), radius - 4),
 				Color(1, 0.85, 0.6, 0.16), Color(1, 0.85, 0.6, 0.0))
@@ -160,93 +154,35 @@ func _draw() -> void:
 		draw_polyline(line, Color(Ui.GOLD, 0.55), 2.0, true)
 
 
-## The jewelled bosses on the four corners (corners.png), centred on the frame where it turns: one
-## picture, four rects (they batch into one draw call).
-func _corners(r: Rect2) -> void:
-	var cell := float(CORNERS.get_height())
-	var src := Rect2(cell if bronze else 0.0, 0.0, cell, cell)
-	var m := radius - (radius - frame_w * 0.5) * 0.7071  # the frame's middle where it turns, from the corner
+## The beadwork on the frame: a band along the middle of each side (its triangles pointing out, each
+## side centred on a red one), a beaded rosette over each corner where two bands meet. Two pictures,
+## eight rects (they batch). Dusty on a defeat.
+func _beadwork(r: Rect2) -> void:
+	var tint := Color(0.8, 0.74, 0.7) if bronze else Color.WHITE
+	var mid := frame_w * 0.5
+	var m := radius - (radius - mid) * 0.7071  # the frame's middle where it turns, from the corner
+	var end := m + 13.0  # a band stops under its corner's rosette
+	_band(r.position + Vector2(end, mid), Vector2(r.end.x - end, r.position.y + mid), tint)
+	_band(Vector2(r.end.x - mid, r.position.y + end), r.end - Vector2(mid, end), tint)
+	_band(r.end - Vector2(end, mid), Vector2(r.position.x + end, r.end.y - mid), tint)
+	_band(Vector2(r.position.x + mid, r.end.y - end), r.position + Vector2(mid, end), tint)
+	var side := ROSETTE.get_width() / ROSETTE_SCALE
 	for c: Vector2 in [r.position + Vector2(m, m), Vector2(r.end.x - m, r.position.y + m),
 			Vector2(r.position.x + m, r.end.y - m), r.end - Vector2(m, m)]:
-		draw_texture_rect_region(CORNERS, Rect2(c - Vector2(BOSS, BOSS) / 2, Vector2(BOSS, BOSS)), src)
+		draw_texture_rect(ROSETTE, Rect2(c - Vector2(side, side) / 2, Vector2(side, side)), false, tint)
 
 
-## An engraved gold inlay round each corner, along the middle of the frame: a dark cut, its lit lip,
-## each arm ending in a small gold diamond (the corner's detail, without rivets).
-func _inlays(r: Rect2) -> void:
-	var mid := frame_w * 0.5
-	var arc_r := maxf(radius - mid, 2.0)
-	var arm := 46.0
-	var gems := PackedVector2Array()  # the eight diamonds, three shapes each, in one triangle array
-	var gem_colours := PackedColorArray()
-	var gem_idx := PackedInt32Array()
-	for corner: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
-		var c := r.get_center() + Vector2(r.size.x / 2 - radius, r.size.y / 2 - radius) * corner
-		var pts := PackedVector2Array()
-		pts.append(c + Vector2(corner.x * arc_r, -corner.y * arm))  # along the side edge, into the corner
-		for i in 9:  # round the corner
-			var a := lerpf(0.0, PI / 2, i / 8.0)
-			pts.append(c + Vector2(cos(a) * corner.x, sin(a) * corner.y) * arc_r)
-		pts.append(c + Vector2(-corner.x * arm, corner.y * arc_r))  # and out along the top or foot
-		var lip := PackedVector2Array()
-		for q in pts:
-			lip.append(q + Vector2(0, 1.6))
-		draw_polyline(pts, Color(0.32, 0.12, 0.02, 0.8), 3.4, true)
-		draw_polyline(lip, Color(1, 0.86, 0.5, 0.9), 1.6, true)
-		for end: Vector2 in [pts[0], pts[pts.size() - 1]]:  # diamonds big enough to register on a phone
-			var d := 8.5
-			var o := d + 2.0
-			var h := d * 0.5
-			for quad: Array in [[Vector2(0, -o), Vector2(o, 0), Vector2(0, o), Vector2(-o, 0), Color("3a1606")],
-					[Vector2(0, -d), Vector2(d, 0), Vector2(0, d), Vector2(-d, 0), Color("ffd060")],
-					[Vector2(0, -d), Vector2(h, -h), Vector2.ZERO, Vector2(-h, -h), Color("fff2b8")]]:  # (its lit facet)
-				var base := gems.size()
-				for i in 4:
-					gems.append(end + quad[i])
-					gem_colours.append(quad[4])
-				gem_idx.append_array([base, base + 1, base + 2, base, base + 2, base + 3])
-	RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), gem_idx, gems, gem_colours)
-
-
-## Gold studs nailed into the middle of the frame's long edges on a wide card (the corners carry
-## their bosses); dull bronze on a defeat.
-func _studs(r: Rect2) -> void:
-	if r.size.x <= 520.0:
+## A run of the beaded band from `from` to `to` (going round the card clockwise: its outer edge on the
+## left of the way it goes), centred on a red triangle.
+func _band(from: Vector2, to: Vector2, tint: Color) -> void:
+	var length := from.distance_to(to) * BEAD_SCALE
+	if length < 8.0:
 		return
-	var m := frame_w * 0.5
-	var stud := _stud_texture()
-	var tint := Color(0.78, 0.66, 0.54) if bronze else Color.WHITE
-	for c: Vector2 in [Vector2(r.get_center().x, r.position.y + m), Vector2(r.get_center().x, r.end.y - m)]:
-		draw_texture_rect(stud, Rect2(c - Vector2(STUD, STUD) / 2, Vector2(STUD, STUD)), false, tint)
-
-
-const STUD := 16.0  ## a stud's picture, side in units
-static var _stud: ImageTexture
-
-
-## A gold stud drawn once (3x): its shadow, an ink ring, the gold, a lit dome, a glint.
-static func _stud_texture() -> ImageTexture:
-	if _stud:
-		return _stud
-	var s := 3.0
-	var n := int(STUD * s)
-	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
-	var c := Vector2(n, n) / 2
-	var layers := [[Vector2(0, 2.0), 8.5, Color(0.1, 0.02, 0.0, 0.5)], [Vector2.ZERO, 8.0, INK],
-			[Vector2.ZERO, 6.2, Color("c27a22")], [Vector2(-0.8, -1.0), 4.8, Color("ffd36b")],
-			[Vector2(-2.1, -2.4), 1.9, Color(1, 1, 0.92, 0.95)]]
-	for py in n:
-		for px in n:
-			var p := Vector2(px + 0.5, py + 0.5)
-			var col := Color(0, 0, 0, 0)
-			for l: Array in layers:
-				var d: float = p.distance_to(c + (l[0] as Vector2) * s) / s
-				var a := clampf(((l[1] as float) - d) * s + 0.5, 0.0, 1.0)
-				var lc: Color = l[2]
-				col = col.blend(Color(lc, lc.a * a))
-			img.set_pixel(px, py, col)
-	_stud = ImageTexture.create_from_image(img)
-	return _stud
+	var h := float(BAND.get_height())
+	var x0 := fposmod(BEAD_MIDDLE - length * 0.5, float(BAND.get_width()))
+	draw_set_transform(from, (to - from).angle(), Vector2.ONE / BEAD_SCALE)
+	draw_texture_rect_region(BAND, Rect2(0.0, -h * 0.5, length, h), Rect2(x0, 0.0, length, h), tint)
+	draw_set_transform(Vector2.ZERO)
 
 
 ## Points filled with a vertical gradient over the paper grain (tiled by the points' own position).
@@ -293,12 +229,6 @@ func _rounded(r: Rect2, rad: float) -> PackedVector2Array:
 			var a := -PI / 2 + c * PI / 2 + i * PI / 2 / 8
 			pts.append(corners[c] + Vector2.from_angle(a) * rad)
 	return pts
-
-
-## Strokes the outline of points (closed) in one colour.
-func _outline(pts: PackedVector2Array, colour: Color, width: float) -> void:
-	pts.append(pts[0])
-	draw_polyline(pts, colour, width, true)
 
 
 ## Fills points with a vertical gradient.

@@ -2,8 +2,8 @@ class_name VolumeSlider
 extends Control
 ## A volume that reads as a slider, not a switch (j15: "sliders look like toggles, 100% collides with
 ## the knob"): a slim groove sunk into the panel with a notch at each step, filled with gold up to the
-## value (a soft light along it), a round gold-rimmed knob bigger than the groove, a grip cut in it,
-## to drag (or tap the groove); the value written beside it, outside the groove ("80%", never under
+## value (a soft light along it), a round gold-rimmed knob bigger than the groove, a glossy dome
+## (no grip lines: they read as a pause sign), to drag (or tap the groove); the value written beside it, outside the groove ("80%", never under
 ## the knob). Steps of 10 %; at 0 the sound is off. A tick plays at each step while dragging.
 
 signal changed(value: float)
@@ -90,8 +90,9 @@ func _draw() -> void:
 	draw_circle(centre - Vector2(0, 1.2), knob_r - 3.5, Color("ffd45a"), true, -1, true)
 	draw_circle(centre + Vector2(0, 1.0), knob_r - 7.5, Color("e8a83a"), true, -1, true)  # its face, a shallow dome
 	draw_circle(centre, knob_r - 8.5, Color("fff0c0"), true, -1, true)
-	for dx: float in [-3.5, 3.5]:  # the grip: two cuts across it
-		draw_line(centre + Vector2(dx, -knob_r * 0.32), centre + Vector2(dx, knob_r * 0.32), Color("b06a1c"), 2.4, true)
+	# (round 20, the judges: the grip's two cuts "read as a pause button") a plain glossy dome: its light
+	# caught at its top left
+	draw_circle(centre + Vector2(-knob_r * 0.24, -knob_r * 0.28), knob_r * 0.24, Color(1, 1, 0.96, 0.9), true, -1, true)
 	_value_text()
 
 

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bjkctayuso40q"
-path="res://.godot/imported/motion-off.svg-33cf059c2426636652804a25a4cf349e.ctex"
+uid="uid://djmyuaiuuqy5u"
+path="res://.godot/imported/bead_rosette.png-2a8d124f1714fa89723b60362fe7f23e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/icons/motion-off.svg"
-dest_files=["res://.godot/imported/motion-off.svg-33cf059c2426636652804a25a4cf349e.ctex"]
+source_file="res://assets/art/ui/bead_rosette.png"
+dest_files=["res://.godot/imported/bead_rosette.png-2a8d124f1714fa89723b60362fe7f23e.ctex"]
 
 [params]
 
@@ -38,6 +38,3 @@ process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
 detect_3d/compress_to=1
-svg/scale=1.0
-editor/scale_with_editor_scale=false
-editor/convert_colors_with_editor_theme=false

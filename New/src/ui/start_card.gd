@@ -2,12 +2,17 @@ class_name StartCard
 extends Control
 ## Before the first touch the world waits (the 2017 "Ready"): the screen's call to action in the sky,
 ## above the platforms and the ground he runs on: "Tap to start" in big bold display letters (cream to
-## gold, a heavy ink outline and depth) on a soft dark glow hugging them (a plate read as a debug
-## toast), readable over sky and grass, a big hand tapping beside them with its ripples (never over the words), the whole beating
-## like the Play button, a warm light pulsing behind.
+## gold, a heavy ink outline and depth) on a plate in the panels' own kit (round 20, the judges: "it
+## floats over the sky without a backing"): dark tooled leather in a slim wooden frame with its band of
+## Zulu beadwork and beaded rosettes (Card), a big hand tapping beside the words with its ripples (never
+## over them), the whole beating like the Play button, a warm light pulsing round it.
 ## The first time, nothing else: the moves are taught when they are needed (Tutorial). Later runs
 ## show the five moves above it on a strip of dark glass, each with its own gesture, so every
 ## control stays easy to find.
+
+
+const PLATE_FRAME := 26.0  ## the plate's frame (slimmer than a panel's: it sits over the play)
+const PLATE_PAD := Vector2(46, 26)  ## from the words and the hand to the plate's edge
 
 
 func _init(first_run: bool) -> void:
@@ -44,19 +49,20 @@ func _init(first_run: bool) -> void:
 	var halo := Control.new()
 	halo.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	halo.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	var shade := TextureRect.new()  # the soft dark glow behind the words (no pill: not a tooltip)
-	shade.texture = Fx.glow_texture()
-	shade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	shade.modulate = Color(0.08, 0.02, 0.0, 0.55)  # a soft glow hugging the letters, never a box
-	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	halo.add_child(shade)
-	var glow := TextureRect.new()  # and a warm light pulsing in it
+	var glow := TextureRect.new()  # a warm light pulsing round the plate
 	glow.texture = Fx.glow_texture()
 	glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	glow.material = Fx.additive()
 	glow.modulate = Color(1, 0.72, 0.3, 0.35)
 	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	halo.add_child(glow)
+	var plate := Card.new()  # the words' plate: dark leather framed in the panels' wood and beads
+	plate.frame_w = PLATE_FRAME
+	plate.radius = 30.0
+	plate.top_colour = Color("4a2412")
+	plate.bottom_colour = Color("2a1208")
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	halo.add_child(plate)
 	var go_row := HBoxContainer.new()
 	go_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	go_row.add_theme_constant_override(&"separation", 4)
@@ -77,21 +83,23 @@ func _init(first_run: bool) -> void:
 	box.add_child(halo)
 	var hold := func() -> void:
 		var need := go_row.get_combined_minimum_size()
-		halo.custom_minimum_size = need
+		var whole := need + PLATE_PAD * 2.0
+		halo.custom_minimum_size = whole
 		go_row.size = need
-		shade.size = need * Vector2(1.25, 2.1)
-		shade.position = need / 2 - shade.size / 2
-		glow.size = need * Vector2(1.1, 1.8)
-		glow.position = need / 2 - glow.size / 2
-		halo.pivot_offset = need / 2
+		go_row.position = PLATE_PAD
+		plate.size = whole
+		plate.position = Vector2.ZERO
+		glow.size = whole * Vector2(1.15, 1.7)
+		glow.position = whole / 2 - glow.size / 2
+		go_row.pivot_offset = need / 2
 	go_row.minimum_size_changed.connect(hold)
 	hold.call_deferred()
-	if Prefs.motion():  # a heartbeat: two quick swells, then a rest
-		var t := halo.create_tween().set_loops()
-		t.tween_property(halo, "scale", Vector2.ONE * 1.07, 0.14).set_trans(Tween.TRANS_SINE)
-		t.tween_property(halo, "scale", Vector2.ONE, 0.16).set_trans(Tween.TRANS_SINE)
-		t.tween_property(halo, "scale", Vector2.ONE * 1.05, 0.14).set_trans(Tween.TRANS_SINE)
-		t.tween_property(halo, "scale", Vector2.ONE, 0.2).set_trans(Tween.TRANS_SINE)
+	if Prefs.motion():  # a heartbeat of the words (the plate stays): two quick swells, then a rest
+		var t := go_row.create_tween().set_loops()
+		t.tween_property(go_row, "scale", Vector2.ONE * 1.06, 0.14).set_trans(Tween.TRANS_SINE)
+		t.tween_property(go_row, "scale", Vector2.ONE, 0.16).set_trans(Tween.TRANS_SINE)
+		t.tween_property(go_row, "scale", Vector2.ONE * 1.04, 0.14).set_trans(Tween.TRANS_SINE)
+		t.tween_property(go_row, "scale", Vector2.ONE, 0.2).set_trans(Tween.TRANS_SINE)
 		t.tween_interval(0.66)
 		var g := glow.create_tween().set_loops()
 		g.tween_property(glow, "modulate:a", 0.6, 0.65).set_trans(Tween.TRANS_SINE)

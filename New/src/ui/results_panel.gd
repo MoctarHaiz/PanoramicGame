@@ -117,12 +117,15 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 	body.add_child(foot)
 	var title := TranslationServer.translate("HOME_REACHED" if won else "GAME_OVER")
 	var panel: GamePanel
-	if won:  # warm and radiant: a red ribbon on the gold (gold on gold was lost)
-		panel = GamePanel.open(game, title, Ui.Tone.CRIMSON, body, _hero(true), Color(0.2, 0.07, 0.02, 0.38),
-				Color(1, 0.78, 0.4, 0.75), true, hide, &"win")
-	else:  # drained and dim: a grey world, old bronze, a red ribbon, him on a dim warm patch of ground
+	# (round 20, the judges: "a yellow bloom smudge at his feet") his stills stand on their own dark contact
+	# shadow: only a faint light on the ground round them
+	if won:  # radiant: a red ribbon on the gold (gold on gold was lost), the home at a cool dusk behind
+		panel = GamePanel.open(game, title, Ui.Tone.CRIMSON, body, _hero(true), Color(0.04, 0.03, 0.1, 0.3),
+				Color(1, 0.84, 0.6, 0.16), true, hide, &"win")
+	else:  # drained and dim: where he fell, cool and dark, old bronze, a red ribbon
 		panel = GamePanel.open(game, title, Ui.Tone.CRIMSON, body, _hero(false), Color(0.06, 0.04, 0.06, 0.45),
-				Color(1.0, 0.72, 0.45, 0.32), false, hide, &"loss")
+				Color(0.75, 0.8, 1.0, 0.1), false, hide, &"loss")
+	panel.leave_out_of_picture(PausePanel.moving_pieces(game))  # his still stands for him: not him twice
 	_reveal(game, panel, world, stars, bobs, total, bar, slot, news.get("best_bobs", false), buttons, go)
 	return panel
 

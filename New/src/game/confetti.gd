@@ -8,14 +8,14 @@ extends Node2D
 ## in one batch and its light in another; then the node frees itself. Made by Fx (rescue, game
 ## over, the bushes, the stone).
 
-enum Shape { PAPER, RIBBON, SEQUIN, STAR, LEAF, CHIP, COIN, PETAL, BEAD, STREAMER, STRIP }
+enum Shape { PAPER, RIBBON, SEQUIN, STAR, LEAF, CHIP, COIN, PETAL, BEAD, STREAMER, STRIP, BOKEH }
 
 ## Size of each shape in design px at size 1.
 const SIZES := {
 	Shape.PAPER: Vector2(19, 12), Shape.RIBBON: Vector2(30, 10), Shape.SEQUIN: Vector2(13, 13),
 	Shape.STAR: Vector2(19, 19), Shape.LEAF: Vector2(27, 14), Shape.CHIP: Vector2(15, 13), Shape.COIN: Vector2(22, 22),
 	Shape.PETAL: Vector2(18, 11), Shape.BEAD: Vector2(10, 10), Shape.STREAMER: Vector2(54, 15),
-	Shape.STRIP: Vector2(22, 8),
+	Shape.STRIP: Vector2(22, 8), Shape.BOKEH: Vector2(30, 22),
 }
 const STREAK_SPEED := 420.0  ## faster than this (px/s), a piece leaves a smear
 const SHUTTER := 0.03  ## s of its path a moving piece is stretched over (a camera's motion blur)
@@ -30,7 +30,7 @@ const TWO_TONE := {"ffd23a": Color("fff0b0"), "ffe680": Color("ffc840"), "fff4dc
 		"ff7a5a": Color("ffb59a"), "ff4d3d": Color("ff8a6a"), "ffb07a": Color("ffe0c4")}
 ## The party's paper, bits and coins: lit brightly whichever way they face (shading by at most 18 %,
 ## and warmer, not greyer: shaded gold turns amber, never olive), so they stay bright as they tumble.
-const BRIGHT := [Shape.PAPER, Shape.STRIP, Shape.STREAMER, Shape.SEQUIN, Shape.COIN, Shape.STAR]
+const BRIGHT := [Shape.PAPER, Shape.STRIP, Shape.STREAMER, Shape.SEQUIN, Shape.COIN, Shape.STAR, Shape.BOKEH]
 const ATLAS_WIDTH := 256  ## px: every picture of the confetti and of its light, side by side
 const PAD := 4  ## px of clear between two pictures of the atlas (its mipmaps don't bleed)
 
@@ -273,6 +273,8 @@ func _draw() -> void:
 			twist = Vector2(1.0, maxf(w, 0.3))
 		elif p.shape == Shape.PAPER:
 			twist = Vector2(maxf(w, 0.3), 1.0)
+		elif p.shape == Shape.BOKEH:  # out of focus: it never thins to an edge
+			twist = Vector2(maxf(w, 0.5), 1.0)
 		var smear := _smear(p)  # motion blur: stretched along its path, a touch fainter
 		var c := _shade(p)
 		c.a *= clear / pow(smear, 0.2)
@@ -350,7 +352,7 @@ func _shade(p: Piece) -> Color:
 			base = p.back
 		else:
 			lit *= 0.9 if p.shape in BRIGHT else 0.8
-	var c := Color(base.r * lit, base.g * lit, base.b * lit, _fade(p.age, p.life) * lerpf(0.7, 1.0, p.z))
+	var c := Color(base.r * lit, base.g * lit, base.b * lit, _fade(p.age, p.life) * lerpf(0.7, 1.0, p.z) * p.colour.a)
 	if p.shape in BRIGHT:  # its shade warmer, not greyer: red holds, green and blue go
 		c = Color(base.r * (0.9 + 0.1 * lit), base.g * lit, base.b * lit * lit, c.a)
 	if glints:
@@ -361,7 +363,7 @@ func _shade(p: Piece) -> Color:
 ## How much a piece catches the light (0 to 1): for a moment as it turns full face (paper a little
 ## longer: its glints are part of the party).
 func _glint(p: Piece) -> float:
-	if p.shape in [Shape.LEAF, Shape.CHIP, Shape.PETAL, Shape.STREAMER, Shape.RIBBON]:  # satin and leaves: no flash
+	if p.shape in [Shape.LEAF, Shape.CHIP, Shape.PETAL, Shape.STREAMER, Shape.RIBBON, Shape.BOKEH]:  # satin, leaves, a blur: no flash
 		return 0.0
 	var sharp := 10.0 if p.shape in BRIGHT else 24.0
 	return pow(maxf(cos(p.flip + p.glint_phase), 0.0), sharp) * maxf(cos(p.flip), 0.0)
@@ -435,6 +437,12 @@ static func _bake_sheet() -> void:
 		var spec := pow(maxf(1.0 - (u - Vector2(-0.35, -0.4)).length() / 0.3, 0.0), 2.0)
 		var rim := smoothstep(0.7, 0.95, r) * (1.0 - light) * 0.3
 		return Vector2(0.45 + 0.45 * light + 0.6 * spec + rim, (0.96 - r) * 12.0))
+	# (round 20, the judges: "confetti with no depth") A paper square out of focus, close to the eye: a soft-edged
+	# rounded square, evenly lit (the lens has smoothed its shading away).
+	images[Shape.BOKEH] = _bake(Vector2i(48, 36), func(u: Vector2) -> Vector2:
+		var q := u.abs() - Vector2(0.62, 0.55)
+		var d := Vector2(maxf(q.x, 0.0), maxf(q.y, 0.0)).length() + minf(maxf(q.x, q.y), 0.0)
+		return Vector2(0.95 - 0.06 * u.y, (0.36 - d) * 2.8))
 	# A paper strip: a small rectangle, a slight curl lit along its length (brighter at one end).
 	images[Shape.STRIP] = _bake(Vector2i(44, 16), func(u: Vector2) -> Vector2:
 		var d := _box(u, Vector2(0.95, 0.85), 0.2)

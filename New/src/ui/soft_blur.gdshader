@@ -1,8 +1,8 @@
 shader_type canvas_item;
-// The scrim behind a panel over the game: a small, soft picture of the game (Ui.blurred_snapshot: 1/16 or
-// 1/32 of the screen, grown back 4x) drawn stretched over the screen through a cubic B-spline (four
-// bilinear taps, Sigg & Hadwiger: a smooth blur, no blocks), then graded into a designed backdrop
-// instead of a muddy dimmed screenshot (j15: "a muddy dark blurred screenshot, no mood"):
+// The scrim behind a panel over the game: a small, soft picture of the game (Ui.blurred_snapshot: 1/8 of
+// the screen, grown back 2x; the settings: the menu's key art at 1/4) drawn stretched over the screen
+// through a cubic B-spline (four bilinear taps, Sigg & Hadwiger: a light, smooth blur, no blocks, the
+// scene still recognisable), then graded into one mood (j15: "a muddy dark blurred screenshot, no mood"):
 // - a gradient map of the scene's own values: its shadows mapped to `shadow_tint`, its middle tones
 //   to `mid_tint`, its lights to `light_tint` (`duo`: how much of it over the picture's own
 //   colours), so the frozen scene reads as one tinted mood (warm dusk for the pause, cold slate for a defeat, gold for a win);
