@@ -249,6 +249,12 @@ static func badge_burst(parent: Node, at: Vector2) -> void:
 ## `calm` (the results, UI r21: "confetti chaotic"): two smaller volleys, none of it over `keep_off` (him).
 static func confetti_burst(parent: Node, at: Vector2, calm := false, keep_off := Rect2()) -> void:
 	glow(parent, at, Color(1, 0.9, 0.65, 0.8), 0.3, 1.6, 0.35)
+	if not calm:  # round 22: home, in the level (the results panel's burst is the calm one, unchanged)
+		_home_volley(parent, at, 1.0, true)
+		var once := parent.create_tween()
+		once.tween_interval(0.22)
+		once.tween_callback(_home_volley.bind(parent, at, 0.45, false))
+		return
 	_volley(parent, at, 0.55 if calm else 1.0, not calm, keep_off)
 	var later := parent.create_tween()  # owned by the layer: it goes with it
 	var volleys := [Vector2(0.25, 0.35)] if calm else [Vector2(0.2, 0.75), Vector2(0.22, 0.6), Vector2(0.26, 0.45)]
@@ -288,6 +294,40 @@ static func _volley(parent: Node, at: Vector2, k: float, near: bool, keep_off :=
 		for c in PAPER_COLOURS:
 			colours.append(Color(c, 0.82))
 		soft.spray(6, [Confetti.Shape.BOKEH], colours, Vector2(1500, 2300), Vector2.UP, 72.0, 3.4, Vector2(1.3, 1.8), 26.0)
+
+
+## Round 22 (the judges, j18: "home: a confetti blizzard of same-size flat rectangles over the hut and his head"): out of
+## the doorway, a short burst that clears: a third of the paper, each volley spread over depth (small, pale and slow
+## far; bigger and crisp near), shorter lives, a few out-of-focus pieces near the eye, the gold sparks; all behind him.
+static func _home_volley(parent: Node, at: Vector2, k: float, near: bool) -> void:
+	var far := Confetti.make(parent, at)
+	far.depth = 0.95
+	far.haze = Color(1.0, 0.86, 0.78)
+	far.gravity = 760.0
+	far.drag = 1.9
+	far.flutter = 420.0
+	_behind_hero(far, parent)
+	far.spray(int(9 * k), PAPER_SHAPES, PAPER_COLOURS, Vector2(560, 1150), Vector2.UP, 52.0, 1.0, Vector2(1.3, 1.9), 20.0)
+	var mid := Confetti.make(parent, at)
+	mid.depth = 0.6  # (each its own size)
+	mid.gravity = 980.0
+	mid.drag = 1.6
+	mid.flutter = 520.0
+	_behind_hero(mid, parent)
+	mid.spray(int(9 * k), PAPER_SHAPES, PAPER_COLOURS, Vector2(800, 1700), Vector2.UP, 44.0, 1.7, Vector2(1.2, 1.8), 20.0)
+	mid.spray(int(2 * k + 0.5), STREAMERS, STREAMER_COLOURS, Vector2(850, 1400), Vector2.UP, 34.0, 1.4, Vector2(1.3, 1.8), 16.0)
+	mid.sparkle(int(8 * k), GOLD, Vector2(200, 600), 1.0, Vector2(0.45, 0.9))
+	if near:
+		var soft := Confetti.make(parent, at)  # near the eye: big, soft, few, past fastest
+		soft.gravity = 520.0
+		soft.drag = 0.9
+		soft.flutter = 180.0
+		soft.glints = false
+		_behind_hero(soft, parent)
+		var colours: Array[Color] = []
+		for c in PAPER_COLOURS:
+			colours.append(Color(c, 0.7))
+		soft.spray(3, [Confetti.Shape.BOKEH], colours, Vector2(1400, 2100), Vector2.UP, 70.0, 3.0, Vector2(1.0, 1.4), 26.0)
 
 
 ## `c`'s pieces keep off `r` (in its parent's units; none: an empty rect).

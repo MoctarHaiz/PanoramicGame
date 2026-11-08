@@ -35,6 +35,15 @@ const TENDRILS := [Rect2(100, 306, 41, 93), Rect2(53, 594, 35, 110), Rect2(71, 8
 const ROPE_PX := 18.0  ## px rows of the rope at the top of each span picture
 const ROPE_H := 13.0  ## round 20: units the rope is drawn thick (it was 9: a thin line under the HUD)
 const STRAND_TOP := -170.0  ## play y the strands climb to (above any camera's top)
+## Round 22 (the judges, j18: "still party bunting / a procedural rope: a regular wave, even leaves"): drawing only (where
+## he hangs is sag_at(), unchanged): away from his hands the rope as drawn hangs from knots of its own, tied at uneven
+## places (ALT_SPAN apart on average, from 0.4 to 1.6 times that) and heights, each swag its own depth (some nearly
+## taut, some deep) under a slow swell; a lump only where a strand is tied on; the leaves in a few irregular clusters
+## along it (LEAF_CELL units a slot: most bare) with some long tendrils hanging; inked.
+const ALT_SPAN := 290.0
+const DRIFT := 18.0
+const LEAF_CELL := 64.0
+const INK := Color(0.17, 0.085, 0.06)
 
 var view_left := 0.0
 var view_width := World.VIEW_W
@@ -47,11 +56,13 @@ var _hold_x := 0.0  # play x of his hands
 var _back: Node2D  # round 12: the liana behind (BackLiana)
 var _taut := 0.0  # round 12: 0..1, how taut his weight pulls it about his hands (eased)
 var _clock := 0.0
+var _hero_x := -999.0  # round 22: his play x (drawing only: the rope's own swell fades out round his hands)
 
 
 ## Each frame (WorldView): whether he hangs from the vine, and where (play x).
 func hold(hanging: bool, x: float, delta: float) -> void:
 	_holding = hanging
+	_hero_x = x
 	if hanging:
 		_hold_x = x
 	_clock += delta
@@ -150,7 +161,44 @@ func _back_sag(lx: float) -> float:
 	return knots + pow(sin(PI * t), 2.0) * (14.0 + 26.0 * _rand(i * 23 + 9)) + sin(_clock * 1.1 + lx * 0.017) * 1.2
 
 
+## Round 22: how far down the rope is drawn at play x: sag_at() round his hands (he hangs there), and away from them its
+## own swags between its own knots (_alt_knot_x()), so the rhythm never repeats with the knots of the rules.
+func _drawn_sag(x: float) -> float:
+	var away := smoothstep(70.0, 230.0, absf(x - _hero_x))
+	if away <= 0.0:
+		return sag_at(x)
+	var lx := x + scroll
+	var i := floori(lx / ALT_SPAN)
+	if lx < _alt_knot_x(i):
+		i -= 1
+	elif lx >= _alt_knot_x(i + 1):
+		i += 1
+	var a := _alt_knot_x(i)
+	var b := _alt_knot_x(i + 1)
+	var t := clampf((lx - a) / (b - a), 0.0, 1.0)
+	var knots := lerpf(_alt_knot(i), _alt_knot(i + 1), t)
+	var depth := (4.0 + 62.0 * pow(_rand(i * 31 + 7), 1.4)) * (b - a) / ALT_SPAN
+	var u := lx / 520.0
+	var f := u - floorf(u)
+	var swell := lerpf(_rand(floori(u) * 11 + 5), _rand((floori(u) + 1) * 11 + 5), f * f * (3.0 - 2.0 * f))
+	var own := knots + pow(sin(PI * t), 1.4) * depth + DRIFT * smoothstep(0.4, 1.0, swell) + sin(_clock * 1.3 + lx * 0.021) * 0.8
+	return lerpf(sag_at(x), own, away)
+
+
+## Round 22: the level x of the drawn rope's knot i (tied at uneven places).
+func _alt_knot_x(i: int) -> float:
+	return (i + (_rand(i * 29 + 3) - 0.5) * 0.6) * ALT_SPAN
+
+
+## Round 22: the drawn rope's knot i's height (units): tied higher and lower.
+func _alt_knot(i: int) -> float:
+	return (_rand(i * 13 + 5) - 0.5) * 16.0
+
+
 func _ready() -> void:
+	var ink := ShaderMaterial.new()  # round 22: the leaves inked as the characters are
+	ink.shader = preload("res://src/game/ink.gdshader")
+	material = ink
 	# (round 12, QA: its own node, behind the vine, so perf.tscn --hide can weigh it)
 	_back = Node2D.new()
 	_back.name = &"BackLiana"
@@ -191,13 +239,13 @@ func _draw_strands(x0: float, x1: float) -> void:
 	var th := float(TEXTURE.get_height())
 	var tw := float(TEXTURE.get_width())
 	var h := th / VARIANTS
-	var first := _span_at(x0 + scroll)
-	for i in range(first, first + int((x1 - x0) / SPAN) + 3):
-		var kx := _knot_x(i) - scroll
-		var ky := Y + sag_at(kx) + 3.0
+	var first := floori((x0 + scroll) / ALT_SPAN) - 1
+	for i in range(first, first + int((x1 - x0) / ALT_SPAN) + 3):
+		var kx := _alt_knot_x(i) - scroll
+		var ky := Y + _drawn_sag(kx) + 3.0
 		if not is_finite(ky):
 			continue
-		if _rand(i * 37 + 11) < 0.55:
+		if _climbs(i):
 			var dx := (_rand(i * 41 + 3) - 0.5) * 120.0
 			var top := Vector2(kx + dx, STRAND_TOP)
 			var from := Vector2(kx, ky)
@@ -222,17 +270,15 @@ func _draw_strands(x0: float, x1: float) -> void:
 			if _rand(i * 47 + 5) < 0.3:  # a few leaves on the strand, where it leaves the screen's top band
 				var at := from.lerp(top, 0.3 + _rand(i * 49 + 2) * 0.25) + Vector2(5.0, 0.0)
 				_cluster(_back, i * 7 + 3, at.x, at.y, Color(0.64, 0.66, 0.62))
-		# leaf clusters behind the rope at this knot, each its own size
-		if _rand(i * 53 + 7) < 0.35:  # (round 20: at a few knots only)
-			_cluster(_back, i * 7 + 1, kx + (_rand(i * 59 + 1) - 0.5) * 50.0, ky + 3.0, _leaf_tint(i * 5 + 2) * Color(0.78, 0.78, 0.78))
+	_draw_leaves(_back, x0, x1, true)
 
 
 ## A leaf cluster of vine.png hanging from (x, y), `seed` picking its picture, size, lean and side.
-func _cluster(ci: CanvasItem, seed: int, x: float, y: float, tint: Color) -> void:
+func _cluster(ci: CanvasItem, seed: int, x: float, y: float, tint: Color, scale_k := 1.0) -> void:
 	var pick := _rand(seed * 3 + 1)
 	var src: Rect2 = LEAVES[int(pick * LEAVES.size()) % LEAVES.size()] if _rand(seed * 5 + 2) < 0.7 \
 			else TENDRILS[int(pick * TENDRILS.size()) % TENDRILS.size()]
-	var k := 0.38 + _rand(seed * 7 + 3) * 0.55  # (units a px: 0.5 is the spans' own scale)
+	var k := (0.38 + _rand(seed * 7 + 3) * 0.55) * scale_k  # (units a px: 0.5 is the spans' own scale)
 	var size := src.size * k
 	var lean := (_rand(seed * 11 + 4) - 0.5) * 0.5
 	if _rand(seed * 13 + 5) < 0.5:
@@ -253,6 +299,8 @@ func _draw() -> void:
 	var th := float(TEXTURE.get_height())
 	var white := PackedColorArray([Color.WHITE, Color.WHITE, Color.WHITE, Color.WHITE])
 	var first := _span_at(x0 + scroll)
+	var quads: Array[PackedVector2Array] = []  # (round 22: the rope's slices, worked out once: the ink under them all, then
+	var uvs: Array[PackedVector2Array] = []  # the rope, each in one batch: ink and rope taking turns broke the batch)
 	for i in range(first, first + int((x1 - x0) / SPAN) + 2):
 		var rope_h := ROPE_H * (0.82 + 0.36 * _rand(i * 19 + 2))  # (each span its own thickness)
 		var v := posmod(i * 7 + (i >> 2) * 3, VARIANTS)
@@ -262,6 +310,7 @@ func _draw() -> void:
 		var top := v * h / th
 		var bottom := (v * h + ROPE_PX - 5.0) / th  # (the leaves' tips start in its last rows)
 		var n := SLICES * 2
+		var ya := Y + _drawn_sag(left) - (rope_h - ROPE_PX * 0.5) * 0.5
 		for k in n:
 			var a := left + length * k / n
 			var b := left + length * (k + 1) / n
@@ -270,30 +319,74 @@ func _draw() -> void:
 			if mirrored:
 				ua = 1.0 - ua
 				ub = 1.0 - ub
-			var ya := Y + sag_at(a) - (rope_h - ROPE_PX * 0.5) * 0.5
-			var yb := Y + sag_at(b) - (rope_h - ROPE_PX * 0.5) * 0.5  # (centred where the old rope was)
-			draw_primitive(PackedVector2Array([Vector2(a, ya), Vector2(b, yb), Vector2(b, yb + rope_h), Vector2(a, ya + rope_h)]),
-					white, PackedVector2Array([Vector2(ua, top), Vector2(ub, top), Vector2(ub, bottom), Vector2(ua, bottom)]),
-					TEXTURE)
-	# the knots where two spans are tied: a lump of wound rope, a shade under it
-	for i in range(first, first + int((x1 - x0) / SPAN) + 3):
-		var kx := _knot_x(i) - scroll
-		var ky := Y + sag_at(kx) + ROPE_PX * 0.25
+			var yb := Y + _drawn_sag(b) - (rope_h - ROPE_PX * 0.5) * 0.5  # (centred where the old rope was)
+			quads.append(PackedVector2Array([Vector2(a, ya), Vector2(b, yb), Vector2(b, yb + rope_h), Vector2(a, ya + rope_h)]))
+			uvs.append(PackedVector2Array([Vector2(ua, top), Vector2(ub, top), Vector2(ub, bottom), Vector2(ua, bottom)]))
+			ya = yb
+	# (round 22: an ink line round the rope, as round the characters: a dark band a little wider behind it)
+	var ink := PackedColorArray([INK, INK, INK, INK])
+	var out := [Vector2(0, -1.3), Vector2(0, -1.3), Vector2(0, 1.3), Vector2(0, 1.3)]
+	for q in quads:
+		draw_primitive(PackedVector2Array([q[0] + out[0], q[1] + out[1], q[2] + out[2], q[3] + out[3]]), ink, PackedVector2Array())
+	for j in quads.size():
+		draw_primitive(quads[j], white, uvs[j], TEXTURE)
+	# the knots where a strand is tied on (round 22: only those: a lump at every knot read as bunting pinned up): a
+	# lump of wound rope, a shade under it
+	var alt_first := floori((x0 + scroll) / ALT_SPAN) - 1
+	for i in range(alt_first, alt_first + int((x1 - x0) / ALT_SPAN) + 3):
+		if not _climbs(i):
+			continue
+		var kx := _alt_knot_x(i) - scroll
+		var ky := Y + _drawn_sag(kx) + ROPE_PX * 0.25
 		if not is_finite(ky):
 			continue
-		var r := ROPE_H * (0.5 + 0.14 * _rand(i * 7 + 3))
+		var r := ROPE_H * (0.42 + 0.1 * _rand(i * 7 + 3))
 		draw_set_transform(Vector2(kx + 1.0, ky + 2.0), 0.0, Vector2(1.25, 0.95))
 		draw_circle(Vector2.ZERO, r * 1.15, Color(0.1, 0.06, 0.05, 0.4))
 		draw_set_transform(Vector2(kx, ky), 0.25, Vector2(1.2, 0.9))
+		draw_circle(Vector2.ZERO, r + 1.2, INK)
 		draw_circle(Vector2.ZERO, r, Color(0.3, 0.19, 0.12))
 		draw_circle(Vector2(-r * 0.22, -r * 0.24), r * 0.66, Color(0.5, 0.35, 0.22))
 		draw_circle(Vector2(-r * 0.36, -r * 0.4), r * 0.28, Color(0.72, 0.56, 0.36))
 		draw_set_transform_matrix(Transform2D.IDENTITY)
-	# round 19: a cluster in front of the rope at a few knots (round 20: fewer, each its own size and colour)
-	for i in range(first, first + int((x1 - x0) / SPAN) + 3):
-		if _rand(i * 61 + 9) < 0.3:
-			var kx := _knot_x(i) - scroll + (_rand(i * 67 + 1) - 0.5) * 60.0
-			_cluster(self, i * 7 + 5, kx, Y + sag_at(kx) + ROPE_H * 0.5, _leaf_tint(i * 3 + 1))
+	_draw_leaves(self, x0, x1, false)
+
+
+## Whether a strand climbs from knot i out of the top of the screen (it is tied on there).
+func _climbs(i: int) -> bool:
+	return _rand(i * 37 + 11) < 0.45
+
+
+## Round 22: the leaves along the rope, in front of it (`behind` false) or behind it in its shade: a slot every LEAF_CELL
+## units, most bare; in a few, a cluster of two or three leaves of their own sizes, overlapping; in fewer, a long
+## tendril hanging (stretched), swaying a little. Never two filled slots side by side.
+func _draw_leaves(ci: CanvasItem, x0: float, x1: float, behind: bool) -> void:
+	var first := floori((x0 + scroll) / LEAF_CELL)
+	for j in range(first, first + int((x1 - x0) / LEAF_CELL) + 2):
+		var u := _rand(j * 83 + 7)
+		if u > 0.36 or _rand((j - 1) * 83 + 7) <= 0.36 or (_rand(j * 89 + 1) < 0.5) != behind:
+			continue
+		var x := j * LEAF_CELL + _rand(j * 97 + 3) * LEAF_CELL * 0.6 - scroll
+		if absf(x - _hero_x) < 190.0:  # (none round his head and hands: a tangent with him)
+			continue
+		var y := Y + _drawn_sag(x) + ROPE_H * 0.45
+		if not is_finite(y):
+			continue
+		var tint := _leaf_tint(j * 3 + 1) * (Color(0.72, 0.72, 0.74) if behind else Color.WHITE)
+		if u < 0.12:  # a long tendril hanging
+			var src: Rect2 = TENDRILS[int(_rand(j * 5 + 2) * TENDRILS.size()) % TENDRILS.size()]
+			var k := 0.5 + _rand(j * 7 + 4) * 0.25
+			var size := Vector2(src.size.x * k, src.size.y * k * (1.6 + _rand(j * 11 + 6) * 1.2))
+			if _rand(j * 13 + 8) < 0.5:
+				size.x = -size.x
+			ci.draw_set_transform(Vector2(x, y - 2.0), sin(_clock * 0.9 + j) * 0.05, Vector2.ONE)
+			ci.draw_texture_rect_region(TEXTURE, Rect2(-size.x / 2.0, 0.0, size.x, size.y), src, tint)
+			ci.draw_set_transform_matrix(Transform2D.IDENTITY)
+			continue
+		var n := 1 + int(_rand(j * 17 + 9) * 1.7)
+		for m in n:
+			var dx := (m - (n - 1) * 0.5) * (8.0 + _rand(j * 19 + m) * 10.0)
+			_cluster(ci, j * 31 + m * 7, x + dx, y + _rand(j * 23 + m) * 3.0, tint * (0.9 + 0.2 * _rand(j * 29 + m)), 0.72)
 
 
 ## Round 20: a cluster's own colour: fresh, darker, or yellowing (the leaves were one flat green).

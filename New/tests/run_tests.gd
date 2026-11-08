@@ -239,6 +239,15 @@ func _test_hang() -> void:
 	w.tick()
 	w.tick()
 	_check(not w.hanging and w.y > 0.0, "swipe down lets go")
+	# round 22: the vine is drawn with swags of its own away from his hands; at his hands it is where the rules hang him
+	var vine := VineView.new()
+	var meets := true
+	for at: float in [0.0, 777.0, 4321.0, 18050.0]:
+		vine.scroll = at
+		vine.hold(true, 300.0, 0.0)
+		meets = meets and is_equal_approx(vine._drawn_sag(300.0), vine.sag_at(300.0))
+	vine.free()
+	_check(meets, "the vine as drawn meets his hands where he hangs")
 
 
 ## A fall ends the run, hearts or not (2017), unless falls_cost_life is on (config [rules], off by

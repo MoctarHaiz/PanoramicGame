@@ -151,6 +151,14 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 	_layers[&"soil"].material = soil
 	_layers[&"soil"].texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR  # data atlas: no mipmaps
 	_layers[&"tufts"].material = sway
+	# round 22 (the judges, j18: "the sticker look: inked characters on a world with no linework"; "no clean walking
+	# edge"): the turf along every top, its rounded ends and the grass hanging over the sides inked as the characters
+	# and the props are (ink.gdshader), so the edge he runs on is drawn, not airbrushed
+	var ink := ShaderMaterial.new()
+	ink.shader = preload("res://src/game/ink.gdshader")
+	ink.set_shader_parameter(&"width", 2.6)
+	for name: StringName in [&"caps", &"ends", &"drape"]:
+		_layers[name].material = ink
 	_layers[&"front"] = front
 	_layers[&"front_cast"] = front.get_child(0)
 
@@ -273,7 +281,7 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 		b[&"caps"].items.append([Rect2(x, y - CAP_ABOVE, T, CAP_H),
 				Rect2(fposmod(x * PX, STRIP), 0, T * PX, CAP_H * PX), Color.WHITE])
 		b[&"front"].items.append([Rect2(x, y - FRONT_BASE + 4.0, T, FRONT_H),
-				Rect2(fposmod(x * PX, 1024.0), 0, T * PX, FRONT_H * PX), Color.WHITE])
+				Rect2(fposmod(x * PX, 1024.0), 0, T * PX, FRONT_H * PX), _home_dry(c)])
 	if not open_n or _kind(c, r) != Level.Kind.TOP:
 		return
 	# the grass cap: a strip that runs on in level x; a cell with an open side gets a rounded end
@@ -309,12 +317,15 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 	if not open_w and not open_e:
 		b[&"roots"].items.append([Rect2(x, y, T, ROOTS_H),
 				Rect2(_strip_x(c, x), 0, T * PX, ROOTS_H * PX), Color.WHITE])
-	# the tufted lip over each open side (round 19: none on a pillar's slim cap)
+	# the tufted lip over each open side (round 19: none on a pillar's slim cap; round 22, the judges, j18: "a flat
+	# brown mushroom, its grass cap like a wig": on a pillar standing on the ground, a shorter lip, closer in)
+	var dk := 0.62 if (open_w or open_e) and _pillar_top(c, r) else 1.0
+	var drape := DRAPE * dk
 	if open_w and not pole_top:
-		b[&"drape"].items.append([Rect2(x - (DRAPE.x - DRAPE_IN), y - DRAPE_TOP, DRAPE.x, DRAPE.y),
+		b[&"drape"].items.append([Rect2(x - (drape.x - DRAPE_IN), y - DRAPE_TOP * dk, drape.x, drape.y),
 				Rect2(0, 0, DRAPE.x * PX, DRAPE.y * PX), Color.WHITE])
 	if open_e and not pole_top:
-		b[&"drape"].items.append([Rect2(x + T - DRAPE_IN, y - DRAPE_TOP, DRAPE.x, DRAPE.y),
+		b[&"drape"].items.append([Rect2(x + T - DRAPE_IN, y - DRAPE_TOP * dk, drape.x, drape.y),
 				Rect2(DRAPE.x * PX, 0, DRAPE.x * PX, DRAPE.y * PX), Color.WHITE])
 	# a wall rising from this top: shade at its foot (the disc's centre on the wall's face)
 	var disc := Rect2(0, 0, 64, 64)
@@ -336,7 +347,7 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 			b[&"front_cast"].items.append([Rect2(x - 4.0, y - 8.0, length * 0.8, 18.0), Rect2(0, 0, 64, 32),
 					Color(CAST_SHADE, CAST_SHADE.a * 0.45)])  # (trimmed: only the blades' lower half)
 	b[&"front"].items.append([Rect2(x, y - FRONT_BASE + 4.0, T, FRONT_H),
-			Rect2(fposmod(x * PX, 1024.0), 0, T * PX, FRONT_H * PX), Color.WHITE])
+			Rect2(fposmod(x * PX, 1024.0), 0, T * PX, FRONT_H * PX), _home_dry(c)])
 	# some tops get a clump of grass or flowers (never on the edge cells); round 20 (the judges, j16: "the ground
 	# a straight band"): more of them, each its own size, in runs that come and go, so the grass line along the
 	# top rises and falls (drawn only: the ground he runs on is where it was)
@@ -415,6 +426,20 @@ class UnderRock extends Node2D:
 		draw_texture_rect(white, rect, false)
 
 
+## Round 22: whether the top at (c, r) is the top of a pillar standing on the ground: its row's run of solid cells at
+## most NARROW_CELLS wide, solid under it (not a floating ledge), not a stack (drawing only).
+func _pillar_top(c: int, r: int) -> bool:
+	if _in_pole(c, r) or not solid(c, r + 1):
+		return false
+	var a := c
+	while a > c - NARROW_CELLS - 1 and solid(a - 1, r):
+		a -= 1
+	var b := c
+	while b < c + NARROW_CELLS + 1 and solid(b + 1, r):
+		b += 1
+	return b - a + 1 <= NARROW_CELLS
+
+
 ## A cell at the ground line under a wall: a run of cells with a wall over them (at most 16), with
 ## open ground (a top) at the same height next to it on a side. The ground runs on under the wall
 ## there (its grass and soil). Found once per row in build() (_feet).
@@ -454,7 +479,13 @@ static func _grass_tone(c: int) -> Color:
 	var i := floori(c / 7.0)
 	var t := smoothstep(0.0, 1.0, c / 7.0 - i)
 	var v := lerpf(_hash(i, 5, 100), _hash(i + 1, 5, 100), t) / 100.0
-	return Color(0.94 + v * 0.12, 0.97 + v * 0.06, 0.92 + v * 0.06)
+	return Color(0.94 + v * 0.12, 0.97 + v * 0.06, 0.92 + v * 0.06) * _home_dry(c)
+
+
+## Round 22 (the judges, j18: "home: a bright green lawn strip clashing with the dry savanna"): over the last stretch to
+## home the turf dries to the savanna's straw (multiplied; white elsewhere).
+static func _home_dry(c: int) -> Color:
+	return Color.WHITE.lerp(Color(1.0, 0.84, 0.6), smoothstep(PropView.HOME_COL - 40.0, PropView.HOME_COL - 4.0, float(c)))
 
 
 func _in_pole(c: int, r: int) -> bool:

@@ -50,13 +50,17 @@ const STRIPS := {
 ## of the kinds (block, spire, arch, low), cloud shadows.
 ## The farthest row a pale range of big forms melting into the sky (aerial perspective), the far row smaller, paler
 ## and cooler, the near row bigger, warmer and darker, never mirrored (lit from the left).
+## Round 22 (the judges, j18: "the far mesas pastel lilac at the sky's value, cut paper, no planes"; "milky haze over the
+## midground"): less haze on each row and a cooler, darker air, so the ranges sit a value under the bright sky; each
+## landform inked (`ink`: the line's width in units, thinner far) and its painted light split into crisp cel planes
+## (`planes`), as the characters are drawn.
 const MESA_ROWS := [
-	{scroll = 0.012, bottom = 456.0, scale = Vector2(0.62, 1.0), haze = 0.5, foot = 0.26, haze_colour = Color(0.68, 0.71, 0.85),
-		tint = Color(1, 1, 1), mirror = 0.4, gap = Vector2(40.0, 260.0), kinds = [3.0, 1.5, 1.2, 0.4], cloud = 0.0},
-	{scroll = 0.022, bottom = 470.0, scale = Vector2(0.48, 0.74), haze = 0.36, foot = 0.22, haze_colour = Color(0.7, 0.73, 0.88),
-		tint = Color(1, 1, 1), mirror = 0.3, gap = Vector2(60.0, 330.0), kinds = [2.0, 2.0, 1.0, 1.0], cloud = 0.5},
-	{scroll = 0.038, bottom = 494.0, scale = Vector2(0.78, 1.18), haze = 0.08, foot = 0.3, haze_colour = Color(0.6, 0.56, 0.7),
-		tint = Color(0.98, 0.92, 0.88), mirror = 0.0, gap = Vector2(120.0, 520.0), kinds = [2.0, 2.0, 1.6, 1.4], cloud = 1.0},
+	{scroll = 0.012, bottom = 456.0, scale = Vector2(0.62, 1.0), haze = 0.3, foot = 0.2, haze_colour = Color(0.56, 0.57, 0.76),
+		tint = Color(1, 1, 1), mirror = 0.4, gap = Vector2(40.0, 260.0), kinds = [3.0, 1.5, 1.2, 0.4], cloud = 0.0, ink = 0.75, planes = 0.7},
+	{scroll = 0.022, bottom = 470.0, scale = Vector2(0.48, 0.74), haze = 0.24, foot = 0.16, haze_colour = Color(0.62, 0.62, 0.8),
+		tint = Color(1, 1, 1), mirror = 0.3, gap = Vector2(60.0, 330.0), kinds = [2.0, 2.0, 1.0, 1.0], cloud = 0.5, ink = 0.95, planes = 0.85},
+	{scroll = 0.038, bottom = 494.0, scale = Vector2(0.78, 1.18), haze = 0.04, foot = 0.18, haze_colour = Color(0.58, 0.52, 0.68),
+		tint = Color(0.98, 0.92, 0.88), mirror = 0.0, gap = Vector2(120.0, 520.0), kinds = [2.0, 2.0, 1.6, 1.4], cloud = 1.0, ink = 1.3, planes = 1.0},
 ]
 const MESA_KINDS := ["block", "spire", "arch", "low"]
 const MESA_CLUSTERS := 6  ## clusters in a row before its order repeats
@@ -83,6 +87,12 @@ const TREE_ROWS := [
 ## (round 6: the near rows darker, warmer; round 9: a little lighter again, so their crowns' lit tops
 ## and shaded undersides read, not flat discs)
 const TREE_TINT := [Color(1, 1, 1), Color(0.76, 0.7, 0.6), Color(0.72, 0.66, 0.54)]
+const TREE_INK := [0.7, 1.0, 1.35]  ## round 22: each row's ink line (units): thinner far
+## Round 22 (the judges, j18: "the hero's lane has no value separation: a mid-orange hero on mid-gold grass"): the tall
+## grass behind his legs and the savanna behind his body a value darker and greener (an olive band), so his warm skin,
+## white loincloth and red scarf read against it (the warm add of round 3's lane light is gone).
+const MID_TINT := Color(0.58, 0.54, 0.4)
+const LANE_TINT := Color(0.64, 0.64, 0.46)
 ## animals.png (tools/art/savanna.py): two giraffes, an elephant, a herd of wildebeest (px regions)
 const ANIMALS := [Rect2(0, 0, 140, 220), Rect2(140, 12, 128, 208), Rect2(268, 68, 220, 152), Rect2(488, 132, 300, 88)]
 const CLOUD_SHADOW_GAP := 700.0  ## round 10: units of the plain between two clouds' shadows
@@ -92,7 +102,7 @@ const FRONT_PROP := Vector2(260, 190)  ## one piece of fg_props.png (units, 1 px
 const FRONT_PIECES := 4  ## tall grass, an aloe, a fallen log, a bush
 const FRONT_PROP_GAP := 420.0  ## units of the foreground between two of them (some left open)
 const FRONT_ZONE := 95.0  ## round 20: they show only this far and more behind him (the corner behind his back)
-const FRONT_DROP := 4.0  ## units its picture reaches below the bottom of the screen (round 20: 12 -> 4, fg_grass.png keeps every shape 2+ units under the ground line)
+const FRONT_DROP := 9.0  ## units its picture reaches below the bottom of the screen (round 20: 12 -> 4, fg_grass.png keeps every shape 2+ units under the ground line; round 22: 9, more of the bank shows)
 
 ## Play units visible left of the play window and the visible width (set by WorldView).
 var view_left := 0.0
@@ -142,8 +152,9 @@ func _ready() -> void:
 	_place_mesas()
 	for row in MESA_ROWS.size():  # (round 21: three rows of landforms, the farther ones paler and cooler)
 		var m: Dictionary = MESA_ROWS[row]
-		var hz := _haze([0, 0, 0, 0, m.haze, m.foot, 0, m.haze_colour], m.tint)
+		var hz := _haze([0, 0, 0, 0, m.haze, m.foot, 0, m.haze_colour], m.tint, m.ink, m.planes)
 		hz.set_shader_parameter(&"cloud", m.cloud)
+		hz.set_shader_parameter(&"cell_px", 255.0)  # (far_mesa_pieces.png: two rows of cells 255 px apart)
 		_painter(_draw_mesas.bind(row)).material = hz
 		_mesa_mats.append(hz)
 		if row == 0:  # (a soft band of the air's colour over the foot of the farthest range: it rises out of haze)
@@ -151,15 +162,16 @@ func _ready() -> void:
 	_painter(_draw_band.bind(470.0, 110.0, 0.035))  # (round 4: haze only around the far layers; round 9: fainter)
 	# (round 9: the far hills slate blue and darker: they were the pale milky band)
 	# (world redraw: the new far plain is painted pale: a little darker and cooler, not a milky band)
-	_painter(_draw_strip.bind(&"far_hills"), true).material = _haze([0, 0, 0, 0, 0.5, 0.0, 0, Color(0.42, 0.46, 0.64)], Color(0.7, 0.72, 0.84))
-	_painter(_draw_trees.bind(0)).material = _haze(TREE_ROWS[0], TREE_TINT[0])
+	# (round 22, the judges: "milky haze over the midground": the far plain a warmer dusty ochre a value under the sky,
+	# its far edge in the blue of distance, not a pale lilac band)
+	_painter(_draw_strip.bind(&"far_hills"), true).material = _haze([0, 0, 0, 0, 0.2, 0.0, 0, Color(0.5, 0.5, 0.66)], Color(0.8, 0.68, 0.5), 0.7, 0.0, true)
+	_painter(_draw_trees.bind(0)).material = _haze(TREE_ROWS[0], TREE_TINT[0], TREE_INK[0])
 	_painter(_draw_rays).material = add  # (round 11: under the midground again: over it they washed it to beige)
-	_painter(_draw_strip.bind(&"mid_hills"), true).material = _haze([0, 0, 0, 0, 0.0, 0.0, 0, Color(0.96, 0.76, 0.52)], Color(0.66, 0.56, 0.42))  # (round 6: the darker, warmer mid-ground)
-	_painter(_draw_trees.bind(1)).material = _haze(TREE_ROWS[1], TREE_TINT[1])
-	_painter(_draw_trees.bind(2)).material = _haze(TREE_ROWS[2], TREE_TINT[2])
-	_painter(_draw_strip.bind(&"near_grass"), true).material = _haze([0, 0, 0, 0, 0.0, 0.0, 0, Color(1, 1, 1)], Color(0.84, 0.74, 0.58))
+	_painter(_draw_strip.bind(&"mid_hills"), true).material = _haze([0, 0, 0, 0, 0.0, 0.0, 0, Color(0.96, 0.76, 0.52)], MID_TINT, 0.95, 0.0, true)  # (round 6: the darker, warmer mid-ground)
+	_painter(_draw_trees.bind(1)).material = _haze(TREE_ROWS[1], TREE_TINT[1], TREE_INK[1])
+	_painter(_draw_trees.bind(2)).material = _haze(TREE_ROWS[2], TREE_TINT[2], TREE_INK[2])
+	_painter(_draw_strip.bind(&"near_grass"), true).material = _haze([0, 0, 0, 0, 0.0, 0.0, 0, Color(1, 1, 1)], LANE_TINT, 1.1, 0.0, true)
 	_painter(_draw_cloud_shadows)  # (round 10) shadows of the clouds sliding over the plain
-	_painter(_draw_lane).material = add  # (round 3) the low sun on the grass behind the play
 	_painter(_draw_motes).material = add
 	_painter(_draw_birds)
 	_tex[&"fg_grass"] = load(DIR + "fg_grass.png")
@@ -168,6 +180,9 @@ func _ready() -> void:
 	front.name = &"Bg_front"
 	front.paint = _draw_front
 	front.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	# round 22 (the judges, j18: "the bottom ~12 % a dark purple soil band wasted"): the out-of-focus grass in front a
+	# deep warm earth brown, not black, lower (more of the ground's bank shows over it)
+	front.material = _haze([0, 0, 0, 0, 0.4, 0.0, 0, Color(0.46, 0.27, 0.18)])
 	_painters.append(front)
 
 
@@ -186,9 +201,14 @@ func _painter(fn: Callable, repeat := false) -> Painter:
 	return p
 
 
-func _haze(row: Array, tint := Color.WHITE) -> ShaderMaterial:
+## (round 22: `ink` the line round each sprite, its width in units; `planes` its painted light split into cel planes)
+## (round 22: `strip` a wide strip repeating across the view: only its top edge inked, the cheap way)
+func _haze(row: Array, tint := Color.WHITE, ink := 0.0, planes := 0.0, strip := false) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = preload("res://src/game/haze.gdshader")
+	m.set_shader_parameter(&"ink_units", ink)
+	m.set_shader_parameter(&"planes", planes)
+	m.set_shader_parameter(&"ink_sides", not strip)
 	m.set_shader_parameter(&"tint", tint)
 	m.set_shader_parameter(&"haze_colour", row[7])
 	m.set_shader_parameter(&"amount", row[4])
@@ -285,7 +305,7 @@ func _draw_sun(ci: CanvasItem, bloom: bool) -> void:
 func _draw_rays(ci: CanvasItem) -> void:
 	var tex: Texture2D = _tex[&"rays"]
 	var k := 1.2
-	var a := 0.2 + 0.04 * sin(_clock * 0.45) + 0.02 * sin(_clock * 1.13)
+	var a := 0.13 + 0.03 * sin(_clock * 0.45) + 0.015 * sin(_clock * 1.13)  # (round 22: fainter: they milked the midground)
 	ci.draw_texture_rect(tex, Rect2(_sun() - RAYS_ORIGIN * k, RAYS_SIZE * k), false, Color(1, 1, 1, a))
 
 
@@ -374,8 +394,16 @@ func _draw_mesas(ci: CanvasItem, row: int) -> void:
 	var span: float = _mesa_span[row]
 	var bottom: float = m.bottom
 	var colour := _dusk(DUSK_MESAS[row])
+	# (round 22, the judges, j18: "a pillar behind the hut's peak reads as a chimney"): at dusk, near home, the spires
+	# sink away (a tall thin one stood behind the hut's peak); the broad landforms stay
+	var spire_a := 1.0 - smoothstep(0.45, 0.9, dusk)
 	for cycle in range(floori((x0 + offset) / span) - 1, floori((x1 + offset) / span) + 1):
 		for slot: Array in _mesa_slots[row]:
+			var tint := colour
+			if _mesa_kind[slot[0]] == 1:
+				if spire_a <= 0.0:
+					continue
+				tint.a = spire_a
 			var src: Rect2 = _mesa_src[slot[0]]
 			var k: float = slot[2]
 			var ky: float = k * float(slot[4])
@@ -384,7 +412,7 @@ func _draw_mesas(ci: CanvasItem, row: int) -> void:
 				continue
 			if slot[3]:
 				rect.size.x = -rect.size.x  # mirrored in place
-			ci.draw_texture_rect_region(tex, rect, src, colour)
+			ci.draw_texture_rect_region(tex, rect, src, tint)
 
 
 func _draw_strip(ci: CanvasItem, name: StringName) -> void:
@@ -433,12 +461,6 @@ func _draw_front(ci: CanvasItem) -> void:
 			rect.size.x = -rect.size.x  # mirrored in place
 		var piece := posmod(int(_hash(i * 3 + 9) * FRONT_PIECES), FRONT_PIECES)
 		ci.draw_texture_rect_region(props, rect, Rect2(piece * FRONT_PROP.x, 0, FRONT_PROP.x, FRONT_PROP.y), Color(1, 1, 1, fade))
-
-
-## Round 3: the low sun warming the grass behind the runners: the play lane is the brightest band,
-## dark bandits and the hero stand out against it.
-func _draw_lane(ci: CanvasItem) -> void:  # (round 9: lower and fainter: it whitened the far plain)
-	ci.draw_texture_rect(_tex[&"haze"], Rect2(_x0(), 540.0, _x1() - _x0(), 90.0), false, Color(1.0, 0.7, 0.36, 0.13 * (1.0 - 0.7 * dusk)))
 
 
 ## Round 10 ("a flat olive band"): the shadows of the clouds lying across the plain, long and soft,

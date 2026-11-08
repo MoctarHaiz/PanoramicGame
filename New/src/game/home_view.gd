@@ -111,8 +111,10 @@ func build() -> void:
 	_door_lift = _sprite("home_glow", 1.0)
 	_door_lift.centered = true
 	_door_lift.offset = Vector2.ZERO
-	_door_lift.position = Vector2(door_x - 6.0, GROUND - 108.0)
-	_door_lift.scale = Vector2(0.52, 0.62)
+	# (round 22, the judges, j18: "his hair and armoured arm still merge into the dark doorway": brighter and wider, up
+	# behind his head and both shoulders: the hut's warm interior, a value above his hair)
+	_door_lift.position = Vector2(door_x - 4.0, GROUND - 112.0)
+	_door_lift.scale = Vector2(0.66, 0.8)
 	_door_lift.material = _add_material()
 	back.add_child(_door_lift)
 	var smoke := _smoke()
@@ -181,11 +183,12 @@ func _process(delta: float) -> void:
 		(_fire as Fire).flare = _welcome
 		var flick := 0.08 * sin(_clock * 9.0) + 0.05 * sin(_clock * 23.0) + 0.03 * sin(_clock * 3.7)
 		# (round 20: kept round the fire, not over the whole left of the home: the dusk's cool reads round it)
-		_fire_light.modulate = Color(1, 0.6, 0.3, 0.18 + flick + 0.1 * _welcome)
+		# (round 22, the judges, j18: "the fire's orange washes the left third": its light kept nearer it)
+		_fire_light.modulate = Color(1, 0.6, 0.3, 0.1 + flick * 0.7 + 0.06 * _welcome)
 		_fire_pool.modulate = Color(1, 0.66, 0.34, 0.45 + flick * 1.5 + 0.15 * _welcome)
 		_fire_reach.modulate = Color(1, 0.62, 0.3, 0.42 + flick * 1.2 + 0.12 * _welcome)
 		_fire_side.modulate = Color(1, 0.58, 0.28, 0.2 + flick * 0.8 + 0.08 * _welcome)
-		_door_lift.modulate = Color(0.78, 0.5, 0.32, 0.3 + f * 0.1 + 0.08 * _welcome)
+		_door_lift.modulate = Color(0.86, 0.56, 0.34, 0.5 + f * 0.12 + 0.1 * _welcome)
 
 
 ## He is home: the fire flares up to welcome him.
@@ -308,7 +311,7 @@ class Fire extends Node2D:
 	func _ready() -> void:
 		_glow = Sprite2D.new()
 		_glow.texture = load(DIR + "home_glow.png")
-		_glow.scale = Vector2(1.6, 0.7)
+		_glow.scale = Vector2(0.85, 0.42)  # (round 22: x the fire's own 2.3 it spread ~940 units wide: the left third orange)
 		_glow.position = Vector2(0, -8)
 		var add := CanvasItemMaterial.new()
 		add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
@@ -318,7 +321,7 @@ class Fire extends Node2D:
 		# round 10 ("the campfire casts no light on the fence or ground"): a wide warm light round it
 		_light = Sprite2D.new()
 		_light.texture = _glow.texture
-		_light.scale = Vector2(1.2, 0.8)  # (round 20: x the fire's own 2.3: it washed the whole left half orange)
+		_light.scale = Vector2(0.8, 0.6)  # (round 20: x the fire's own 2.3: it washed the whole left half orange; round 22: smaller)
 		_light.position = Vector2(0, -26)
 		_light.material = add
 		add_child(_light)
@@ -347,9 +350,9 @@ class Fire extends Node2D:
 	func _process(delta: float) -> void:
 		_clock += delta
 		var flicker := 0.1 * sin(_clock * 9.0) + 0.06 * sin(_clock * 23.0)
-		_glow.modulate = Color(1, 0.75, 0.45, 0.75 + flicker)
-		# (round 20: its light kept round it: it washed the whole left half of the home orange)
-		_light.modulate = Color(1, 0.6, 0.3, 0.2 + flicker * 0.4)
+		_glow.modulate = Color(1, 0.7, 0.42, 0.55 + flicker)
+		# (round 20: its light kept round it: it washed the whole left half of the home orange; round 22: less still)
+		_light.modulate = Color(1, 0.6, 0.3, 0.12 + flicker * 0.3)
 		for m in _flames:
 			m.set_shader_parameter(&"flare", flare)
 		queue_redraw()

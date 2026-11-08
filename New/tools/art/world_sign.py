@@ -4,6 +4,9 @@ signpost (tools/art/ref/home_sign_painted.png, the world redraw's picture) cut i
 cream fill becomes a groove of charred wood with the board's grain running through it, the groove's upper-left walls
 in shadow (the sun and the fire light it from the upper left) and its lower-right walls catching the light, a thin
 lit lip where the cut meets the board below and to the right.
+Round 22 (the judges, j18: "the beaded pole under the HOME sign reads as a corn cob"): the post's long wrap of beads in
+rows is plain wood again (the post's grain below it, carried up), with two narrow bands of Zulu beadwork round it (a
+row of small beads, red, white, blue and gold, darker toward the post's sides as it turns), so the beadwork stays.
 
     python3 tools/art/world_sign.py   -> assets/art/world/home_sign.png
 """
@@ -17,6 +20,39 @@ NEW = Path(__file__).resolve().parents[2]
 SRC = Path(__file__).parent / "ref/home_sign_painted.png"
 OUT = NEW / "assets/art/world/home_sign.png"
 BOARD = (slice(28, 112), slice(4, 232))  # rows, columns of the board where the letters are (px)
+WRAP = (112, 186)  # round 22: rows of the post wrapped in beads (px)
+POST_COLS = slice(100, 150)  # columns round the post (px)
+BANDS = (115, 177)  # round 22: top rows of the two narrow bead bands (px)
+BEADS = [(196, 52, 38), (244, 236, 214), (52, 112, 176), (232, 176, 52)]  # red, white, blue, gold
+
+
+def plain_post(res: np.ndarray) -> None:
+    """Round 22: the beaded wrap replaced by the post's own wood, with two narrow bands of beads round it."""
+    y0, y1 = WRAP
+    wood = res[188:252, POST_COLS].copy()  # (the plain post under the wrap)
+    for y in range(y0, y1):
+        res[y, POST_COLS] = wood[(y - y0) % wood.shape[0]]
+    cols = np.where(res[200, POST_COLS, 3] > 128)[0] + POST_COLS.start
+    left, right = int(cols.min()), int(cols.max())
+    mid = (left + right) / 2.0
+    half = (right - left) / 2.0
+    for k, top in enumerate(BANDS):
+        # the band's shadow on the post under it, then two rows of beads, 3 px each, the second offset
+        res[top + 6, left:right + 1, :3] = res[top + 6, left:right + 1, :3] * 0.5
+        res[top + 7, left:right + 1, :3] = res[top + 7, left:right + 1, :3] * 0.75
+        for row in range(2):
+            for i, x in enumerate(range(left - row, right + 1, 3)):
+                r, g, b = BEADS[(i + k * 2 + row * 2) % len(BEADS)]
+                turn = 1.0 - 0.55 * ((x + 1 - mid) / half) ** 2  # (the post turning away at its sides)
+                for dy in range(3):
+                    for dx in range(3):
+                        xx = x + dx
+                        if xx < left or xx > right:
+                            continue
+                        corner = dy in (0, 2) and dx in (0, 2)  # (round beads: their corners in shade)
+                        lit = 1.18 if (dy, dx) == (0, 1) else (0.72 if dy == 2 or corner else 1.0)  # (lit from above)
+                        res[top + row * 3 + dy, xx, :3] = np.clip(np.array([r, g, b]) * max(turn, 0.3) * lit, 0, 255)
+                        res[top + row * 3 + dy, xx, 3] = 255
 
 
 def shift(m, dy, dx):
@@ -76,6 +112,7 @@ def main() -> None:
     out[lip] = np.minimum(out[lip] * 1.22 + 10, 255)
     res = img.copy()
     res[..., :3] = np.clip(out, 0, 255)
+    plain_post(res)
     Image.fromarray(res.round().astype(np.uint8), "RGBA").save(OUT, optimize=True)
     print("home_sign.png written:", int(keep.sum()), "px of letters carved")
 
