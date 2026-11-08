@@ -4,10 +4,13 @@
                  yellow shirt with the round steel emblem, grey sash, black trousers, golden shin guards;
   bandit_strong  the user's strong bandit (~/Downloads/strong_bandit.png): the leader, muscular, bright-blue hair,
                  dark-red cape-scarf, mustard shirt with the black-and-white emblem and straps, blue wraps.
-Both drawn with kie.ai from the user's pictures: six poses on one Nano Banana 2 sheet each (cut by
-ROOT/_agents/kie/bandit2/cut_cells.py into bandit2/cells*/: 0 the run pose, 1 waiting, 2 the fist drawn back,
-3 the punch, 4 hit, 5 the leap, all facing left), and the run from a Seedance 2.0 Mini clip started on the run
-pose (video/vframes.py keys it into video/<clip>_keyed/; the loop is video/loop_find.py's: its start, its length).
+Both drawn with kie.ai from the user's pictures, with the hero's body proportions (the user, 2026-11-07: the
+first ones were chibi, big-headed and stocky next to him; the strong one is as tall as the hero, 147 units in his
+run like the hero's run frames, the bandit clearly smaller: about 0.8 of him): six poses on one Nano Banana 2 sheet each (the hero's
+picture given for the proportions; cut by ROOT/_agents/kie/bandit2/cut_cells.py into bandit3/cells*/: 0 the run
+pose, 1 waiting, 2 the fist drawn back, 3 the punch, 4 hit, 5 the leap, all facing left; the strong run pose's
+missing shirt put back with a 1K edit), and the run from a Seedance 2.0 Mini clip started on the run pose
+(video/vframes.py keys it into video/<clip>_keyed/; the loop is video/loop_find.py's: its start, its length).
 
 The run's frames keep the clip's framing (its camera is locked): one pivot for the whole cycle, his body's middle
 over the lowest boot, so he bobs as filmed. The poses stand on their own lowest pixel (the leap lifted), their
@@ -34,9 +37,12 @@ KIE = ROOT / "_agents/kie"
 OUT = NEW / "assets/art/bandit"
 ## kind -> (pose cells, keyed run clip, loop start, loop length, the clip's start picture, units tall)
 KINDS = {
-    "bandit": ("bandit2/cells", "video/bandit_run_keyed", 19, 13, "bandit2/run_start.png", 120.0),
-    "bandit_strong": ("bandit2/cells_strong", "video/strong_run_keyed", 47, 12, "bandit2/strong_run_start.png", 138.0),
+    "bandit": ("bandit3/cells", "video/bandit3_run_keyed", 47, 16, "bandit3/run_start.png", 112.0),
+    "bandit_strong": ("bandit3/cells_strong", "video/strong3_run_keyed", 48, 14, "bandit3/strong_run_start.png", 147.0),
 }
+## his head and hair drawn this many times their size about his neck (the user, 2026-11-08: the bandit's head read
+## bigger than the hero's on a smaller body; his big spiky hair made it so)
+HEAD_SCALE = {"bandit": 0.85}
 POSES = [1, 2, 3, 4, 5]  ## wait, swing (drawn back, thrown), hit, leap: the cells after the run pose
 PX_PER_UNIT = 2.2  ## sheet px a unit (the hero's atlas: 2.3)
 PAD = 3
@@ -117,6 +123,43 @@ def planted_step(run: list, ground: float) -> float:
     good = [v for v in stances if v > 0]
     return float(np.median(good)) if good else 0.0
 
+def smaller_head(a: np.ndarray, s: float) -> np.ndarray:
+    """His head (hair and face, above the scarf at his neck) drawn `s` times its size about the middle of his neck;
+    the rest of him unchanged (the background is transparent: nothing to fill)."""
+    if s >= 0.999:
+        return a
+    r, g, b, al = a[..., 0], a[..., 1], a[..., 2], a[..., 3]
+    ys = np.nonzero(al > 0.5)[0]
+    top, tall = ys.min(), ys.max() - ys.min()
+    hair = (al > 0.5) & (b > r + 0.15) & (g > r + 0.1)
+    hair[int(top + tall * 0.45):] = False
+    hy, hx = np.nonzero(hair)
+    x0, x1 = int(hx.min()), int(hx.max())
+    red = (al > 0.5) & (r > 0.45) & (g < 0.3) & (b < 0.3) & (r > 1.6 * g)
+    ry = np.nonzero(red[:, x0:x1 + 1])[0]
+    ry = ry[ry > hy.mean()]
+    neck = int(ry.min()) if len(ry) else int(hy.max() + (hy.max() - hy.min()) * 0.4)
+    mask = np.zeros(al.shape, bool)
+    mask[: neck + 1, x0:x1 + 1] = True
+    mask &= (al > 0.004) & ~red
+    cx = float(hx[hy > hy.mean()].mean()) if (hy > hy.mean()).any() else (x0 + x1) / 2.0
+    pm = a.copy(); pm[..., :3] *= pm[..., 3:4]
+    head = np.where(mask[..., None], a, 0.0)  # (straight alpha: premultiplied_resize premultiplies)
+    body = np.where(mask[..., None], 0.0, pm)
+    h, w = al.shape
+    hs = premultiplied_resize(Image.fromarray((np.clip(head, 0, 1) * 255 + 0.5).astype(np.uint8), "RGBA"), s)
+    hs = hs.astype(np.float32) if hs.dtype != np.float32 else hs
+    hs = hs.copy(); hs[..., :3] *= hs[..., 3:4]  # (premultiplied again)
+    ox, oy = round(cx - cx * s), round(neck - neck * s)
+    hh, ww = hs.shape[:2]
+    canvas = np.zeros_like(pm)
+    canvas[oy:oy + hh, ox:ox + ww] = hs[: h - oy, : w - ox]
+    out = canvas + body * (1.0 - canvas[..., 3:4])
+    al2 = out[..., 3:4]
+    out[..., :3] = np.where(al2 > 1e-4, out[..., :3] / np.maximum(al2, 1e-4), 0.0)
+    return np.clip(out, 0, 1)
+
+
 def build(kind: str) -> None:
     cells, clip, start, length, start_png, stand = KINDS[kind]
     run_pose = rgba(KIE / cells / "0.png")
@@ -129,7 +172,17 @@ def build(kind: str) -> None:
     cell_to_canvas = canvas_h / float(ys.max() - ys.min())
     k = PX_PER_UNIT * stand / canvas_h  # canvas px -> sheet px
     files = sorted((KIE / clip).glob("*.png"))
+    hs = HEAD_SCALE.get(kind, 1.0)
     run = [rgba(files[start + i]) for i in range(length)]
+    if hs < 0.999:
+        # the run's wind-swept hair is far bigger than in his other poses: each run frame's head is brought to the
+        # poses' head size (their hair's median area, at their HEAD_SCALE)
+        def pose_hair(c: int) -> float:
+            im = Image.open(KIE / cells / f"{c}.png").convert("RGBA")
+            im = im.resize((round(im.width * cell_to_canvas), round(im.height * cell_to_canvas)), Image.LANCZOS)
+            return hair_area(np.asarray(im).astype(np.float32) / 255.0)
+        target = float(np.median([pose_hair(c) for c in POSES])) * hs * hs
+        run = [smaller_head(a, float(np.clip(np.sqrt(target / hair_area(a)), 0.65, 1.0))) for a in run]
     ground = float(max(np.nonzero(a[..., 3] > 0.5)[0].max() for a in run))
     mid = float(np.mean([middle_x(a) for a in run]))
     frames, heads = [], []
@@ -149,7 +202,7 @@ def build(kind: str) -> None:
         # the run pose's head size (only down: a pose's hair shows less than the run's, so the measure overshoots up)
         fit = float(np.clip(np.sqrt(ref_hair / hair_area(np.asarray(img).astype(np.float32) / 255.0)), 0.8, 1.0))
         img = img.resize((round(img.width * cell_to_canvas * fit), round(img.height * cell_to_canvas * fit)), Image.LANCZOS)
-        a = np.asarray(img).astype(np.float32) / 255.0
+        a = smaller_head(np.asarray(img).astype(np.float32) / 255.0, hs)
         bottom = float(np.nonzero(a[..., 3] > 0.5)[0].max())
         add(a, np.array([middle_x(a), bottom + (LEAP_LIFT if c == 5 else 0.0)]))
     sizes = [(f.shape[1], f.shape[0]) for f, _ in frames]

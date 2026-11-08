@@ -100,12 +100,14 @@ const DODGE_LOOK := 14  ## ticks ahead a jumper on the ground looks for a ring t
 ## HeroView's atlas round the rules' centres): forgiving to him, and his rings a little generous. Relative to a
 ## bandit's centre, by kind (it runs left: its front is at negative x); its 2017 box (BANDIT_SIZE, bandit_rect)
 ## still meets the ground and the walls:
-const BANDIT_BODY := Rect2(-42.0, -68.0, 56.0, 110.67)  ## its hair (not the spikes' tips) to its feet, chest to back
-const STRONG_BODY := Rect2(-45.0, -90.0, 65.0, 132.67)  ## the strong one, drawn 23 units taller
+## (Re-measured 2026-11-08 on the redrawn bandits, with the hero's proportions: the bandit ~109 units to its hair,
+## its head made smaller; the strong one ~146, as tall as the hero. The collision pass's margins kept.)
+const BANDIT_BODY := Rect2(-37.4, -56.9, 53.1, 99.6)  ## its hair (not the spikes' tips) to its feet, chest to back
+const STRONG_BODY := Rect2(-35.7, -93.2, 69.4, 135.9)  ## the strong one, as tall as the hero
 const BLOW_BACK := 4.0  ## its blow comes from its body only up to the back of its head (its back, cape and trailing
 ## leg behind that, under him as he drops or hops over it, are forgiven; rings hit all of it)
-const BANDIT_FIST := Rect2(-50.0, -30.0, 10.0, 30.0)  ## its fist out in front (its punch), never through a wall
-const STRONG_FIST := Rect2(-64.0, -42.0, 20.0, 34.0)
+const BANDIT_FIST := Rect2(-50.5, -47.5, 10.0, 24.0)  ## its fist out in front (its punch: at his chest), never through a wall
+const STRONG_FIST := Rect2(-66.2, -79.0, 20.0, 28.0)  ## (the strong one's at his face)
 ## His body for the blows, relative to his centre (hurt_rect): his forehead to his knees, his back to the front of
 ## his chest (drawn leaning into his run, his face 37 units ahead of his centre). His shins and boots don't count:
 ## forgiving, and in the air they are drawn hanging up to 50 units lower than the rules' box. A jump clears a
