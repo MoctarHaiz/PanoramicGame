@@ -91,6 +91,39 @@ const STRONG_HEALTH := 3
 const BANDIT_JUMP := 28.0 * KY  ## a jumper's leap: its feet rise ~87 units, over a ring thrown from his middle
 const DODGES := 1
 const DODGE_LOOK := 14  ## ticks ahead a jumper on the ground looks for a ring that would hit it
+## New (the user, 2026-11-10: "the interaction of the enemies in the world should be improved"): bandits read the
+## ground ahead of them (_sense). The 2017 ones ran blind: 12 of the 31 in the level ran off a bank into a pool in
+## plain view, and a wall slid them up its face on little hops (10 tiles of it at the tower and the tunnel). Now:
+## - a wall or a step up ahead: one leap onto its top, taken from far enough to clear its corner (from its foot
+##   when it wakes there: straight up, then over);
+## - a pool ahead: a leap across when the far bank is in reach (GAP_MAX tiles, a bank BANK_MIN tiles long: never
+##   onto the stepping stones, where he has no room to answer); otherwise it holds its bank (`holding`), GUARD_BACK
+##   from its end: a guard he rings or hops once he has landed (one that would hold a stepping stone isn't placed);
+## - a floating ledge at the height of its body (a stepping stone) is no step: its bank ends there;
+## - a step down: it runs off and drops, as it did.
+## A leap is a planned arc (`arc`: so many ticks from `arc_from` to `arc_to` under LEAP_GRAVITY, checked clear
+## of rock when it is planned), seen coming for all of its flight.
+## - a ring that doesn't knock it out stops it for STAGGER_TICKS and knocks it out of a leap: over a pool it drops
+##   in, knocked out as it goes under (bandit_hit, as any knock-out).
+const LEAP_GRAVITY := 2.0 * KY  ## a leap's gravity (a drop's is BANDIT_GRAVITY): a long arc
+const LEAP_CLEAR := 24.0  ## units a leap onto a wall tops it by
+const LEAP_RISE_MAX := 190.0  ## units a leap over a pool rises at most (longer ones fly flatter)
+const WALL_LOOK := 7  ## tiles ahead a bandit sees a wall (its lead for the tallest, 10 tiles: 5.5)
+const WALL_MAX := 11  ## tiles: the tallest wall it leaps
+const GAP_MAX := 6  ## tiles: the widest pool it leaps
+const BANK_MIN := 4  ## tiles of grass a far bank needs for it to leap there
+const DROP_MAX := 4  ## tiles down (or STEP_UP up) the far bank may be
+const STEP_UP := 3
+const GUARD_BACK := 6.0 * TILE  ## a guard holds this far back from the end of its bank: he has room to land, and to answer
+const GUARD_GAP := 46.0  ## units a guard holds behind another on the same bank
+## No leap comes down on him: one that would land within LAND_CLEAR of where his run will have brought him by then,
+## while he is about that height (LAND_ABOVE, LAND_UNDER: on the wall's top, on the far bank), isn't begun: the bandit holds
+## where it is, a guard for him to answer once he is down or across (the bot lost a life to the one that leapt onto
+## the end of the tunnel's roof as he reached it).
+const LAND_CLEAR := 8.0 * TILE
+const LAND_ABOVE := 3.0 * TILE
+const LAND_UNDER := 5.0 * TILE  ## (higher than that over it, on the vine or a ledge, he is out of its way)
+const STAGGER_TICKS := 10  ## 0.25 s
 ## New (collision pass, 2026-11-07): rings and blows meet the bodies as they are drawn now. The 2017 box sat on the
 ## back half of a bandit's picture (it leans into its run: its head, chest and fists are drawn up to 50 units
 ## ahead of its centre, the strong one's hair 55 units over the box), so rings flew into its face before they
@@ -196,6 +229,16 @@ class Bandit:
 	var dodges := 0
 	var leap := false  ## New: leaps on its next move
 	var leaping := false  ## New: in the air from a leap (until it lands)
+	var holding := false  ## New: holds the bank of a pool it can't leap (a guard: it stands there)
+	var stagger := 0  ## New: ticks a ring's blow still stops it
+	var arc := 0  ## New: ticks left of a planned leap (over a pool, onto a wall); 0: none
+	var arc_n := 0  ## its length in ticks
+	var arc_from := Vector2.ZERO  ## its ends (level x, y of its centre)
+	var arc_to := Vector2.ZERO
+	var arc_v := 0.0  ## its vertical speed at take-off, and its gravity
+	var arc_g := 0.0
+	var arc_late := false  ## from the foot of a wall: up first, then over its top
+	var landed_tick := -99  ## for views: the tick its last leap or drop ended on the ground
 	var hurt := false  ## hit once: drawn hurt
 	var touched_hero := false  ## each bandit can take only one life
 	var gone := false
@@ -209,6 +252,8 @@ class Bandit:
 		var b := Bandit.new()
 		b.x = x; b.y = y; b.prev_x = prev_x; b.prev_y = prev_y; b.vy = vy; b.health = health; b.hurt = hurt
 		b.strong = strong; b.jumper = jumper; b.dodges = dodges; b.leap = leap; b.leaping = leaping
+		b.holding = holding; b.stagger = stagger; b.arc = arc; b.arc_n = arc_n; b.arc_from = arc_from
+		b.arc_to = arc_to; b.arc_v = arc_v; b.arc_g = arc_g; b.arc_late = arc_late; b.landed_tick = landed_tick
 		b.touched_hero = touched_hero; b.gone = gone; b.active = active; b.id = id
 		b.wait_x = wait_x; b.wait_y = wait_y
 		return b
@@ -344,10 +389,19 @@ func _place_bandits() -> void:
 					if level.kind_at(c, r) == Level.Kind.TOP:
 						b.wait_y = r * TILE - BANDIT_SIZE.y / 2
 						break
-			if _find(bandit_rect(trial), Level.Kind.TOP).x >= 0:
+			if trial.holding or _grass_under(trial).x >= 0:
 				lands = true
 				if placed:
 					break
+		# New: nor one whose post would be a stepping stone or the block in the last pool (he must land there)
+		for t in 40:  # (on to its post, if it takes one)
+			if trial.holding or trial.arc > 0 or not _move_bandit(trial):
+				break
+		if lands and trial.holding:
+			var row := roundi((trial.y + BANDIT_SIZE.y / 2) / TILE)
+			var col := floori((trial.x - BANDIT_SIZE.x / 2) / TILE)  # (the grass under its front foot)
+			if _bank_length(col, row, -1) + _bank_length(col + 1, row, 1) < BANK_MIN:
+				lands = false
 		b.gone = not lands
 	scroll = at
 
@@ -522,6 +576,12 @@ func _update_rings() -> void:
 			if b.health <= 0:
 				b.gone = true
 				knocked_out += 1
+			else:  # New: the blow stops it a moment, and knocks it out of a leap (it drops where it is)
+				b.stagger = STAGGER_TICKS
+				if b.arc > 0:
+					b.arc = 0
+					b.vy = maxf(b.vy, 0.0)
+					b.leaping = false
 			bandit_hit.emit(b, b.gone)
 			break
 
@@ -621,45 +681,301 @@ func _update_bandits() -> void:
 
 
 ## One tick of a bandit's run (old Enemy.update): onto the grass, off a wall with a hop, then left
-## and down. False if it is gone (off the left of the screen or down a hole).
+## and down. False if it is gone (off the left of the screen or down a hole). New: it reads the ground ahead
+## (_sense): it leaps walls and pools, or holds its bank.
 func _move_bandit(b: Bandit) -> bool:
+	if b.arc > 0:
+		return _fly(b)
 	var r := bandit_rect(b)
-	var top := _find(r, Level.Kind.TOP)
+	var top := _grass_under(b)
+	var grounded := false
 	if top.x >= 0 and b.leaping and b.y + BANDIT_SIZE.y / 2 > top.y * TILE + TILE / 2.0:
 		b.vy = maxf(b.vy, 0.0)  # New: a leap into a ledge from below bumps its head (no snap up onto it)
 	elif top.x >= 0:
+		if b.vy > BANDIT_GRAVITY * 2.5 or b.leaping:
+			b.landed_tick = ticks
 		b.vy = 0.0
 		b.y = top.y * TILE - BANDIT_SIZE.y / 2
 		b.leaping = false
+		grounded = true
 	var wall := _find(r, Level.Kind.SIDE, SIDE_SHRINK)
-	if wall.x >= 0:  # old: pushed back to the right of the wall, with a hop
+	if wall.x >= 0:  # old: pushed back to the right of the wall, with a hop (New: the hop only as a last resort, below)
 		b.x = wall.x * TILE + TILE - SIDE_SHRINK + BANDIT_SIZE.x
-		b.vy = -BANDIT_HOP
 	if b.leap:  # New: a jumper's leap over a ring
 		b.leap = false
 		b.leaping = true
+		grounded = false
 		b.vy = -BANDIT_JUMP
 	r = bandit_rect(b)
 	if r.end.x < 0.0 or r.position.y > VIEW_H:
 		b.gone = true
 		return false
 	var feet := b.y + BANDIT_SIZE.y / 2
-	b.x -= BANDIT_RUN
+	if b.holding:  # a guard: it stands on its bank
+		return true
+	if b.stagger > 0:  # stopped by a ring's blow (it still drops)
+		b.stagger -= 1
+	elif grounded and _sense(b):
+		return true  # (it holds its bank now, or its leap began with this tick's move)
+	else:
+		if wall.x >= 0:  # in the air against a wall, or at the foot of one it can't leap: the 2017 hop up its face
+			b.vy = -BANDIT_HOP
+		b.x -= BANDIT_RUN
 	b.y += b.vy
 	b.vy += BANDIT_GRAVITY
 	if feet < SURFACE_Y and b.y + BANDIT_SIZE.y / 2 >= SURFACE_Y and water_at(b.x):
 		splashed.emit(b.x, false)
+		if b.hurt:  # New: a ring knocked it out of its leap into the pool: knocked out, his
+			b.health = 0
+			b.gone = true
+			knocked_out += 1
+			bandit_hit.emit(b, true)
+			return false
 	return true
+
+
+## The grass tile a bandit's box is on or in ((-1, -1): none). New: the 2017 snap stands it exactly on its grass,
+## where the strict overlap missed it every other tick (it sank a hair, then was snapped back): standing there
+## counts, so it reads the ground ahead, dodges and is placed on every tick alike.
+func _grass_under(b: Bandit) -> Vector2i:
+	var r := bandit_rect(b)
+	var top := _find(r, Level.Kind.TOP)
+	if top.x < 0 and not b.leaping and b.vy >= 0.0 and b.vy <= BANDIT_GRAVITY * 1.01:
+		top = _find(Rect2(r.position.x, r.position.y + 2.0, r.size.x, r.size.y), Level.Kind.TOP)
+		if top.x >= 0 and absf(top.y * TILE - (b.y + BANDIT_SIZE.y / 2)) > 2.0:
+			top = Vector2i(-1, -1)  # (not the grass under its feet)
+	return top
+
+
+## New: one tick of a planned leap: along its arc (clear of rock: checked when it was planned), onto its far end.
+func _fly(b: Bandit) -> bool:
+	var k := b.arc_n - b.arc + 1
+	b.arc -= 1
+	var u := float(k) / b.arc_n
+	b.x = lerpf(b.arc_from.x, b.arc_to.x, pow(u, 4.0) if b.arc_late else u)
+	b.y = b.arc_from.y + b.arc_v * k + b.arc_g * k * k / 2.0
+	b.vy = b.arc_v + b.arc_g * k
+	if b.arc == 0:
+		b.x = b.arc_to.x
+		b.y = b.arc_to.y
+		b.vy = 0.0
+		b.leaping = false
+		b.landed_tick = ticks
+	if bandit_rect(b).end.x < 0.0:
+		b.gone = true
+		return false
+	return true
+
+
+## New: a bandit standing on grass reads the ground ahead of it. True if it took this tick's move itself: it holds
+## its bank from now on, or began a leap. False: it runs on (a clear run, a step down, a wall still far off).
+func _sense(b: Bandit) -> bool:
+	var feet := b.y + BANDIT_SIZE.y / 2
+	var row := roundi(feet / TILE)  # the row of the grass under it
+	var front := b.x - BANDIT_SIZE.x / 2
+	var c0 := floori(front / TILE)
+	for c in range(c0, maxi(c0 - WALL_LOOK, 0) - 1, -1):
+		# rock at the height of its body in this column: a wall, or a step up
+		var rock := false
+		for rr in range(maxi(row - STEP_UP, 0), row):
+			var k := level.kind_at(c, rr)
+			if k == Level.Kind.SIDE or (k == Level.Kind.TOP and level.kind_at(c, rr + 1) in [Level.Kind.SIDE, Level.Kind.TOP]):
+				rock = true
+		if rock or level.kind_at(c, row) == Level.Kind.SIDE:
+			if c == c0:  # (in the column it stands in: the 2017 push off a wall deals with it)
+				return false
+			return _leap_wall(b, c, row)
+		if level.kind_at(c, row) == Level.Kind.TOP:
+			continue
+		# the grass ends at the right edge of column c
+		var edge := (c + 1) * TILE
+		for cc in range(c, maxi(c - 2, 0) - 1, -1):  # ground to drop to just below: it runs off, as it did
+			for rr in range(row + 1, Level.ROWS):
+				var k := level.kind_at(cc, rr)
+				if k == Level.Kind.TOP:
+					return false
+				if k == Level.Kind.SIDE or k == Level.Kind.WATER:
+					break
+		var to := _gap_landing(c, row)
+		# a pool it can't leap, or one whose far bank he is coming to: it holds this bank, back from its end (he has
+		# room to land)
+		if to == Vector2.INF or (front - edge > BANDIT_RUN and _lands_on_him(b, to)):
+			if front - edge > GUARD_BACK:
+				return _behind_guard(b)
+			b.holding = true
+			return true
+		if front - edge > BANDIT_RUN:
+			return false  # not at the end yet
+		if not _leap_gap(b, to):
+			b.holding = true
+		return true
+	# (a guard ahead on this bank: it holds behind it)
+	return _behind_guard(b)
+
+
+## New: whether a leap of `b` that ends at `to` (level x, y) would come down on him (LAND_CLEAR): where his run will
+## have brought him by the time it gets there, at its pace.
+func _lands_on_him(b: Bandit, to: Vector2) -> bool:
+	var n := maxf((b.x - to.x) / BANDIT_RUN, 0.0)
+	var pace := 0.0 if blocked or at_end else SCROLL_SPEED
+	var his := scroll + x + pace * n
+	return absf(to.x - his) < LAND_CLEAR and y < to.y + LAND_ABOVE and y > to.y - LAND_UNDER
+
+
+## New: whether a guard holds just ahead of `b` on its grass (then `b` holds too, behind it).
+func _behind_guard(b: Bandit) -> bool:
+	for o in bandits:
+		if o != b and o.holding and not o.gone and absf(o.y - b.y) < 1.0 and b.x - o.x > 0.0 and b.x - o.x < GUARD_GAP + BANDIT_RUN:
+			b.holding = true
+			return true
+	return false
+
+
+## New: a leap onto the wall (or step) whose first column is `c`, from the grass at `row`: begun when it is as far
+## off as its flight takes (true), or not yet (false: it runs on). From closer (it woke there, or dropped at its
+## foot) it goes up first, then over. A wall too tall, or under a roof: false too (the 2017 hop at its face).
+func _leap_wall(b: Bandit, c: int, row: int) -> bool:
+	var t := row - 1  # the row of the grass on top of it: up from the lowest rock in its way
+	while t >= 0 and level.kind_at(c, t) not in [Level.Kind.SIDE, Level.Kind.TOP]:
+		t -= 1
+	while t > 0 and level.kind_at(c, t) == Level.Kind.SIDE:
+		t -= 1
+	if t < 0 or level.kind_at(c, t) != Level.Kind.TOP or row - t > WALL_MAX:
+		return _behind_guard(b)
+	var to := Vector2((c + 0.5) * TILE, t * TILE - BANDIT_SIZE.y / 2)
+	if _lands_on_him(b, to):  # he is up there, where it would come down: it holds here
+		b.holding = true
+		return true
+	var rise := b.y - to.y + LEAP_CLEAR
+	var n := ceili(sqrt(2.0 * rise / LEAP_GRAVITY) + sqrt(2.0 * LEAP_CLEAR / LEAP_GRAVITY))
+	var lead := b.x - to.x
+	if lead > n * BANDIT_RUN + BANDIT_RUN / 2.0:
+		return _behind_guard(b)  # not yet
+	var late := lead < (n - 1) * BANDIT_RUN
+	if not late:
+		n = maxi(roundi(lead / BANDIT_RUN), 2)
+	# (the arc that ends exactly on its top after n ticks: its speed at take-off from its gravity)
+	var v := (to.y - b.y - LEAP_GRAVITY * n * n / 2.0) / n
+	if not _arc_clear(b.x, b.y, to, n, v, LEAP_GRAVITY, late):
+		if late or not _arc_clear(b.x, b.y, to, n, v, LEAP_GRAVITY, true):
+			return _behind_guard(b)
+		late = true
+	_begin_arc(b, to, n, v, LEAP_GRAVITY, late)
+	return true
+
+
+## New: where a leap from the end of the grass at `row` (the pool begins at column `c`) comes down on the far bank
+## (its centre: level x, y), or Vector2.INF: none in reach, rock in the way, or a stepping stone at either end.
+func _gap_landing(c: int, row: int) -> Vector2:
+	if _bank_length(c + 1, row, 1) < BANK_MIN:
+		return Vector2.INF
+	for cc in range(c - 1, maxi(c - GAP_MAX, 0) - 1, -1):
+		for rr in range(maxi(row - STEP_UP, 0), mini(row + DROP_MAX, Level.ROWS - 1) + 1):
+			var k := level.kind_at(cc, rr)
+			if k == Level.Kind.SIDE:
+				return Vector2.INF
+			if k != Level.Kind.TOP:
+				continue
+			if _bank_length(cc, rr, -1) < BANK_MIN:
+				return Vector2.INF
+			return Vector2((cc + 1) * TILE - 22.0, rr * TILE - BANDIT_SIZE.y / 2)
+	return Vector2.INF
+
+
+## New: begins the leap over a pool to `to` (_gap_landing), if its arc is clear of rock.
+func _leap_gap(b: Bandit, to: Vector2) -> bool:
+	var n := maxi(roundi((b.x - to.x) / BANDIT_RUN), 4)
+	var up := maxf(b.y - to.y, 0.0)  # how far its far end is above it (or, `down`, below)
+	var down := maxf(to.y - b.y, 0.0)
+	# over its higher end by what LEAP_GRAVITY gives in that time, LEAP_RISE_MAX at most (a longer leap flies flatter)
+	var g := LEAP_GRAVITY
+	var over := 0.0
+	for i in 8:
+		over = _arc_over(n, g, up, down)
+		if over <= LEAP_RISE_MAX:
+			break
+		g *= 0.85
+	if over <= 0.0:
+		return false
+	var v := (to.y - b.y - g * n * n / 2.0) / n  # (ends exactly on the bank after n whole ticks)
+	if not _arc_clear(b.x, b.y, to, n, v, g, false):
+		return false
+	_begin_arc(b, to, n, v, g, false)
+	return true
+
+
+## The height over its higher end of a flight of `n` ticks under gravity `g` whose ends are `up` above or `down`
+## below its start (0 if it can't last that long).
+static func _arc_over(n: int, g: float, up: float, down: float) -> float:
+	var lo := 0.0
+	var hi := 2000.0
+	if sqrt(2.0 * (hi + up) / g) + sqrt(2.0 * (hi + down) / g) < n:
+		return hi
+	if sqrt(2.0 * up / g) + sqrt(2.0 * down / g) > n:
+		return 0.0
+	for i in 24:
+		var mid := (lo + hi) / 2.0
+		if sqrt(2.0 * (mid + up) / g) + sqrt(2.0 * (mid + down) / g) < n:
+			lo = mid
+		else:
+			hi = mid
+	return hi
+
+
+## The run of grass at `row` from column `c` on (`step` -1: leftwards, 1: rightwards), in tiles (BANK_MIN at most).
+func _bank_length(c: int, row: int, step: int) -> int:
+	var n := 0
+	while n < BANK_MIN and level.kind_at(c + n * step, row) == Level.Kind.TOP:
+		n += 1
+	return n
+
+
+## Whether the arc from (x0, y0) to `to` in `n` ticks (take-off speed `v`, gravity `g`, `late`: across at its end)
+## passes clear of rock: its box, a little inside, meets no wall or grass tile but at its last moments, landing.
+func _arc_clear(x0: float, y0: float, to: Vector2, n: int, v: float, g: float, late: bool) -> bool:
+	for k in range(1, n):
+		var u := float(k) / n
+		var px := lerpf(x0, to.x, pow(u, 4.0) if late else u)
+		var py := y0 + v * k + g * k * k / 2.0
+		if py < to.y and k > n - 3:
+			continue  # (settling onto its top)
+		var c0 := floori((px - BANDIT_SIZE.x / 2 + 5.0) / TILE)
+		var c1 := floori((px + BANDIT_SIZE.x / 2 - 5.0) / TILE)
+		var r0 := floori((py - BANDIT_SIZE.y / 2 + 5.0) / TILE)
+		var r1 := floori((py + BANDIT_SIZE.y / 2 - 3.0) / TILE)
+		for c in range(c0, c1 + 1):
+			for r in range(maxi(r0, 0), mini(r1, Level.ROWS - 1) + 1):
+				if level.kind_at(c, r) in [Level.Kind.SIDE, Level.Kind.TOP]:
+					if k <= 1 and r * TILE >= y0 + BANDIT_SIZE.y / 2 - 1.0:
+						continue  # (the grass it leaves)
+					return false
+	return true
+
+
+func _begin_arc(b: Bandit, to: Vector2, n: int, v: float, g: float, late: bool) -> void:
+	b.arc_from = Vector2(b.x, b.y)
+	b.arc_to = to
+	b.arc_n = n
+	b.arc = n
+	b.arc_v = v
+	b.arc_g = g
+	b.arc_late = late
+	b.leaping = true
+	_fly(b)
 
 
 ## New: a jumper on the ground, with a ring coming that would hit it if it ran on, and that a leap now would clear.
 func _ring_coming(b: Bandit) -> bool:
 	if rings.is_empty():
 		return false
-	var top := _find(bandit_rect(b), Level.Kind.TOP)
+	var top := _grass_under(b)
 	if top.x < 0:  # (in the air already)
 		return false
 	var ground := top.y * TILE - BANDIT_SIZE.y / 2
+	# New: only with grass under the whole of its leap (it dodged off the end of a bank into the pool)
+	for c in range(floori((b.x - BANDIT_SIZE.x / 2 - BANDIT_RUN * DODGE_LOOK) / TILE), floori(b.x / TILE) + 1):
+		if level.kind_at(c, top.y) != Level.Kind.TOP:
+			return false
 	return _ring_meets(b, ground, 0.0) and not _ring_meets(b, ground, -BANDIT_JUMP)
 
 
@@ -1198,7 +1514,10 @@ func strike(b: Bandit) -> float:
 	var fist := bandit_fist_rect(b)
 	if fist.has_area() and fist.end.y > body.position.y and fist.position.y < body.end.y:
 		front = minf(front, fist.position.x)
-	var closing := BANDIT_RUN + (0.0 if blocked or at_end else SCROLL_SPEED)
+	# (New: a guard holds its bank, a staggered one stands: only his own run closes on it)
+	var closing := (0.0 if b.holding or b.stagger > 0 else BANDIT_RUN) + (0.0 if blocked or at_end else SCROLL_SPEED)
+	if closing <= 0.0:
+		return -1.0
 	var left := (front - body.end.x) / closing - alpha
 	if left > STRIKE_TICKS:
 		return -1.0

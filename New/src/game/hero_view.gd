@@ -26,7 +26,9 @@ const RUN_FPS := 16.0
 const RUN_FRAMES := 16
 const TAKEOFF := 0.07  ## seconds of the push-off (the rules have already left the ground)
 const THROW_TIME := 0.3  ## the throw: the chakram cocked overhead, then the arm thrown forward (legs running on)
-const THROW_BACK := 0.3  ## share of the throw spent with the chakram cocked
+## (2026-11-10: 0.3 -> 0.14: the ring flies 0.04 s after the tap, RingView.WIND_UP; cocked for 0.09 s he still held the
+## chakram overhead while it was already in the air ahead of him: the release shows as it leaves)
+const THROW_BACK := 0.14  ## share of the throw spent with the chakram cocked
 const MANTLE := 0.16  ## seconds standing up after a climb over a ledge
 const BLINK_HZ := 8.0  ## the mercy pulse after a hit (smooth, not a strobe)
 const VINE_Y := 6.0  ## where his hands grip the vine
@@ -51,8 +53,13 @@ const WIN_LOOP := 10  ## the cheer at home loops from this frame
 const WIN_POSE := 3  ## the win's frame where the landing crouch springs into the victory pose (hero_atlas_ai.py)
 const JUMP_RISE := [2, 9]  ## jump frames of the rise (vertical speed -JUMP_SPEED .. -TOP)
 const JUMP_TOP := [10, 13]  ## the top (-TOP .. +TOP)
-const JUMP_FALL := [14, 18]  ## the fall (+TOP .. +JUMP_SPEED)
-const JUMP_LAND := [19, 26]  ## the landing, played out (it ends in the run's first frame)
+## (2026-11-10, the user: "the main character has some flaws") the atlas's fall drawings 16-20 are another drawing of
+## him (turned to the camera, black shorts under no loincloth, a darker face): in every jump he changed costume at
+## the top and back on the ground. The fall is now his own air pose coming down (13-15: his legs reaching for the
+## ground, leaning into it), and the landing starts at his crouch on the ground (21).
+const JUMP_FALL := [13, 15]  ## the fall (+TOP .. +JUMP_SPEED)
+const JUMP_LAND := [21, 26]  ## the landing, played out (it ends in the run's first frame)
+const FALL_LEAN := 0.15  ## radians he leans forward into the ground at the end of a fall
 const TOP := 6.0  ## units a tick of vertical speed counted as the top of the jump
 const SHADOW_SHIFT := 10.0  ## units the ground shadow falls right of him (the sun is upper left)
 const SHADOW_WIDTH := 100.0  ## units across his shadow on the ground, standing on it
@@ -427,7 +434,7 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 					index = roundi(lerpf(JUMP_TOP[0], JUMP_TOP[1], (ap - 0.45) / 0.15))
 				else:
 					index = roundi(lerpf(JUMP_FALL[0], JUMP_FALL[1], (ap - 0.6) / 0.4))
-				tilt = lerpf(-0.06, 0.08, ap)
+				tilt = lerpf(-0.06, 0.08, ap) if ap < 0.6 else lerpf(0.02, FALL_LEAN, (ap - 0.6) / 0.4)
 			elif w.vy < 0.0 and w.rising_to_vine() and p.y < 150.0:  # reaching up into the vine
 				anim = &"catch"
 				index = clampi(int((1.0 - p.y / 150.0) * 2.0), 0, 1)

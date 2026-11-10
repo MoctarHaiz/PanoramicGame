@@ -443,9 +443,13 @@ func _test_rings() -> void:
 	var w := _standing_world()
 	var b := _bandit_ahead(w, 400.0)
 	w.throw()
+	var stood := 0  # (2026-11-10) ticks the blow stops it
 	for i in 16:
+		var was := b.x
 		w.tick()
-	_check(b.hurt and not b.gone and b.health == 1, "one ring hurts a bandit")
+		stood += int(b.hurt and b.x == was)
+	_check(b.hurt and not b.gone and b.health == 1 and stood > 0 and stood + b.stagger == World.STAGGER_TICKS,
+			"one ring hurts a bandit, and stops it %d ticks (%d done, %d to go)" % [World.STAGGER_TICKS, stood, b.stagger])
 	w.throw()
 	for i in 12:
 		w.tick()
@@ -1729,7 +1733,52 @@ func _gp_level_fixes() -> void:
 	_check(st.stars() == 2, "and 2 for 67")
 	var b := World.new()
 	var drowned := b.bandits.filter(func(x: World.Bandit) -> bool: return x.gone)
-	_check(drowned.size() == 18, "the 18 bandits that only dropped into pools aren't placed (%d)" % drowned.size())
+	# (2026-11-10) bandits read the ground: with the level scrolling by, none of the others runs into a pool any more
+	# (12 of 31 did): they leap the pools and walls in their way, or hold their bank as guards
+	var c := World.new()
+	c.mercy = 1 << 30
+	c.y = 5000.0  # (out of every blow's reach, and under every leap: none holds back for him)
+	var sunk := []
+	var leapt := {}
+	var guards := {}
+	while c.scroll < World.SCROLL_END:
+		for x: World.Bandit in c.bandits:
+			x.prev_x = x.x
+			x.prev_y = x.y
+		c.scroll = minf(c.scroll + World.SCROLL_SPEED, World.SCROLL_END)
+		c.ticks += 1
+		c._update_bandits()
+		for x: World.Bandit in c.bandits:
+			if x.arc > 0:
+				leapt[x.id] = true
+			if x.holding:
+				guards[x.id] = true
+			if x.gone and x.active and c.bandit_rect(x).position.y > World.VIEW_H and x.id not in sunk:
+				sunk.append(x.id)
+	# a ring on one in the middle of its leap over a pool knocks it out of the air: into the water, his knock-out
+	var k := World.new()
+	k.mercy = 1 << 30
+	k.y = 5000.0
+	var outs := []
+	k.bandit_hit.connect(func(_x: World.Bandit, out: bool) -> void: outs.append(out))
+	var ringed := false
+	while k.scroll < World.SCROLL_END and outs.size() < 2:
+		for x: World.Bandit in k.bandits:
+			x.prev_x = x.x
+			x.prev_y = x.y
+			if not ringed and x.arc > 0 and absi(x.arc - x.arc_n / 2) <= 1 and is_equal_approx(x.arc_from.y, x.arc_to.y) and k.water_at(x.x):  # (bank to bank, over the middle of the pool)
+				ringed = true
+				var ring := World.Ring.new()
+				ring.x = x.x - k.scroll - World.RING_SPEED
+				ring.y = x.y - World.RING_CENTRE.y
+				k.rings.append(ring)
+		k.scroll = minf(k.scroll + World.SCROLL_SPEED, World.SCROLL_END)
+		k.ticks += 1
+		k._update_rings()
+		k._update_bandits()
+	_check(drowned.size() == 20 and sunk.is_empty() and leapt.size() >= 9 and guards.size() >= 6 and outs == [false, true] and k.knocked_out == 1,
+			"the 20 bandits with nowhere to stand aren't placed (%d); none of the others runs into a pool (%s): %d leap, %d hold a bank; one ringed over a pool drops in, knocked out (%s)"
+			% [drowned.size(), sunk, leapt.size(), guards.size(), outs])
 	var odd := []
 	for x: World.Bandit in b.bandits:
 		if x.gone:

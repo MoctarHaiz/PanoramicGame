@@ -5,6 +5,8 @@ extends Node2D
 ## between two ticks of the rules so motion is smooth at any refresh rate.
 
 signal bob_popped(at: Vector2)  ## where a Red Bob was collected, in this node's units
+signal bandit_leapt(strong: bool)  ## (2026-11-10) a bandit left the ground on a leap, and came down (for the sounds)
+signal bandit_landed(strong: bool, hard: float)
 
 const HANG_DRAW_DROP := 58.0  ## the rules hang him half above the screen: draw him below its top
 const BANDIT_RIGHT := 46.0  ## round 10: units a bandit's picture reaches right of its feet (QA: 960-1069 at x 1024)
@@ -44,6 +46,7 @@ var _dust_clock := 0.0
 var _ground_task := -1  # round 10: the worker thread working out the ground's data (-1: none)
 var _water: Array[ShaderMaterial] = []  # the pools' (round 9: the scroll for their reflection)
 var _was_climbing := false
+var _bandit_air := {}  # bandit id -> it was in a leap in the last frame
 
 
 func setup(w: World) -> void:
@@ -441,7 +444,7 @@ func _place_bandits(scroll: float, delta: float) -> void:
 			_actors.add_child(v)
 			_actors.move_child(v, 0)  # behind Panoramic and the rings
 			_bandits[b.id] = v
-		var standing := absf(b.y - b.prev_y) < 4.0
+		var standing := absf(b.y - b.prev_y) < 4.0 and b.arc == 0 and not b.leaping
 		var y := minf(b.prev_y, b.y) if standing else lerpf(b.prev_y, b.y, world.alpha)  # not the snap flicker
 		var x := lerpf(b.prev_x, b.x, world.alpha) - scroll
 		if not b.active:  # waiting: where its first tick will put it (out of a rock, on its grass)
@@ -457,6 +460,22 @@ func _place_bandits(scroll: float, delta: float) -> void:
 		# up or down this tick (the rules' snap onto its ledge moves it < 4 units) and is not pressed on a wall's face:
 		# against a wall, hopping up it, it shows its leap
 		v.show_state((standing and push <= 0.0) or not b.active, delta)
+		# (2026-11-10) its leaps: a puff of dust and a stretch as it leaves the ground, dust and a squash as it lands
+		# (a drop off a ledge too: World.Bandit.landed_tick)
+		var in_air := b.arc > 0 or b.leaping
+		var was_air: bool = _bandit_air.get(b.id, false)
+		_bandit_air[b.id] = in_air
+		var feet := Vector2(x + v.wall_shift, y + World.BANDIT_SIZE.y / 2 + GameArt.FEET_SINK - 2.0)
+		if in_air and not was_air and world.state == World.State.RUNNING:
+			v.took_off()
+			Fx.dust(fx, _fx(feet), 7, 150.0, 0.0, 0.9)
+			bandit_leapt.emit(b.strong)
+		elif b.active and b.landed_tick == world.ticks and v.landed_seen != b.landed_tick:
+			v.landed_seen = b.landed_tick
+			var hard := 1.0 if b.strong else 0.75
+			v.touched_down(hard)
+			Fx.dust(fx, _fx(feet), 10 if b.strong else 7, 190.0, 0.0, 1.0)
+			bandit_landed.emit(b.strong, hard)
 		var held := start_hold and not b.active and x + v.wall_shift + BANDIT_RIGHT > safe_right
 		if world.state == World.State.WON:  # home: one still standing (a jumper that dodged) fades away, not frozen there
 			v.modulate.a = move_toward(v.modulate.a, 0.0, delta * 4.0)

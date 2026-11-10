@@ -162,6 +162,9 @@ func enter(data: Dictionary) -> void:
 	world.bandit_hit.connect(_on_bandit_hit)
 	world.bob_collected.connect(_on_bob)
 	view.bob_popped.connect(_on_bob_popped)
+	# (2026-11-10) the bandits' leaps are heard: a lighter, higher take-off than his, a thud as they land
+	view.bandit_leapt.connect(func(strong: bool) -> void: Audio.play_sfx(&"jump", 0.78 if strong else 0.9, 0.4))
+	view.bandit_landed.connect(func(strong: bool, hard: float) -> void: Audio.play_sfx(&"land", 0.95 if strong else 1.2, 0.35 * hard))
 	world.hurt.connect(_on_hurt)
 	world.died.connect(_on_died)
 	world.won.connect(_on_won)

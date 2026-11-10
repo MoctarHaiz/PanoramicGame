@@ -6,7 +6,7 @@ extends Node
 ##     --out=build/strips/run.png [--frames=12] [--every=2] [--crop=x,y,w,h] [--cols=6]
 ##     [--moment="ticks >= 250"] [--bot] [--warm=30] [--act=throw@0,jump@10]
 ##     [--bandit=220] [--hurt=1] [--bobs=90] [--hang=1] [--scale=0.5] [--size=1280x720]
-##     [--at=2440] [--y=380] [--lives=1] [--falls=1] [--film=DIR] [--layers=1] [--hide=cast,FrontGrass]
+##     [--at=2440] [--keep=1] [--y=380] [--lives=1] [--falls=1] [--film=DIR] [--layers=1] [--hide=cast,FrontGrass]
 ## Each picture is drawn on demand (_draw_now): macOS skips drawing covered windows.
 ##
 ## Film mode (--film=DIR): every kept frame is saved whole (DIR/0001.png, ...) instead of a sheet,
@@ -56,7 +56,8 @@ func _ready() -> void:
 		w.scroll = float(a.at) - w.x
 		w.prev_scroll = w.scroll
 		for b in w.bandits:
-			if absf(b.x - float(a.at)) < 1500.0:
+			# (--keep=1: the level's own bandits ahead of him stay, to watch what they do)
+			if absf(b.x - float(a.at)) < 1500.0 and (not a.has("keep") or b.x < float(a.at) + 200.0):
 				b.gone = true
 	if a.has("y"):
 		w.y = float(a.y)

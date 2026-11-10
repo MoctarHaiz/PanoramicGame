@@ -58,6 +58,22 @@ arrows or WASD to move, space to throw, P or Esc to pause.
 | Step forward | swipe right | Right / D |
 | Pause | pause button, Android back | P / Esc |
 
+## Bandits
+
+Two kinds come at random: the bandit (2 rings) and the strong one (3 rings); one in three leaps once over a ring.
+Since 2026-11-10 they read the ground ahead of them (`World._sense`):
+
+| What it meets | What it does |
+| --- | --- |
+| Open grass | runs at him and punches as it reaches him |
+| A wall or a step up | one leap onto its top, from far enough to clear the corner |
+| A pool up to 6 tiles wide, with a real bank beyond | leaps it |
+| A wider pool, or a far bank he is about to reach | holds its bank 6 tiles back from the end, as a guard: ring it or hop it once across |
+| A ring that doesn't knock it out | stopped for a quarter of a second; knocked out of a leap (into the pool, if it is over one) |
+
+No leap ever comes down where his run is taking him, and nobody guards a stepping stone. The bot still gets home
+with 3 lives (`tests/run_tests.tscn -- --bot`).
+
 ## Building
 
 ```sh

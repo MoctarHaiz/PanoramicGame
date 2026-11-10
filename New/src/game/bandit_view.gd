@@ -7,7 +7,10 @@ extends Node2D
 ## drawn bigger. Both drawn with kie.ai from the user's
 ## pictures, their runs from Seedance clips (tools/art/bandit_sheet.py packs assets/art/bandit/<kind>.png).
 ## Placed at its feet. It waits crouched and breathing until it enters the play window, then runs (its clip's
-## loop, at the pace that keeps the planted boot on the ground). As it closes on Panoramic it
+## loop, at the pace that keeps the planted boot on the ground). What the rules have it do in the world shows
+## (2026-11-10, World._sense): a "!" as it spots him, its jump along a leap over a pool or onto a wall (leaning
+## along the arc, a squash and dust as it lands), its fighting stance while it holds a bank as a guard (turning
+## to watch him once he is past), stopped on its heels by a ring. As it closes on Panoramic it
 ## draws its fist back and punches (the rules' reach in front of it), so the blow is seen coming. A ring
 ## makes it flash white and recoil; after the first one it runs dazed (rocking, stars circling its head).
 ## The second knocks it out and it disappears as it did in 2017 (banditMort1-10): it keeps running while a
@@ -116,6 +119,22 @@ var _ko_time := 0.0
 var _pushed := 0.0  # 0..1 of KO_PUSH done
 var _vault := -1.0  # 0..1 through the vault over him (-1: not vaulting)
 var _lift := 0.0  # units it is drawn above the ground (the vault)
+## (2026-11-10, the user: "their animation are not quite good, and the interaction of the enemies in the world should
+## be improved") what it does in the world now shows (World._sense): it spots him as it wakes (a start, a "!" over its
+## head), leans along a leap's arc and lands with a squash, holds its bank in its fighting stance (turning to watch
+## him once he is past), stands stopped by a ring for as long as the rules stop it, and stands down when he is caught.
+const SPOT_TIME := 0.55  ## seconds the "!" shows over its head as it wakes
+const SPOT_RISE := 34.0  ## units over the middle of its hair
+const ARC_LEAN := 0.011  ## radians its body leans per unit a tick of a leap's vertical speed (nose up rising)
+const ARC_LEAN_MAX := 0.24
+const TURN_TIME := 0.14  ## seconds a guard takes to turn round
+const TURN_PAST := 26.0  ## units he is past its middle before it turns to watch him
+var _spot := 0.0  # seconds left of the "!"
+var _was_active := false
+var _lean := 0.0  # radians it leans along a leap
+var _facing := 1.0  # 1: left, as drawn; -1: turned round (a guard watching him go)
+var _stand_down := 0.0  # 0..1: he is caught: it stands down into its stance
+var landed_seen := -99  # the landing (World.Bandit.landed_tick) WorldView has shown
 
 
 static func load_art() -> void:
@@ -212,6 +231,18 @@ func _jump_frame(force := -1) -> int:
 	return int((_d.jump as Array)[k])
 
 
+## (2026-11-10) It left the ground on a leap (WorldView): a stretch off its toes.
+func took_off() -> void:
+	_squash = Vector2(0.9, 1.12)
+
+
+## It came down from a leap or a drop: a squash into its knees, and its run starts on a planted boot.
+func touched_down(hard: float) -> void:
+	_squash = Vector2(1.0 + 0.16 * hard, 1.0 - 0.16 * hard)
+	_run = 0.0
+	_lean = 0.0
+
+
 ## A ring hit it (knocked_out: the second one).
 func hit(knocked_out: bool) -> void:
 	_flash = 1.0
@@ -225,6 +256,7 @@ func hit(knocked_out: bool) -> void:
 		_sprite.rotation = 0.0
 	else:
 		_hit_left = HIT_TIME
+		_jolt = 16.0  # (2026-11-10: the rules stop it now, World.STAGGER_TICKS: thrown back on its heels)
 		_show(int(_d.hit))
 
 
@@ -251,30 +283,55 @@ func _process(delta: float) -> void:
 	_hit_left = maxf(_hit_left - dt, 0.0)
 	var frame: int
 	var rock := 0.0
-	if not bandit.active:  # waiting to pounce: crouched, breathing
-		_breath += dt
+	var caught := world.state == World.State.DEAD
+	_stand_down = move_toward(_stand_down, 1.0 if caught else 0.0, delta * 5.0)
+	_spot = maxf(_spot - dt, 0.0)
+	if bandit.active and not _was_active:  # it has seen him: a start, a "!" over its head
+		_spot = SPOT_TIME
+		_squash = Vector2(0.92, 1.1)
+	_was_active = bandit.active
+	var stance := not bandit.active or bandit.holding
+	if stance or _stand_down > 0.5:  # waiting to pounce, holding its bank, or he is caught: its stance, breathing
+		_breath += delta if caught else dt
 		var k := 0.5 + 0.5 * sin(_breath * 3.4)
 		frame = int(_d.wait)
 		_sprite.scale = Vector2(_scale * (1.0 - 0.012 * k), _scale * (1.0 + 0.02 * k))
+		if bandit.holding and not caught:
+			var swing := _swing_frame()
+			if swing >= 0:  # he is on it: its punch, drawn back then thrown
+				frame = int(_d.swing) + swing
+			if _hit_left > 0.0 or bandit.stagger > 0:
+				frame = int(_d.hit)
 	else:
 		# dazed, it runs a little slower and rocks on its feet
 		_run = fposmod(_run + dt * float(_d.run_fps) / float(KIND_SCALE[kind]) * (0.85 if bandit.hurt else 1.0), _run_frames)
 		frame = int(_d.run) + int(_run)
 		if bandit.hurt:
 			rock = DAZE_ROCK * sin(_star_turn * 0.8)
-		if not _grounded:  # in the air (a leap over a ring, hopping a wall, off a ledge): its jump
+		if not _grounded:  # in the air (a leap over a pool or a ring, onto a wall, off a ledge): its jump
 			frame = _jump_frame()
 		var swing := _swing_frame()
 		if swing >= 0 and _grounded:
 			frame = int(_d.swing) + swing
-		if _hit_left > 0.0:
+		if _hit_left > 0.0 or bandit.stagger > 0:  # stopped by a ring for as long as the rules stop it
 			frame = int(_d.hit)
 			rock = 0.0
 		_sprite.scale = Vector2.ONE * _scale
+	# a leap's arc: it leans along it (nose up as it rises, down as it comes in to land)
+	var lean_to := 0.0
+	if bandit.arc > 0 and not caught:
+		lean_to = clampf(-bandit.vy * ARC_LEAN, -ARC_LEAN_MAX, ARC_LEAN_MAX)
+	_lean = lerpf(_lean, lean_to, 1.0 - exp(-dt * 14.0))
+	# a guard turns to watch him once he is past it (a quick turn through its edge)
+	var face := 1.0
+	if bandit.holding and world.x > bandit.x - world.scroll + TURN_PAST:
+		face = -1.0
+	_facing = move_toward(_facing, face, delta * 2.0 / TURN_TIME)
 	var head: Array = _d.head[frame]
 	_head = Vector2(head[0], head[1]) * _scale
 	var lift := 0.0
 	_lift = 0.0
+	# (a guard too: its blow landed, it springs up on the spot and he runs on under it: he ran through its body)
 	if bandit.touched_hero and _vault < 1.0:
 		if _vault < 0.0:  # the blow: it rears back, then leaps
 			_vault = 0.0
@@ -282,14 +339,18 @@ func _process(delta: float) -> void:
 		_vault = minf(_vault + dt / VAULT_TIME, 1.0)
 		lift = VAULT_HEIGHT * 4.0 * _vault * (1.0 - _vault)
 		_lift = lift
-		frame = _jump_frame(2)  # the leap over him: the top of its jump, tucked
-		rotation = -0.35 * sin(_vault * PI)
+		# the leap over him, drawn through its jump: off the ground, rising, tucked over his head, coming down
+		frame = _jump_frame(0 if _vault < 0.1 else (1 if _vault < 0.36 else (2 if _vault < 0.68 else 3)))
+		rotation = -0.3 * sin(_vault * PI)
+		if _vault >= 1.0:
+			touched_down(0.7)
 	elif _vault >= 1.0:
 		rotation = 0.0
 	_show(frame)
 	_sprite.scale *= _squash
-	_sprite.position = Vector2(_jolt, -lift)
-	_sprite.rotation = rock
+	_sprite.scale.x *= signf(_facing) * maxf(absf(_facing), 0.08)
+	_sprite.position = Vector2(_jolt * signf(_facing), -lift)
+	_sprite.rotation = rock + _lean * signf(_facing)
 	_material.set_shader_parameter(&"amount", _flash * 0.85)
 	queue_redraw()
 	_front.queue_redraw()
@@ -324,6 +385,8 @@ func _draw_shadow() -> void:
 
 ## Dazed stars on a ring above its hair: those behind it drawn under the sprite, the rest over it.
 func _draw_stars(front: bool) -> void:
+	if front and _spot > 0.0 and not _ko:
+		_draw_spot()
 	if _stars <= 0.01 or _ko:
 		return
 	var target: CanvasItem = _front if front else self
@@ -336,6 +399,25 @@ func _draw_stars(front: bool) -> void:
 		var p := centre + Vector2(cos(a) * 19.0, depth * 5.0)
 		var size := (3.8 + 1.2 * depth) * _stars
 		_star(target, p, size, a * 0.6, Color(1, 0.86, 0.3, _stars * (0.75 + 0.25 * depth)))
+
+
+## The "!" over its head as it wakes: it pops up, holds, and fades (a stroke and a dot, gold in dark ink).
+func _draw_spot() -> void:
+	var t := 1.0 - _spot / SPOT_TIME
+	var pop := 1.0 + 0.5 * maxf(1.0 - t / 0.18, 0.0)
+	var a := clampf(_spot / 0.15, 0.0, 1.0)
+	var at := _head + Vector2(_jolt + 2.0, -SPOT_RISE - 6.0 * minf(t / 0.18, 1.0))
+	var ink := Color(0.2, 0.06, 0.02, a)
+	var gold := Color(1.0, 0.84, 0.25, a)
+	for pass_i in 2:
+		var grow := 2.2 if pass_i == 0 else 0.0
+		var c := ink if pass_i == 0 else gold
+		var w := (4.6 + grow) * pop
+		var h := 15.0 * pop
+		var bar := PackedVector2Array([at + Vector2(-w, -h - grow), at + Vector2(w, -h - grow),
+				at + Vector2(w * 0.45, grow * 0.5), at + Vector2(-w * 0.45, grow * 0.5)])
+		_front.draw_colored_polygon(bar, c)
+		_front.draw_circle(at + Vector2(0.0, 7.0 * pop), (3.4 + grow) * pop, c)
 
 
 static func _star(target: CanvasItem, at: Vector2, r: float, turn: float, colour: Color) -> void:
