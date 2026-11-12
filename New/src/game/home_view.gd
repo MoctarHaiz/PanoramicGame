@@ -114,8 +114,9 @@ func build() -> void:
 	# (round 22, the judges, j18: "his hair and armoured arm still merge into the dark doorway": brighter and wider, up
 	# behind his head and both shoulders: the hut's warm interior, a value above his hair)
 	_door_lift.position = Vector2(door_x - 4.0, GROUND - 112.0)
-	_door_lift.scale = Vector2(0.66, 0.8)
-	_door_lift.material = _add_material()
+	# (blind rounds 5 and 6: "his orange-brown torso is the doorway's hue and value: the victory pose is lost": the
+	# doorway behind him is a deep shadow now, not firelight: the hut's dark inside)
+	_door_lift.scale = Vector2(0.86, 1.25)
 	back.add_child(_door_lift)
 	var smoke := _smoke()
 	smoke.position = Vector2(hut_left + hut_size.x / 2.0, GROUND + 4.0 - hut_size.y + 18.0 * HUT_K)
@@ -188,7 +189,7 @@ func _process(delta: float) -> void:
 		_fire_pool.modulate = Color(1, 0.66, 0.34, 0.24 + flick * 0.8 + 0.08 * _welcome)
 		_fire_reach.modulate = Color(1, 0.62, 0.3, 0.24 + flick * 0.7 + 0.06 * _welcome)
 		_fire_side.modulate = Color(1, 0.58, 0.28, 0.12 + flick * 0.5 + 0.05 * _welcome)
-		_door_lift.modulate = Color(0.86, 0.56, 0.34, 0.5 + f * 0.12 + 0.1 * _welcome)
+		_door_lift.modulate = Color(0.13, 0.06, 0.1, 0.9)
 
 
 ## He is home: the fire flares up to welcome him.

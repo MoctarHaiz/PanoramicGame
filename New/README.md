@@ -112,6 +112,8 @@ The AdMob **app** ids are in Project Settings › Admob (Google's sample ids unt
 | `tools/art/kie/throw.py`, `hero_pack.py` | Panoramic's run (12 drawings, his boot held on the ground at 16 a second), his throw laid over the run (24), his jump (8); packs `hero_atlas_*.png` + `hero_frames.json`, his other moves kept from the atlas before |
 | `tools/art/kie/between.py`, `bandit_pack.py` | the bandits' runs: the clip's 6 keys and 6 in-betweens drawn on their chart (12 drawings each); packs `assets/art/bandit/<kind>.png` + `.json`, their other poses kept |
 | `tools/art/kie/world.py` | the level's backdrop from its painted layers (GPT Image 2.6 Sunburst: one style frame, then each layer alone on a transparent background): cuts and makes repeat `sky.png`, `far_wall.png`, `far_mesa_pieces.png` + `.json`, `far_hills.png`, `mid_hills.png`, `near_grass.png`, `tree_*.png` + `tree_info.json`, `fg_props.png` |
+| `tools/art/kie/menu.py` | the menu's key art: Panoramic cut out of the old key art as painted (`kie.py cutout`) over a landscape painted for him in the level's style; then `tools/art/ui_keyart_soft.py` |
+| `tools/art/bandit_palette.py`, `tools/art/grass_gold.py` | the bandits' night-raider palette (violet scarves, slate shirts, ash hair) and the turf's gold-green, each by hue on the pictures in place, every pixel's light kept |
 | `tools/art/material.py` | lit, tiling soil and sandstone; the sandstone stacks (used by `terrain.py`) |
 | `tools/art/terrain.py` | the ground: soil, sandstone, stacks, cell shapes, grass caps and ends, roots, tufts |
 | `tools/art/savanna.py` | the sky, sun, god rays, clouds, far escarpments, hills, tall grass, motes, birds; the menu's sunset |

@@ -124,13 +124,21 @@ const MID_TINT := Color(0.97, 0.98, 0.94)
 const LANE_TINT := Color(0.96, 0.98, 0.92)
 ## and each a little flatter than painted (less contrast, less colour: the shader's `flatten`), the plain most: the
 ## characters in front are the picture's strongest darks and colours
-const PLAIN_FLATTEN := 0.48
-const PLAIN_HAZE := 0.13
+const PLAIN_FLATTEN := 0.4
+const PLAIN_HAZE := 0.1
 const MID_FLATTEN := 0.42
 const MID_HAZE := 0.1
 const LANE_FLATTEN := 0.26
 const LANE_HAZE := 0.03
 const LANE_AIR := Color(0.94, 0.88, 0.77)  ## what the plain's and the lane's layers are drawn toward: a pale warm air
+## (blind round 6: "acacias, mound, pool and boulders at full strength right at his height; his white loincloth and legs
+## on pale straw": pale was the wrong step for a hero who is both white cloth and dark skin) a cloud's shadow lies
+## across the middle ground behind the play: from the far plain's near half down, everything behind the path is
+## multiplied by a cool violet shade (soft-edged at its far side), a middle value under his whites and over his darks;
+## the sky, the landforms and the far plain stay in the sun, and so do the path and the characters in front.
+const LANE_SHADE := Color(0.66, 0.66, 0.88)
+const LANE_SHADE_FROM := 462.0  ## play y where the shade starts (the far plain: in the sun above it)
+const LANE_SHADE_FULL := 508.0  ## and where it is full
 const CLOUD_SHADOW_GAP := 700.0  ## round 10: units of the plain between two clouds' shadows
 const FRONT_PROP_SCROLL := 1.45  ## round 9: the big things in front, nearer still (round 20: 1.6 -> 1.45: longer in the corner)
 const FRONT_PROP := Vector2(260, 230)  ## one piece of fg_props.png (units, 2 px a unit), in 3 columns
@@ -204,6 +212,9 @@ func _ready() -> void:
 	_painter(_draw_strip.bind(&"mid_hills"), true).material = _mid_mat
 	_painter(_draw_trees.bind(1)).material = _tree_haze(1)
 	_painter(_draw_strip.bind(&"near_grass"), true).material = _haze([0, 0, 0, 0, LANE_HAZE, 0.0, 0, LANE_AIR], LANE_TINT, 0.0, 0.0, true, {flatten = LANE_FLATTEN})
+	var mul := CanvasItemMaterial.new()
+	mul.blend_mode = CanvasItemMaterial.BLEND_MODE_MUL
+	_painter(_draw_lane_shade).material = mul
 	_painter(_draw_cloud_shadows)  # (round 10) shadows of the clouds sliding over the plain
 	_painter(_draw_motes).material = add
 	_painter(_draw_birds)
@@ -470,6 +481,16 @@ func _draw_front(ci: CanvasItem) -> void:
 		# (never mirrored: each is lit along its upper left edge, as everything is)
 		var piece := posmod(int(_hash(i * 3 + 9) * FRONT_PIECES), FRONT_PIECES)
 		ci.draw_texture_rect_region(props, rect, Rect2(Vector2(piece % FRONT_COLS, piece / FRONT_COLS) * cell, cell), Color(1, 1, 1, fade))
+
+
+## The cloud's shade across the middle ground (LANE_SHADE), multiplied over every layer behind the path.
+func _draw_lane_shade(ci: CanvasItem) -> void:
+	var x0 := _x0()
+	var x1 := _x1()
+	var shade := Color.WHITE.lerp(LANE_SHADE, 1.0 - 0.5 * dusk)  # (at dusk the whole scene is in shade: half of it)
+	ci.draw_polygon(PackedVector2Array([Vector2(x0, LANE_SHADE_FROM), Vector2(x1, LANE_SHADE_FROM), Vector2(x1, LANE_SHADE_FULL), Vector2(x0, LANE_SHADE_FULL)]),
+			PackedColorArray([Color.WHITE, Color.WHITE, shade, shade]))
+	ci.draw_rect(Rect2(x0, LANE_SHADE_FULL, x1 - x0, World.VIEW_H + 12.0 - LANE_SHADE_FULL), shade)
 
 
 ## Round 10 ("a flat olive band"): the shadows of the clouds lying across the plain, long and soft,

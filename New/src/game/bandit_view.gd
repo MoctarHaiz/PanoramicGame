@@ -28,9 +28,8 @@ const KO_UP := 92.0  ## units its arc rises: over the heads of those behind it
 ## recoil pose stays readable (it leans back, it does not turn over), no ring of light is drawn over it, and it is
 ## thrown away from the play: smaller and paler as it goes, so it never tangles with the bandit behind it)
 const KO_TURN := 0.6  ## radians it leans back in the flight
-const KO_AWAY := 0.4  ## how much smaller it is at the flight's end (thrown into the distance)
-const KO_PALE := 0.4  ## and how far toward the air's colour
-const KO_AIR := Color(0.94, 0.88, 0.77)
+## (blind round 6: "bleached pale with a glow: a transparency glitch, not a hit": it keeps its full colours to the end)
+const KO_AWAY := 0.22  ## how much smaller it is at the flight's end (thrown away from the play)
 const KO_POOF := 0.12  ## seconds, the flight's last: it shrinks into its puff
 ## its puff's sparks: the chakram's steel blue, its beadwork's red and white
 const KO_SPARKS: Array[Color] = [Color("ffffff"), Color("6cc4ff"), Color("e82808"), Color("ffd36b")]
@@ -273,10 +272,11 @@ func hit(knocked_out: bool) -> void:
 		_show(int(_d.hit))
 
 
-## Ran off the left of the screen: fades away.
+## Ran off the left of the play window: it runs on out of the picture (a wide phone shows more to the left of the
+## window: it faded away there in full view, a see-through bandit at the screen's edge) and is gone.
 func leave() -> void:
 	var t := create_tween()
-	t.tween_property(self, "modulate:a", 0.0, 0.25)
+	t.tween_property(self, "position:x", position.x - 460.0, 0.8)
 	t.tween_callback(queue_free)
 
 
@@ -492,8 +492,6 @@ func _disappear(delta: float) -> void:
 	var out := clampf((t - (1.0 - KO_POOF / KO_FLIGHT)) / (KO_POOF / KO_FLIGHT), 0.0, 1.0)
 	var stretch := lerpf(1.1, 1.0, minf(t * 3.0, 1.0))
 	var size := _scale * (1.0 - KO_AWAY * t) * (1.0 - 0.4 * out)
-	_material.set_shader_parameter(&"tint", Color.WHITE if _flash > 0.05 else KO_AIR)  # (the blow's white, then the air)
-	_material.set_shader_parameter(&"amount", maxf(_flash * 0.85, KO_PALE * t))
 	_sprite.scale = Vector2(size * stretch * side, size * (2.0 - stretch))
 	_sprite.modulate.a = 1.0 - out * out
 	if out > 0.0 and not _poofed:

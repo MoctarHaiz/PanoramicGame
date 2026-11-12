@@ -626,8 +626,11 @@ static func knock_out(parent: Node, at: Vector2, feet: Vector2) -> void:
 	# (no ring of light here, as the other impacts have: over the thrown bandit it read as "a pale ring round a smear";
 	# a burst of rays behind it and the shards flung the way it goes)
 	shards(parent, at, Vector2(1, -0.4).normalized(), IMPACTS[&"medium"].shards, 1.0, RING_LIGHT[2])
-	rays(parent, at, Color(1.0, 0.95, 0.8, 0.9), 9, 120.0, 0.2)
-	glow(parent, at, Color(1, 1, 1, 0.9), 0.12, 0.4, FLASH_TIME * 1.5)
+	# (blind round 6: "the hit is a small white scribble: make the blow the brightest, biggest event on screen")
+	rays(parent, at, Color(1.0, 0.95, 0.8, 1.0), 12, 210.0, 0.28)
+	rays(parent, at, Color(RING_LIGHT[2], 0.9), 8, 130.0, 0.22)
+	lines(parent, at, Color(1.0, 0.98, 0.9, 0.95), 14, 60.0, 190.0, 0.22)
+	glow(parent, at, Color(1, 1, 1, 0.95), 0.25, 0.9, FLASH_TIME * 2.5)
 	var stars := Confetti.make(parent, at)
 	stars.gravity = 1400.0
 	stars.drag = 1.4
@@ -749,7 +752,7 @@ static func ring_flight(parent: Node, world: World, r: World.Ring) -> void:
 
 
 class RingFlight extends Node2D:
-	const TRAIL_TIME := 0.05  ## seconds of path the streak keeps: 3 frames, a motion smear, not a beam
+	const TRAIL_TIME := 0.11  ## seconds of path the streak keeps (0.05 until blind round 6: "no trail on the thrown ring")
 	const WIDTH := 34.0  ## the streak's width at the ring (effects px)
 	var world: World
 	var ring: World.Ring
@@ -795,7 +798,7 @@ class RingFlight extends Node2D:
 
 	func _draw() -> void:
 		var tex := Fx.glow_texture()
-		Fx.ribbon(self, _path, TRAIL_TIME, WIDTH, Color(Fx.RING_LIGHT[1], 0.5), Fx.RING_LIGHT[3], Color(1, 1, 1, 0.0))
+		Fx.ribbon(self, _path, TRAIL_TIME, WIDTH, Color(Fx.RING_LIGHT[1], 0.8), Fx.RING_LIGHT[3], Color(1, 1, 1, 0.0))
 		for sp in _sparks:
 			var k := 1.0 - sp.z / sp.w
 			var r := 7.0 + 6.0 * k
