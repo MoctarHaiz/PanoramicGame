@@ -1,8 +1,10 @@
 [gd_resource type="TileSet" format=3]
 
 [ext_resource type="Texture2D" path="res://level_editor/level1_tileset.png" id="1_67b1b"]
+[ext_resource type="Texture2D" path="res://level_editor/brushes.png" id="2_6152o"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_6152o"]
+resource_name = "2017 tiles"
 texture = ExtResource("1_67b1b")
 texture_region_size = Vector2i(32, 32)
 0:0/0 = 0
@@ -102,6 +104,23 @@ texture_region_size = Vector2i(32, 32)
 10:7/0 = 0
 11:7/0 = 0
 
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_rm2tp"]
+resource_name = "Current world"
+texture = ExtResource("2_6152o")
+texture_region_size = Vector2i(32, 32)
+0:0/0 = 0
+1:0/0 = 0
+2:0/0 = 0
+3:0/0 = 0
+4:0/0 = 0
+5:0/0 = 0
+6:0/0 = 0
+7:0/0 = 0
+8:0/0 = 0
+9:0/0 = 0
+10:0/0 = 0
+
 [resource]
 tile_size = Vector2i(32, 32)
 sources/0 = SubResource("TileSetAtlasSource_6152o")
+sources/1 = SubResource("TileSetAtlasSource_rm2tp")

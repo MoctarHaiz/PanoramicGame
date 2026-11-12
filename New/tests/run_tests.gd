@@ -1795,7 +1795,11 @@ func _gp_level_fixes() -> void:
 	var editor: Node = load("res://level_editor/level_editor.tscn").instantiate()
 	var file := FileAccess.get_file_as_string(Level.PATH)
 	var read: String = editor.fill(file)
-	_check(read == "" and editor.level_text() == file, "the level editor's tiles give back level.txt byte for byte (%s)" % read)
+	var same: bool = editor.level_text() == file
+	editor.tiles.set_cell(Vector2i(2, 0), 1, Vector2i(4, 0))  # a Red Bob brush: id 84 in the file
+	var brushed: String = editor.level_text()
+	_check(read == "" and same and brushed.begins_with("-1,-1,84,-1,") and brushed.substr(9) == file.substr(9),
+			"the level editor's tiles give back level.txt byte for byte, a brush its 2017 id (%s)" % read)
 	editor.free()
 
 

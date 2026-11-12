@@ -1,3 +1,4 @@
+@tool
 class_name SavannaView
 extends Node2D
 ## The level's sky and the savanna behind the play, late in the afternoon.
@@ -110,7 +111,7 @@ const TREE_TINT := [Color(0.96, 0.96, 1.0), Color(1, 1, 1)]
 const TREE_INK := [0.0, 0.0]  ## (painted inked)
 const TREE_INK_AMOUNT := [0.0, 0.0]
 const TREE_INK_COLOUR := [Color(0.3, 0.26, 0.33), Color(0.17, 0.085, 0.06)]
-const TREE_FLATTEN := [0.64, 0.56]
+const TREE_FLATTEN := [0.56, 0.44]
 const TREE_AMBIENT := [0.0, 0.0]
 ## Round 22 (the judges, j18: "the hero's lane has no value separation: a mid-orange hero on mid-gold grass"): the tall
 ## grass behind his legs and the savanna behind his body a value darker and greener (an olive band), so his warm skin,
@@ -128,12 +129,15 @@ const LANE_TINT := Color(0.96, 0.98, 0.92)
 ## lower in contrast; the cool shade of round 7 lost ground: "brown-on-tan: his torso has the mound's hue and value")
 ## pale and quiet: the rise, the trees and the grass behind the path well flattened and drawn toward a pale air that
 ## is cooler and less coloured than his skin: he and the bandits are the darkest, most saturated shapes on screen
-const PLAIN_FLATTEN := 0.55
-const PLAIN_HAZE := 0.18
-const MID_FLATTEN := 0.64
-const MID_HAZE := 0.22
-const LANE_FLATTEN := 0.42
-const LANE_HAZE := 0.1
+## (blind round 9, the fifth judge: "a uniformly milky, washed-out backdrop under a saturated sky: faded wallpaper;
+## graded value layers: a pale far distance, a quiet middle value behind the lane": the far plain stays pale, the rise
+## and the grass behind the path keep more of their own colour and value: between round 6's and round 8's)
+const PLAIN_FLATTEN := 0.5
+const PLAIN_HAZE := 0.15
+const MID_FLATTEN := 0.46
+const MID_HAZE := 0.1
+const LANE_FLATTEN := 0.3
+const LANE_HAZE := 0.04
 const LANE_AIR := Color(0.93, 0.9, 0.84)  ## what the plain's and the lane's layers are drawn toward: a pale, nearly neutral air
 ## (blind round 6: "acacias, mound, pool and boulders at full strength right at his height; his white loincloth and legs
 ## on pale straw": pale was the wrong step for a hero who is both white cloth and dark skin) a cloud's shadow lies

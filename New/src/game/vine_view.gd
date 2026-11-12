@@ -1,3 +1,4 @@
+@tool
 class_name VineView
 extends Node2D
 ## A liana along the top of the screen, moving with the level: where Panoramic hangs by his hands

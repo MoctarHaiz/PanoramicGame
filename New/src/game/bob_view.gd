@@ -1,3 +1,4 @@
+@tool
 class_name BobView
 extends Node2D
 ## A Red Bob in the level (assets/art/bob/: tools/art/bob_sheet.py paints it as a ruby with the 2017 face):

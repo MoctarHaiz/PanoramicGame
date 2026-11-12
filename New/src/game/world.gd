@@ -1,3 +1,4 @@
+@tool
 class_name World
 extends RefCounted
 ## The rules of the 2017 game, without any drawing: Panoramic, the scrolling level, bandits, rings

@@ -1,3 +1,4 @@
+@tool
 class_name TerrainView
 extends Node2D
 ## The level's ground, painted (tools/art/terrain.py), drawn once in level units into chunks of

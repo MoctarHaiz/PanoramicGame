@@ -1,3 +1,4 @@
+@tool
 class_name Level
 extends RefCounted
 ## The map of the 2017 game: 800 columns by 20 rows of 32-unit tiles (Old/.../res/raw/level.csv,

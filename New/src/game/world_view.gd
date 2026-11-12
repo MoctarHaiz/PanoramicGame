@@ -1,3 +1,4 @@
+@tool
 class_name WorldView
 extends Node2D
 ## Draws a World in play-window units (the game screen scales this node to the screen): the

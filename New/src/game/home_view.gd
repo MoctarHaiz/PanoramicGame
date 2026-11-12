@@ -1,3 +1,4 @@
+@tool
 class_name HomeView
 extends Node2D
 ## HOME, at the end of the level (tools/art/home.py): a Zulu homestead on the last screen. A

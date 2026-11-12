@@ -1,3 +1,4 @@
+@tool
 class_name PropView
 extends Node2D
 ## Props standing on the ground (tools/art/props.py, tools/art/trees.py), behind the runners and

@@ -250,7 +250,7 @@ static func badge_burst(parent: Node, at: Vector2) -> void:
 static func confetti_burst(parent: Node, at: Vector2, calm := false, keep_off := Rect2()) -> void:
 	glow(parent, at, Color(1, 0.9, 0.65, 0.8), 0.3, 1.6, 0.35)
 	if not calm:  # round 22: home, in the level (the results panel's burst is the calm one, unchanged)
-		_home_volley(parent, at, 1.0, true)
+		_home_volley(parent, at, 1.0, false)  # (no big soft pieces near the eye: two blind judges read them as "artifacts: a blurred red diamond, tan ovals")
 		var once := parent.create_tween()
 		once.tween_interval(0.22)
 		once.tween_callback(_home_volley.bind(parent, at, 0.45, false))
