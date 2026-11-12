@@ -56,7 +56,8 @@ func build() -> void:
 	_fence(back, LEFT + 120.0, LEFT + 680.0)
 	_fence(back, LEFT + 960.0, LEFT + 1900.0)
 	# (round 7: no shadow copy of the sign behind it: it read as a faint duplicate arrow)
-	_put(back, "home_sign", LEFT + 548.0, 1.35, Color.WHITE).material = form(0.0, 0.6)
+	# (blind round 7: "the HOME signpost as large as the hero, the first thing the eye lands on": 1.35 -> 1.05)
+	_put(back, "home_sign", LEFT + 548.0, 1.05, Color.WHITE).material = form(0.0, 0.6)
 	_put(back, "home_pot", door_x - 58.0, 1.0, Color.WHITE)
 	# round 3: the homestead is alive: a cooking fire in the yard, and people at it who greet him
 	_fire = Fire.new()
