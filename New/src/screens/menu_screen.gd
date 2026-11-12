@@ -1,24 +1,18 @@
 extends Screen
-## The menu, composed as a title screen: the painted key art (assets/art/ui/menu_keyart.png: Panoramic
-## leaping out of a dust cloud, the ring raised) covering the screen, graded a little richer
-## (grade.gdshader: the candy UI and the art one family), with a soft shade behind the title column;
-## embers streaming out of his launch along the leap (_embers); on the right one clean column with even
-## gutters, clear of his hand: the CHAKA ZULU logo (gold lettering locked up with a Zulu shield and
-## crossed assegais), its subtitle on a ribbon across the shield's foot, and under it, with no board round
-## them (UI r22, the judges of j18: r21's board "stacks five borders"): one hero button, PLAY (UI r23, the
-## judges of j19: r22's bronze "a wooden plaque, not the call to action", the menu "one warm temperature"): a
-## lacquered turquoise slab in a gold bezel, the one cool, saturated thing on the warm canyon, with a crisp
-## highlight and a strong drop shadow, the emerald play gem set in it (Ui.cta_button), and one frame, the best
-## run on a slim plate of dark glass with a gold line (the Red Bob, "BEST" over the count, the three stars, the
-## ones still to win dark gold-edged sockets); the subtitle's ribbon, PLAY and the plate exactly as wide (j19:
-## "three different widths, ragged"); a deeper shade on the sky behind the column; the settings on a round
-## button of the panels' carved wood in a gold ring, anchored in the top right corner of the screen, in the
-## sky over the title (j19: the top left one "collides with the chakram's top blade"). Everything arrives in a short
-## choreography: the logo drops and bounces, the ribbon unrolls, PLAY pops, the rest fades in. Then the
-## logo catches the light now and then and PLAY breathes.
+## The menu, composed as a title screen: the painted key art (assets/art/ui/menu_keyart.png: Panoramic leaping out
+## of a dust cloud, the ring raised, over the level's own painted world) covering the screen, with a soft shade behind
+## the title column; embers streaming out of his launch along the leap (_embers); on the right one clean column with
+## even gutters, clear of his hand.
+## The inked interface (the user, 2026-11-13, of three painted options: "the A, inked gold, but with the RED play in
+## the C, bold action"; six blind judges on the kit before it: "a casual puzzle-game kit glued onto an action
+## illustration"): the CHAKA ZULU title in angular gold lettering, inked, over a cowhide shield and crossed spears
+## (logo.png); its subtitle in cream on a slim dark red band across the shield's foot; PLAY, a flat red plate leaning
+## right with a white play mark and heavy slanted white capitals (Ui.cta_button, SlantStyle); the best run on a slim
+## dark plate with a gold line (the Red Bob, "BEST" over the count, the three stars); the band, PLAY and the plate
+## exactly as wide; the settings on a round button in the top right corner of the screen, in the sky over the title.
+## Everything arrives in a short choreography: the logo drops and bounces, the band unrolls, PLAY pops, the rest
+## fades in. Then the logo catches the light now and then and PLAY breathes.
 
-const RIBBON := preload("res://assets/art/ui/ribbon_plain.png")  ## (its dashed stitch removed: tools/art/ui_kit.py)
-const TAIL_TRIM := 8  ## px cut off each end of the ribbon's tails (its notch is 24 deep)
 const LOGO := "res://assets/art/ui/logo.png"  ## loaded with the menu (a preload held it all run long)
 const KEYART := "res://assets/art/ui/menu_keyart.png"  ## the painted title key art (hero + scene in one picture)
 ## Where things are in the key art, as shares of its size: the tip of his gauntleted hand (the title
@@ -32,7 +26,7 @@ const PLAY_W := 440.0  ## PLAY's width: the subtitle's ribbon and the best run's
 const PLAY_H := 122.0
 const GUTTER := 28.0  ## between his hand and the column, and between the column and the screen's edge
 const GEAR := 84.0  ## the settings button's side
-const LETTERS_U := 0.22  ## where the logo's lettering starts under its spears, a share of its height
+const LETTERS_U := 0.2  ## where the logo's lettering starts under its spears, a share of its height
 
 var _backdrop: SunsetBackdrop  # only when the key art is missing
 var _art: TextureRect
@@ -129,7 +123,6 @@ func enter(_data: Dictionary) -> void:
 	_play = Ui.cta_button(tr("PLAY"), PLAY_H, 64)
 	_play.pressed.connect(func() -> void: Nav.go(&"game", {}, _play.get_global_rect().get_center()))
 	_play.idle(0.06)
-	_play.shine(3.2, 0)  # the sweep only: lens-flare glints read as stock
 	_play_pop.add_child(_play)
 	if Save.games_played > 0:
 		_best = _best_strip()
@@ -203,28 +196,39 @@ func _best_strip() -> Card:
 static func ribbon(text: String, font_size: int, width := 0.0) -> Control:
 	var holder := Control.new()
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var label := Ui.display_text(text, font_size, Ui.WHITE, Color("5a0c04"), Color("ffe2c6"))
-	label.depth = 2.0
+	# (2026-11-13, the inked interface: cream on a slim dark red band, flat, an ink line and a thin gold one; it was a
+	# notched satin ribbon with white rounded letters)
+	var label := Ui.display_text(text, font_size, Color("f7e9cc"), Color("2a0705"))
+	label.outline_width = maxf(roundf(font_size * 0.07), 2.0)
+	label.depth = 0.0
+	label.highlight = 0.0
 	label.shadow = Color(0, 0, 0, 0)
 	label.refresh()
-	while width > 0.0 and label.get_combined_minimum_size().x + font_size * 2.5 * 1.45 > width and font_size > 18:
+	while width > 0.0 and label.get_combined_minimum_size().x + font_size * 1.6 > width and font_size > 18:
 		font_size -= 1
 		label.font_size = font_size
-	var h := font_size * 2.5
-	var w := width if width > 0.0 else label.get_combined_minimum_size().x + h * 2.0
-	var k := h / RIBBON.get_height()
-	var band := NinePatchRect.new()
-	band.texture = RIBBON
-	band.region_rect = Rect2(TAIL_TRIM, 0, RIBBON.get_width() - TAIL_TRIM * 2, RIBBON.get_height())
-	band.patch_margin_left = 66 - TAIL_TRIM
-	band.patch_margin_right = 66 - TAIL_TRIM
-	band.patch_margin_top = 24
-	band.patch_margin_bottom = 24
-	band.size = Vector2(w, h) / k
-	band.scale = Vector2(k, k)
+	var h := roundf(font_size * 1.9)
+	var w := width if width > 0.0 else label.get_combined_minimum_size().x + h * 1.6
+	var band := Panel.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color("7c1410")
+	style.border_color = Color("160506")
+	style.set_border_width_all(maxi(roundi(h * 0.07), 2))
+	style.set_corner_radius_all(3)
+	style.shadow_color = Color(0.05, 0.02, 0.03, 0.5)
+	style.shadow_size = 0
+	style.shadow_offset = Vector2(3, 5)
+	band.add_theme_stylebox_override(&"panel", style)
+	band.size = Vector2(w, h)
 	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.add_child(band)
-	label.size = Vector2(w, h * 0.92)
+	var gold := ColorRect.new()  # the thin gold line along its foot, inside the ink
+	gold.color = Color("e9b23a")
+	gold.size = Vector2(w - h * 0.5, maxf(roundf(h * 0.045), 1.0))
+	gold.position = Vector2(h * 0.25, h - style.border_width_bottom - gold.size.y - roundf(h * 0.1))
+	gold.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.add_child(gold)
+	label.size = Vector2(w, h * 0.9)
 	holder.add_child(label)
 	holder.custom_minimum_size = Vector2(w, h)
 	holder.size = holder.custom_minimum_size
@@ -380,8 +384,11 @@ func _layout() -> void:
 	var y := top
 	for i in 4:  # (pushed down under the gear, shrunk if it then runs off the bottom)
 		logo_w = logo_h * _logo_tex.get_width() / _logo_tex.get_height()
-		if logo_w > w * 1.02:
-			logo_w = w * 1.02
+		# (the inked title's spears reach its full width: on a phone its right spear's tip ran under the gear; the
+		# title is no wider than keeps that tip clear of it)
+		var w_max := minf(w * 1.02, maxf(2.0 * (_gear.position.x - 10.0 - centre_x), w * 0.7))
+		if logo_w > w_max:
+			logo_w = w_max
 			logo_h = logo_w * _logo_tex.get_height() / _logo_tex.get_width()
 		var h := logo_h + ribbon_size.y * 0.45 + rest
 		y = top + (bottom - top - h) / 2.0

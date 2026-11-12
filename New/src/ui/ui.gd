@@ -363,52 +363,59 @@ func _candy_button(text: String, icon_name: String, c: Dictionary, height: int, 
 	return b
 
 
-## The menu's PLAY, the screen's one call to action (UI r23, the judges of j19: r22's bronze slab read as "a wooden
-## plaque, not the main call to action", white on light bronze, the whole menu one warm temperature): the cool colour
-## the warm canyon lacks, so it is the brightest, most saturated thing on its half: a lacquered turquoise face (the
-## beadwork's turquoise; not the stock green pill) lit across its top with a crisp highlight, in a polished gold
-## bezel on a deep teal edge, over a strong drop shadow; a line engraved round its face; the cut emerald with the
-## play sign set at its left (GemPlay); the word in white display letters in a deep navy stroke. A slab, not a pill
-## (call idle() and shine() on it).
+## The main button (the menu's PLAY; the user, 2026-11-13, of three interfaces shown: "the A, inked gold, but with the
+## RED play in the C, bold action"): a flat red plate leaning to the right, inked, on a hard shadow (SlantStyle), a
+## white play mark and the word in heavy slanted white capitals: the art's for the game's own languages
+## (assets/art/ui/word_<word>.png: tools/art/kie/menu_ui.py), any other word set in the display font. No gloss, no gem.
 func cta_button(text: String, height := 116.0, font_size := 60) -> JuicyButton:
-	var c := {"top": Color("4ae4fa"), "bottom": Color("0674ac"), "edge": Color("05506e"), "outline": Color("032236"),
-			"frame": [Color("fff4b0"), Color("e9a42e"), Color("7a4208"), Color("1a0a02")]}
 	var b := JuicyButton.new()
 	b.custom_minimum_size = Vector2(0, height)
-	var radius := height * 0.3
-	var depth := roundf(height * 0.1)
-	var ring := maxf(roundf(height * 0.07), 3.0)
-	var styles: Array[GlossStyle] = []
+	var depth := roundf(height * 0.09)
+	var styles: Array[SlantStyle] = []
 	for pressed: bool in [false, true]:
-		var s := _framed(c, radius, pressed, depth, ring)
-		s.gloss = 0.22  # lacquer: a soft light across its top (the crisp band: _Engraved)
-		s.lip = 0.3
-		s.shadow.shadow_color = Color(0.03, 0.02, 0.04, 0.62)  # it stands well off the canyon
-		s.shadow.shadow_size = 10 if pressed else 24
-		s.shadow.shadow_offset = Vector2(0, 6 if pressed else 16)
-		styles.append(s)
+		var st := SlantStyle.new()
+		st.depth = depth
+		st.pressed = pressed
+		st.ink_width = maxf(roundf(height * 0.05), 3.0)
+		st.line_inset = roundf(height * 0.055)
+		st.line_width = maxf(height * 0.02, 1.5)
+		if pressed:
+			st.face = st.face.darkened(0.1)
+			st.shade = st.shade.darkened(0.1)
+		styles.append(st)
 	b.add_theme_stylebox_override(&"normal", styles[0])
 	b.add_theme_stylebox_override(&"hover", styles[0])
 	b.add_theme_stylebox_override(&"pressed", styles[1])
-	var style := styles[0]
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override(&"separation", roundi(font_size * 0.3))
+	row.add_theme_constant_override(&"separation", roundi(height * 0.16))
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(GemPlay.new(roundf(height * 0.62)))
-	var l := display_text(text, font_size, WHITE, Color("03263e"), Color("e6fbff"))
-	l.outline_width = roundf(font_size * 0.11)
-	l.depth = roundf(font_size * 0.09)
-	l.shadow = Color(0, 0.05, 0.1, 0.35)
-	l.refresh()
-	row.add_child(l)
-	var holder := _face_holder(row, style)
-	var engraved := _Engraved.new()  # under the gem and the word
-	engraved.radius = maxf(radius - style.outline_width - style.frame_width, 4.0)
-	engraved.inset = style.outline_width + style.frame_width
-	engraved.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	holder.add_child(engraved)
-	holder.move_child(engraved, 0)
+	var word_h := roundf(height * 0.4)
+	row.add_child(PlayMark.new(word_h))
+	var art := "res://assets/art/ui/word_%s.png" % text.to_lower()
+	if ResourceLoader.exists(art):
+		var word := TextureRect.new()
+		word.texture = load(art)
+		word.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		word.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		word.custom_minimum_size = Vector2(roundf(word_h * word.texture.get_width() / word.texture.get_height()), word_h)
+		word.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		word.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(word)
+	else:
+		var l := display_text(text.to_upper(), font_size, WHITE, Color("140607"))
+		l.outline_width = roundf(font_size * 0.08)
+		l.depth = 0.0
+		l.shadow = Color(0, 0, 0, 0)
+		l.refresh()
+		row.add_child(l)
+	var holder := Control.new()  # the plate's face: the button less its shadow
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	holder.offset_bottom = -depth
+	holder.offset_right = -depth * 0.6
+	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	holder.add_child(row)
 	b.add_child(holder)
 	b.content = row
 	return b
