@@ -29,7 +29,11 @@ const KO_UP := 92.0  ## units its arc rises: over the heads of those behind it
 ## thrown away from the play: smaller and paler as it goes, so it never tangles with the bandit behind it)
 const KO_TURN := 0.6  ## radians it leans back in the flight
 ## (blind round 6: "bleached pale with a glow: a transparency glitch, not a hit": it keeps its full colours to the end)
-const KO_AWAY := 0.22  ## how much smaller it is at the flight's end (thrown away from the play)
+const KO_AWAY := 0.1  ## how much smaller it is at the flight's end (thrown away from the play)
+## (blind round 10: a dark-clothed bandit thrown back read as "a dark smudge: the hero seems to punch a shadow": the
+## line round a knocked-out bandit turns to a warm white for its flight, so its recoil pose reads on any ground)
+const KO_LINE := Color(1.0, 0.95, 0.82)
+const KO_LINE_WIDTH := 1.7  ## times its usual width
 const KO_POOF := 0.12  ## seconds, the flight's last: it shrinks into its puff
 ## its puff's sparks: the chakram's steel blue, its beadwork's red and white
 const KO_SPARKS: Array[Color] = [Color("ffffff"), Color("6cc4ff"), Color("e82808"), Color("ffd36b")]
@@ -136,6 +140,7 @@ var _ko := false
 var _ko_time := 0.0
 var _pushed := 0.0  # 0..1 of KO_BACK done
 var _poofed := false
+var _lit := false  # its line is the knock-out's white
 var _vault := -1.0  # 0..1 through the vault over him (-1: not vaulting)
 var _lift := 0.0  # units it is drawn above the ground (the vault)
 ## (2026-11-10, the user: "their animation are not quite good, and the interaction of the enemies in the world should
@@ -501,6 +506,10 @@ func _disappear(delta: float) -> void:
 	if t >= 1.0:
 		queue_free()
 		return
+	if not _lit:
+		_lit = true
+		_material.set_shader_parameter(&"sil_colour", KO_LINE)
+		_material.set_shader_parameter(&"sil_out_px", float(_material.get_shader_parameter(&"sil_out_px")) * KO_LINE_WIDTH)
 	# thrown back fast, slowing; up and down its arc
 	var k := 1.0 - pow(1.0 - t, 2.2)
 	position.x += KO_BACK * (k - _pushed)
@@ -514,14 +523,14 @@ func _disappear(delta: float) -> void:
 	# stretched along its flight off the blow, then itself; at the end it shrinks into the puff
 	var out := clampf((t - (1.0 - KO_POOF / KO_FLIGHT)) / (KO_POOF / KO_FLIGHT), 0.0, 1.0)
 	var stretch := lerpf(1.1, 1.0, minf(t * 3.0, 1.0))
-	var size := _scale * (1.0 - KO_AWAY * t) * (1.0 - 0.4 * out)
+	# (never see-through: a fading bandit read as a ghost in a still; it shrinks into its puff of dust, solid)
+	var size := _scale * (1.0 - KO_AWAY * t) * (1.0 - 0.8 * out * out)
 	_sprite.scale = Vector2(size * stretch * side, size * (2.0 - stretch))
-	_sprite.modulate.a = 1.0 - out * out
 	if out > 0.0 and not _poofed:
 		_poofed = true
 		var at := position + _sprite.position + middle.rotated(turn)
 		var parent := get_parent()
-		Fx.dust(parent, at, 9, 210.0, 0.0, 1.15)
+		Fx.dust(parent, at, 14, 230.0, 0.0, 1.5)
 		Confetti.make(parent, at).sparkle(7, KO_SPARKS, Vector2(150, 400), 0.9, Vector2(0.3, 0.55))
 
 

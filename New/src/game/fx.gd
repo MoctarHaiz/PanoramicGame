@@ -127,7 +127,8 @@ static func impact_burst(parent: Node, at: Vector2, away: Vector2, size: StringN
 	var k: float = IMPACTS[size].scale
 	# all added light, so the order doesn't show: the lines first (ring, shards), then the soft light
 	# (core, sparks), so each kind batches into one draw call
-	ring(parent, at, 14.0 * k, 110.0 * k, 0.22, Color(tint.lerp(Color.WHITE, 0.4), 0.85), 5.0 * k)
+	# (blind rounds 9 and 10: "the hit is a thin empty white circle": a burst of rays in the blow's colour, no ring)
+	rays(parent, at, Color(tint.lerp(Color.WHITE, 0.55), 0.95), 8, 130.0 * k, 0.2)
 	shards(parent, at, away, IMPACTS[size].shards, k, tint)
 	glow(parent, at, Color(1, 1, 1, 0.9), 0.12 * k, 0.4 * k, FLASH_TIME * 1.5)
 	Confetti.make(parent, at).sparkle(int(4 * k), [Color.WHITE, tint.lightened(0.4)], Vector2(160, 420), 0.7 * k,
