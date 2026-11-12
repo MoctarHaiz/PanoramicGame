@@ -50,10 +50,11 @@ const SHADE := 0.2
 ## muted (CORE_SAT), their form and ink kept (solid figures, not black cut-outs), a breath of the scene's shade (HAZE),
 ## and one costume accent of each kind kept in colour (ACCENT: its head-wrap); the silhouette's ink of Panoramic's
 ## weight on screen (HeroView.SIL_IN, SIL_OUT at this sheet's scale). Panoramic stays the most saturated, highest-contrast.
-const HAZE := 0.08
+const HAZE := 0.03
 const RECEDE := Color(0.4, 0.31, 0.38)
-const CORE_SAT := 0.8  ## (the user, 2026-11-08: "too dark, we don't see them": r23's 0.5 / 0.55 core lifted)
-const CORE_VALUE := 0.9
+const CORE_SAT := 0.96  ## (the user, 2026-11-08: "too dark, we don't see them": r23's 0.5 / 0.55 core lifted; 2026-11-12,
+## "some assets are not good quality": at 0.8 / 0.9 they were the one washed-out drawing in a vivid scene)
+const CORE_VALUE := 0.97
 const CORE_TINT := Color(1.1, 0.95, 0.86)  ## (the grey they are muted towards: a warm umber, skin not ash)
 const CORE_FLOOR := 0.06  ## their darkest value: their black trousers keep their folds over the ink (not a cut-out)
 const INK := Color(0.075, 0.04, 0.035)  ## their silhouette's ink: darker than Panoramic's brown, under their dark core

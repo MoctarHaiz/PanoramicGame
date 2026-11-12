@@ -1,12 +1,13 @@
 class_name HeroView
 extends Node2D
 ## Panoramic: drawn with kie.ai from the user's target picture and a turnaround of their 3D model
-## (ROOT/Making/Animation.blend): Nano Banana 2 stills, animated with Seedance clips (2.0 Mini; the throw 2.5) and
+## (ROOT/Making/Animation.blend): Nano Banana 2 stills, animated with Seedance clips (2.0 Mini) and
 ## resampled to the game's slots, packed into atlases (tools/art/hero_atlas_ai.py, assets/art/hero/hero_frames.json;
 ## the earlier 3D renders: tools/art/hero_atlas.py) and played by the state of the rules:
-## - the run: 16 frames at the pace that keeps his planted foot on the scrolling ground;
-## - the jump: the push-off, then the rise, the top and the fall picked by his vertical speed (the
-##   rules decide how high and how far), the landing played out into the run;
+## - the run (2026-11-12, tools/art/kie/hero_pack.py): one whole stride in 12 drawings, its motion from a Kling 4.0
+##   clip, each drawing redrawn crisp by Nano Banana 2, at the pace that keeps his planted boot on the scrolling ground;
+## - the jump: the push-off, then his air poses by how far through the jump he is (the rules decide how high and how
+##   far): the rise, the tuck at the top, opening, the fall, braced for the ground; he lands into the run's stride;
 ## - the vine: reaching up into it, hanging by his hands (a damped pendulum, legs swaying), the
 ##   climb over a ledge, the crouch, the throw (his arm over the running legs), the blow, the fall
 ##   onto his back when caught, and at home he lands and springs into his victory pose (round 19: a kie.ai still,
@@ -19,11 +20,12 @@ const DIR := "res://assets/art/hero/"
 ## His drawn size is the atlas' (GameArt.HERO_DRAW_HEIGHT standing): kept for the views that size
 ## things after him.
 const DRAW_SCALE := 1.0
-## The run: atlas frames a second. 16, the user's choice (2026-11-07): the pace the Seedance sprint was filmed at
-## (16 slots out of 24 video frames, a second of it). The boot pace that would match the ground (233 units/s) is
-## lower (tools/art/hero_atlas_ai.py prints it); at 16 the planted boot moves back faster than the ground.
+## The run: atlas frames a second. 16, the user's choice (2026-11-07). The stride of 2026-11-12 (12 drawings, both
+## steps: 2.7 steps a second) holds its planted boot on the ground (233 units/s) at 14.1 (tools/art/kie/hero_pack.py
+## prints it): at 16 the boot moves back 1.14 times as fast as the ground.
 const RUN_FPS := 16.0
-const RUN_FRAMES := 16
+const RUN_FRAMES := 12
+const RUN_LAND := 1.0  ## the run's drawing a landing goes into: his front boot coming down, his weight onto it next
 const TAKEOFF := 0.07  ## seconds of the push-off (the rules have already left the ground)
 const THROW_TIME := 0.3  ## the throw: the chakram cocked overhead, then the arm thrown forward (legs running on)
 ## (2026-11-10: 0.3 -> 0.14: the ring flies 0.04 s after the tap, RingView.WIND_UP; cocked for 0.09 s he still held the
@@ -51,15 +53,22 @@ const SHADOW_PLAY := 0.22
 const SHADOW_AIR := 0.6
 const WIN_LOOP := 10  ## the cheer at home loops from this frame
 const WIN_POSE := 3  ## the win's frame where the landing crouch springs into the victory pose (hero_atlas_ai.py)
-const JUMP_RISE := [2, 9]  ## jump frames of the rise (vertical speed -JUMP_SPEED .. -TOP)
-const JUMP_TOP := [10, 13]  ## the top (-TOP .. +TOP)
-## (2026-11-10, the user: "the main character has some flaws") the atlas's fall drawings 16-20 are another drawing of
-## him (turned to the camera, black shorts under no loincloth, a darker face): in every jump he changed costume at
-## the top and back on the ground. The fall is now his own air pose coming down (13-15: his legs reaching for the
-## ground, leaning into it), and the landing starts at his crouch on the ground (21).
-const JUMP_FALL := [13, 15]  ## the fall (+TOP .. +JUMP_SPEED)
-const JUMP_LAND := [21, 26]  ## the landing, played out (it ends in the run's first frame)
-const FALL_LEAN := 0.15  ## radians he leans forward into the ground at the end of a fall
+## (2026-11-12, the user: "the animations are not full") the jump's own drawings (one kie.ai sheet,
+## tools/art/kie/hero_pack.py): until then he leapt in the vine's reach, both arms up from the ground to the ground
+## (2026-11-10: its fall drawings were another costume). Now each part of the jump has its pose, changed with a
+## little stretch (AIR_POP) so the change reads as a move.
+const JUMP_PUSH := 1  ## the push-off
+const JUMP_RISE := 2  ## climbing: a knee driven up, an arm thrown up
+const JUMP_TUCK := 3  ## the top: knees to his chest
+const JUMP_OPEN := 4  ## opening out of it, eyes on the ground ahead
+const JUMP_FALL := 5  ## coming down, legs reaching, arms back
+const JUMP_BRACE := 6  ## an instant before the ground
+const JUMP_THROW := 7  ## a throw in the air: his arm thrown forward
+## how far through the jump (World.air_progress()) each pose begins: rise, tuck, open, fall, brace
+const AIR_PARTS := [0.0, 0.3, 0.5, 0.66, 0.9]
+const AIR_POP := Vector2(0.95, 1.06)  ## the stretch as he changes pose in the air
+const LAND_CROUCH := 4  ## at home: the landing's crouch drawings (the old landing, hero_frames.json "land")
+const FALL_LEAN := 0.06  ## radians he leans forward into the ground at the end of a fall (the poses lean themselves)
 const TOP := 6.0  ## units a tick of vertical speed counted as the top of the jump
 const SHADOW_SHIFT := 10.0  ## units the ground shadow falls right of him (the sun is upper left)
 const SHADOW_WIDTH := 100.0  ## units across his shadow on the ground, standing on it
@@ -115,8 +124,10 @@ const DIE_MIN_X := 70.0  ## play x he is never drawn left of when caught (the de
 ## his chest and head turned forward about his hips (actor.gdshader's bend: his legs and planted boots as drawn) and
 ## the whole drawing slanted forward from the ground line (Node2D.skew: his boots stay on it; the rules' box as it was),
 ## eased in with the ground's pace from a standstill, out at a jump's push-off, a landing, a blow
-const LEAN_CHEST := 0.2  ## radians his upper body turns forward about his hips at full pace
-const LEAN_SLANT := 0.07  ## radians the whole of him slants forward from the ground line
+## (2026-11-12) the stride of the new run is a sprint as drawn (his chest forward over a long step): the turn of his
+## chest is off (0.2 before: on these drawings it bent him double), the slant a touch (0.07 before)
+const LEAN_CHEST := 0.0  ## radians his upper body turns forward about his hips at full pace
+const LEAN_SLANT := 0.03  ## radians the whole of him slants forward from the ground line
 const LEAN_IN := 5.0  ## easing into the lean (/s: most of it in ~0.45 s from a standstill)
 const LEAN_OUT := 18.0  ## out of it
 const LEAN_REACH := 16.0  ## units his front (the fist, the face) reaches further at full lean (held back from walls)
@@ -152,7 +163,6 @@ var _last_time := -1.0
 var _run := 0.0  # frames into the run cycle
 var _run_rate := 1.0  # the run's pace (1: the ground's speed), eased
 var _squash := Vector2.ONE
-var _land_time := -1.0  # seconds since landing (-1: not landing)
 var _takeoff := 0.0  # seconds left of the push-off
 var _throw_left := 0.0
 var _hurt_time := -1.0  # seconds since a blow (-1: none)
@@ -264,13 +274,14 @@ func landed() -> void:
 	if _was_climbing:  # over the ledge: he stands up onto it
 		_mantle = MANTLE
 		return
-	_land_time = 0.0
+	# (2026-11-12) no landing played out before he runs on (0.2 s in a crouch drawn for another costume): he comes
+	# down into the stride, his front boot landing, and the squash takes the weight
+	_run = RUN_LAND
 	var k := clampf(_world.land_speed / 45.0, 0.3, 1.1) if _world else 1.0  # a step down lands softly, a drop hard
-	_squash = Vector2(1.0 + 0.07 * k, 1.0 - 0.07 * k)
+	_squash = Vector2(1.0 + 0.1 * k, 1.0 - 0.1 * k)
 
 
 func jumped() -> void:
-	_land_time = -1.0
 	if _world and (_world.on_ground or _anim in [&"run", &"throw", &"crouch", &"idle"]):
 		_takeoff = TAKEOFF
 		_squash = Vector2(1.04, 0.96)
@@ -296,8 +307,8 @@ func pose() -> StringName:
 	return _anim
 
 
-## For the footsteps (the audio track): the run frame showing (0..15), -1 when he isn't running.
-## Boots touch the ground around frames 1 and 9.
+## For the footsteps (the audio track): the run frame showing (0..11), -1 when he isn't running.
+## A boot comes down at frames 1 and 7 (Footsteps.CONTACTS).
 func run_frame() -> int:
 	return int(_run) % RUN_FRAMES if _anim in [&"run", &"throw"] else -1
 
@@ -318,8 +329,6 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 	_knock = maxf(_knock - dt * 3.2, 0.0)
 	_takeoff = maxf(_takeoff - dt, 0.0)
 	_mantle = maxf(_mantle - dt, 0.0)
-	if _land_time >= 0.0:
-		_land_time += dt
 	if _hurt_time >= 0.0:
 		_hurt_time += dt
 	_settle = lerpf(_settle, 0.0, 1.0 - exp(-dt * 14.0))
@@ -351,8 +360,8 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 			_end_time = t
 			offset.y -= GameArt.FEET_SINK * HOME_LIFT * clampf(t / World.HOME_LAND, 0.0, 1.0)
 			if t < World.HOME_LAND:
-				anim = &"jump"
-				index = JUMP_LAND[0] + mini(int(t / World.HOME_LAND * 4.0), 3)
+				anim = &"land"
+				index = mini(int(t / World.HOME_LAND * LAND_CROUCH), LAND_CROUCH - 1)
 			elif t < World.HOME_CHEER:
 				anim = &"win"
 				var n := frames(anim).size()
@@ -383,7 +392,7 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 					offset.y = (ground - p.y) * minf(t / 0.3, 1.0) ** 2
 			else:  # into a pool or a pit: falling, flailing
 				anim = &"jump"
-				index = JUMP_FALL[1]
+				index = JUMP_FALL
 				anchor = Anchor.HIPS
 				tilt = sin(t * 16.0) * 0.18
 				var surface := World.SURFACE_Y - World.HERO_SIZE.y / 2
@@ -422,32 +431,31 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 		&"takeoff":
 			anim = &"jump"
 			anchor = Anchor.HIPS
-			index = 1 + mini(int(t / 0.025), 1)
+			index = JUMP_PUSH
 		&"rise", &"apex", &"fall":
 			anim = &"jump"
 			anchor = Anchor.HIPS
 			var ap := w.air_progress()  # 0..1 through his time in the air (the rules decide how long)
 			if ap >= 0.0:
-				if ap < 0.45:
-					index = roundi(lerpf(JUMP_RISE[0], JUMP_RISE[1], ap / 0.45))
-				elif ap < 0.6:
-					index = roundi(lerpf(JUMP_TOP[0], JUMP_TOP[1], (ap - 0.45) / 0.15))
-				else:
-					index = roundi(lerpf(JUMP_FALL[0], JUMP_FALL[1], (ap - 0.6) / 0.4))
-				tilt = lerpf(-0.06, 0.08, ap) if ap < 0.6 else lerpf(0.02, FALL_LEAN, (ap - 0.6) / 0.4)
+				index = JUMP_RISE
+				for i in AIR_PARTS.size():
+					if ap >= AIR_PARTS[i]:
+						index = JUMP_RISE + i
+				tilt = lerpf(-0.05, FALL_LEAN, ap)
+				if _throw_left > 0.0:  # a throw in the air: his arm thrown forward, legs trailing
+					index = JUMP_THROW
+					tilt = 0.0
 			elif w.vy < 0.0 and w.rising_to_vine() and p.y < 150.0:  # reaching up into the vine
 				anim = &"catch"
 				index = clampi(int((1.0 - p.y / 150.0) * 2.0), 0, 1)
 			elif w.vy < 0.0:
-				var r := clampf(1.0 - (-w.vy - TOP) / (World.JUMP_SPEED - TOP), 0.0, 1.0)
-				index = roundi(lerpf(JUMP_RISE[0], JUMP_RISE[1], r))
+				index = JUMP_RISE if -w.vy > TOP * 2.0 else JUMP_TUCK
 			else:  # no ground ahead: a fall into a pit, flailing
-				index = JUMP_FALL[1]
+				index = JUMP_FALL
 				tilt = sin(_clock * 16.0) * 0.18
 				var surface := World.SURFACE_Y - World.HERO_SIZE.y / 2
 				if w.water_at(w.draw_scroll() + p.x):
 					sink = clampf((p.y - surface) / 70.0, 0.0, 1.0)
-			_land_time = -1.0
 		&"crouch":
 			anim = &"crouch"
 			index = mini(int(t * 24.0), frames(anim).size() - 1)
@@ -458,10 +466,6 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 			elif _hurt_time >= 0.0 and _hurt_time < HURT_TIME:
 				anim = &"hurt"
 				index = mini(int(_hurt_time * 30.0), frames(anim).size() - 1)
-			elif _land_time >= 0.0 and _land_time < (JUMP_LAND[1] - JUMP_LAND[0] + 1) / 30.0:
-				anim = &"jump"
-				index = JUMP_LAND[0] + int(_land_time * 30.0)
-				_run = 0.0  # the landing ends in the run's first frame
 			elif _throw_left > 0.0:  # the throwing arm over the running legs
 				anim = &"throw"
 				var back := _throw_left > THROW_TIME * (1.0 - THROW_BACK)
@@ -648,6 +652,8 @@ func _over_edge(w: World, p: Vector2) -> bool:
 func _set_anim(anim: StringName, index: int) -> void:
 	if anim != _anim and _anim == &"jump" and anim == &"catch":
 		_settle = 0.0
+	if anim == &"jump" and _anim == &"jump" and index != _index and index > JUMP_RISE:
+		_squash = AIR_POP
 	_anim = anim
 	_index = index
 

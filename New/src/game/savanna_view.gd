@@ -307,7 +307,9 @@ func _draw_sky(ci: CanvasItem) -> void:
 	var k := SKY_RECT.y / sky.get_height()  # units per texture pixel
 	var x0 := _x0()
 	var w := _x1() - x0
-	var src := Rect2(fposmod((scroll * SKY_SCROLL + _clock * SKY_DRIFT + x0) / k, sky.get_width()), 0, w / k, sky.get_height())
+	# (its top two rows left out: the picture repeats, so its top edge is filtered with its bottom row, the warm horizon:
+	# a pale hairline across the sky where the mirrored half starts, seen as he climbs to the vines)
+	var src := Rect2(fposmod((scroll * SKY_SCROLL + _clock * SKY_DRIFT + x0) / k, sky.get_width()), 2.0, w / k, sky.get_height() - 2.0)
 	if view_top - 2.0 < SKY_RECT.x:  # mirrored about its top edge
 		ci.draw_set_transform(Vector2(0.0, 2.0 * SKY_RECT.x + 1.0), 0.0, Vector2(1.0, -1.0))
 		ci.draw_texture_rect_region(sky, Rect2(x0, SKY_RECT.x, w, SKY_RECT.y), src, _dusk(DUSK_HIGH))

@@ -19,7 +19,7 @@ const float TWIRL_FROM = 0.55;  // the twirl starts (banditMort7)
 // loudest colours (the teal hair, the gold) quietened past BanditView's grade, and the form's shade a little deeper
 // than his: they sit back in the scene's air, Panoramic the hottest, cleanest-lit figure on screen
 const float LOUD_SAT = 0.5;  // the saturation over which a colour is pulled down
-const float LOUD_KEEP = 0.42;  // how much of that excess stays
+const float LOUD_KEEP = 0.8;  // how much of that excess stays (0.42 until 2026-11-12: their reds and golds came out khaki)
 const float FORM = 0.5;  // the form's shade (Panoramic's: HeroView.FORM)
 const vec3 AIR = vec3(0.93, 0.92, 1.0);  // the scene's air over them (the dusk's cool)
 // (round 21, the judges: "the bandits read first: as big as him, higher, darker on the sky") their sizes are the user's

@@ -302,10 +302,13 @@ func _add_grade() -> void:
 
 
 func _place_grade() -> void:
-	var size := Vector2(view_width, World.VIEW_H - view_top)
+	# (2 units past the view on every side: a Control snaps to whole units, and where the camera's top fell between two
+	# the screen's first row was left ungraded: a bright hairline along the top edge as he climbed)
+	var at := Vector2(-view_left - 2.0, view_top - 2.0)
+	var size := Vector2(view_width + 4.0, World.VIEW_H - view_top + 4.0)
 	var m := _grade.material as ShaderMaterial
-	if _grade.size != size or _grade.position != Vector2(-view_left, view_top):
-		_grade.position = Vector2(-view_left, view_top)
+	if _grade.size != size or _grade.position != at:
+		_grade.position = at
 		_grade.size = size
 		m.set_shader_parameter(&"aspect", size.x / size.y)
 	m.set_shader_parameter(&"sun", (_background.sun_position() - _grade.position) / size)  # the light comes from it

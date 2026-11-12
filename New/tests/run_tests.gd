@@ -1306,10 +1306,10 @@ func _test_audio() -> void:
 	Audio.play_music(&"game")
 	_check(Audio._after_stinger.is_empty() and Audio._current == &"game", "playing again cancels the music after the stinger")
 	# footsteps follow the run animation's foot contacts
-	var even := Footsteps.CONTACTS.size() == 4
+	var even := Footsteps.CONTACTS.size() == 2 and Footsteps.RUN_FRAMES == HeroView.RUN_FRAMES
 	for i in Footsteps.CONTACTS.size() - 1:
-		even = even and absf(Footsteps.CONTACTS[i + 1] - Footsteps.CONTACTS[i] - Footsteps.RUN_FRAMES / 4.0) < 0.01
-	_check(even, "the run's four foot contacts are a quarter loop apart")
+		even = even and absf(Footsteps.CONTACTS[i + 1] - Footsteps.CONTACTS[i] - Footsteps.RUN_FRAMES / 2.0) < 0.01
+	_check(even, "the run's two foot contacts are half a loop apart (one stride: both steps)")
 	_check(Footsteps.crossed(4.0, 6.0, 5.0) and not Footsteps.crossed(6.0, 12.0, 5.0) and Footsteps.crossed(12.5, 1.0, 13.0)
 			and not Footsteps.crossed(15.5, 1.0, 5.0), "a contact counts once as the frame passes it, across the loop")
 	var w := _standing_world()
@@ -1328,10 +1328,10 @@ func _test_audio() -> void:
 	var run3d := _FakeRun3D.new()
 	var feet3d := Footsteps.new(w, run3d)
 	before = Audio.sfx_count
-	for f in [0.5, 1.5, 4.5, 5.5, 9.0, 12.9, 13.2, 15.8, 0.4]:
+	for f in [0.5, 1.5, 4.5, 6.9, 7.2, 9.0, 11.8, 0.4]:
 		run3d.frame = f
 		feet3d._process(0.0)
-	_check(Audio.sfx_count == before + 4, "the drawn run sounds a step at slots 1, 5, 9 and 13 (%d)" % (Audio.sfx_count - before))
+	_check(Audio.sfx_count == before + 2, "the drawn run sounds a step as a boot comes down, at drawings 1 and 7 (%d)" % (Audio.sfx_count - before))
 	for n: Node in [hero, run3d, feet, feet3d]:
 		n.free()
 	# haptics: off when the setting is off; a light one never cuts into a heavy one
@@ -1412,11 +1412,11 @@ func _test_audio() -> void:
 	var hero3d := _FakeHeroClock.new()
 	var feet2 := Footsteps.new(w2, hero3d)
 	before = Audio.sfx_count
-	for f in [3.0, 4.5, 5.5, 9.0, 12.9, 13.2]:  # (steps at 5 and 9 running, 13 throwing)
+	for f in [0.5, 1.5, 4.5, 6.9, 7.2, 11.0]:  # (steps at 1 running, at 7 throwing)
 		hero3d._run = f
-		hero3d.anim = &"throw" if f > 9.0 else &"run"
+		hero3d.anim = &"throw" if f > 5.0 else &"run"
 		feet2._process(0.0)
-	_check(Audio.sfx_count == before + 3, "footsteps follow the hero's run clock, through a throw too")
+	_check(Audio.sfx_count == before + 2, "footsteps follow the hero's run clock, through a throw too")
 	for n: Node in [hero3d, feet2]:
 		n.free()
 	# round 3: fireworks have a sound; the confetti has streamers
@@ -2133,11 +2133,12 @@ func _test_ux() -> void:
 func _test_art() -> void:
 	var data := HeroView.frames_data()
 	var anims: Dictionary = data.anims
-	for name in ["run", "throw", "jump", "idle", "die", "hang", "catch", "crouch", "hurt", "climb", "win"]:
+	for name in ["run", "throw", "jump", "land", "idle", "die", "hang", "catch", "crouch", "hurt", "climb", "win"]:
 		_check(anims.has(name) and not (anims[name].frames as Array).is_empty(), "hero animation %s" % name)
 	_check((anims.run.frames as Array).size() == HeroView.RUN_FRAMES, "the run has %d frames" % HeroView.RUN_FRAMES)
 	_check((anims.throw.frames as Array).size() == HeroView.RUN_FRAMES * 2, "the throw: wind-up and release over each run frame")
-	_check((anims.jump.frames as Array).size() > HeroView.JUMP_LAND[1], "the jump has its landing frames")
+	_check((anims.jump.frames as Array).size() > HeroView.JUMP_THROW and (anims.land.frames as Array).size() >= HeroView.LAND_CROUCH,
+			"the jump has its air poses (the rise to the brace, a throw), the landing at home its crouch")
 	_check((anims.win.frames as Array).size() > HeroView.WIN_LOOP, "the cheer at home loops inside the win")
 	var inside := true
 	for name: String in anims:
@@ -2149,8 +2150,7 @@ func _test_art() -> void:
 			inside = inside and f.has("soles") and (name not in ["hang", "catch"] or (f.get("fists", []) as Array).size() == 2)
 	_check(inside, "every hero frame lies inside its atlas page, with its soles (and fists on the vine)")
 	# the planted boot moves back with the ground: the drawn run plays at the user's choice, 16 frames a second
-	# (2026-11-07), the pace the sprint was filmed at, where its boot moves back up to twice the ground's speed
-	# (the pace matching the ground, about 8 frames a second, looked choppy)
+	# (2026-11-07); the stride of 2026-11-12 holds its boot on the ground at 14 (at 16: 1.14 times the ground's speed)
 	var steps: Array[float] = []
 	var run: Array = anims.run.frames
 	var ground := 0.0
@@ -2168,8 +2168,8 @@ func _test_art() -> void:
 		mean += d / steps.size()
 	var boot := mean * float(data.units_per_px) * float(data.run_fps)
 	var ground_speed := World.SCROLL_SPEED / World.TICK
-	_check(boot >= ground_speed * 0.95 and boot <= ground_speed * 2.1,
-			"the planted boot moves back with the ground, at most twice its speed (%.0f units/s, ground %.0f)" % [boot, ground_speed])
+	_check(boot >= ground_speed * 0.95 and boot <= ground_speed * 1.25,
+			"the planted boot moves back with the ground, at most a quarter faster (%.0f units/s, ground %.0f)" % [boot, ground_speed])
 	_check(is_equal_approx(float(data.run_fps), HeroView.RUN_FPS), "the atlas' run pace is HeroView's (%.1f fps)" % float(data.run_fps))
 	# each state of the rules shows its animation (gameplay's move_phase(): set as a tick would)
 	var holder := Node2D.new()
@@ -2199,12 +2199,13 @@ func _test_art() -> void:
 	_check(key > 0.0 and BanditView.CORE_VALUE >= 0.8 and BanditView.CORE_VALUE < 1.0 and sil > 1.0,
 			"a warm key on his sun side (%.2f), the bandits' grade readable (%.2f), his outer ink (%.1f px)"
 			% [key, BanditView.CORE_VALUE, sil])
-	# (round 22, "a jog, not a sprint") at the ground's pace the drawing leans into the stride (his chest bent forward)
+	# (round 22, "a jog, not a sprint") at the ground's pace the drawing leans into the stride; (2026-11-12) the new
+	# stride is drawn as a sprint, his chest forward: a slight slant from the ground line, his chest no longer bent
 	for i in 16:
 		w.tick()
 		hero.show_state(w, w.draw_hero(), World.TICK)
-	_check(hero.skew > 0.03 and hero._material.get_shader_parameter(&"bend_up") > 0.1, "the run leans into the stride (%.2f, %.2f)"
-			% [hero.skew, hero._material.get_shader_parameter(&"bend_up")])
+	_check(hero.skew > 0.01 and hero.skew <= HeroView.LEAN_SLANT and not hero._material.get_shader_parameter(&"bend_on"),
+			"the run slants a little into the stride (%.2f), the sprint as drawn (no bend)" % hero.skew)
 	hero.threw()
 	hero.show_state(w, w.draw_hero(), 0.01)
 	_check(hero.pose() == &"throw", "throwing: throw (%s)" % hero.pose())
