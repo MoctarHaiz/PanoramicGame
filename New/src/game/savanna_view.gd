@@ -82,7 +82,9 @@ const MESA_CLUSTERS := 6  ## clusters in a row before its order repeats
 ## out against it.
 const DUSK_HIGH := Color(0.56, 0.6, 1.0)
 const DUSK_LOW := Color(0.8, 0.74, 0.96)
-const DUSK_MESAS := [Color(0.66, 0.68, 1.0), Color(0.7, 0.72, 1.0), Color(0.74, 0.66, 0.92)]
+## (2026-11-12, three blind judges on the home picture: "the far mesas are translucent rectangular ghosts: a rendering
+## fault": at dusk the two far rows stood at the sky's own value; now a clear step under it, solid silhouettes)
+const DUSK_MESAS := [Color(0.5, 0.5, 0.8), Color(0.56, 0.56, 0.84), Color(0.74, 0.66, 0.92)]
 const DUSK_STRIPS := {&"far_hills": Color(0.78, 0.78, 1.0), &"mid_hills": Color(0.9, 0.86, 0.98)}
 ## Tree rows: scroll factor, spacing (level units of that layer), size (of the picture's height in
 ## units), ground y, haze, foot haze, share of empty slots, haze colour (the far rows sink into the
