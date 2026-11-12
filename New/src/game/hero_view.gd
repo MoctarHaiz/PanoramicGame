@@ -30,6 +30,9 @@ const TAKEOFF := 0.07  ## seconds of the push-off (the rules have already left t
 const THROW_TIME := 0.3  ## the throw: the chakram cocked overhead, then the arm thrown forward (legs running on)
 ## (2026-11-10: 0.3 -> 0.14: the ring flies 0.04 s after the tap, RingView.WIND_UP; cocked for 0.09 s he still held the
 ## chakram overhead while it was already in the air ahead of him: the release shows as it leaves)
+## His thrown fist in the throw's drawings (the arm flung forward), from his feet (units; measured on the atlas:
+## 58 to 72 ahead, 98 to 114 up over the twelve): the ring is drawn leaving it (RingView.from_hand)
+const THROW_FIST := Vector2(66.0, -108.0)
 const THROW_BACK := 0.14  ## share of the throw spent with the chakram cocked
 const MANTLE := 0.16  ## seconds standing up after a climb over a ledge
 const BLINK_HZ := 8.0  ## the mercy pulse after a hit (smooth, not a strobe)

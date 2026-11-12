@@ -851,7 +851,9 @@ static func streak_pop(parent: Node, at: Vector2, n: int) -> void:
 	var node := Node2D.new()
 	_streak_badge = node
 	node.z_index = 2  # (in view.fx, z 10) over the Red Bobs flying to the counter (z 11), under the panels (20)
-	node.position = at + Vector2(30, -40)
+	# (2026-11-12, the blind judge: "the multiplier text is larger than his head and sits on his face": over his head and
+	# a little ahead of him now, clear of his drawing: he takes the Red Bobs at chest height)
+	node.position = at + Vector2(70, -190)
 	var font := plus_font()
 	var text := "×%d" % n
 	# one font size and outline for every step, the "+1"'s (each new size would cache its own glyph

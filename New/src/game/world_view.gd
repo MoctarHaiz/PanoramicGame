@@ -502,6 +502,10 @@ func _place_rings() -> void:
 			s = RingView.new()
 			_actors.add_child(s)
 			_rings[r.id] = s
+			if world.on_ground and not world.hanging:  # thrown on the run: out of his thrown fist
+				var feet := world.draw_hero() + Vector2(0.0, World.HERO_SIZE.y / 2)
+				s.from_hand = feet + HeroView.THROW_FIST - (Vector2(r.x, r.y) + World.RING_CENTRE)
+				s.hand_time = RingView.HAND_ARC
 		s.position = Vector2(lerpf(r.prev_x, r.x, world.alpha), r.y) + World.RING_CENTRE
 		if world.state == World.State.WON:  # home: rings still flying fade away (none lies about the yard)
 			s.modulate.a = move_toward(s.modulate.a, 0.0, 0.08)

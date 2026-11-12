@@ -8,6 +8,12 @@ shader_type canvas_item;
 
 uniform float step_size = 0.1;  // luminance of one tone step
 uniform float amount = 0.55;
+// (2026-11-12, the blind judge: "the storm sky is the most contrasty, detailed element and takes 60 % of the frame; cut
+// its contrast and saturation behind the action by about a third") the clouds drawn this far toward the sky's own
+// broad light (their darks lifted, their lights lowered: the gradient from the zenith to the horizon stays), and
+// this much of its colour taken out: the play in front of it is the picture's contrast
+uniform float calm = 0.36;
+uniform float mute = 0.18;
 
 varying vec4 tint;
 
@@ -22,7 +28,8 @@ float lum(vec3 c) {
 void fragment() {
 	vec3 base = COLOR.rgb;
 	// (none near the picture's top and bottom rows: it repeats, its far mips bled across the edge)
-	float k = amount * smoothstep(0.03, 0.1, UV.y) * (1.0 - smoothstep(0.9, 0.97, UV.y));
+	float inside = smoothstep(0.03, 0.1, UV.y) * (1.0 - smoothstep(0.9, 0.97, UV.y));
+	float k = amount * inside;
 	if (k > 0.0) {
 		float lb = lum(textureLod(TEXTURE, UV, 5.0).rgb * tint.rgb);
 		float lm = lum(textureLod(TEXTURE, UV, 2.6).rgb * tint.rgb);
@@ -37,4 +44,7 @@ void fragment() {
 		vec3 cel = base * clamp(cel_l / max(l, 0.02), 0.7, 1.4);
 		COLOR.rgb = mix(base, cel, k);
 	}
+	vec3 broad = textureLod(TEXTURE, UV, 6.0).rgb * tint.rgb;
+	COLOR.rgb = mix(COLOR.rgb, broad, calm * inside);
+	COLOR.rgb = mix(COLOR.rgb, vec3(lum(COLOR.rgb)), mute);
 }

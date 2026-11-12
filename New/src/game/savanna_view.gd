@@ -119,6 +119,7 @@ const LANE_TINT := Color(0.86, 0.86, 0.7)
 ## animals.png (tools/art/savanna.py): two giraffes, an elephant, a herd of wildebeest (px regions)
 const ANIMALS := [Rect2(0, 0, 140, 220), Rect2(140, 12, 128, 208), Rect2(268, 68, 220, 152), Rect2(488, 132, 300, 88)]
 const CLOUD_SHADOW_GAP := 700.0  ## round 10: units of the plain between two clouds' shadows
+const FRONT_GRASS := false  ## the out-of-focus grass band along the bottom edge (off: it read as smudges)
 const FRONT_SCROLL := 1.35  ## the foreground grass moves faster than the ground
 const FRONT_PROP_SCROLL := 1.45  ## round 9: the big things in front, nearer still (round 20: 1.6 -> 1.45: longer in the corner)
 const FRONT_PROP := Vector2(260, 190)  ## one piece of fg_props.png (units, 1 px a unit)
@@ -474,13 +475,16 @@ func _draw_strip(ci: CanvasItem, name: StringName) -> void:
 ## rise into view only in the corner behind him (left of FRONT_ZONE units before him), framing the shot there;
 ## anywhere else they are not drawn (they fade out as they pass into his space).
 func _draw_front(ci: CanvasItem) -> void:
-	var tex: Texture2D = _tex[&"fg_grass"]
 	var x0 := _x0()
 	var x1 := _x1()
-	var h := float(tex.get_height())
-	var src_x := fposmod(scroll * FRONT_SCROLL + x0, tex.get_width())
-	ci.draw_texture_rect_region(tex, Rect2(x0, World.VIEW_H + FRONT_DROP - h, x1 - x0, h),
-			Rect2(src_x, 0, x1 - x0, h))
+	# (2026-11-12, the blind judge, in three of five pictures: "the blurry maroon blobs along the bottom edge cut the
+	# ground strip: compression smudges, not plants": the out-of-focus grass band is no longer drawn; FRONT_GRASS)
+	if FRONT_GRASS:
+		var tex: Texture2D = _tex[&"fg_grass"]
+		var h := float(tex.get_height())
+		var src_x := fposmod(scroll * FRONT_SCROLL + x0, tex.get_width())
+		ci.draw_texture_rect_region(tex, Rect2(x0, World.VIEW_H + FRONT_DROP - h, x1 - x0, h),
+				Rect2(src_x, 0, x1 - x0, h))
 	var props: Texture2D = _tex[&"fg_props"]
 	var offset := scroll * FRONT_PROP_SCROLL
 	var zone := hero_x - FRONT_ZONE  # play x: right of this, nothing rises over the ground line

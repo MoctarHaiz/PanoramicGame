@@ -41,7 +41,7 @@ const MOMENT_OF := {"pause": "game", "resume": "game", "throw": "game", "hurt": 
 		"fell": "climb", "win": "home"}
 ## Moments of the bot's run used by the level shots: name -> condition on the world.
 const MOMENTS := {
-	"game": "ticks >= 250",
+	"game": "ticks >= 250 and on_ground and not hanging",  # (on the ground: at tick 250 the bot is hanging, as in "hang")
 	"climb": "scroll > 5200 and y < 260",
 	"hang": "hanging and scroll > 18000",
 	"home": "at_end and x > 330",
@@ -98,8 +98,8 @@ func _collect_moments(needed: Dictionary) -> void:
 
 func _check(w: World, condition: String) -> bool:
 	var e := Expression.new()
-	e.parse(condition, ["ticks", "scroll", "x", "y", "hanging", "at_end"])
-	return e.execute([w.ticks, w.scroll, w.x, w.y, w.hanging, w.at_end])
+	e.parse(condition, ["ticks", "scroll", "x", "y", "hanging", "at_end", "on_ground"])
+	return e.execute([w.ticks, w.scroll, w.x, w.y, w.hanging, w.at_end, w.on_ground])
 
 
 func _capture(device: String, shot: String) -> void:

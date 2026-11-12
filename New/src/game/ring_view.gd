@@ -21,6 +21,18 @@ const HOT := Color("e6f6ff")
 ## back to its place over its first HAND_TIME seconds.
 const FROM_HAND := Vector2(-30.0, -18.0)
 const HAND_TIME := 4.0 / 60.0
+## (2026-11-12, the blind judge: "his hand releases at shoulder height, the ring first appears at hip height; edge-on
+## it is a vertical line: not the same object as the one in his hand") Thrown on the run it leaves his thrown fist
+## (WorldView sets `from_hand` from HeroView.THROW_FIST) and comes down to its lane over HAND_ARC seconds; it shows
+## its face all the way (ring_spin.png's drawings near face-on, WOBBLE; the edge-on ones are not shown) and spins.
+const HAND_ARC := 0.14
+const WOBBLE: Array[int] = [0, 1, 2, 1, 0, 7, 6, 7]
+const WOBBLE_WIDE := {0: 1.0, 1: 0.86, 2: 0.62, 6: 0.62, 7: 0.86}  ## how wide each of those drawings shows its face
+const WOBBLE_FPS := 14.0
+const SPIN := 15.0  ## radians a second it turns in its own plane
+
+var from_hand := FROM_HAND
+var hand_time := HAND_TIME
 
 var _clock := 0.0
 var _glow: Node2D
@@ -40,11 +52,12 @@ func _init() -> void:
 
 func _process(delta: float) -> void:
 	_clock += delta
-	_trail.push_front(position)
+	var at := position + _hand()
+	_trail.push_front(at)
 	if _trail.size() > TRAIL:
 		_trail.pop_back()
 	if randf() < delta * 14.0:
-		_sparks.append(Vector4(position.x + randf_range(-6, 6), position.y + randf_range(-10, 10), 0.0, randf_range(0.18, 0.32)))
+		_sparks.append(Vector4(at.x + randf_range(-6, 6), at.y + randf_range(-10, 10), 0.0, randf_range(0.18, 0.32)))
 	for i in range(_sparks.size() - 1, -1, -1):
 		var s := _sparks[i]
 		s.z += delta
@@ -59,20 +72,31 @@ func _process(delta: float) -> void:
 ## (collision pass) It met a bandit or rock (WorldView): drawn where it met it, no longer easing out of his hand
 ## (a ring stopped in its first tenth of a second was drawn up to 30 units short of what it hit).
 func met() -> void:
-	_clock = maxf(_clock, WIND_UP + HAND_TIME)
+	_clock = maxf(_clock, WIND_UP + hand_time)
 
 
-## How wide the ring shows as it turns (with ring_spin.png's frames: 1 face-on, ~0.2 edge-on).
+## The drawing of ring_spin.png shown now.
+func _frame() -> int:
+	return WOBBLE[int(_clock * WOBBLE_FPS) % WOBBLE.size()]
+
+
+## How wide the ring shows as it turns (1: face-on).
 func _turn() -> float:
-	return 0.2 + 0.8 * absf(cos(_clock * SPIN_FPS / SPIN_FRAMES * PI))
+	return WOBBLE_WIDE[_frame()]
+
+
+## Where it is drawn from its place in the rules: still on its way out of his hand.
+func _hand() -> Vector2:
+	var t := clampf((_clock - WIND_UP) / hand_time, 0.0, 1.0)
+	return from_hand * (1.0 - t) * (1.0 - t)
 
 
 func _draw() -> void:
 	if _clock < WIND_UP:
 		return
-	var hand := FROM_HAND * (1.0 - clampf((_clock - WIND_UP) / HAND_TIME, 0.0, 1.0))
-	draw_set_transform(hand)
-	var f := int(_clock * SPIN_FPS) % SPIN_FRAMES
+	var hand := _hand()
+	draw_set_transform(hand, _clock * SPIN)
+	var f := _frame()
 	var px := TEXTURE.get_height()
 	draw_texture_rect_region(TEXTURE, Rect2(-DRAW_RADIUS, -DRAW_RADIUS, DRAW_RADIUS * 2, DRAW_RADIUS * 2), Rect2(f * px, 0, px, px))
 	var spin := _clock * 18.0
