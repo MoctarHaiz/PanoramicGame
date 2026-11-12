@@ -13,6 +13,7 @@ the frame, then each layer of it alone on a transparent background, with the fra
     near_grass.png       the tall grass behind the path (a strip)
     tree_*.png           ten trees (+ tree_info.json: the foot of each trunk)
     fg_props.png         six plants and rocks near the camera
+    home_fire.png        the cooking fire at home, four frames (HomeView.Fire)
 
     python3 tools/art/kie/world.py [sky wall mesas plain rise grass trees front]   (none: all)
 
@@ -224,7 +225,22 @@ def front() -> None:
     save(atlas, OUT / "fg_props.png")
 
 
+def fire() -> None:
+    """The cooking fire at home: four frames in a row, the stones and logs in the same place in each."""
+    ps = pieces("fire", 4, 1)
+    k = 150.0 / max(p.shape[1] for p in ps)
+    ps = [resize(p, (round(p.shape[1] * k), round(p.shape[0] * k))) for p in ps]
+    cw, ch = max(p.shape[1] for p in ps) + 8, max(p.shape[0] for p in ps) + 4
+    sheet = np.zeros((ch, cw * 4, 4), np.float32)
+    for i, p in enumerate(ps):
+        foot = np.nonzero(p[-max(p.shape[0] // 4, 1):, :, 3].max(axis=0) > 0.5)[0]  # the ring of stones: its middle
+        x = i * cw + cw // 2 - int(foot.min() + foot.max()) // 2
+        x = min(max(x, i * cw), (i + 1) * cw - p.shape[1])
+        sheet[ch - p.shape[0]:, x:x + p.shape[1]] = p
+    save(sheet, OUT / "home_fire.png")
+
+
 if __name__ == "__main__":
-    todo = sys.argv[1:] or ["sky", "wall", "mesas", "plain", "rise", "grass", "trees", "front"]
+    todo = sys.argv[1:] or ["sky", "wall", "mesas", "plain", "rise", "grass", "trees", "front", "fire"]
     for name in todo:
         globals()[name]()

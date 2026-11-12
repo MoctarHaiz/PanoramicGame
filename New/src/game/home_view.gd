@@ -189,7 +189,9 @@ func _process(delta: float) -> void:
 		_fire_pool.modulate = Color(1, 0.66, 0.34, 0.24 + flick * 0.8 + 0.08 * _welcome)
 		_fire_reach.modulate = Color(1, 0.62, 0.3, 0.24 + flick * 0.7 + 0.06 * _welcome)
 		_fire_side.modulate = Color(1, 0.58, 0.28, 0.12 + flick * 0.5 + 0.05 * _welcome)
-		_door_lift.modulate = Color(0.13, 0.06, 0.1, 0.9)
+		# (a middle value, the dusk's violet-brown: under his skin's, over his black hair's; an earlier round's judges
+		# saw "his black hair melt into the dark doorway", these saw his torso melt into the lit one)
+		_door_lift.modulate = Color(0.33, 0.23, 0.35, 0.94)
 
 
 ## He is home: the fire flares up to welcome him.
@@ -309,6 +311,10 @@ class Fire extends Node2D:
 	var flare := 0.0  ## round 20: 0..1, it flares up when he is home (HomeView)
 	var _flames: Array[ShaderMaterial] = []  # round 20: the painted flames (fire.gdshader), back and front
 
+	const FRAMES := 4
+	const FPS := 9.0
+	var _painted: Sprite2D  # the painted fire (home_fire.png: stones, logs and four flames), when it is there
+
 	func _ready() -> void:
 		_glow = Sprite2D.new()
 		_glow.texture = load(DIR + "home_glow.png")
@@ -329,6 +335,20 @@ class Fire extends Node2D:
 		_light.show_behind_parent = true
 		# round 20 (the judges, j16: "the campfire flat vector triangles"): the flames painted by fire.gdshader,
 		# a bigger, redder body behind and a smaller, hotter one in front, each its own flicker
+		# (blind rounds 5 to 7: "the fire is flat flame shapes, half see-through: the fence shows through it": the fire
+		# painted in the world's inked cel style, four frames; the shader's flames and the drawn stones stay as the fallback)
+		if ResourceLoader.exists(DIR + "home_fire.png"):
+			_painted = Sprite2D.new()
+			_painted.texture = load(DIR + "home_fire.png")
+			_painted.hframes = FRAMES
+			_painted.centered = false
+			var size := _painted.texture.get_size() / Vector2(FRAMES, 1)
+			var k := 56.0 / size.x  # units wide at the fire's own scale (HomeView doubles it)
+			_painted.scale = Vector2(k, k)
+			_painted.position = Vector2(-size.x * k / 2.0, 5.0 - size.y * k)
+			add_child(_painted)
+			add_child(_sparks())
+			return
 		var img := Image.create_empty(4, 4, false, Image.FORMAT_RGBA8)
 		img.fill(Color.WHITE)
 		var white := ImageTexture.create_from_image(img)
@@ -356,9 +376,14 @@ class Fire extends Node2D:
 		_light.modulate = Color(1, 0.6, 0.3, 0.06 + flicker * 0.15)
 		for m in _flames:
 			m.set_shader_parameter(&"flare", flare)
+		if _painted:
+			_painted.frame = int(_clock * FPS) % FRAMES
+			return
 		queue_redraw()
 
 	func _draw() -> void:
+		if _painted:
+			return
 		var flick := 0.85 + 0.1 * sin(_clock * 11.0) + 0.05 * sin(_clock * 27.0)
 		# the embers under the logs, glowing
 		draw_set_transform(Vector2(0, -3.0), 0.0, Vector2(1.0, 0.32))

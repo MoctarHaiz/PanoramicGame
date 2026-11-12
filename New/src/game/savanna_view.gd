@@ -100,8 +100,8 @@ const DUSK_STRIPS := {&"far_wall": Color(0.6, 0.6, 0.9), &"far_hills": Color(0.7
 ## middle-ground rise (they move between the plain's speed and the rise's), big ones behind the tall grass, their trunks
 ## passing behind him and their crowns over the landforms. (The plain has its own far groves painted in.)
 const TREE_ROWS := [
-	[0.14, 330.0, 96.0, 540.0, 0.2, 0.0, 0.42, LANE_AIR],
-	[0.31, 760.0, 232.0, 594.0, 0.06, 0.0, 0.5, LANE_AIR],
+	[0.14, 330.0, 96.0, 540.0, 0.28, 0.0, 0.42, LANE_AIR],
+	[0.31, 760.0, 232.0, 594.0, 0.2, 0.0, 0.7, LANE_AIR],  # (few: "the baobab behind the action out-contrasts him")
 ]
 ## The big near row: only trees with a tall trunk, their crowns over his head: behind his body there is a trunk at
 ## most (a wide low crown behind him hid him and the bandits).
@@ -110,7 +110,7 @@ const TREE_TINT := [Color(0.96, 0.96, 1.0), Color(1, 1, 1)]
 const TREE_INK := [0.0, 0.0]  ## (painted inked)
 const TREE_INK_AMOUNT := [0.0, 0.0]
 const TREE_INK_COLOUR := [Color(0.3, 0.26, 0.33), Color(0.17, 0.085, 0.06)]
-const TREE_FLATTEN := [0.5, 0.34]
+const TREE_FLATTEN := [0.64, 0.56]
 const TREE_AMBIENT := [0.0, 0.0]
 ## Round 22 (the judges, j18: "the hero's lane has no value separation: a mid-orange hero on mid-gold grass"): the tall
 ## grass behind his legs and the savanna behind his body a value darker and greener (an olive band), so his warm skin,
@@ -124,19 +124,23 @@ const MID_TINT := Color(0.97, 0.98, 0.94)
 const LANE_TINT := Color(0.96, 0.98, 0.92)
 ## and each a little flatter than painted (less contrast, less colour: the shader's `flatten`), the plain most: the
 ## characters in front are the picture's strongest darks and colours
-const PLAIN_FLATTEN := 0.4
-const PLAIN_HAZE := 0.1
-const MID_FLATTEN := 0.42
-const MID_HAZE := 0.1
-const LANE_FLATTEN := 0.26
-const LANE_HAZE := 0.03
-const LANE_AIR := Color(0.94, 0.88, 0.77)  ## what the plain's and the lane's layers are drawn toward: a pale warm air
+## (blind rounds 5 to 7, three judges: two asked for the band behind the characters lighter and quieter, one for it
+## lower in contrast; the cool shade of round 7 lost ground: "brown-on-tan: his torso has the mound's hue and value")
+## pale and quiet: the rise, the trees and the grass behind the path well flattened and drawn toward a pale air that
+## is cooler and less coloured than his skin: he and the bandits are the darkest, most saturated shapes on screen
+const PLAIN_FLATTEN := 0.55
+const PLAIN_HAZE := 0.18
+const MID_FLATTEN := 0.64
+const MID_HAZE := 0.22
+const LANE_FLATTEN := 0.42
+const LANE_HAZE := 0.1
+const LANE_AIR := Color(0.93, 0.9, 0.84)  ## what the plain's and the lane's layers are drawn toward: a pale, nearly neutral air
 ## (blind round 6: "acacias, mound, pool and boulders at full strength right at his height; his white loincloth and legs
 ## on pale straw": pale was the wrong step for a hero who is both white cloth and dark skin) a cloud's shadow lies
 ## across the middle ground behind the play: from the far plain's near half down, everything behind the path is
 ## multiplied by a cool violet shade (soft-edged at its far side), a middle value under his whites and over his darks;
 ## the sky, the landforms and the far plain stay in the sun, and so do the path and the characters in front.
-const LANE_SHADE := Color(0.66, 0.66, 0.88)
+const LANE_SHADE := Color(0.95, 0.95, 0.99)  ## (round 7's (0.66, 0.66, 0.88) made the band his skin's value: nearly off)
 const LANE_SHADE_FROM := 462.0  ## play y where the shade starts (the far plain: in the sun above it)
 const LANE_SHADE_FULL := 508.0  ## and where it is full
 const CLOUD_SHADOW_GAP := 700.0  ## round 10: units of the plain between two clouds' shadows
