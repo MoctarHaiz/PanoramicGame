@@ -107,10 +107,11 @@ The AdMob **app** ids are in Project Settings › Admob (Google's sample ids unt
 | `tools/art/blender/hero_render.py` | Panoramic's animations from the user's 3D model (`Making/Animation.blend`), re-lit for the savanna, new moves posed in Blender |
 | `tools/art/hero_atlas.py` | packs those frames into `assets/art/hero/hero_atlas_*.png` + `hero_frames.json`; the menu and card pictures |
 | `tools/art/blender/ring_render.py` | the throwing ring in 3D (8 frames of a turn) |
-| `tools/art/kie/kie.py` | the kie.ai client (Nano Banana 2 stills, Kling 4.0 clips): the key is read from `~/.config/kie/key`, every task and its credits are logged in `tools/art/gen/kie/` (git-ignored) |
+| `tools/art/kie/kie.py` | the kie.ai client (Nano Banana 2 stills, GPT Image 2.6 Sunburst and Seedream 5.5 with `--model`, Kling 4.0 clips): the key is read from `~/.config/kie/key`, every task and its credits are logged in `tools/art/gen/kie/` (git-ignored) |
 | `tools/art/kie/clip.py`, `sheet.py` | a run clip to clean drawings: the frames keyed, each pose the median of its repeats in the clip, the stride laid on a sheet, redrawn crisp at 4K and cut back onto the clip's canvas |
 | `tools/art/kie/throw.py`, `hero_pack.py` | Panoramic's run (12 drawings, his boot held on the ground at 16 a second), his throw laid over the run (24), his jump (8); packs `hero_atlas_*.png` + `hero_frames.json`, his other moves kept from the atlas before |
 | `tools/art/kie/between.py`, `bandit_pack.py` | the bandits' runs: the clip's 6 keys and 6 in-betweens drawn on their chart (12 drawings each); packs `assets/art/bandit/<kind>.png` + `.json`, their other poses kept |
+| `tools/art/kie/world.py` | the level's backdrop from its painted layers (GPT Image 2.6 Sunburst: one style frame, then each layer alone on a transparent background): cuts and makes repeat `sky.png`, `far_wall.png`, `far_mesa_pieces.png` + `.json`, `far_hills.png`, `mid_hills.png`, `near_grass.png`, `tree_*.png` + `tree_info.json`, `fg_props.png` |
 | `tools/art/material.py` | lit, tiling soil and sandstone; the sandstone stacks (used by `terrain.py`) |
 | `tools/art/terrain.py` | the ground: soil, sandstone, stacks, cell shapes, grass caps and ends, roots, tufts |
 | `tools/art/savanna.py` | the sky, sun, god rays, clouds, far escarpments, hills, tall grass, motes, birds; the menu's sunset |

@@ -8,7 +8,42 @@
    "path": "assets/art/bandit/bandit.png",
    "status": "approved",
    "technical": {
-    "dimensions": "1588x536",
+    "dimensions": "1012x1380",
+    "alpha": true,
+    "anchor": "per bandit.json (the ground under his body)",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "identity",
+    "silhouette",
+    "palette",
+    "facing"
+   ],
+   "source": {
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai Nano Banana 2 from the user's 2017 frames (prompts and inputs: ROOT/_agents/kie/bandit/), packed by tools/art/bandit_sheet.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "Old/app/src/main/assets/bandit/bandit1-10.png; ROOT/_agents/kie/bandit/p/run.txt, poses.txt; ROOT/_agents/kie/ledger.jsonl (tags bandit_*)",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "bandit-bandit_strong",
+   "role": "the 2017 bandit's sheet (his 10-frame run, waiting, the punch drawn back and thrown, hit, the leap): the user's own drawing (Old/app/src/main/assets/bandit/bandit1-10.png) redrawn clean with kie.ai, packed by tools/art/bandit_sheet.py",
+   "path": "assets/art/bandit/bandit_strong.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "940x2432",
     "alpha": true,
     "anchor": "per bandit.json (the ground under his body)",
     "frames": null,
@@ -72,7 +107,7 @@
   },
   {
    "id": "fx-ring_spin",
-   "role": "Panoramic's throwing ring: a 3D blue-steel torus with a glowing inner edge, 8 frames of a half turn",
+   "role": "Panoramic's chakram: a blue-steel ring with a band of Zulu beadwork (red and black triangles on white), 8 frames of a half turn",
    "path": "assets/art/fx/ring_spin.png",
    "status": "approved",
    "technical": {
@@ -88,10 +123,10 @@
    ],
    "source": {
     "kind": "authored-procedural",
-    "url_or_tool": "tools/art/blender/ring_render.py (Blender)",
+    "url_or_tool": "tools/art/ring_beadwork.py",
     "creator": "Claude for Haiz Studio",
     "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/blender/ring_render.py (Blender)",
+    "prompt_or_source_record": "tools/art/ring_beadwork.py",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -141,7 +176,7 @@
    "path": "assets/art/hero/hero_atlas_0.png",
    "status": "approved",
    "technical": {
-    "dimensions": "2012x2036",
+    "dimensions": "2048x1968",
     "alpha": true,
     "anchor": "per hero_frames.json (ground origin / hips / hands)",
     "frames": null,
@@ -177,7 +212,7 @@
    "path": "assets/art/hero/hero_atlas_1.png",
    "status": "approved",
    "technical": {
-    "dimensions": "2040x2048",
+    "dimensions": "2048x1784",
     "alpha": true,
     "anchor": "per hero_frames.json (ground origin / hips / hands)",
     "frames": null,
@@ -213,7 +248,7 @@
    "path": "assets/art/hero/hero_atlas_2.png",
    "status": "approved",
    "technical": {
-    "dimensions": "2028x2004",
+    "dimensions": "2048x2028",
     "alpha": true,
     "anchor": "per hero_frames.json (ground origin / hips / hands)",
     "frames": null,
@@ -249,7 +284,7 @@
    "path": "assets/art/hero/hero_atlas_3.png",
    "status": "approved",
    "technical": {
-    "dimensions": "1984x1272",
+    "dimensions": "2048x1004",
     "alpha": true,
     "anchor": "per hero_frames.json (ground origin / hips / hands)",
     "frames": null,
@@ -285,7 +320,7 @@
    "path": "assets/art/hero/hero_defeat.png",
    "status": "approved",
    "technical": {
-    "dimensions": "1137x713",
+    "dimensions": "973x758",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -318,7 +353,7 @@
    "path": "assets/art/hero/hero_menu.png",
    "status": "approved",
    "technical": {
-    "dimensions": "758x806",
+    "dimensions": "784x1037",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -351,7 +386,7 @@
    "path": "assets/art/hero/hero_win.png",
    "status": "approved",
    "technical": {
-    "dimensions": "797x938",
+    "dimensions": "784x1037",
     "alpha": true,
     "anchor": "bottom-centre",
     "frames": null,
@@ -675,6 +710,70 @@
    }
   },
   {
+   "id": "ui-beadwork_band",
+   "role": "interface ornament (beadwork, ribbon, shield, HUD head)",
+   "path": "assets/art/ui/beadwork_band.png",
+   "status": "needs-work",
+   "technical": {
+    "dimensions": "288x60",
+    "alpha": true,
+    "anchor": "centre",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette"
+   ],
+   "source": {
+    "kind": "authored-procedural",
+    "url_or_tool": "tools/art/ui_art.py / logo.py",
+    "creator": "Claude for Haiz Studio",
+    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
+    "prompt_or_source_record": "tools/art/ui_art.py / logo.py",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": false,
+    "approved_by": "",
+    "notes": "expected transparency, every pixel is opaque"
+   }
+  },
+  {
+   "id": "ui-beadwork_motifs",
+   "role": "interface ornament (beadwork, ribbon, shield, HUD head)",
+   "path": "assets/art/ui/beadwork_motifs.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "474x126",
+    "alpha": true,
+    "anchor": "centre",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette"
+   ],
+   "source": {
+    "kind": "authored-procedural",
+    "url_or_tool": "tools/art/ui_art.py / logo.py",
+    "creator": "Claude for Haiz Studio",
+    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
+    "prompt_or_source_record": "tools/art/ui_art.py / logo.py",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
    "id": "ui-corners",
    "role": "the panels' jewelled corner bosses (a bevelled ring set with beads, a domed cabochon: brass and red, dark bronze and garnet)",
    "path": "assets/art/ui/corners.png",
@@ -812,7 +911,7 @@
    "path": "assets/art/ui/logo.png",
    "status": "approved",
    "technical": {
-    "dimensions": "1226x715",
+    "dimensions": "1150x887",
     "alpha": true,
     "anchor": "centre",
     "frames": null,
@@ -836,6 +935,70 @@
     "technical_checks_passed": true,
     "approved_by": "",
     "notes": ""
+   }
+  },
+  {
+   "id": "ui-menu_keyart",
+   "role": "interface ornament (beadwork, ribbon, shield, HUD head)",
+   "path": "assets/art/ui/menu_keyart.png",
+   "status": "needs-work",
+   "technical": {
+    "dimensions": "2556x1179",
+    "alpha": false,
+    "anchor": "centre",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette"
+   ],
+   "source": {
+    "kind": "authored-procedural",
+    "url_or_tool": "tools/art/ui_art.py / logo.py",
+    "creator": "Claude for Haiz Studio",
+    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
+    "prompt_or_source_record": "tools/art/ui_art.py / logo.py",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": false,
+    "approved_by": "",
+    "notes": "expected transparency, every pixel is opaque"
+   }
+  },
+  {
+   "id": "ui-menu_keyart_soft",
+   "role": "interface ornament (beadwork, ribbon, shield, HUD head)",
+   "path": "assets/art/ui/menu_keyart_soft.png",
+   "status": "needs-work",
+   "technical": {
+    "dimensions": "362x167",
+    "alpha": false,
+    "anchor": "centre",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette"
+   ],
+   "source": {
+    "kind": "authored-procedural",
+    "url_or_tool": "tools/art/ui_art.py / logo.py",
+    "creator": "Claude for Haiz Studio",
+    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
+    "prompt_or_source_record": "tools/art/ui_art.py / logo.py",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": false,
+    "approved_by": "",
+    "notes": "expected transparency, every pixel is opaque"
    }
   },
   {
@@ -1000,39 +1163,6 @@
    }
   },
   {
-   "id": "world-animals",
-   "role": "level world layer or terrain texture",
-   "path": "assets/art/world/animals.png",
-   "status": "approved",
-   "technical": {
-    "dimensions": "788x220",
-    "alpha": true,
-    "anchor": "per view",
-    "frames": null,
-    "filtering": "linear"
-   },
-   "visual_locks": [
-    "palette",
-    "light-direction"
-   ],
-   "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/savanna.py / terrain.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
-    "created_at": "2026-10-30",
-    "attribution": ""
-   },
-   "verification": {
-    "native_scale_reviewed": true,
-    "in_engine_reviewed": true,
-    "technical_checks_passed": true,
-    "approved_by": "",
-    "notes": ""
-   }
-  },
-  {
    "id": "world-bird",
    "role": "level world layer or terrain texture",
    "path": "assets/art/world/bird.png",
@@ -1066,146 +1196,14 @@
    }
   },
   {
-   "id": "world-cloud_1",
-   "role": "level world layer or terrain texture",
-   "path": "assets/art/world/cloud_1.png",
-   "status": "approved",
-   "technical": {
-    "dimensions": "484x73",
-    "alpha": true,
-    "anchor": "per view",
-    "frames": null,
-    "filtering": "linear"
-   },
-   "visual_locks": [
-    "palette",
-    "light-direction"
-   ],
-   "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/savanna.py / terrain.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
-    "created_at": "2026-10-30",
-    "attribution": ""
-   },
-   "verification": {
-    "native_scale_reviewed": true,
-    "in_engine_reviewed": true,
-    "technical_checks_passed": true,
-    "approved_by": "",
-    "notes": ""
-   }
-  },
-  {
-   "id": "world-cloud_2",
-   "role": "level world layer or terrain texture",
-   "path": "assets/art/world/cloud_2.png",
-   "status": "approved",
-   "technical": {
-    "dimensions": "500x69",
-    "alpha": true,
-    "anchor": "per view",
-    "frames": null,
-    "filtering": "linear"
-   },
-   "visual_locks": [
-    "palette",
-    "light-direction"
-   ],
-   "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/savanna.py / terrain.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
-    "created_at": "2026-10-30",
-    "attribution": ""
-   },
-   "verification": {
-    "native_scale_reviewed": true,
-    "in_engine_reviewed": true,
-    "technical_checks_passed": true,
-    "approved_by": "",
-    "notes": ""
-   }
-  },
-  {
-   "id": "world-cloud_3",
-   "role": "level world layer or terrain texture",
-   "path": "assets/art/world/cloud_3.png",
-   "status": "approved",
-   "technical": {
-    "dimensions": "491x75",
-    "alpha": true,
-    "anchor": "per view",
-    "frames": null,
-    "filtering": "linear"
-   },
-   "visual_locks": [
-    "palette",
-    "light-direction"
-   ],
-   "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/savanna.py / terrain.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
-    "created_at": "2026-10-30",
-    "attribution": ""
-   },
-   "verification": {
-    "native_scale_reviewed": true,
-    "in_engine_reviewed": true,
-    "technical_checks_passed": true,
-    "approved_by": "",
-    "notes": ""
-   }
-  },
-  {
-   "id": "world-cloud_4",
-   "role": "level world layer or terrain texture",
-   "path": "assets/art/world/cloud_4.png",
-   "status": "approved",
-   "technical": {
-    "dimensions": "492x77",
-    "alpha": true,
-    "anchor": "per view",
-    "frames": null,
-    "filtering": "linear"
-   },
-   "visual_locks": [
-    "palette",
-    "light-direction"
-   ],
-   "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/savanna.py / terrain.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
-    "created_at": "2026-10-30",
-    "attribution": ""
-   },
-   "verification": {
-    "native_scale_reviewed": true,
-    "in_engine_reviewed": true,
-    "technical_checks_passed": true,
-    "approved_by": "",
-    "notes": ""
-   }
-  },
-  {
    "id": "world-far_hills",
-   "role": "level world layer or terrain texture",
+   "role": "far backdrop layer (the escarpment, the landforms and their .json, the plain)",
    "path": "assets/art/world/far_hills.png",
    "status": "approved",
    "technical": {
-    "dimensions": "2048x170",
+    "dimensions": "3584x310",
     "alpha": true,
-    "anchor": "per view",
+    "anchor": "bottom, repeats in x",
     "frames": null,
     "filtering": "linear"
    },
@@ -1214,11 +1212,11 @@
     "light-direction"
    ],
    "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/savanna.py / terrain.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own key art (prompts: tools/art/gen/kie/world/*.txt), cut by tools/art/kie/world.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/frame.txt and one prompt per layer; tools/art/gen/kie/ledger.jsonl (names world/*)",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -1231,14 +1229,14 @@
    }
   },
   {
-   "id": "world-far_mesas",
-   "role": "level world layer or terrain texture",
-   "path": "assets/art/world/far_mesas.png",
+   "id": "world-far_mesa_pieces",
+   "role": "far backdrop layer (the escarpment, the landforms and their .json, the plain)",
+   "path": "assets/art/world/far_mesa_pieces.png",
    "status": "approved",
    "technical": {
-    "dimensions": "2048x360",
+    "dimensions": "2048x816",
     "alpha": true,
-    "anchor": "per view",
+    "anchor": "bottom, repeats in x",
     "frames": null,
     "filtering": "linear"
    },
@@ -1247,11 +1245,11 @@
     "light-direction"
    ],
    "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/savanna.py / terrain.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own key art (prompts: tools/art/gen/kie/world/*.txt), cut by tools/art/kie/world.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/frame.txt and one prompt per layer; tools/art/gen/kie/ledger.jsonl (names world/*)",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -1264,14 +1262,14 @@
    }
   },
   {
-   "id": "world-fg_grass",
-   "role": "level world layer or terrain texture",
-   "path": "assets/art/world/fg_grass.png",
+   "id": "world-far_wall",
+   "role": "far backdrop layer (the escarpment, the landforms and their .json, the plain)",
+   "path": "assets/art/world/far_wall.png",
    "status": "approved",
    "technical": {
-    "dimensions": "2048x150",
+    "dimensions": "1792x156",
     "alpha": true,
-    "anchor": "per view",
+    "anchor": "bottom, repeats in x",
     "frames": null,
     "filtering": "linear"
    },
@@ -1280,11 +1278,11 @@
     "light-direction"
    ],
    "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/savanna.py / terrain.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own key art (prompts: tools/art/gen/kie/world/*.txt), cut by tools/art/kie/world.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/frame.txt and one prompt per layer; tools/art/gen/kie/ledger.jsonl (names world/*)",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -1298,13 +1296,13 @@
   },
   {
    "id": "world-fg_props",
-   "role": "level world layer or terrain texture",
+   "role": "six plants and rocks near the camera (3 x 2 cells)",
    "path": "assets/art/world/fg_props.png",
    "status": "approved",
    "technical": {
-    "dimensions": "1040x190",
+    "dimensions": "1320x780",
     "alpha": true,
-    "anchor": "per view",
+    "anchor": "bottom-centre of each cell",
     "frames": null,
     "filtering": "linear"
    },
@@ -1313,11 +1311,11 @@
     "light-direction"
    ],
    "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/savanna.py / terrain.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own key art (prompts: tools/art/gen/kie/world/*.txt), cut by tools/art/kie/world.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/frame.txt and one prompt per layer; tools/art/gen/kie/ledger.jsonl (names world/*)",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -1368,7 +1366,7 @@
    "path": "assets/art/world/grass_cap.png",
    "status": "approved",
    "technical": {
-    "dimensions": "2048x104",
+    "dimensions": "2048x100",
     "alpha": true,
     "anchor": "per view",
     "frames": null,
@@ -1434,40 +1432,7 @@
    "path": "assets/art/world/grass_ends.png",
    "status": "approved",
    "technical": {
-    "dimensions": "216x96",
-    "alpha": true,
-    "anchor": "per view",
-    "frames": null,
-    "filtering": "linear"
-   },
-   "visual_locks": [
-    "palette",
-    "light-direction"
-   ],
-   "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/savanna.py / terrain.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
-    "created_at": "2026-10-30",
-    "attribution": ""
-   },
-   "verification": {
-    "native_scale_reviewed": true,
-    "in_engine_reviewed": true,
-    "technical_checks_passed": true,
-    "approved_by": "",
-    "notes": ""
-   }
-  },
-  {
-   "id": "world-hanging",
-   "role": "level world layer or terrain texture",
-   "path": "assets/art/world/hanging.png",
-   "status": "approved",
-   "technical": {
-    "dimensions": "1280x240",
+    "dimensions": "216x100",
     "alpha": true,
     "anchor": "per view",
     "frames": null,
@@ -1665,7 +1630,7 @@
    "path": "assets/art/world/home_hut.png",
    "status": "approved",
    "technical": {
-    "dimensions": "736x668",
+    "dimensions": "740x674",
     "alpha": true,
     "anchor": "bottom-centre at the ground",
     "frames": null,
@@ -1698,7 +1663,7 @@
    "path": "assets/art/world/home_hut_front.png",
    "status": "approved",
    "technical": {
-    "dimensions": "432x668",
+    "dimensions": "435x674",
     "alpha": true,
     "anchor": "bottom-centre at the ground",
     "frames": null,
@@ -1731,7 +1696,7 @@
    "path": "assets/art/world/home_hut_low.png",
    "status": "approved",
    "technical": {
-    "dimensions": "576x304",
+    "dimensions": "596x304",
     "alpha": true,
     "anchor": "bottom-centre at the ground",
     "frames": null,
@@ -1764,7 +1729,7 @@
    "path": "assets/art/world/home_hut_small.png",
    "status": "approved",
    "technical": {
-    "dimensions": "440x460",
+    "dimensions": "428x460",
     "alpha": true,
     "anchor": "bottom-centre at the ground",
     "frames": null,
@@ -1797,7 +1762,7 @@
    "path": "assets/art/world/home_pot.png",
    "status": "approved",
    "technical": {
-    "dimensions": "88x80",
+    "dimensions": "86x80",
     "alpha": true,
     "anchor": "bottom-centre at the ground",
     "frames": null,
@@ -1830,7 +1795,7 @@
    "path": "assets/art/world/home_sign.png",
    "status": "approved",
    "technical": {
-    "dimensions": "240x260",
+    "dimensions": "261x260",
     "alpha": true,
     "anchor": "bottom-centre at the ground",
     "frames": null,
@@ -1892,13 +1857,13 @@
   },
   {
    "id": "world-mid_hills",
-   "role": "level world layer or terrain texture",
+   "role": "the middle-ground rise, repeats in x",
    "path": "assets/art/world/mid_hills.png",
    "status": "approved",
    "technical": {
-    "dimensions": "2048x240",
+    "dimensions": "3584x404",
     "alpha": true,
-    "anchor": "per view",
+    "anchor": "bottom, repeats in x",
     "frames": null,
     "filtering": "linear"
    },
@@ -1907,11 +1872,11 @@
     "light-direction"
    ],
    "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/savanna.py / terrain.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own key art (prompts: tools/art/gen/kie/world/*.txt), cut by tools/art/kie/world.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/frame.txt and one prompt per layer; tools/art/gen/kie/ledger.jsonl (names world/*)",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -1958,13 +1923,13 @@
   },
   {
    "id": "world-near_grass",
-   "role": "level world layer or terrain texture",
+   "role": "the tall grass behind the path, repeats in x",
    "path": "assets/art/world/near_grass.png",
    "status": "approved",
    "technical": {
-    "dimensions": "2048x200",
+    "dimensions": "3584x350",
     "alpha": true,
-    "anchor": "per view",
+    "anchor": "bottom, repeats in x",
     "frames": null,
     "filtering": "linear"
    },
@@ -1973,11 +1938,11 @@
     "light-direction"
    ],
    "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/savanna.py / terrain.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own key art (prompts: tools/art/gen/kie/world/*.txt), cut by tools/art/kie/world.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/frame.txt and one prompt per layer; tools/art/gen/kie/ledger.jsonl (names world/*)",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -1995,7 +1960,7 @@
    "path": "assets/art/world/prop_aloe.png",
    "status": "approved",
    "technical": {
-    "dimensions": "140x192",
+    "dimensions": "124x192",
     "alpha": true,
     "anchor": "bottom-centre at the ground",
     "frames": null,
@@ -2028,7 +1993,7 @@
    "path": "assets/art/world/prop_bush_a.png",
    "status": "approved",
    "technical": {
-    "dimensions": "144x92",
+    "dimensions": "143x92",
     "alpha": true,
     "anchor": "bottom-centre at the ground",
     "frames": null,
@@ -2061,7 +2026,7 @@
    "path": "assets/art/world/prop_bush_b.png",
    "status": "approved",
    "technical": {
-    "dimensions": "108x72",
+    "dimensions": "112x72",
     "alpha": true,
     "anchor": "bottom-centre at the ground",
     "frames": null,
@@ -2094,7 +2059,7 @@
    "path": "assets/art/world/prop_reeds.png",
    "status": "approved",
    "technical": {
-    "dimensions": "192x160",
+    "dimensions": "202x160",
     "alpha": true,
     "anchor": "bottom-centre at the ground",
     "frames": null,
@@ -2127,7 +2092,7 @@
    "path": "assets/art/world/prop_rock_a.png",
    "status": "approved",
    "technical": {
-    "dimensions": "92x56",
+    "dimensions": "99x56",
     "alpha": true,
     "anchor": "bottom-centre at the ground",
     "frames": null,
@@ -2160,7 +2125,7 @@
    "path": "assets/art/world/prop_rock_b.png",
    "status": "approved",
    "technical": {
-    "dimensions": "60x36",
+    "dimensions": "61x36",
     "alpha": true,
     "anchor": "bottom-centre at the ground",
     "frames": null,
@@ -2193,7 +2158,7 @@
    "path": "assets/art/world/prop_stump.png",
    "status": "approved",
    "technical": {
-    "dimensions": "120x100",
+    "dimensions": "117x100",
     "alpha": true,
     "anchor": "bottom-centre at the ground",
     "frames": null,
@@ -2226,7 +2191,7 @@
    "path": "assets/art/world/prop_termite.png",
    "status": "approved",
    "technical": {
-    "dimensions": "180x260",
+    "dimensions": "148x260",
     "alpha": true,
     "anchor": "bottom-centre at the ground",
     "frames": null,
@@ -2259,40 +2224,7 @@
    "path": "assets/art/world/rays.png",
    "status": "approved",
    "technical": {
-    "dimensions": "640x410",
-    "alpha": true,
-    "anchor": "per view",
-    "frames": null,
-    "filtering": "linear"
-   },
-   "visual_locks": [
-    "palette",
-    "light-direction"
-   ],
-   "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/savanna.py / terrain.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
-    "created_at": "2026-10-30",
-    "attribution": ""
-   },
-   "verification": {
-    "native_scale_reviewed": true,
-    "in_engine_reviewed": true,
-    "technical_checks_passed": true,
-    "approved_by": "",
-    "notes": ""
-   }
-  },
-  {
-   "id": "world-rock",
-   "role": "level world layer or terrain texture",
-   "path": "assets/art/world/rock.png",
-   "status": "approved",
-   "technical": {
-    "dimensions": "512x512",
+    "dimensions": "320x205",
     "alpha": true,
     "anchor": "per view",
     "frames": null,
@@ -2354,13 +2286,13 @@
   },
   {
    "id": "world-sky",
-   "role": "level world layer or terrain texture",
+   "role": "the level's sky panorama, repeats in x",
    "path": "assets/art/world/sky.png",
    "status": "approved",
    "technical": {
-    "dimensions": "512x320",
-    "alpha": true,
-    "anchor": "per view",
+    "dimensions": "3072x1111",
+    "alpha": false,
+    "anchor": "top-left, repeats in x",
     "frames": null,
     "filtering": "linear"
    },
@@ -2369,11 +2301,11 @@
     "light-direction"
    ],
    "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/savanna.py / terrain.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own key art (prompts: tools/art/gen/kie/world/*.txt), cut by tools/art/kie/world.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/frame.txt and one prompt per layer; tools/art/gen/kie/ledger.jsonl (names world/*)",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -2392,105 +2324,6 @@
    "status": "approved",
    "technical": {
     "dimensions": "512x512",
-    "alpha": true,
-    "anchor": "per view",
-    "frames": null,
-    "filtering": "linear"
-   },
-   "visual_locks": [
-    "palette",
-    "light-direction"
-   ],
-   "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/savanna.py / terrain.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
-    "created_at": "2026-10-30",
-    "attribution": ""
-   },
-   "verification": {
-    "native_scale_reviewed": true,
-    "in_engine_reviewed": true,
-    "technical_checks_passed": true,
-    "approved_by": "",
-    "notes": ""
-   }
-  },
-  {
-   "id": "world-spires",
-   "role": "level world layer or terrain texture",
-   "path": "assets/art/world/spires.png",
-   "status": "approved",
-   "technical": {
-    "dimensions": "576x1120",
-    "alpha": true,
-    "anchor": "per view",
-    "frames": null,
-    "filtering": "linear"
-   },
-   "visual_locks": [
-    "palette",
-    "light-direction"
-   ],
-   "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/savanna.py / terrain.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
-    "created_at": "2026-10-30",
-    "attribution": ""
-   },
-   "verification": {
-    "native_scale_reviewed": true,
-    "in_engine_reviewed": true,
-    "technical_checks_passed": true,
-    "approved_by": "",
-    "notes": ""
-   }
-  },
-  {
-   "id": "world-sun",
-   "role": "level world layer or terrain texture",
-   "path": "assets/art/world/sun.png",
-   "status": "approved",
-   "technical": {
-    "dimensions": "512x512",
-    "alpha": true,
-    "anchor": "per view",
-    "frames": null,
-    "filtering": "linear"
-   },
-   "visual_locks": [
-    "palette",
-    "light-direction"
-   ],
-   "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/savanna.py / terrain.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
-    "created_at": "2026-10-30",
-    "attribution": ""
-   },
-   "verification": {
-    "native_scale_reviewed": true,
-    "in_engine_reviewed": true,
-    "technical_checks_passed": true,
-    "approved_by": "",
-    "notes": ""
-   }
-  },
-  {
-   "id": "world-sun_halo",
-   "role": "level world layer or terrain texture",
-   "path": "assets/art/world/sun_halo.png",
-   "status": "approved",
-   "technical": {
-    "dimensions": "256x256",
     "alpha": true,
     "anchor": "per view",
     "frames": null,
@@ -2680,11 +2513,11 @@
   },
   {
    "id": "world-tree_acacia_1",
-   "role": "background tree (acacia, baobab), anchors in tree_info.json",
+   "role": "background tree (acacia, baobab, marula, a dead tree), anchors in tree_info.json",
    "path": "assets/art/world/tree_acacia_1.png",
    "status": "approved",
    "technical": {
-    "dimensions": "560x400",
+    "dimensions": "598x346",
     "alpha": true,
     "anchor": "bottom-centre at the trunk",
     "frames": null,
@@ -2695,11 +2528,11 @@
     "light-direction"
    ],
    "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/trees.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/trees.py",
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own key art (prompts: tools/art/gen/kie/world/*.txt), cut by tools/art/kie/world.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/frame.txt and one prompt per layer; tools/art/gen/kie/ledger.jsonl (names world/*)",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -2713,11 +2546,11 @@
   },
   {
    "id": "world-tree_acacia_2",
-   "role": "background tree (acacia, baobab), anchors in tree_info.json",
+   "role": "background tree (acacia, baobab, marula, a dead tree), anchors in tree_info.json",
    "path": "assets/art/world/tree_acacia_2.png",
    "status": "approved",
    "technical": {
-    "dimensions": "560x400",
+    "dimensions": "636x598",
     "alpha": true,
     "anchor": "bottom-centre at the trunk",
     "frames": null,
@@ -2728,11 +2561,11 @@
     "light-direction"
    ],
    "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/trees.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/trees.py",
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own key art (prompts: tools/art/gen/kie/world/*.txt), cut by tools/art/kie/world.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/frame.txt and one prompt per layer; tools/art/gen/kie/ledger.jsonl (names world/*)",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -2746,11 +2579,11 @@
   },
   {
    "id": "world-tree_acacia_3",
-   "role": "background tree (acacia, baobab), anchors in tree_info.json",
+   "role": "background tree (acacia, baobab, marula, a dead tree), anchors in tree_info.json",
    "path": "assets/art/world/tree_acacia_3.png",
    "status": "approved",
    "technical": {
-    "dimensions": "560x400",
+    "dimensions": "479x335",
     "alpha": true,
     "anchor": "bottom-centre at the trunk",
     "frames": null,
@@ -2761,11 +2594,11 @@
     "light-direction"
    ],
    "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/trees.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/trees.py",
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own key art (prompts: tools/art/gen/kie/world/*.txt), cut by tools/art/kie/world.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/frame.txt and one prompt per layer; tools/art/gen/kie/ledger.jsonl (names world/*)",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -2779,11 +2612,11 @@
   },
   {
    "id": "world-tree_acacia_4",
-   "role": "background tree (acacia, baobab), anchors in tree_info.json",
+   "role": "background tree (acacia, baobab, marula, a dead tree), anchors in tree_info.json",
    "path": "assets/art/world/tree_acacia_4.png",
    "status": "approved",
    "technical": {
-    "dimensions": "560x400",
+    "dimensions": "239x170",
     "alpha": true,
     "anchor": "bottom-centre at the trunk",
     "frames": null,
@@ -2794,11 +2627,11 @@
     "light-direction"
    ],
    "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/trees.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/trees.py",
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own key art (prompts: tools/art/gen/kie/world/*.txt), cut by tools/art/kie/world.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/frame.txt and one prompt per layer; tools/art/gen/kie/ledger.jsonl (names world/*)",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -2812,11 +2645,11 @@
   },
   {
    "id": "world-tree_acacia_5",
-   "role": "background tree (acacia, baobab), anchors in tree_info.json",
+   "role": "background tree (acacia, baobab, marula, a dead tree), anchors in tree_info.json",
    "path": "assets/art/world/tree_acacia_5.png",
    "status": "approved",
    "technical": {
-    "dimensions": "560x400",
+    "dimensions": "701x480",
     "alpha": true,
     "anchor": "bottom-centre at the trunk",
     "frames": null,
@@ -2827,11 +2660,11 @@
     "light-direction"
    ],
    "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/trees.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/trees.py",
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own key art (prompts: tools/art/gen/kie/world/*.txt), cut by tools/art/kie/world.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/frame.txt and one prompt per layer; tools/art/gen/kie/ledger.jsonl (names world/*)",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -2845,11 +2678,11 @@
   },
   {
    "id": "world-tree_acacia_6",
-   "role": "background tree (acacia, baobab), anchors in tree_info.json",
+   "role": "background tree (acacia, baobab, marula, a dead tree), anchors in tree_info.json",
    "path": "assets/art/world/tree_acacia_6.png",
    "status": "approved",
    "technical": {
-    "dimensions": "560x400",
+    "dimensions": "322x328",
     "alpha": true,
     "anchor": "bottom-centre at the trunk",
     "frames": null,
@@ -2860,11 +2693,11 @@
     "light-direction"
    ],
    "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/trees.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/trees.py",
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own key art (prompts: tools/art/gen/kie/world/*.txt), cut by tools/art/kie/world.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/frame.txt and one prompt per layer; tools/art/gen/kie/ledger.jsonl (names world/*)",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -2878,11 +2711,11 @@
   },
   {
    "id": "world-tree_baobab_1",
-   "role": "background tree (acacia, baobab), anchors in tree_info.json",
+   "role": "background tree (acacia, baobab, marula, a dead tree), anchors in tree_info.json",
    "path": "assets/art/world/tree_baobab_1.png",
    "status": "approved",
    "technical": {
-    "dimensions": "460x560",
+    "dimensions": "451x315",
     "alpha": true,
     "anchor": "bottom-centre at the trunk",
     "frames": null,
@@ -2893,11 +2726,11 @@
     "light-direction"
    ],
    "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/trees.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/trees.py",
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own key art (prompts: tools/art/gen/kie/world/*.txt), cut by tools/art/kie/world.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/frame.txt and one prompt per layer; tools/art/gen/kie/ledger.jsonl (names world/*)",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -2911,11 +2744,11 @@
   },
   {
    "id": "world-tree_baobab_2",
-   "role": "background tree (acacia, baobab), anchors in tree_info.json",
+   "role": "background tree (acacia, baobab, marula, a dead tree), anchors in tree_info.json",
    "path": "assets/art/world/tree_baobab_2.png",
    "status": "approved",
    "technical": {
-    "dimensions": "460x560",
+    "dimensions": "576x709",
     "alpha": true,
     "anchor": "bottom-centre at the trunk",
     "frames": null,
@@ -2926,11 +2759,11 @@
     "light-direction"
    ],
    "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/trees.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/trees.py",
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own key art (prompts: tools/art/gen/kie/world/*.txt), cut by tools/art/kie/world.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/frame.txt and one prompt per layer; tools/art/gen/kie/ledger.jsonl (names world/*)",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -2944,11 +2777,11 @@
   },
   {
    "id": "world-tree_baobab_3",
-   "role": "background tree (acacia, baobab), anchors in tree_info.json",
+   "role": "background tree (acacia, baobab, marula, a dead tree), anchors in tree_info.json",
    "path": "assets/art/world/tree_baobab_3.png",
    "status": "approved",
    "technical": {
-    "dimensions": "460x560",
+    "dimensions": "340x325",
     "alpha": true,
     "anchor": "bottom-centre at the trunk",
     "frames": null,
@@ -2959,11 +2792,11 @@
     "light-direction"
    ],
    "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/trees.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/trees.py",
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own key art (prompts: tools/art/gen/kie/world/*.txt), cut by tools/art/kie/world.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/frame.txt and one prompt per layer; tools/art/gen/kie/ledger.jsonl (names world/*)",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -2977,11 +2810,11 @@
   },
   {
    "id": "world-tree_baobab_4",
-   "role": "background tree (acacia, baobab), anchors in tree_info.json",
+   "role": "background tree (acacia, baobab, marula, a dead tree), anchors in tree_info.json",
    "path": "assets/art/world/tree_baobab_4.png",
    "status": "approved",
    "technical": {
-    "dimensions": "460x560",
+    "dimensions": "634x662",
     "alpha": true,
     "anchor": "bottom-centre at the trunk",
     "frames": null,
@@ -2992,11 +2825,11 @@
     "light-direction"
    ],
    "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/trees.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/trees.py",
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own key art (prompts: tools/art/gen/kie/world/*.txt), cut by tools/art/kie/world.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/frame.txt and one prompt per layer; tools/art/gen/kie/ledger.jsonl (names world/*)",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -3015,39 +2848,6 @@
    "status": "approved",
    "technical": {
     "dimensions": "1024x96",
-    "alpha": true,
-    "anchor": "per view",
-    "frames": null,
-    "filtering": "linear"
-   },
-   "visual_locks": [
-    "palette",
-    "light-direction"
-   ],
-   "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/savanna.py / terrain.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
-    "created_at": "2026-10-30",
-    "attribution": ""
-   },
-   "verification": {
-    "native_scale_reviewed": true,
-    "in_engine_reviewed": true,
-    "technical_checks_passed": true,
-    "approved_by": "",
-    "notes": ""
-   }
-  },
-  {
-   "id": "world-underside",
-   "role": "level world layer or terrain texture",
-   "path": "assets/art/world/underside.png",
-   "status": "approved",
-   "technical": {
-    "dimensions": "1024x88",
     "alpha": true,
     "anchor": "per view",
     "frames": null,

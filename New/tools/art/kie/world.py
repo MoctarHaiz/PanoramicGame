@@ -33,7 +33,11 @@ OUT = Path(__file__).resolve().parents[3] / "assets/art/world"
 MESA_KINDS = ["block", "block", "arch", "spire", "low", "block", "block", "spire", "arch", "low", "spire", "low"]
 TREES = ["tree_acacia_1", "tree_acacia_2", "tree_acacia_3", "tree_acacia_4", "tree_acacia_5",
          "tree_baobab_1", "tree_baobab_2", "tree_baobab_3", "tree_acacia_6", "tree_baobab_4"]
-FRONT_CELL = (520, 460)  # px: SavannaView.FRONT_PROP at 2 px a unit
+## how big each tree is kept (of the sheet's px): the four tall ones stand big behind the tall grass (SavannaView
+## .TREE_TALL: 232 units), two are level props too (PropView: 140 to 150 units), the others are small and far
+TREE_SCALE = {"tree_acacia_2": 0.9, "tree_acacia_5": 0.9, "tree_baobab_2": 0.9, "tree_baobab_4": 0.9,
+              "tree_acacia_1": 0.6, "tree_acacia_3": 0.6}
+FRONT_CELL = (440, 390)  # px: SavannaView.FRONT_PROP at 1.7 px a unit (dark shapes passing fast: no finer)
 
 
 def load(name) -> np.ndarray:
@@ -120,7 +124,7 @@ def plain() -> None:
     a = load("plain")
     first = top_edge(a, 0.004)  # (the smoke's top, the baobab's crown)
     line = top_edge(a, 0.97)  # the horizon
-    out = seam(a[first - 8:line + 260], 256)
+    out = seam(a[first - 8:line + 216], 256)  # (its horizon at y 432: 216 px reach under the rise's top edge)
     save(out, OUT / "far_hills.png")
     print("  horizon at row %d of it" % (line - first + 8))
 
@@ -199,7 +203,8 @@ def trees() -> None:
     info = {}
     for name, p in zip(TREES, pieces("trees", 5, 2)):
         p = flat_foot(p)
-        p = resize(p, (round(p.shape[1] * 0.6), round(p.shape[0] * 0.6)))
+        k = TREE_SCALE.get(name, 0.45)
+        p = resize(p, (round(p.shape[1] * k), round(p.shape[0] * k)))
         foot = np.nonzero(p[-6:, :, 3].max(axis=0) > 0.5)[0]
         save(p, OUT / (name + ".png"))
         info[name] = {"size": [p.shape[1], p.shape[0]], "anchor_x": float(foot.min() + foot.max()) / 2}

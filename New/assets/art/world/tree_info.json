@@ -8,10 +8,10 @@
  },
  "tree_acacia_2": {
   "size": [
-   424,
-   398
+   636,
+   598
   ],
-  "anchor_x": 153.5
+  "anchor_x": 230.5
  },
  "tree_acacia_3": {
   "size": [
@@ -22,51 +22,51 @@
  },
  "tree_acacia_4": {
   "size": [
-   319,
-   226
+   239,
+   170
   ],
-  "anchor_x": 159.5
+  "anchor_x": 119.5
  },
  "tree_acacia_5": {
   "size": [
-   467,
-   320
+   701,
+   480
   ],
-  "anchor_x": 38.5
+  "anchor_x": 58.5
  },
  "tree_baobab_1": {
   "size": [
-   601,
-   421
+   451,
+   315
   ],
-  "anchor_x": 317.5
+  "anchor_x": 238.0
  },
  "tree_baobab_2": {
   "size": [
-   384,
-   473
+   576,
+   709
   ],
-  "anchor_x": 187.0
+  "anchor_x": 281.0
  },
  "tree_baobab_3": {
   "size": [
-   453,
-   434
+   340,
+   325
   ],
-  "anchor_x": 232.0
+  "anchor_x": 174.0
  },
  "tree_acacia_6": {
   "size": [
-   429,
-   437
+   322,
+   328
   ],
-  "anchor_x": 212.0
+  "anchor_x": 158.5
  },
  "tree_baobab_4": {
   "size": [
-   422,
-   441
+   634,
+   662
   ],
-  "anchor_x": 175.5
+  "anchor_x": 264.5
  }
 }

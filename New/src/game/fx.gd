@@ -631,6 +631,8 @@ static func knock_out(parent: Node, at: Vector2, feet: Vector2) -> void:
 	stars.spray(8, [Confetti.Shape.STAR], [Color("ffd36b"), Color("ffe9a8"), Color("ffffff")], Vector2(320, 720),
 			Vector2(0.6, -1).normalized(), 70.0, 1.0, Vector2(0.55, 0.85))
 	stars.sparkle(6, RING_SPARKS, Vector2(160, 420), 1.0, Vector2(0.3, 0.55))
+	# (the redesign: the chakram's own colours in the burst: its beadwork's red and white with its steel blue)
+	shards(parent, at, Vector2(1, -0.5).normalized(), 5, 0.9, Color("ff5a3a"))
 	dust(parent, feet, 10, 260.0, 0.0, 1.3)
 
 

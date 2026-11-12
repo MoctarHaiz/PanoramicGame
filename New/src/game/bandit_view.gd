@@ -13,18 +13,21 @@ extends Node2D
 ## to watch him once he is past), stopped on its heels by a ring. As it closes on Panoramic it
 ## draws its fist back and punches (the rules' reach in front of it), so the blow is seen coming. A ring
 ## makes it flash white and recoil; after the first one it runs dazed (rocking, stars circling its head).
-## The second knocks it out and it disappears as it did in 2017 (banditMort1-10): it keeps running while a
-## liquid-chrome glaze runs over it, then it twirls into a ring of chrome and is gone (bandit.gdshader).
+## The second knocks it out (the redesign, 2026-11-12, with the user's yes; the blind judges, four rounds: "the grey
+## glaze reads as a fade bug; show a full-colour recoil, a knockback, a burst in the ring's colours"): frozen a
+## moment on the blow in its recoil, then thrown back off its feet in its own colours, turning over backward along a
+## low arc, and gone in a puff and a few sparks at the arc's end. (2017's chrome glaze and twirl are retired.)
 ##
-## Animation runs on the world's clock, so pause and hit-stop freeze it too.
-
 const DIR := "res://assets/art/bandit/"
 const FLASH_TIME := Fx.FLASH_TIME  ## New (audio): the shared impact's white, 2 frames, then the reaction shows
-const KO_HOLD := 0.09  ## seconds frozen on the blow before it disappears
-const VANISH_TIME := 0.7  ## seconds: the 2017 disappearance's 10 frames
-const KO_PUSH := 34.0  ## units the blow slides it back (right) while the glaze runs
-## It disappears where it was hit, as in 2017: it never tilts or tumbles (round 9: no cartwheel).
-const KO_TILT := 0.0
+const KO_HOLD := 0.08  ## seconds frozen on the blow, in its recoil
+const KO_FLIGHT := 0.46  ## seconds thrown back through the air
+const KO_BACK := 170.0  ## units it is thrown back, the way the ring flew
+const KO_UP := 64.0  ## units its arc rises
+const KO_TURN := 1.35  ## radians it turns over backward in the flight
+const KO_POOF := 0.12  ## seconds, the flight's last: it shrinks into its puff
+## its puff's sparks: the chakram's steel blue, its beadwork's red and white
+const KO_SPARKS: Array[Color] = [Color("ffffff"), Color("6cc4ff"), Color("e82808"), Color("ffd36b")]
 const HIT_TIME := 0.2  ## seconds the first ring's recoil shows
 const DAZE_ROCK := 0.08  ## radians it rocks on its feet while dazed
 ## Once it has struck him it can't again: it vaults over him (drawn only) instead of running
@@ -117,7 +120,8 @@ var _head := Vector2.ZERO  # the middle of its hair in this frame, local units
 # knocked out
 var _ko := false
 var _ko_time := 0.0
-var _pushed := 0.0  # 0..1 of KO_PUSH done
+var _pushed := 0.0  # 0..1 of KO_BACK done
+var _poofed := false
 var _vault := -1.0  # 0..1 through the vault over him (-1: not vaulting)
 var _lift := 0.0  # units it is drawn above the ground (the vault)
 ## (2026-11-10, the user: "their animation are not quite good, and the interaction of the enemies in the world should
@@ -255,6 +259,8 @@ func hit(knocked_out: bool) -> void:
 		_stars = 0.0
 		rotation = 0.0
 		_sprite.rotation = 0.0
+		_show(int(_d.hit))
+		queue_redraw()
 	else:
 		_hit_left = HIT_TIME
 		_jolt = 16.0  # (2026-11-10: the rules stop it now, World.STAGGER_TICKS: thrown back on its heels)
@@ -450,26 +456,47 @@ func _show(index: int) -> void:
 		_material.set_shader_parameter(&"aspect", float(f[2]) / float(f[3]))
 
 
-## Knocked out: frozen on the blow, then the 2017 disappearance: still running, glazed in liquid chrome
-## from its middle out, then twirled into a ring that fades (bandit.json's vanish: banditMort1-10's frames).
+## Knocked out: frozen on the blow in its recoil, then thrown back off its feet along a low arc, turning over
+## backward about its middle, in its own colours; at the arc's end it shrinks into a puff of dust, a ring of light
+## and a few sparks in the chakram's colours (it is in the level by then: WorldView).
 func _disappear(delta: float) -> void:
 	_ko_time += delta
 	_flash = maxf(_flash - delta / FLASH_TIME, 0.0)
 	_material.set_shader_parameter(&"amount", _flash * 0.85)
-	_squash = _squash.lerp(Vector2.ONE, 1.0 - exp(-delta * 12.0))
-	_sprite.scale = Vector2.ONE * _scale * _squash
+	var side := signf(_facing)
 	if _ko_time < KO_HOLD:
+		_sprite.scale = Vector2(_scale * 1.14 * side, _scale * 0.88)
 		_sprite.position = Vector2(randf_range(-1.5, 1.5), randf_range(-1.5, 1.5))  # the blow shakes it
 		return
-	var t := (_ko_time - KO_HOLD) / VANISH_TIME
+	var t := (_ko_time - KO_HOLD) / KO_FLIGHT
 	if t >= 1.0:
 		queue_free()
 		return
-	_sprite.position = Vector2.ZERO
-	# it is in the level now (WorldView): the slide back is added a step at a time
-	var k := 1.0 - pow(1.0 - t, 3.0)
-	position.x += KO_PUSH * (k - _pushed)
+	# thrown back fast, slowing; up and down its arc
+	var k := 1.0 - pow(1.0 - t, 2.2)
+	position.x += KO_BACK * (k - _pushed)
 	_pushed = k
-	var frames: Array = _d.vanish
-	_show(int(_d.run) + int(frames[mini(int(t * frames.size()), frames.size() - 1)]))
-	_material.set_shader_parameter(&"vanish", maxf(t, 0.001))
+	var rise := KO_UP * 4.0 * t * (1.0 - t) + 10.0 * t
+	# turning about its middle (its node is at its feet): its head goes back, the way it is thrown
+	var middle := Vector2(0.0, -_middle())
+	var turn := KO_TURN * (1.0 - pow(1.0 - t, 1.6))
+	_sprite.rotation = turn
+	_sprite.position = middle - middle.rotated(turn) + Vector2(0.0, -rise)
+	# stretched along its flight off the blow, then itself; at the end it shrinks into the puff
+	var out := clampf((t - (1.0 - KO_POOF / KO_FLIGHT)) / (KO_POOF / KO_FLIGHT), 0.0, 1.0)
+	var stretch := lerpf(1.1, 1.0, minf(t * 3.0, 1.0))
+	var size := _scale * (1.0 - 0.45 * out)
+	_sprite.scale = Vector2(size * stretch * side, size * (2.0 - stretch))
+	_sprite.modulate.a = 1.0 - out * out
+	if out > 0.0 and not _poofed:
+		_poofed = true
+		var at := position + _sprite.position + middle.rotated(turn)
+		var parent := get_parent()
+		Fx.ring(parent, at, 10.0, 62.0, 0.24, Color(1.0, 0.97, 0.9, 0.85), 6.0)
+		Fx.dust(parent, at, 9, 210.0, 0.0, 1.15)
+		Confetti.make(parent, at).sparkle(7, KO_SPARKS, Vector2(150, 400), 0.9, Vector2(0.3, 0.55))
+
+
+## How far over its feet its middle is, in units (what it turns about as it is thrown).
+func _middle() -> float:
+	return (World.STRONG_BODY.size.y if bandit.strong else World.BANDIT_BODY.size.y) * 0.5

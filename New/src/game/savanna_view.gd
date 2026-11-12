@@ -36,7 +36,7 @@ const SKY_DRIFT := 2.5
 ## mid_hills the rise, solid from y 532 (its mounds and boulders under his chest, not behind his head); near_grass solid from y 584, under the low ground's top, its tips over it)
 const STRIPS := {
 	&"far_wall": [0.008, 524.0, 1.0],
-	&"far_hills": [0.07, 562.0, 0.5],
+	&"far_hills": [0.07, 540.0, 0.5],
 	&"mid_hills": [0.2, 648.0, 0.5],
 	&"near_grass": [0.42, 649.0, 0.5],
 }
