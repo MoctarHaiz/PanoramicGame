@@ -39,6 +39,7 @@ const BRUSHES := [
 	[43, "bush"],
 ]
 const REBUILD_DELAY := 300  ## ms after the last change before the preview is rebuilt
+const LOOK_EVERY := 150  ## ms between two looks at the layer for changes
 const PAN_SPEED := 1200.0  ## units a second the camera moves when run (F6)
 
 ## The level as the game draws it, under the tiles (off: just the tiles, if it is slow in the editor).
@@ -64,6 +65,8 @@ var _loaded := false
 var _view: WorldView  # the preview (not owned: never saved in the scene)
 var _view_text := ""  # the level it was built from
 var _rebuild_at := -1  # msec time to rebuild it at (-1: none due)
+var _seen_cells := PackedByteArray()  # the layer's cells at the last look (TileMapLayer's `changed`
+var _look_at := 0  # signal doesn't come for painted cells: the layer is looked at instead)
 var _camera: Camera2D  # run as a scene only
 
 var tiles: TileMapLayer:
@@ -73,14 +76,12 @@ var tiles: TileMapLayer:
 
 func _ready() -> void:
 	tiles.modulate.a = tiles_opacity
-	tiles.changed.connect(_on_tiles_changed)
 	if not Engine.is_editor_hint():
 		_camera = Camera2D.new()
 		_camera.position = Vector2(World.VIEW_W, World.VIEW_H) / 2.0
 		add_child(_camera)
 		_camera.make_current()
-	reload()
-	_rebuild_at = 0  # (the preview: at once)
+	reload()  # (the preview follows: built from the layer)
 
 
 func _notification(what: int) -> void:
@@ -93,7 +94,14 @@ func _notification(what: int) -> void:
 
 
 func _process(delta: float) -> void:
-	if _rebuild_at >= 0 and Time.get_ticks_msec() >= _rebuild_at:
+	var now := Time.get_ticks_msec()
+	if now >= _look_at:  # a change: the preview is rebuilt once it has stopped changing for a moment
+		_look_at = now + LOOK_EVERY
+		var cells := tiles.tile_map_data
+		if cells != _seen_cells:
+			_seen_cells = cells
+			_rebuild_at = now + REBUILD_DELAY
+	if _rebuild_at >= 0 and now >= _rebuild_at:
 		_rebuild_at = -1
 		_rebuild()
 	if _camera:
@@ -207,10 +215,6 @@ static func _text(ids: PackedInt32Array) -> String:
 	return text
 
 
-func _on_tiles_changed() -> void:
-	_rebuild_at = Time.get_ticks_msec() + REBUILD_DELAY
-
-
 func _drop_preview() -> void:
 	if _view:
 		remove_child(_view)
@@ -232,6 +236,7 @@ func _rebuild() -> void:
 	if _view and text == _view_text:
 		return
 	_drop_preview()
+	var t0 := Time.get_ticks_msec()
 	var level := Level.new()
 	level.parse(text)
 	var view := WorldView.new()
@@ -276,6 +281,7 @@ func _rebuild() -> void:
 	view._vine.set_process(false)
 	_view = view
 	_view_text = text
+	print("Level editor: preview built in %d ms." % (Time.get_ticks_msec() - t0))
 
 
 ## Guides over the preview (the layer and the preview show behind this node): the level's bounds,

@@ -54,15 +54,27 @@ The level is `assets/level/level.txt` (20 lines of 800 tile ids; -1 is empty): t
 tests read only that file. To change it with Godot's tile map editor:
 
 1. Open `level_editor/level_editor.tscn` in the Godot editor: the file's level is loaded onto its
-   `Tiles` layer (the 2017 tile set, `level_editor/level1_tileset.png`; a tile's id is its place in
-   the picture, row × 12 + column).
-2. Select `Tiles` and paint or erase in the TileMap panel at the bottom. Guides show the level's
-   bounds, the low ground's grass row, every play screen (960 units), the last screen and where he is
-   home, and where each bandit starts (purple: the strong ones).
+   `Tiles` layer, and under it the level is drawn as the game draws it today, by the game's own views
+   (the backdrop as it stands at the start, stretched along the level, the ground, the pools, the props, the Red Bobs, the vine and
+   the homestead; no characters). The tiles are drawn faint over it (`Tiles Opacity` in the
+   inspector, 0 hides them; `Preview` off shows the tiles alone, if it is slow).
+2. Select `Tiles` and paint or erase in the TileMap panel at the bottom. Two sets of tiles:
+   - "Current world": brushes in the game's look (`level_editor/brushes.png`, made by
+     `tools/art/level_brushes.py`): grass top, wall/soil, water surface, deep water, Red Bob, tree,
+     stump, aloe, rock, reeds, bush. Each writes one 2017 id (`BRUSHES` in `level_editor.gd`); after
+     a save it comes back as that id's 2017 tile.
+   - "2017 tiles" (`level_editor/level1_tileset.png`): the id is the tile's place in the picture,
+     row × 12 + column; cells read from the file are these, with their exact ids.
+
+   The preview is rebuilt a moment after each change, with the pits the game floods shown as pools
+   (that water is not written to the file). Guides over it show the level's bounds, the low ground's
+   grass row, every play screen (960 units), the last screen and where he is home, and where each
+   bandit starts (purple: the strong ones).
 3. Save the scene (Cmd/Ctrl+S): `level.txt` is written (cells outside the 800 × 20 grid are left out,
    with a warning). The inspector's "Reload from level.txt" and "Save to level.txt" buttons do the
    same by hand. If the file can't be read, nothing is ever saved over it.
-4. Run the game, and `-- --quick` checks (the pits the game floods with water are not in the file).
+4. Run the scene (F6) to look along the whole level outside the editor: the arrow keys move the
+   camera (Shift: faster). Then run the game, and `-- --quick` checks.
 
 ## Controls (as in 2017)
 
@@ -139,6 +151,7 @@ The AdMob **app** ids are in Project Settings › Admob (Google's sample ids unt
 | `tools/art/vine.py` | the liana along the top of the screen |
 | `tools/art/world_preview.tscn` | renders the world alone at any scroll, for art review (`-- --at=24640`) |
 | `tools/art/icons.py` | app icons from the portrait (iOS, Play, Android adaptive) |
+| `tools/art/level_brushes.py` | the level editor's brushes in the game's look (`level_editor/brushes.png`) |
 | `tools/sfx_synth.py` | every sound effect, synthesised in A (the key of the theme) |
 
 The models live in `tools/art/models/` (git-ignored; the URLs are in `hero_sprites.py`).
