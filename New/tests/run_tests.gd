@@ -1429,7 +1429,7 @@ func _test_gameplay() -> void:
 	await _folded("saves survive a killed app, a damaged file and an older version", _gp_saves)
 	await _folded("taps, swipes, flicks and two thumbs read right", _gp_touches)
 	await _folded("a move asked twice counts once; a swipe shows within 2 frames", _gp_input_rules)
-	await _folded("the level's fixes (the roof, the last screen, the pools)", _gp_level_fixes)
+	await _folded("the level's fixes (the roof, the last screen, the pools) and the level editor's round trip", _gp_level_fixes)
 	await _folded("what is drawn touching is what counts: rings, rock, blows", _gp_collisions)
 	await _folded("what the views read: phases, the landing foreseen, progress in the air", _gp_view_hooks)
 	await _folded("the game screen: dying, home, pausing at any moment", _gp_flow)
@@ -1791,6 +1791,12 @@ func _gp_level_fixes() -> void:
 			odd.append(x.id)
 		b.scroll = at
 	_check(odd.is_empty(), "a waiting bandit is drawn out of the rock, where its first tick puts it (%s)" % [odd])
+	# the level editor (level_editor/level_editor.tscn) writes back exactly the level.txt it read
+	var editor: Node = load("res://level_editor/level_editor.tscn").instantiate()
+	var file := FileAccess.get_file_as_string(Level.PATH)
+	var read: String = editor.fill(file)
+	_check(read == "" and editor.level_text() == file, "the level editor's tiles give back level.txt byte for byte (%s)" % read)
+	editor.free()
 
 
 ## What views read: the move phases of a hop, the landing foreseen to the tick, the progress

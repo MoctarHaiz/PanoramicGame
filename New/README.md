@@ -48,6 +48,22 @@ arrows or WASD to move, space to throw, P or Esc to pause.
   `--textures=12` lists the biggest pictures in memory per phase; `--load-profile=10` shows where the
   level's opening frame goes; `--hide=name,…` hides layers for an A/B of their cost.
 
+## Editing the level
+
+The level is `assets/level/level.txt` (20 lines of 800 tile ids; -1 is empty): the game and the
+tests read only that file. To change it with Godot's tile map editor:
+
+1. Open `level_editor/level_editor.tscn` in the Godot editor: the file's level is loaded onto its
+   `Tiles` layer (the 2017 tile set, `level_editor/level1_tileset.png`; a tile's id is its place in
+   the picture, row × 12 + column).
+2. Select `Tiles` and paint or erase in the TileMap panel at the bottom. Guides show the level's
+   bounds, the low ground's grass row, every play screen (960 units), the last screen and where he is
+   home, and where each bandit starts (purple: the strong ones).
+3. Save the scene (Cmd/Ctrl+S): `level.txt` is written (cells outside the 800 × 20 grid are left out,
+   with a warning). The inspector's "Reload from level.txt" and "Save to level.txt" buttons do the
+   same by hand. If the file can't be read, nothing is ever saved over it.
+4. Run the game, and `-- --quick` checks (the pits the game floods with water are not in the file).
+
 ## Controls (as in 2017)
 
 | Move | Touch | Keyboard |
@@ -139,4 +155,5 @@ src/services/   ads, analytics, share, store (Remove ads), leaderboards, push: e
 src/ui/         the interface kit (candy buttons, display text, chips, toggles, safe area, share card)
 assets/         level, art (hero, world, icons, 2017 stand-ins in old/), audio, fonts, icons (Phosphor)
 tests/          run_tests, bot, capture
+level_editor/   the level in Godot's tile map editor (writes assets/level/level.txt)
 ```
