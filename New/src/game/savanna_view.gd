@@ -1,12 +1,17 @@
 class_name SavannaView
 extends Node2D
-## The level's sky and the savanna behind the play, at golden hour. World redraw: the sky, the
-## strips, the trees and the animals are painted with kie.ai in the menu key art's style (from the
-## old pictures of tools/art/savanna.py and tools/art/trees.py as layouts). Back to front:
-##   sky (one painted panorama, its clouds drifting), sun glow (additive), far escarpments (round 21: three
-##   rows of landforms, the clouds' shadows sliding over the nearer two), far hills with tiny acacias,
-##   god rays (additive), mid hills, acacias and baobabs at three depths in groves (warm haze laid over the
-##   farther ones), tall golden grass, pollen motes in the light, a few birds (round 21: and a far skein).
+## The level's sky and the savanna behind the play, late in the afternoon.
+## The world redesign (2026-11-12; four blind rounds flat at 6.8 against Prince of Persia's 8.9: "cel-inked characters
+## on a pale painterly world", "one flat play plane: nothing between the ground and the far mesas"): one style frame
+## in the key art's inked cel painting, then each of its layers painted alone (GPT Image 2.6 Sunburst;
+## tools/art/kie/world.py cuts them). Back to front:
+##   sky (one painted panorama: deep blue to apricot, cel cumulus drifting), the far escarpment (a blue-violet wall),
+##   sandstone landforms in three rows of depth (twelve shapes, the clouds' shadows sliding over the nearer two),
+##   the plain (groves, a village, giraffes, a river: one painting from its horizon down), acacias and baobabs behind
+##   the middle-ground rise, the rise (boulders, termite mounds, aloes), big trees behind the tall grass, the tall
+##   golden grass behind the path, pollen motes in the light, a few birds.
+## Each layer is inked and cel-shaded as painted (the shader's ink and cel planes of rounds 22-23 are off): depth is
+## each row's own colour drawn toward the far wall's blue-violet air.
 ## Farther layers scroll slower; the trees are placed from the level's x with a fixed hash, so the
 ## same tree is always in the same place. Everything is drawn from baked textures (cheap on phones):
 ## each layer is one canvas item redrawn every frame with a handful of rectangles.
@@ -16,30 +21,26 @@ extends Node2D
 ## smudges on the screen").
 
 const DIR := "res://assets/art/world/"
-## sun centre: share of the visible width, y (the upper left, where the light on every painted thing
-## comes from). Round 2: low over the escarpments (was y 64, behind the hearts): a golden-hour sun in
-## the picture, everything rimmed and casting long shadows away from it
-## Round 19 (the judges: "the sun bloom is the brightest thing on screen, away from the action; the god rays
-## fall from another direction than the sun"): the sun is above the screen's top left corner, high enough for
-## the light shafts painted in the sky (falling from the upper left) and the rays to come from it, as the light
-## on every painted thing does; only its warm glow spills into the corner (its disc is out of the picture).
-## y is from the top of the screen.
+## Where the light comes from: above the screen's top left corner (share of the visible width, y from the top of the
+## screen): the painted light of every layer, and the light grade's (WorldView). The redesign: no sun glow, no god
+## rays (the judges: "a pale wash across the sky"): the sky is painted lit.
 const SUN_AT := Vector2(0.02, -70.0)
-const SUN_SIZE := 640.0
-const RAYS_ORIGIN := Vector2(80, 80)  ## where the sun is in the rays, in units (tools/art/savanna.py)
-const RAYS_SIZE := Vector2(1280, 820)  ## drawn size of rays.png in units (stored at half that)
 ## World redraw: the painted sky (sky.png): top y and height it is drawn at (units), how much it
 ## moves with the run, and its drift with the wind (units a second).
-const SKY_RECT := Vector2(-30.0, 600.0)
+const SKY_RECT := Vector2(-150.0, 660.0)
 const SKY_SCROLL := 0.02
 const SKY_DRIFT := 2.5
 
 ## Strips that repeat left to right: texture, scroll factor, bottom y, units per texture pixel.
+## (the redesign: far_wall the escarpment, its top edge near y 372; far_hills the plain, its horizon at HORIZON;
+## mid_hills the rise, solid from y 532 (its mounds and boulders under his chest, not behind his head); near_grass solid from y 584, under the low ground's top, its tips over it)
 const STRIPS := {
-	&"far_hills": [0.07, 548.0, 1.0],
-	&"mid_hills": [0.15, 648.0, 1.0],
-	&"near_grass": [0.42, 646.0, 0.5],
+	&"far_wall": [0.008, 524.0, 1.0],
+	&"far_hills": [0.07, 562.0, 0.5],
+	&"mid_hills": [0.2, 648.0, 0.5],
+	&"near_grass": [0.42, 649.0, 0.5],
 }
+const HORIZON := 432.0  ## play y of the plain's far edge: the landforms stand behind it
 ## Round 20 (the judges, j16: "the same mesa shape x4, no atmospheric layering"): the escarpments placed one
 ## landform at a time (far_mesa_pieces.png, tools/art/world_mesas.py). Round 21 (the judges, j17: "still the same
 ## flat-topped striped block, stamped, evenly spaced"): twelve landforms (the strip's five and seven painted ones: a
@@ -60,16 +61,19 @@ const STRIPS := {
 ## the ink weakens with each row back (`ink_amount`) and turns toward the row's shadow colour, then toward the sky
 ## (`ink_colour`); contrast and saturation drop with each row back (`flatten`); none mirrored, so every landform is lit
 ## from the same low sun on the left (a mirrored one was lit from the right).
+## The redesign: the landforms are painted inked and lit (ink, planes 0); the far row small and deep in the far wall's
+## blue-violet air, the near row in its full orange and red; none mirrored (all lit from the upper left).
+const AIR := Color(0.47, 0.46, 0.72)  ## the far wall's blue-violet: what distance draws everything toward
 const MESA_ROWS := [
-	{scroll = 0.012, bottom = 456.0, scale = Vector2(0.62, 1.0), haze = 0.4, foot = 0.3, haze_colour = Color(0.7, 0.75, 0.86),
-		tint = Color(1, 1, 1), mirror = 0.0, gap = Vector2(40.0, 260.0), kinds = [3.0, 1.5, 1.2, 0.4], cloud = 0.0, ink = 0.7, planes = 0.55,
-		flatten = 0.6, ink_amount = 0.14, ink_colour = Color(0.5, 0.53, 0.68)},
-	{scroll = 0.022, bottom = 470.0, scale = Vector2(0.48, 0.74), haze = 0.27, foot = 0.22, haze_colour = Color(0.68, 0.7, 0.85),
-		tint = Color(1, 1, 1), mirror = 0.0, gap = Vector2(60.0, 330.0), kinds = [2.0, 2.0, 1.0, 1.0], cloud = 0.5, ink = 0.8, planes = 0.8,
-		flatten = 0.36, ink_amount = 0.34, ink_colour = Color(0.42, 0.36, 0.55)},
-	{scroll = 0.038, bottom = 494.0, scale = Vector2(0.78, 1.18), haze = 0.1, foot = 0.2, haze_colour = Color(0.64, 0.62, 0.8),
-		tint = Color(0.98, 0.92, 0.88), mirror = 0.0, gap = Vector2(120.0, 520.0), kinds = [2.0, 2.0, 1.6, 1.4], cloud = 1.0, ink = 1.1, planes = 1.0,
-		flatten = 0.14, ink_amount = 0.6, ink_colour = Color(0.3, 0.19, 0.29)},
+	{scroll = 0.014, bottom = 438.0, scale = Vector2(0.2, 0.28), haze = 0.56, foot = 0.14, haze_colour = AIR,
+		tint = Color(1, 1, 1), mirror = 0.0, gap = Vector2(30.0, 190.0), kinds = [3.0, 1.5, 1.2, 1.0], cloud = 0.0, ink = 0.0, planes = 0.0,
+		flatten = 0.3, ink_amount = 0.0, ink_colour = Color(0.5, 0.53, 0.68)},
+	{scroll = 0.024, bottom = 444.0, scale = Vector2(0.3, 0.4), haze = 0.3, foot = 0.14, haze_colour = AIR,
+		tint = Color(1, 1, 1), mirror = 0.0, gap = Vector2(60.0, 300.0), kinds = [2.0, 2.0, 1.0, 1.4], cloud = 0.5, ink = 0.0, planes = 0.0,
+		flatten = 0.14, ink_amount = 0.0, ink_colour = Color(0.42, 0.36, 0.55)},
+	{scroll = 0.04, bottom = 452.0, scale = Vector2(0.44, 0.6), haze = 0.06, foot = 0.12, haze_colour = AIR,
+		tint = Color(1, 1, 1), mirror = 0.0, gap = Vector2(160.0, 560.0), kinds = [2.0, 1.6, 1.6, 1.4], cloud = 1.0, ink = 0.0, planes = 0.0,
+		flatten = 0.0, ink_amount = 0.0, ink_colour = Color(0.3, 0.19, 0.29)},
 ]
 ## Round 23: the sky's cool light, laid into the shade side of the landforms, the plain and the grass (one light: the
 ## warm low sun for the lit faces, the sky's cool for the shade).
@@ -85,47 +89,47 @@ const DUSK_LOW := Color(0.8, 0.74, 0.96)
 ## (2026-11-12, three blind judges on the home picture: "the far mesas are translucent rectangular ghosts: a rendering
 ## fault": at dusk the two far rows stood at the sky's own value; now a clear step under it, solid silhouettes)
 const DUSK_MESAS := [Color(0.5, 0.5, 0.8), Color(0.56, 0.56, 0.84), Color(0.74, 0.66, 0.92)]
-const DUSK_STRIPS := {&"far_hills": Color(0.78, 0.78, 1.0), &"mid_hills": Color(0.9, 0.86, 0.98)}
+const DUSK_STRIPS := {&"far_wall": Color(0.6, 0.6, 0.9), &"far_hills": Color(0.78, 0.78, 1.0), &"mid_hills": Color(0.9, 0.86, 0.98)}
 ## Tree rows: scroll factor, spacing (level units of that layer), size (of the picture's height in
-## units), ground y, haze, foot haze, share of empty slots, haze colour (the far rows sink into the
-## cool blue of distance, the near one into the warm air at the horizon).
-## Round 4: haze only far away; the nearer rows darker and richer (TREE_TINT), so the play stands off
-## the backdrop at a glance.
-## Round 9: the far rows in a cool, darker slate blue ("the pale haze band across the middle
-## washes everything out"): a cool, quiet background behind a warm, saturated playfield.
-## Round 23 (the judges, j19: "the midground acacias one dark stamp repeated in rows"): mid_hills.png's painted row of
-## acacias is gone (tools/art/hills_clean.py); the far rows sink into the pale air of the plain (no dark slate stamps).
+## units), ground y, haze, foot haze, share of empty slots, haze colour.
+## The redesign: two rows, each standing behind a rise so the foot of its trunks is hidden: smaller trees behind the
+## middle-ground rise (they move between the plain's speed and the rise's), big ones behind the tall grass, their trunks
+## passing behind him and their crowns over the landforms. (The plain has its own far groves painted in.)
 const TREE_ROWS := [
-	[0.11, 190.0, 70.0, 488.0, 0.38, 0.2, 0.4, Color(0.72, 0.68, 0.68)],  # (round 9: sparser: a dotted line of stamps)
-	[0.2, 300.0, 104.0, 540.0, 0.1, 0.08, 0.38, Color(0.66, 0.66, 0.72)],  # (round 7: crowns under the jump band:
-	[0.31, 520.0, 130.0, 604.0, 0.0, 0.05, 0.4, Color(0.96, 0.78, 0.5)],  # they read as platforms there)
+	[0.14, 330.0, 96.0, 540.0, 0.12, 0.0, 0.42, AIR],
+	[0.31, 760.0, 232.0, 594.0, 0.0, 0.0, 0.5, Color(0.96, 0.78, 0.5)],
 ]
-## (round 6: the near rows darker, warmer; round 9: a little lighter again, so their crowns' lit tops
-## and shaded undersides read, not flat discs)
-const TREE_TINT := [Color(1, 1, 1), Color(0.76, 0.7, 0.6), Color(0.72, 0.66, 0.54)]
-const TREE_INK := [0.7, 1.0, 1.35]  ## round 22: each row's ink line (units): thinner far
-## Round 23: and fainter far, toward the air (the far row) and the row's shade (the middle one); flatter far; the sky's
-## cool light in their shade
-const TREE_INK_AMOUNT := [0.2, 0.5, 0.88]
-const TREE_INK_COLOUR := [Color(0.5, 0.52, 0.62), Color(0.3, 0.26, 0.33), Color(0.17, 0.085, 0.06)]
-const TREE_FLATTEN := [0.32, 0.1, 0.0]
-const TREE_AMBIENT := [0.2, 0.35, 0.45]
+## The big near row: only trees with a tall trunk, their crowns over his head: behind his body there is a trunk at
+## most (a wide low crown behind him hid him and the bandits).
+const TREE_TALL: Array[String] = ["tree_acacia_2", "tree_acacia_5", "tree_baobab_2", "tree_baobab_4"]
+const TREE_TINT := [Color(0.96, 0.96, 1.0), Color(1, 1, 1)]
+const TREE_INK := [0.0, 0.0]  ## (painted inked)
+const TREE_INK_AMOUNT := [0.0, 0.0]
+const TREE_INK_COLOUR := [Color(0.3, 0.26, 0.33), Color(0.17, 0.085, 0.06)]
+const TREE_FLATTEN := [0.22, 0.12]
+const TREE_AMBIENT := [0.0, 0.0]
 ## Round 22 (the judges, j18: "the hero's lane has no value separation: a mid-orange hero on mid-gold grass"): the tall
 ## grass behind his legs and the savanna behind his body a value darker and greener (an olive band), so his warm skin,
 ## white loincloth and red scarf read against it (the warm add of round 3's lane light is gone).
 ## Round 23 (the judges, j19: "he runs over the darkest band of the screen: his dark skin and black ink a smudge"): a
 ## sunlit mid value, cooler (a sage straw, its shade in the sky's cool light): he reads by his darker warm skin and ink
 ## against it, not against a dark olive band.
-const MID_TINT := Color(0.76, 0.72, 0.56)
-const LANE_TINT := Color(0.86, 0.86, 0.7)
-## animals.png (tools/art/savanna.py): two giraffes, an elephant, a herd of wildebeest (px regions)
-const ANIMALS := [Rect2(0, 0, 140, 220), Rect2(140, 12, 128, 208), Rect2(268, 68, 220, 152), Rect2(488, 132, 300, 88)]
+## The redesign: the plain as painted; the rise and the tall grass behind his body a little paler and cooler than
+## painted (a straw gold), so his darker, redder skin and his ink stand off them.
+const MID_TINT := Color(0.97, 0.98, 0.94)
+const LANE_TINT := Color(0.96, 0.98, 0.92)
+## and each a little flatter than painted (less contrast, less colour: the shader's `flatten`), the plain most: the
+## characters in front are the picture's strongest darks and colours
+const PLAIN_FLATTEN := 0.2
+const MID_FLATTEN := 0.2
+const LANE_FLATTEN := 0.12
+const LANE_AIR := Color(0.86, 0.8, 0.68)  ## what the lane's layers flatten toward: a pale warm straw
 const CLOUD_SHADOW_GAP := 700.0  ## round 10: units of the plain between two clouds' shadows
-const FRONT_GRASS := false  ## the out-of-focus grass band along the bottom edge (off: it read as smudges)
-const FRONT_SCROLL := 1.35  ## the foreground grass moves faster than the ground
 const FRONT_PROP_SCROLL := 1.45  ## round 9: the big things in front, nearer still (round 20: 1.6 -> 1.45: longer in the corner)
-const FRONT_PROP := Vector2(260, 190)  ## one piece of fg_props.png (units, 1 px a unit)
-const FRONT_PIECES := 4  ## tall grass, an aloe, a fallen log, a bush
+const FRONT_PROP := Vector2(260, 230)  ## one piece of fg_props.png (units, 2 px a unit), in 3 columns
+const FRONT_PIECES := 6  ## tall grass, an aloe, a boulder, a fallen log, a thorn bush, broad leaves and a mound
+const FRONT_COLS := 3
+const FRONT_TINT := Color(0.74, 0.68, 0.72)
 const FRONT_PROP_GAP := 420.0  ## units of the foreground between two of them (some left open)
 const FRONT_ZONE := 95.0  ## round 20: they show only this far and more behind him (the corner behind his back)
 const FRONT_DROP := 15.0  ## units its picture reaches below the bottom of the screen (round 20: 12 -> 4, fg_grass.png keeps every shape 2+ units under the ground line; round 22: 9, more of the bank shows; round 23: 15, more still)
@@ -139,6 +143,7 @@ var _clock := 0.0
 var _tex := {}
 var _trees: Array[Texture2D] = []
 var _tree_anchor: Array[float] = []
+var _tall: Array[int] = []  # the trees of TREE_TALL in _trees
 var _painters: Array[Node2D] = []
 var front: Node2D  ## the foreground grass (WorldView adds it above the actors)
 var hero_x := -999.0  ## round 7: his play x (WorldView): the near trees fade where they pass behind him
@@ -150,6 +155,8 @@ var _mesa_span: Array[float] = []  # per row: units before its order repeats
 var _mesa_mats: Array[ShaderMaterial] = []  # round 21: per row (the clouds' shadows slide over them)
 var _far_mat: ShaderMaterial  # round 23: the far plain's and the mid hills' (the dusk's colour over their haze)
 var _mid_mat: ShaderMaterial
+var _wall_mat: ShaderMaterial
+var _mesa_pitch := 0.0  # px between two rows of landforms in far_mesa_pieces.png
 
 
 class Painter extends Node2D:
@@ -160,68 +167,45 @@ class Painter extends Node2D:
 
 
 func _ready() -> void:
-	for name in ["sky", "sun", "sun_halo", "rays", "far_mesa_pieces", "far_hills", "mid_hills", "near_grass",
-			"mote", "bird"]:
+	for name in ["sky", "far_wall", "far_mesa_pieces", "far_hills", "mid_hills", "near_grass", "mote", "bird"]:
 		_tex[StringName(name)] = load(DIR + name + ".png")
 	var info: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(DIR + "tree_info.json"))
 	for name: String in info:
+		if name in TREE_TALL:
+			_tall.append(_trees.size())
 		_trees.append(load(DIR + name + ".png"))
 		_tree_anchor.append(float(info[name].anchor_x))
-	_tex[&"prop_termite"] = load(DIR + "prop_termite.png")
-	_tex[&"animals"] = load(DIR + "animals.png")
 	var add := CanvasItemMaterial.new()
 	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
-	# (round 23, the judges, j19: "soft painted clouds that don't match the hard-inked mesas": the clouds' forms in cel
-	# steps, sky_cel.gdshader; it reads sky.png's far mips for the broad light)
-	var sky := _painter(_draw_sky, true)
-	sky.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	sky.material = ShaderMaterial.new()
-	(sky.material as ShaderMaterial).shader = preload("res://src/game/sky_cel.gdshader")
-	_painter(_draw_sun.bind(false))  # (round 9: its halo laid over the blue, warm, not added to it:
-	_painter(_draw_sun.bind(true)).material = add  # added, orange on blue made it a grey-white disc)
-	# (world redraw: the clouds are painted in the sky now, the drifting cloud sprites are gone)
-	# (round 9: the mesas' feet in cool air, not pale milk: the middle of the screen read washed out)
+	_painter(_draw_sky, true)
+	# the far escarpment: as painted, its foot behind the plain
+	_wall_mat = _haze([0, 0, 0, 0, 0.0, 0.0, 0, AIR], Color.WHITE, 0.0, 0.0, true)
+	_painter(_draw_strip.bind(&"far_wall"), true).material = _wall_mat
 	_place_mesas()
-	for row in MESA_ROWS.size():  # (round 21: three rows of landforms, the farther ones paler and cooler)
+	for row in MESA_ROWS.size():  # three rows of landforms, the farther ones deeper in the air
 		var m: Dictionary = MESA_ROWS[row]
 		var hz := _haze([0, 0, 0, 0, m.haze, m.foot, 0, m.haze_colour], m.tint, m.ink, m.planes, false,
-				{flatten = m.flatten, ink_amount = m.ink_amount, ink_colour = m.ink_colour, solid = true, ambient_k = 0.3 * (1.0 - m.flatten)})
+				{flatten = m.flatten, ink_amount = m.ink_amount, ink_colour = m.ink_colour, solid = true})
 		hz.set_shader_parameter(&"cloud", m.cloud)
-		hz.set_shader_parameter(&"cell_px", 255.0)  # (far_mesa_pieces.png: two rows of cells 255 px apart)
+		hz.set_shader_parameter(&"cell_px", _mesa_pitch)
 		_painter(_draw_mesas.bind(row)).material = hz
 		_mesa_mats.append(hz)
-	# (round 23: no bands of haze laid over the ranges' feet with alpha: the foot's haze is mixed in each row's colour)
-	# (round 9: the far hills slate blue and darker: they were the pale milky band)
-	# (world redraw: the new far plain is painted pale: a little darker and cooler, not a milky band)
-	# (round 22, the judges: "milky haze over the midground": the far plain a warmer dusty ochre a value under the sky,
-	# its far edge in the blue of distance, not a pale lilac band)
-	# (round 23: its haze the sky's at the horizon, the same air as over the far landforms, its ink faint)
-	_far_mat = _haze([0, 0, 0, 0, 0.16, 0.0, 0, Color(0.74, 0.74, 0.8)], Color(0.78, 0.68, 0.52), 0.7, 0.0, true,
-			{flatten = 0.3, ink_amount = 0.25, ink_colour = Color(0.5, 0.48, 0.58), ambient_k = 0.3})
+	_far_mat = _haze([0, 0, 0, 0, 0.04, 0.0, 0, LANE_AIR], Color.WHITE, 0.0, 0.0, true, {flatten = PLAIN_FLATTEN})
 	_painter(_draw_strip.bind(&"far_hills"), true).material = _far_mat
 	_painter(_draw_trees.bind(0)).material = _tree_haze(0)
-	# (round 11: under the midground again: over it they washed it to beige; round 23: cut into crisp shafts, fainter)
-	_painter(_draw_rays).material = ShaderMaterial.new()
-	(_painters[-1].material as ShaderMaterial).shader = preload("res://src/game/rays_cel.gdshader")
-	_mid_mat = _haze([0, 0, 0, 0, 0.06, 0.0, 0, Color(0.8, 0.78, 0.8)], MID_TINT, 0.95, 0.0, true,
-			{flatten = 0.12, ink_amount = 0.5, ink_colour = Color(0.3, 0.24, 0.27), ambient_k = 0.55})
-	_painter(_draw_strip.bind(&"mid_hills"), true).material = _mid_mat  # (round 6: the darker, warmer mid-ground)
+	_mid_mat = _haze([0, 0, 0, 0, 0.0, 0.0, 0, LANE_AIR], MID_TINT, 0.0, 0.0, true, {flatten = MID_FLATTEN})
+	_painter(_draw_strip.bind(&"mid_hills"), true).material = _mid_mat
 	_painter(_draw_trees.bind(1)).material = _tree_haze(1)
-	_painter(_draw_trees.bind(2)).material = _tree_haze(2)
-	_painter(_draw_strip.bind(&"near_grass"), true).material = _haze([0, 0, 0, 0, 0.0, 0.0, 0, Color(1, 1, 1)], LANE_TINT, 1.1, 0.0, true,
-			{ink_amount = 0.7, ambient_k = 0.6})
+	_painter(_draw_strip.bind(&"near_grass"), true).material = _haze([0, 0, 0, 0, 0.0, 0.0, 0, LANE_AIR], LANE_TINT, 0.0, 0.0, true, {flatten = LANE_FLATTEN})
 	_painter(_draw_cloud_shadows)  # (round 10) shadows of the clouds sliding over the plain
 	_painter(_draw_motes).material = add
 	_painter(_draw_birds)
-	_tex[&"fg_grass"] = load(DIR + "fg_grass.png")
 	_tex[&"fg_props"] = load(DIR + "fg_props.png")
 	front = Painter.new()
 	front.name = &"Bg_front"
 	front.paint = _draw_front
-	front.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-	# round 22 (the judges, j18: "the bottom ~12 % a dark purple soil band wasted"): the out-of-focus grass in front a
-	# deep warm earth brown, not black, lower (more of the ground's bank shows over it)
-	front.material = _haze([0, 0, 0, 0, 0.55, 0.0, 0, Color(0.5, 0.32, 0.22)])  # (round 23: a warm mid brown, not a black mud band)
+	# the plants and rocks near the camera: in shade against the light, darker than anything behind them
+	front.material = _haze([0, 0, 0, 0, 0.0, 0.0, 0, Color(0.2, 0.12, 0.14)], FRONT_TINT)
 	_painters.append(front)
 
 
@@ -273,6 +257,7 @@ func _process(delta: float) -> void:
 		if float(MESA_ROWS[row].cloud) > 0.0:
 			_mesa_mats[row].set_shader_parameter(&"cloud_x", scroll * float(MESA_ROWS[row].scroll) - _clock * 7.0)
 		_mesa_mats[row].set_shader_parameter(&"air_tint", _dusk(DUSK_MESAS[row]))  # (round 23: the air dusks with them)
+	_wall_mat.set_shader_parameter(&"air_tint", _dusk(DUSK_STRIPS[&"far_wall"]))
 	_far_mat.set_shader_parameter(&"air_tint", _dusk(DUSK_STRIPS[&"far_hills"]))
 	_mid_mat.set_shader_parameter(&"air_tint", _dusk(DUSK_STRIPS[&"mid_hills"]))
 	for p in _painters:
@@ -301,28 +286,24 @@ func _sun() -> Vector2:
 	return Vector2(_x0() + (_x1() - _x0()) * SUN_AT.x - scroll * 0.004, view_top + SUN_AT.y)
 
 
-## World redraw: the sky is a painted panorama (kie.ai, from the menu's key art) that repeats left to
-## right, its clouds sliding slowly with the wind and a little with the run. Above its top (the
-## camera drew back) it goes on mirrored (more clouds, no streaks); below its bottom (behind the
-## hills) its last row reaches on.
+## The sky is a painted panorama that repeats left to right, its clouds sliding slowly with the wind and a little with
+## the run. Above its top (the camera drew back, he climbed) its first rows, a plain deep blue, reach on; below its
+## bottom (behind the plain) its last row does.
 func _draw_sky(ci: CanvasItem) -> void:
 	var sky: Texture2D = _tex[&"sky"]
 	var k := SKY_RECT.y / sky.get_height()  # units per texture pixel
 	var x0 := _x0()
 	var w := _x1() - x0
-	# (its top two rows left out: the picture repeats, so its top edge is filtered with its bottom row, the warm horizon:
-	# a pale hairline across the sky where the mirrored half starts, seen as he climbs to the vines)
+	# (its top two rows left out: the picture repeats, so its top edge is filtered with its bottom row, the warm horizon)
 	var src := Rect2(fposmod((scroll * SKY_SCROLL + _clock * SKY_DRIFT + x0) / k, sky.get_width()), 2.0, w / k, sky.get_height() - 2.0)
-	if view_top - 2.0 < SKY_RECT.x:  # mirrored about its top edge
-		ci.draw_set_transform(Vector2(0.0, 2.0 * SKY_RECT.x + 1.0), 0.0, Vector2(1.0, -1.0))
-		ci.draw_texture_rect_region(sky, Rect2(x0, SKY_RECT.x, w, SKY_RECT.y), src, _dusk(DUSK_HIGH))
-		ci.draw_set_transform_matrix(Transform2D.IDENTITY)
-	# (round 20: at dusk, near home, the sky cools from the top: a blue-violet over the warm horizon)
+	# (at dusk, near home, the sky cools from the top: a blue-violet over the warm horizon)
+	var top := _dusk(DUSK_HIGH)
+	var low := _dusk(DUSK_LOW)
+	if view_top - 2.0 < SKY_RECT.x:
+		ci.draw_texture_rect_region(sky, Rect2(x0, view_top - 4.0, w, SKY_RECT.x - view_top + 5.0), Rect2(src.position.x, 3.0, src.size.x, 1.0), top)
 	var size := sky.get_size()
 	var uv0 := src.position / size
 	var uv1 := src.end / size
-	var top := _dusk(DUSK_HIGH)
-	var low := _dusk(DUSK_LOW)
 	ci.draw_polygon(PackedVector2Array([Vector2(x0, SKY_RECT.x), Vector2(x0 + w, SKY_RECT.x), Vector2(x0 + w, SKY_RECT.x + SKY_RECT.y),
 			Vector2(x0, SKY_RECT.x + SKY_RECT.y)]), PackedColorArray([top, top, low, low]),
 			PackedVector2Array([uv0, Vector2(uv1.x, uv0.y), uv1, Vector2(uv0.x, uv1.y)]), sky)
@@ -332,24 +313,6 @@ func _draw_sky(ci: CanvasItem) -> void:
 				Rect2(src.position.x, sky.get_height() - 1, src.size.x, 1), low)
 
 
-## The sun: its golden halo laid over the sky (`bloom` false), then its hot disc and bloom added.
-func _draw_sun(ci: CanvasItem, bloom: bool) -> void:
-	var s := SUN_SIZE * (1.0 + sin(_clock * 0.7) * 0.012)
-	if bloom:  # (round 10: softer, warmer: "a hard white disc"; round 19: out of the picture, its glow a
-		# wide soft warmth in the corner, never brighter than the lit clouds)
-		ci.draw_texture_rect(_tex[&"sun"], Rect2(_sun() - Vector2(s, s) * 0.5, Vector2(s, s) * 1.0), false, Color(1, 0.8, 0.52, 0.42 * (1.0 - 0.5 * dusk)))
-	else:
-		ci.draw_texture_rect(_tex[&"sun_halo"], Rect2(_sun() - Vector2(s, s) * 0.6, Vector2(s, s) * 1.2), false, Color(1, 0.84, 0.6, 0.6 * (1.0 - 0.5 * dusk)))
-
-
-## God rays fanning from the sun to the lower right, breathing slowly.
-func _draw_rays(ci: CanvasItem) -> void:
-	var tex: Texture2D = _tex[&"rays"]
-	var k := 1.2
-	var a := 0.07 + 0.015 * sin(_clock * 0.45) + 0.008 * sin(_clock * 1.13)  # (round 22: fainter: they milked the midground; round 23: fainter still)
-	ci.draw_texture_rect(tex, Rect2(_sun() - RAYS_ORIGIN * k, RAYS_SIZE * k), false, Color(1, 1, 1, a))
-
-
 ## Round 20: each row's order of landforms, worked out once. Round 21 (the judges, j17: "stamped, evenly spaced"):
 ## clusters of one to three landforms overlapping (the bigger behind), a stretch of open plain between two clusters;
 ## never the same landform twice in a row (nor across the repeat); each its own scale, proportions (a spire stands
@@ -357,6 +320,7 @@ func _draw_rays(ci: CanvasItem) -> void:
 func _place_mesas() -> void:
 	var info: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(DIR + "far_mesa_pieces.json"))
 	var h := float(info["height"])
+	_mesa_pitch = float(info.get("pitch", h + 6.0))
 	for p: Array in info["pieces"]:
 		_mesa_src.append(Rect2(float(p[0]), float(p[1]), float(p[2]), h))
 		_mesa_kind.append(maxi(MESA_KINDS.find(String(p[3])), 0))
@@ -387,12 +351,12 @@ func _place_mesas() -> void:
 				var k := lerpf(scales.x, scales.y, _hash(seed + 2))
 				if _mesa_src[piece].size.x > 500.0:
 					k *= 0.8  # (the long plateau: never a wall across the whole view)
-				var tall := 0.78 + _hash(seed + 4) * 0.4
+				var tall := 0.92 + _hash(seed + 4) * 0.18  # (painted forms: stretched a little, never squashed)
 				if kind == 1:
-					tall += 0.18  # (a spire stands taller)
+					tall += 0.08  # (a spire stands taller)
 				elif kind == 3:
-					tall -= 0.1
-				var sink := _hash(seed + 6) * 46.0 * k if j > 0 or _hash(seed + 8) < 0.5 else 0.0
+					tall -= 0.05
+				var sink := _hash(seed + 6) * 30.0 * k if j > 0 or _hash(seed + 8) < 0.5 else 0.0
 				var mirrored := _hash(seed + 3) < float(m.mirror)
 				group.append([piece, x, k, mirrored, tall, sink])
 				# the next one in the cluster overlaps this one; after the last, open plain
@@ -479,15 +443,8 @@ func _draw_strip(ci: CanvasItem, name: StringName) -> void:
 func _draw_front(ci: CanvasItem) -> void:
 	var x0 := _x0()
 	var x1 := _x1()
-	# (2026-11-12, the blind judge, in three of five pictures: "the blurry maroon blobs along the bottom edge cut the
-	# ground strip: compression smudges, not plants": the out-of-focus grass band is no longer drawn; FRONT_GRASS)
-	if FRONT_GRASS:
-		var tex: Texture2D = _tex[&"fg_grass"]
-		var h := float(tex.get_height())
-		var src_x := fposmod(scroll * FRONT_SCROLL + x0, tex.get_width())
-		ci.draw_texture_rect_region(tex, Rect2(x0, World.VIEW_H + FRONT_DROP - h, x1 - x0, h),
-				Rect2(src_x, 0, x1 - x0, h))
 	var props: Texture2D = _tex[&"fg_props"]
+	var cell := props.get_size() / Vector2(FRONT_COLS, ceili(float(FRONT_PIECES) / FRONT_COLS))
 	var offset := scroll * FRONT_PROP_SCROLL
 	var zone := hero_x - FRONT_ZONE  # play x: right of this, nothing rises over the ground line
 	var first := floori((x0 + offset) / FRONT_PROP_GAP) - 1
@@ -503,10 +460,9 @@ func _draw_front(ci: CanvasItem) -> void:
 		var fade := 1.0 - smoothstep(zone - 70.0, zone, rect.end.x - size.x * 0.25)
 		if fade <= 0.01:
 			continue
-		if _hash(i * 11 + 4) < 0.5:
-			rect.size.x = -rect.size.x  # mirrored in place
+		# (never mirrored: each is lit along its upper left edge, as everything is)
 		var piece := posmod(int(_hash(i * 3 + 9) * FRONT_PIECES), FRONT_PIECES)
-		ci.draw_texture_rect_region(props, rect, Rect2(piece * FRONT_PROP.x, 0, FRONT_PROP.x, FRONT_PROP.y), Color(1, 1, 1, fade))
+		ci.draw_texture_rect_region(props, rect, Rect2(Vector2(piece % FRONT_COLS, piece / FRONT_COLS) * cell, cell), Color(1, 1, 1, fade))
 
 
 ## Round 10 ("a flat olive band"): the shadows of the clouds lying across the plain, long and soft,
@@ -527,9 +483,8 @@ func _draw_cloud_shadows(ci: CanvasItem) -> void:
 		ci.draw_texture_rect(tex, Rect2(cx - w / 2, cy - hgt / 2, w, hgt), false, Color(0.16, 0.12, 0.24, 0.3))
 
 
-## Round 21 (the judges, j17: "acacias evenly spaced like wallpaper"): each row in groves of one to six trees
-## standing close (the middle ones taller), with long stretches of open plain between (an animal or a termite mound
-## alone in some), so the rows read as clumps and gaps.
+## Each row in groves of one to three trees standing close, with long stretches of open plain between, so the rows
+## read as clumps and gaps; never the same tree twice side by side; each its own size, build and shade.
 func _draw_trees(ci: CanvasItem, row_index: int) -> void:
 	var row: Array = TREE_ROWS[row_index]
 	var factor: float = row[0]
@@ -541,41 +496,32 @@ func _draw_trees(ci: CanvasItem, row_index: int) -> void:
 	for g in range(first, first + int((x1 - x0) / grove_gap) + 5):
 		var gseed := g * 131 + row_index * 977
 		var u := _hash(gseed)
-		# (how many in this grove: none, a lone tree, a few, a thick clump; the far rows have the bigger clumps)
-		var count := 0 if u < float(row[6]) * 0.7 else (1 if u < 0.55 else (2 + int(_hash(gseed + 1) * (3.0 if row_index == 2 else 5.0))))
-		var cx := g * grove_gap + _hash(gseed + 2) * grove_gap * 0.7 - offset
-		if count == 0:
-			if row_index < 2 and _hash(gseed + 3) < 0.45:  # (round 2) the open plain: animals (giraffes, an elephant, a herd)
-				_draw_animal(ci, int(_hash(gseed + 4) * ANIMALS.size()), cx, row[3], row[2] / 132.0 * 0.7, _hash(gseed + 5) < 0.5)
-			elif row_index > 0 and _hash(gseed + 6) < 0.5:  # or a termite mound
-				var mound: Texture2D = _tex[&"prop_termite"]
-				var mh := float(row[2]) * 0.42 * (0.8 + _hash(gseed + 7) * 0.4)
-				var mk := mh / mound.get_height()
-				_draw_tree(ci, row_index, mound, mound.get_width() / 2.0, Vector2(cx, row[3]), Vector2(mk, mk), false, 0.0, 0.92, 0.0)
+		if u < float(row[6]):
 			continue
-		var spread := float(row[1]) * (0.16 + _hash(gseed + 8) * 0.12)  # (units between two trees of the grove)
+		# (a lone tree, or two or three; the big near ones mostly alone)
+		var count := 1 if (row_index == 1 or u < 0.68) else (2 + int(_hash(gseed + 1) * 1.99))
+		var cx := g * grove_gap + _hash(gseed + 2) * grove_gap * 0.7 - offset
+		var spread := float(row[1]) * (0.3 + _hash(gseed + 8) * 0.2)  # (units between two trees of the grove)
 		var prev := -1
 		for j in count:
 			var seed := gseed * 7 + j * 31
-			var t := int(_hash(seed + 1) * _trees.size()) % _trees.size()
-			if t == prev:  # round 19 ("identical stamps"): never the same tree as the one beside it
-				t = (t + 1 + j) % _trees.size()
+			var n := _tall.size() if row_index == 1 else _trees.size()
+			var t := int(_hash(seed + 1) * n) % n
+			if t == prev:
+				t = (t + 1 + j) % n
 			prev = t
+			if row_index == 1:
+				t = _tall[t]
 			var tex := _trees[t]
-			var mid := 1.0 - absf(j - (count - 1) * 0.5) / maxf(count * 0.5, 1.0)  # 1 in the grove's middle
-			var height: float = row[2] * (0.45 + _hash(seed + 2) * 0.5 + 0.35 * mid) * (1.0 if count < 3 else 0.86)
-			if tex.get_height() > tex.get_width():  # baobabs: taller pictures, same tree scale
-				height *= 1.15
+			var height: float = row[2] * ((0.94 + _hash(seed + 2) * 0.12) if row_index == 1 else (0.8 + _hash(seed + 2) * 0.4))
+			if tex.get_height() < tex.get_width() * 0.75:  # (a low wide crown: not as tall as the others)
+				height *= 0.82
 			var k := height / tex.get_height()
-			var x := cx + (j - (count - 1) * 0.5) * spread * (0.7 + _hash(seed + 3) * 0.6)
-			var wide := 0.78 + _hash(seed + 6) * 0.55  # wider or narrower crowns: no two trees alike
-			# (round 23, the judges, j19: "one stamp repeated": each its own build too, squat and spreading or tall and lean)
-			var build := 0.8 + _hash(seed + 21) * 0.42
-			# (round 12, "tree clones": each its own shade, a little greener, yellower or darker)
-			var v := 0.86 + _hash(seed + 15) * 0.26
-			var warm := (_hash(seed + 16) - 0.5) * 0.16
-			_draw_tree(ci, row_index, tex, _tree_anchor[t], Vector2(x, row[3]), Vector2(k * wide / sqrt(build), k * build), _hash(seed + 4) < 0.5,
-					(_hash(seed + 14) - 0.5) * 0.36, v, warm)
+			var x := cx + (j - (count - 1) * 0.5) * spread * (0.8 + _hash(seed + 3) * 0.4)
+			var build := 0.94 + _hash(seed + 21) * 0.12  # (painted trees: a little wider or taller, no more)
+			var v := 0.92 + _hash(seed + 15) * 0.12
+			var warm := (_hash(seed + 16) - 0.5) * 0.06
+			_draw_tree(ci, row_index, tex, _tree_anchor[t], Vector2(x, row[3]), Vector2(k / build, k * build), false, 0.0, v, warm)
 
 
 ## One tree (or mound) standing at `foot`: its picture `scale`d, mirrored, leaning (a skew about its foot), its
@@ -599,34 +545,21 @@ func _draw_tree(ci: CanvasItem, row_index: int, tex: Texture2D, anchor: float, f
 	ci.draw_set_transform_matrix(Transform2D.IDENTITY)
 
 
-## One of the animals in animals.png (ANIMALS), standing on `ground` at x, `k` times its size, its
-## feet a little in the grass.
-func _draw_animal(ci: CanvasItem, which: int, x: float, ground: float, k: float, flip: bool) -> void:
-	var a: Rect2 = ANIMALS[which]
-	var size := a.size * 0.5 * k  # (2 px a unit)
-	var rect := Rect2(x - size.x / 2, ground + 3.0 * k - size.y, size.x, size.y)
-	if rect.end.x < _x0() or rect.position.x > _x1():
-		return
-	if flip:
-		rect.size.x = -rect.size.x
-	ci.draw_texture_rect_region(_tex[&"animals"], rect, a)
-
-
 ## Pollen and dust floating in the light, drifting up and to the right, twinkling.
 func _draw_motes(ci: CanvasItem) -> void:
 	var tex: Texture2D = _tex[&"mote"]
 	var x0 := _x0()
 	var w := _x1() - x0
-	for i in 30:
+	for i in 18:
 		var sx := _hash(i * 13 + 1)
 		var sy := _hash(i * 17 + 5)
 		var speed := 6.0 + _hash(i * 7 + 3) * 10.0
 		var depth := 0.3 + _hash(i * 19 + 2) * 0.5
 		var x := x0 + fposmod(sx * w * 1.3 - scroll * depth * 0.5 + _clock * speed * 0.6 + sin(_clock * 0.5 + i) * 14.0, w)
-		var y := 120.0 + fposmod(sy * 480.0 - _clock * speed, 480.0)
+		var y := 400.0 + fposmod(sy * 200.0 - _clock * speed, 200.0)  # (over the plain and the grass only: on the deep blue sky they were stars)
 		var twinkle := 0.5 + 0.5 * sin(_clock * (1.2 + sx * 2.0) + i * 1.7)
 		var r := (3.0 + 5.0 * _hash(i * 23 + 9)) * (0.7 + depth)
-		var a := (0.08 + 0.3 * twinkle) * smoothstep(120.0, 220.0, y) * (1.0 - smoothstep(560.0, 600.0, y))
+		var a := (0.08 + 0.3 * twinkle) * smoothstep(400.0, 450.0, y) * (1.0 - smoothstep(560.0, 600.0, y))
 		ci.draw_texture_rect(tex, Rect2(x - r, y - r, r * 2, r * 2), false, Color(1, 0.85, 0.55, a))
 
 

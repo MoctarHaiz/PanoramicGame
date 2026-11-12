@@ -5,6 +5,7 @@ pictures it makes: tools/art/gen/).
 
     python3 tools/art/kie/kie.py credits
     python3 tools/art/kie/kie.py gen NAME --prompt FILE.txt [--ref a.png b.png ...] [--aspect 16:9] [--res 2K]
+            [--model nb2|sunburst|seedream] [--quality low|medium|high|xhigh|max] [--transparent]
         -> tools/art/gen/kie/NAME.png (one picture a call: be economical)
     python3 tools/art/kie/kie.py video NAME --prompt FILE.txt --first a.png [--last a.png] [--seconds 3] [--res 1080p]
         -> tools/art/gen/kie/NAME.mp4 (Kling 4.0 keyframe-to-video: first = last frame for a cycle that loops)
@@ -84,10 +85,29 @@ def fetch(name, model, task, note):
     print("%s  (%s credits, %d s)" % (out, used, time.time() - t0))
 
 
-def gen(name, prompt, refs, aspect, res):
+## The image models (kie.ai's ids): nb2 = Nano Banana 2 (the sprite sheets' redraws); sunburst = GPT Image 2.6 Sunburst
+## (the world's layers, 2026-11-12: true transparent backgrounds, 3:1 strips, up to 16 references; billed by the token:
+## `quality` sets the price); seedream = Seedream 5.5 (cheap: 6.3 credits at 2K and 1.44 a reference).
+def gen(name, prompt, refs, aspect, res, model="nb2", quality="medium", transparent=False):
     urls = [upload(r) for r in refs]
-    run(name, "nano-banana-2", {"prompt": prompt, "image_input": urls, "aspect_ratio": aspect, "resolution": res,
-                                "output_format": "png"}, {"res": res, "refs": [Path(x).name for x in refs]})
+    note = {"res": res, "refs": [Path(x).name for x in refs]}
+    bg = "transparent" if transparent else "opaque"
+    if model == "sunburst":
+        inp = {"prompt": prompt, "aspect_ratio": aspect, "resolution": res, "quality": quality, "background": bg,
+               "output_format": "png"}
+        if urls:
+            inp["input_urls"] = urls
+        run(name, "gpt-image-2-6/sunburst-" + ("image-to-image" if urls else "text-to-image"), inp,
+            dict(note, quality=quality, background=bg))
+    elif model == "seedream":
+        inp = {"prompt": prompt, "aspect_ratio": aspect, "size": res, "output_format": "png", "background": bg,
+               "nsfw_checker": False}
+        if urls:
+            inp["image_urls"] = urls
+        run(name, "seedream/5-5-" + ("image-to-image" if urls else "text-to-image"), inp, dict(note, background=bg))
+    else:
+        run(name, "nano-banana-2", {"prompt": prompt, "image_input": urls, "aspect_ratio": aspect, "resolution": res,
+                                    "output_format": "png"}, note)
 
 
 def video(name, prompt, first, last, seconds, res, model):
@@ -110,13 +130,15 @@ if __name__ == "__main__":
     ap.add_argument("--first")
     ap.add_argument("--last")
     ap.add_argument("--seconds", type=int, default=3)
-    ap.add_argument("--model", default="kling-4.0/keyframe-to-video")
+    ap.add_argument("--model", default="")
+    ap.add_argument("--quality", default="medium")
+    ap.add_argument("--transparent", action="store_true")
     a = ap.parse_args()
     if a.cmd == "credits":
         print(credits())
     elif a.cmd == "fetch":
         fetch(a.name, "", a.task, {})
     elif a.cmd == "gen":
-        gen(a.name, Path(a.prompt).read_text(), a.ref, a.aspect, a.res)
+        gen(a.name, Path(a.prompt).read_text(), a.ref, a.aspect, a.res, a.model or "nb2", a.quality, a.transparent)
     else:
-        video(a.name, Path(a.prompt).read_text(), a.first, a.last, a.seconds, a.res, a.model)
+        video(a.name, Path(a.prompt).read_text(), a.first, a.last, a.seconds, a.res, a.model or "kling-4.0/keyframe-to-video")

@@ -2,9 +2,9 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dir7ta4bs3rjn"
-path.s3tc="res://.godot/imported/cloud_2.png-e7d65255ebb10638bf1d469f646eddc0.s3tc.ctex"
-path.etc2="res://.godot/imported/cloud_2.png-e7d65255ebb10638bf1d469f646eddc0.etc2.ctex"
+uid="uid://c4uxaax2u60x2"
+path.s3tc="res://.godot/imported/far_wall.png-f7e460ca3511e9ab8880103ab943ab6d.s3tc.ctex"
+path.etc2="res://.godot/imported/far_wall.png-f7e460ca3511e9ab8880103ab943ab6d.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
@@ -12,8 +12,8 @@ metadata={
 
 [deps]
 
-source_file="res://assets/art/world/cloud_2.png"
-dest_files=["res://.godot/imported/cloud_2.png-e7d65255ebb10638bf1d469f646eddc0.s3tc.ctex", "res://.godot/imported/cloud_2.png-e7d65255ebb10638bf1d469f646eddc0.etc2.ctex"]
+source_file="res://assets/art/world/far_wall.png"
+dest_files=["res://.godot/imported/far_wall.png-f7e460ca3511e9ab8880103ab943ab6d.s3tc.ctex", "res://.godot/imported/far_wall.png-f7e460ca3511e9ab8880103ab943ab6d.etc2.ctex"]
 
 [params]
 
@@ -25,7 +25,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=true
+mipmaps/generate=false
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

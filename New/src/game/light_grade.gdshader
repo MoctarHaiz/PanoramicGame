@@ -7,7 +7,7 @@ render_mode blend_premul_alpha;
 
 uniform vec4 warm : source_color = vec4(1.0, 0.78, 0.50, 1.0);
 uniform vec4 cool : source_color = vec4(0.17, 0.09, 0.27, 1.0);
-uniform float wash = 0.16;
+uniform float wash = 0.07;  // (the redesign: 0.16 turned the painted sky's deep blue to mauve)
 uniform float vignette = 0.4;  // round 3: deeper darks at the edges (value structure)
 uniform float top = 0.22;  // behind the hearts, the progress and the counter
 uniform float top_reach = 0.14;  // share of the height

@@ -147,7 +147,7 @@ func _draw_rays(ci: CanvasItem) -> void:
 	var a := 0.2 + 0.05 * sin(_clock * 0.5)
 	for side in [-1.0, 1.0]:
 		ci.draw_set_transform(c, -PI * 0.5 + side * (0.05 + sin(_clock * 0.07) * 0.03), Vector2(k * side, k))
-		ci.draw_texture_rect(tex, Rect2(-SavannaView.RAYS_ORIGIN, SavannaView.RAYS_SIZE), false, Color(1, 0.85, 0.6, minf(a * shafts, 1.0)))
+		ci.draw_texture_rect(tex, Rect2(-Vector2(80, 80), Vector2(1280, 820)), false, Color(1, 0.85, 0.6, minf(a * shafts, 1.0)))
 	ci.draw_set_transform(Vector2.ZERO)
 
 

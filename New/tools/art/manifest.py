@@ -26,6 +26,12 @@ USER_3D = {"kind": "user-generated", "url_or_tool": "the user's Blender model an
            "prompt_or_source_record": "ROOT/Making/Animation.blend, panoramic.blend, Panoramic.fbx; ROOT/_agents/AAA/hero3d/Panoramic_AAA.blend"}
 
 
+## the world redesign (2026-11-12): one style frame from the game's own key art and screenshot, then each layer alone
+SUNBURST = {"kind": "user-generated", "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own key art (prompts: tools/art/gen/kie/world/*.txt), cut by tools/art/kie/world.py",
+            "creator": "Haiz Studio", "license": "owned by Haiz Studio",
+            "prompt_or_source_record": "tools/art/gen/kie/world/frame.txt and one prompt per layer; tools/art/gen/kie/ledger.jsonl (names world/*)"}
+
+
 def authored(tool: str) -> dict:
     return {"kind": "authored-procedural", "url_or_tool": tool, "creator": "Claude for Haiz Studio",
             "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
@@ -54,7 +60,12 @@ FAMILIES = [
     ("fx/ring", "Panoramic's chakram: a blue-steel ring with a band of Zulu beadwork (red and black triangles on white), 8 frames of a half turn", authored("tools/art/ring_beadwork.py"), True, "centre", ["palette", "light-direction"]),
     ("world/home_", "HOME homestead piece (hut, fence, granary, sign, pot, glow)", authored("tools/art/home.py"), True, "bottom-centre at the ground", ["palette", "light-direction"]),
     ("world/prop_", "savanna decoration prop", authored("tools/art/props.py"), True, "bottom-centre at the ground", ["palette", "light-direction"]),
-    ("world/tree_", "background tree (acacia, baobab), anchors in tree_info.json", authored("tools/art/trees.py"), True, "bottom-centre at the trunk", ["palette", "light-direction"]),
+    ("world/tree_", "background tree (acacia, baobab, marula, a dead tree), anchors in tree_info.json", SUNBURST, True, "bottom-centre at the trunk", ["palette", "light-direction"]),
+    ("world/sky", "the level's sky panorama, repeats in x", SUNBURST, False, "top-left, repeats in x", ["palette", "light-direction"]),
+    ("world/far_", "far backdrop layer (the escarpment, the landforms and their .json, the plain)", SUNBURST, True, "bottom, repeats in x", ["palette", "light-direction"]),
+    ("world/mid_hills", "the middle-ground rise, repeats in x", SUNBURST, True, "bottom, repeats in x", ["palette", "light-direction"]),
+    ("world/near_grass", "the tall grass behind the path, repeats in x", SUNBURST, True, "bottom, repeats in x", ["palette", "light-direction"]),
+    ("world/fg_props", "six plants and rocks near the camera (3 x 2 cells)", SUNBURST, True, "bottom-centre of each cell", ["palette", "light-direction"]),
     ("world/sunset_", "menu dusk backdrop layer", authored("tools/art/savanna.py"), True, "bottom-left, repeats in x", ["palette"]),
     ("world/vine", "the vine along the top of the screen", authored("tools/art/vine.py"), True, "top", ["palette"]),
     ("world/", "level world layer or terrain texture", authored("tools/art/savanna.py / terrain.py"), None, "per view", ["palette", "light-direction"]),

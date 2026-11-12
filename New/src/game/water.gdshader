@@ -86,7 +86,7 @@ void fragment() {
 		float my = (UV.y * rect_size.y - d) - (2.5 * d + 2.0);  // the mirrored point's level y (the rect's top is 0)
 		my += level_top;
 		float mx = x + wob;
-		vec3 mirrored = texture(sky_tex, vec2(0.5, clamp(my / 644.0, 0.0, 1.0))).rgb;
+		vec3 mirrored = texture(sky_tex, vec2(0.5, clamp((my + 230.0) / 800.0, 0.0, 1.0))).rgb;
 		vec2 hq = vec2((mx - scroll * (1.0 - hills_strip.x)) / hills_strip.z, (my - hills_strip.y + hills_strip.w) / hills_strip.w);
 		vec4 hills = texture(hills_tex, vec2(hq.x / float(textureSize(hills_tex, 0).x), clamp(hq.y, 0.0, 1.0)));
 		mirrored = mix(mirrored, hills.rgb * hills_tint, hills.a * step(0.0, hq.y));
