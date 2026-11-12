@@ -13,6 +13,8 @@ saturation of each pixel scaled, never flattened), so every frame of both sheets
 
     python3 tools/art/bandit_palette.py            assets/art/bandit/{bandit,bandit_strong}.png in place
     (run again after bandit_pack.py or bandit_sheet.py repack a sheet: a sheet already done does not change)
+    NOT for the savanna raiders' sheets (tools/art/kie/raiders.py): they are painted in their own colours, and this
+    would turn their hyena pelts slate.
 """
 import colorsys
 from pathlib import Path

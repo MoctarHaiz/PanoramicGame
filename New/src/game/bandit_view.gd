@@ -70,8 +70,9 @@ const INK := Color(0.075, 0.04, 0.035)  ## their silhouette's ink: darker than P
 ## left, top, right, bottom), its saturation and value x as drawn]: the bandit's indigo wrap, the strong one's rust wrap
 ## (its skin, the same hue, is brighter and less saturated; its crimson cape redder)
 const ACCENT := {
-	&"bandit": [Vector4(205.0, 268.0, 0.18, 0.18), 1.0, Vector4(-75.0, -95.0, 95.0, 8.0), 1.4, 1.12],
-	&"bandit_strong": [Vector4(6.0, 34.0, 0.58, 0.22), 0.8, Vector4(-80.0, -70.0, 70.0, 8.0), 1.1, 1.02],
+	# (the savanna raiders, 2026-11-12: painted in their own colours; no accent is lifted: x 1.0)
+	&"bandit": [Vector4(205.0, 268.0, 0.18, 0.18), 1.0, Vector4(-75.0, -95.0, 95.0, 8.0), 1.0, 1.0],
+	&"bandit_strong": [Vector4(6.0, 34.0, 0.58, 0.22), 0.8, Vector4(-80.0, -70.0, 70.0, 8.0), 1.0, 1.0],
 }
 const SHADOW_WIDTH := 84.0  ## units across its shadow on the ground (Panoramic's: 100)
 const SHADOW_SHIFT := 8.0  ## its shadow falls a little right of it, away from the sun (upper left), as his does
