@@ -17,6 +17,13 @@ uniform vec3 deep_tint : source_color = vec3(0.52, 0.42, 0.56);
 uniform vec3 shade_tint : source_color = vec3(0.50, 0.42, 0.62);  // the side away from the sun
 uniform vec3 sun_tint : source_color = vec3(1.25, 1.08, 0.86);  // the side facing it
 uniform sampler2D depth_tex : filter_nearest;
+// (2026-11-12; four blind judges in a row: "the ground is a vector platformer tile under a painted, inked world": the
+// main ground's bank is the painted cut of earth, earth.png (tools/art/kie/world.py earth): red-brown soil in beds,
+// stones, roots, inked as the backdrop is; sampled in level units across and by the depth under the turf)
+uniform sampler2D earth_tex : source_color, repeat_enable, filter_linear;
+uniform float earth_k = 0.0;  // 1: the painted earth (TerrainView sets it when earth.png is there)
+uniform vec2 earth_size = vec2(956.0, 128.0);  // units of one repeat of it across, and of its height down from the turf
+uniform vec3 earth_tint : source_color = vec3(1.0, 0.98, 0.94);
 uniform int first_col = 0;
 
 varying vec2 level_pos;
@@ -173,12 +180,19 @@ void fragment() {
 	float wide_ink = out_on * (smoothstep(out_top - 1.2, out_top - 0.2, depth) - smoothstep(out_top + 0.2, out_top + 1.2, depth));
 	wide_ink = max(wide_ink, out_on * (smoothstep(out_top + 14.5, out_top + 15.5, depth) - smoothstep(out_top + 16.5, out_top + 17.5, depth)));
 	earth *= 1.0 - 0.1 * smoothstep(34.0, 80.0, depth);  // darker down the bank (round 20: less: the dark foreground passing in front is the dark now)
-	c = mix(c, earth, wide * 0.92);
+	if (earth_k > 0.0) {
+		vec3 painted = texture(earth_tex, vec2(lp.x / earth_size.x, clamp(depth / earth_size.y, 0.0, 0.99))).rgb * earth_tint;
+		painted = mix(vec3(dot(painted, vec3(0.3, 0.59, 0.11))), painted, 0.86) * 1.06;  // (a little less red, a little lighter)
+		earth = mix(earth, painted, earth_k);
+		wide_ink *= 1.0 - earth_k;
+		bed_ink *= 1.0 - earth_k;
+	}
+	c = mix(c, earth, wide * mix(0.92, 1.0, earth_k));
 	ink = max(ink, wide_ink * wide * 0.8);
 	ink = max(ink, bed_ink * wide * (1.0 - outcrop) * 0.55);
 	// stones: in the bank fewer and bigger, half buried, lit on top, a soft shadow under each (no ringed pebbles)
 	vec2 sc = floor(level_pos / mix(26.0, 44.0, wide));
-	float has_stone = step(mix(0.86, 0.84, wide), hash(sc.x * 13.1 + sc.y * 71.7)) * soil_k * (1.0 - outcrop);
+	float has_stone = step(mix(0.86, 0.84, wide), hash(sc.x * 13.1 + sc.y * 71.7)) * soil_k * (1.0 - outcrop) * (1.0 - earth_k * wide);
 	vec2 sp = (fract(level_pos / mix(26.0, 44.0, wide)) - 0.5 - (vec2(hash(sc.x + sc.y * 3.3), hash(sc.y + sc.x * 5.1)) - 0.5) * 0.4) * vec2(1.0, 1.6);
 	float stone_r = mix(0.2, 0.3, wide) * (0.75 + 0.5 * hash(sc.x * 2.1 + sc.y * 9.3));
 	float stone = (1.0 - smoothstep(stone_r - 0.03, stone_r, length(sp))) * has_stone;

@@ -14,6 +14,7 @@ the frame, then each layer of it alone on a transparent background, with the fra
     tree_*.png           ten trees (+ tree_info.json: the foot of each trunk)
     fg_props.png         six plants and rocks near the camera
     home_fire.png        the cooking fire at home, four frames (HomeView.Fire)
+    earth.png            the cut bank of the main ground under the turf (terrain.gdshader), repeating
 
     python3 tools/art/kie/world.py [sky wall mesas plain rise grass trees front]   (none: all)
 
@@ -225,6 +226,15 @@ def front() -> None:
     save(atlas, OUT / "fg_props.png")
 
 
+def earth() -> None:
+    """The main ground's bank (terrain.gdshader earth_tex): the top of the painted cut, repeating left to right."""
+    a = load("earth")
+    out = seam(a[:480], 256, 3.0)
+    out = resize(out, (out.shape[1] // 2, out.shape[0] // 2))
+    out[..., 3] = 1.0
+    save(out, OUT / "earth.png", opaque=True)
+
+
 def fire() -> None:
     """The cooking fire at home: four frames in a row, the stones and logs in the same place in each."""
     ps = pieces("fire", 4, 1)
@@ -241,6 +251,6 @@ def fire() -> None:
 
 
 if __name__ == "__main__":
-    todo = sys.argv[1:] or ["sky", "wall", "mesas", "plain", "rise", "grass", "trees", "front", "fire"]
+    todo = sys.argv[1:] or ["sky", "wall", "mesas", "plain", "rise", "grass", "trees", "front", "fire", "earth"]
     for name in todo:
         globals()[name]()

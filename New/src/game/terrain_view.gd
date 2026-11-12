@@ -171,6 +171,11 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 	soil.set_shader_parameter(&"depth_tex", ImageTexture.create_from_image(
 			Image.create_from_data(end_col - first_col, Level.ROWS, false, Image.FORMAT_RGBA8, _depth_px)))
 	soil.set_shader_parameter(&"first_col", first_col)
+	if ResourceLoader.exists(DIR + "earth.png"):  # the painted bank of the main ground
+		var earth: Texture2D = load(DIR + "earth.png")
+		soil.set_shader_parameter(&"earth_tex", earth)
+		soil.set_shader_parameter(&"earth_k", 1.0)
+		soil.set_shader_parameter(&"earth_size", Vector2(earth.get_width(), earth.get_height()) * (128.0 / earth.get_height()))
 	var textures := {
 		&"soil": load(DIR + "terrain_shape.png"),
 		&"roots": load(DIR + "roots.png"), &"caps": load(DIR + "grass_cap.png"),
