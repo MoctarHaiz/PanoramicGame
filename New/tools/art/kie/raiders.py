@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
-"""The bandits as the savanna raiders (2026-11-12; the user chose design B of three: "use B, savana, and let me see
-them in the game; if I am not ok, we will use A").
+"""The bandits' two looks (2026-11-12; of three designs shown, the user first chose B, the savanna raiders, "and let
+me see them in the game", then, having seen them: "use the 2 versions of the bandits"): look b, the savanna raiders
+(assets/art/bandit/<kind>.png), and look a, the user's own two bandits redrawn in the hero's proportions
+(<kind>_a.png). Each bandit in the game is one or the other (BanditView.LOOKS).
 
 Their motion is the bandits' own: every drawing of the sheets in the game (the run's 12, the stance, the punch's 2,
 the recoil, the leap and the jump's 4) is laid on a pose sheet, and GPT Image 2.6 Sunburst redraws each sheet with
@@ -9,11 +11,11 @@ tools/art/gen/kie/world/raider_*.txt, the design sheet as its reference). Each r
 drawing's pivot, measured from its own lowest point and its own middle, at the old drawing's size on the whole
 (one scale for a sheet: nothing pulses), and packed with the same data as before (frames, heads, the run's pace).
 
-    python3 tools/art/kie/raiders.py sheets            gen/kie/raiders/<kind>_<run|poses>_sheet.jpg + .json
-    python3 tools/art/kie/raiders.py pack [kind ...]   gen/kie/raiders/<kind>_<run|poses>.png -> assets/art/bandit/
-    python3 tools/art/kie/raiders.py gif               build/review/raider_runs.gif (both runs at their pace)
-
-The sheets in the game before this are in git (commit 8e819d2: the user's bandits in the night-raider palette).
+    python3 tools/art/kie/raiders.py pack b|a          gen/kie/raiders/[a_]<kind>_<run|poses>.png -> assets/art/bandit/
+    python3 tools/art/kie/raiders.py gif               build/review/raider_runs.gif (the four runs at their pace)
+    python3 tools/art/kie/raiders.py sheets            the pose sheets, gen/kie/raiders/<kind>_<run|poses>_sheet.jpg +
+                                                       .json: made ONCE, from the bandits' sheets of commit 8e819d2
+                                                       (the motion's source); it refuses to make them from a redrawn sheet
 """
 import json
 import sys
@@ -56,6 +58,8 @@ def middle(a: np.ndarray) -> float:
 
 
 def sheets() -> None:
+    if (GEN / "bandit_run_sheet.json").exists():
+        raise SystemExit("the pose sheets are made: they come from the bandits' sheets of commit 8e819d2, not from a redrawn one")
     GEN.mkdir(parents=True, exist_ok=True)
     for kind in KINDS:
         atlas, d = old_frames(kind)
@@ -117,20 +121,21 @@ def head_of(a: np.ndarray) -> tuple:
     return float(np.median(xs[top])), float(y0 + (y1 - y0) * 0.1)
 
 
-def pack(kinds) -> None:
-    for kind in kinds:
+def pack(look: str) -> None:
+    pre, post = ("", "") if look == "b" else ("a_", "_a")
+    for kind in KINDS:
         _, old = old_frames(kind)
         frames = {}
         for name, (ids, cols, rows) in SHEETS.items():
             meta = json.loads((GEN / f"{kind}_{name}_sheet.json").read_text())
-            figs = figures(GEN / f"{kind}_{name}.png", cols, rows)
+            figs = figures(GEN / f"{pre}{kind}_{name}.png", cols, rows)
             heights = [np.nonzero(f[..., 3] > 0.5)[0].ptp() + 1 for f in figs]
             # one scale for the sheet: its drawings as tall as the old ones on the whole (the median of the ratios)
             k = float(np.median([m["height"] / h for m, h in zip(meta, heights)]))
             print(f"{kind} {name}: x{k:.3f} (each drawing's own would be",
                   " ".join("%.2f" % (m["height"] / h) for m, h in zip(meta, heights)) + ")")
             for m, f, h in zip(meta, figs, heights):
-                one = GEN / f"{kind}_{REDONE.get(m['frame'], '')}.png"
+                one = GEN / f"{pre}{kind}_{REDONE.get(m['frame'], '')}.png"
                 if m["frame"] in REDONE and one.exists():
                     # a pose painted again alone (the sheet's came out as another man): as tall as the sheet's was
                     f = figures(one, 1, 1)[0]
@@ -159,25 +164,25 @@ def pack(kinds) -> None:
             heads.append([round(hx - px, 1), round(hy - py, 1)])
         al = atlas[..., 3:4]
         rgb = np.where(al > 1e-4, atlas[..., :3] / np.maximum(al, 1e-4), 0.0)
-        Image.fromarray((np.dstack([rgb, al[..., 0]]).clip(0, 1) * 255 + 0.5).astype(np.uint8), "RGBA").save(ART / f"{kind}.png")
+        Image.fromarray((np.dstack([rgb, al[..., 0]]).clip(0, 1) * 255 + 0.5).astype(np.uint8), "RGBA").save(ART / f"{kind}{post}.png")
         data = dict(old)
         data.update({"frames": rects, "head": heads})
-        (ART / f"{kind}.json").write_text(json.dumps(data, indent=1))
-        print(f"{kind}: {len(rects)} drawings, {atlas.shape[1]}x{atlas.shape[0]}")
+        (ART / f"{kind}{post}.json").write_text(json.dumps(data, indent=1))
+        print(f"{kind}{post}: {len(rects)} drawings, {atlas.shape[1]}x{atlas.shape[0]}")
 
 
 def gif() -> None:
     out = NEW / "build/review"
     out.mkdir(parents=True, exist_ok=True)
     strips = []
-    for kind in KINDS:
-        atlas, d = old_frames(kind)
-        strips.append((atlas, d))
+    for kind in ("bandit", "bandit_a", "bandit_strong", "bandit_strong_a"):
+        if (ART / f"{kind}.json").exists():
+            strips.append((rgba(ART / f"{kind}.png"), json.loads((ART / f"{kind}.json").read_text())))
     w, h = 460, 400
     n = 24
     pics = []
     for t in range(n):
-        im = Image.new("RGB", (w * 2, h), (222, 196, 140))
+        im = Image.new("RGB", (w * len(strips), h), (222, 196, 140))
         for j, (atlas, d) in enumerate(strips):
             i = int(t / n * 2 * 12 * d["run_fps"] / max(s[1]["run_fps"] for s in strips)) % 12
             x, y, fw, fh, px, py = d["frames"][i]
@@ -193,7 +198,7 @@ if __name__ == "__main__":
     if cmd == "sheets":
         sheets()
     elif cmd == "pack":
-        pack(sys.argv[2:] or KINDS)
+        pack(sys.argv[2] if len(sys.argv) > 2 else "b")
     elif cmd == "gif":
         gif()
     else:

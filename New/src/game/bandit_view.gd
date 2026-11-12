@@ -73,11 +73,19 @@ const ACCENT := {
 	# (the savanna raiders, 2026-11-12: painted in their own colours; no accent is lifted: x 1.0)
 	&"bandit": [Vector4(205.0, 268.0, 0.18, 0.18), 1.0, Vector4(-75.0, -95.0, 95.0, 8.0), 1.0, 1.0],
 	&"bandit_strong": [Vector4(6.0, 34.0, 0.58, 0.22), 0.8, Vector4(-80.0, -70.0, 70.0, 8.0), 1.0, 1.0],
+	&"bandit_a": [Vector4(205.0, 268.0, 0.18, 0.18), 1.0, Vector4(-75.0, -95.0, 95.0, 8.0), 1.0, 1.0],
+	&"bandit_strong_a": [Vector4(6.0, 34.0, 0.58, 0.22), 0.8, Vector4(-80.0, -70.0, 70.0, 8.0), 1.0, 1.0],
 }
 const SHADOW_WIDTH := 84.0  ## units across its shadow on the ground (Panoramic's: 100)
 const SHADOW_SHIFT := 8.0  ## its shadow falls a little right of it, away from the sun (upper left), as his does
 
-const KINDS: Array[StringName] = [&"bandit", &"bandit_strong"]
+const KINDS: Array[StringName] = [&"bandit", &"bandit_strong", &"bandit_a", &"bandit_strong_a"]
+## Each kind's two looks (the user, 2026-11-12, having seen both: "use the 2 versions of the bandits"): the savanna
+## raiders (a braid and a hyena pelt; the horned brute) and the user's own two bandits redrawn in the hero's
+## proportions (the head-wrap and the scarf; the headband and the cape). A bandit is one or the other for good
+## (look_of: in turns along the level), so a band of them is mixed. Same drawings, pivots and sizes in both: the
+## rules see no difference.
+const LOOKS := {false: [&"bandit", &"bandit_a"], true: [&"bandit_strong", &"bandit_strong_a"]}
 static var _kinds := {}  # kind -> [its bandit.json data, its sheet]
 
 ## How far a running bandit's body reaches ahead of its centre (units): pressed on a wall, its crest
@@ -104,7 +112,7 @@ const DRAW_SCALE := 1.0
 ## screen (366 px against 344): 0.94 brings his whole silhouette, tufts included, to the hero's height. His run
 ## pace is raised by as much (a shorter stride at the same ground speed), so his planted boot doesn't slide. The
 ## rules' body (World.STRONG_BODY, to the top of his wrap at full size) is unchanged: its top now meets his tufts' tips.
-const KIND_SCALE := {&"bandit": 1.0, &"bandit_strong": 0.94}
+const KIND_SCALE := {&"bandit": 1.0, &"bandit_strong": 0.94, &"bandit_a": 1.0, &"bandit_strong_a": 0.94}
 
 var _scale := 0.5
 var _last_time := -1.0
@@ -152,14 +160,18 @@ static func load_art() -> void:
 	if not _kinds.is_empty():
 		return
 	for k in KINDS:
-		_kinds[k] = [JSON.parse_string(FileAccess.get_file_as_string(DIR + k + ".json")), load(DIR + k + ".png")]
+		if ResourceLoader.exists(DIR + k + ".png"):
+			_kinds[k] = [JSON.parse_string(FileAccess.get_file_as_string(DIR + k + ".json")), load(DIR + k + ".png")]
 
 
 func _init(w: World, b: World.Bandit) -> void:
 	world = w
 	bandit = b
 	load_art()
-	kind = &"bandit_strong" if b.strong else &"bandit"  # (World.is_strong)
+	var looks: Array = LOOKS[b.strong]  # (World.is_strong)
+	kind = looks[look_of(w, b)]
+	if not _kinds.has(kind):
+		kind = looks[0]
 	_d = _kinds[kind][0]
 	_tex = _kinds[kind][1]
 	_run_frames = int(_d.run_frames)
@@ -208,6 +220,16 @@ func _init(w: World, b: World.Bandit) -> void:
 	_breath = b.id * 0.7
 	_star_turn = b.id * 1.3
 	_show(int(_d.run) + int(_run))
+
+
+## Which of its kind's two looks a bandit has: the small ones take turns along the level, and so do the strong ones,
+## so both looks are met from the first bands on and a band of them is mixed.
+static func look_of(w: World, b: World.Bandit) -> int:
+	var before := 0
+	for o in w.bandits:
+		if o.strong == b.strong and o.id < b.id:
+			before += 1
+	return before % 2
 
 
 ## Called by WorldView every frame while the bandit is in the game. `grounded`: on its ledge this tick (not hopping a
