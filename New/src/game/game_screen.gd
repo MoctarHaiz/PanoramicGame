@@ -24,9 +24,17 @@ const SWIPE_MM := 4.0  ## the same travel on any screen (30 units was 3 mm on a 
 ## pools, the bandits on it are always in view); when he goes up (a high ledge, a jump, the vine)
 ## the camera draws back just enough to keep his head HEAD_ROOM under the top of the screen, and
 ## the vine under the HUD (HUD_BAND) while he can reach it or hangs from it.
-const VIEW_AHEAD := 1040.0  ## play units at least, right of the play window's left edge
-const ZOOM_MAX := 1.26
+## (2026-11-12, both blind judges: "bring the camera in: the hero 25 to 28 % of the screen's height"; the user: "yes,
+## closer camera") Closer on the ground: 1.4 on a phone (1.24 before), still showing everything the 2017 screen did.
+## What held it back was showing the play window's 960 units inside the screen's safe margins: _keep_fair now lets
+## them reach the screen's own right edge (the 96 units under a phone's right inset: bandits wake there, on the ground,
+## clear of a camera cut-out at mid height), and the base no longer keeps 80 units more than the window in view.
+const VIEW_AHEAD := 900.0  ## play units at least, right of the play window's left edge (_keep_fair: all 960 of them)
+const ZOOM_MAX := 1.4
 const HEAD_ROOM := 132.0  ## screen units (of 640) over his head
+## ... and over his head at the top of a jump: just under the HUD's band (at 132 every jump drew the closer camera
+## back by a sixth and let it creep in again)
+const APEX_ROOM := 92.0
 const HEAD := 74.0  ## play units from his centre up to the top of his head (drawn 150 tall from his feet)
 const HUD_BAND := 78.0  ## screen units kept for the HUD over the vine
 const VINE_GAP := 30.0  ## round 5: and this much more, so his hands on the vine never touch the HUD
@@ -357,7 +365,8 @@ func _keep_fair(zoom: float, at: Vector2) -> Array:
 		need = Rect2(lo, hi - lo)
 	_need = need
 	var insets := Device.insets()
-	var area := Rect2(insets.x, hud_band(), _clip.size.x - insets.x - insets.z, _clip.size.y - hud_band())
+	# (to the screen's right edge, not its safe margin: what comes in there is a bandit on the ground)
+	var area := Rect2(insets.x, hud_band(), _clip.size.x - insets.x, _clip.size.y - hud_band())
 	var fit := minf(area.size.x / need.size.x, area.size.y / need.size.y)
 	if zoom > fit:  # zoomed out about the middle of what must be seen
 		var c := at + need.get_center() * zoom
@@ -407,10 +416,9 @@ static func follow_zoom(w: World, p: Vector2) -> float:
 	var vine := (World.VIEW_H - hud_band() - VINE_GAP) / (World.VIEW_H - VINE_TOP)
 	if w.state == World.State.RUNNING and (w.hanging or w.rising_to_vine()):
 		return vine  # (the rules hold him at y 0 up there: he is drawn hanging under the vine)
-	var top := p.y - HEAD
+	var z := (World.VIEW_H - HEAD_ROOM) / maxf(World.VIEW_H - (p.y - HEAD), 1.0)
 	if w.state == World.State.RUNNING and not w.on_ground and w.vy < 0.0:
-		top = minf(top, _jump_top(p.y, w.vy) - HEAD)
-	var z := (World.VIEW_H - HEAD_ROOM) / maxf(World.VIEW_H - top, 1.0)
+		z = minf(z, (World.VIEW_H - APEX_ROOM) / maxf(World.VIEW_H - (_jump_top(p.y, w.vy) - HEAD), 1.0))
 	return minf(z, vine) if w.state == World.State.RUNNING and _vine_in_reach(w) else z
 
 

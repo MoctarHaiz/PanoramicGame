@@ -1506,7 +1506,8 @@ func _gp_camera() -> void:
 				raw_before = raw
 				var zoom: float = game._stage.scale.x
 				var insets := Device.insets()
-				var area := Rect2(insets.x, GameScreenScript().hud_band(), game._clip.size.x - insets.x - insets.z,
+				# (2026-11-12, the closer camera: to the screen's right edge, where the bandits come in on the ground)
+				var area := Rect2(insets.x, GameScreenScript().hud_band(), game._clip.size.x - insets.x,
 						game._clip.size.y - GameScreenScript().hud_band()).grow(1.5)
 				var eased: Rect2 = game._need
 				var target := Rect2(game._stage.position + eased.position * zoom, eased.size * zoom)

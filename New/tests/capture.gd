@@ -41,7 +41,9 @@ const MOMENT_OF := {"pause": "game", "resume": "game", "throw": "game", "hurt": 
 		"fell": "climb", "win": "home"}
 ## Moments of the bot's run used by the level shots: name -> condition on the world.
 const MOMENTS := {
-	"game": "ticks >= 250 and on_ground and not hanging",  # (on the ground: at tick 250 the bot is hanging, as in "hang")
+	# (on the low ground, the camera close: at tick 250 the bot is hanging, as in "hang"; on a ledge under the vine the
+	# camera is drawn back to show it)
+	"game": "ticks >= 250 and on_ground and not hanging and y > 440 and flat",
 	"climb": "scroll > 5200 and y < 260",
 	"hang": "hanging and scroll > 18000",
 	"home": "at_end and x > 330",
@@ -96,10 +98,22 @@ func _collect_moments(needed: Dictionary) -> void:
 	print("  moments found in %d ms" % (Time.get_ticks_msec() - t0))
 
 
+## Grass at his feet's level all the way over the next `reach` units: no pool, no drop, no step.
+func _flat_ahead(w: World, reach: float) -> bool:
+	var row := floori((w.y + World.HERO_SIZE.y / 2 + 1.0) / Level.TILE)
+	var c0 := floori((w.scroll + w.x) / Level.TILE)
+	for c in range(maxi(c0, 0), mini(floori((w.scroll + w.x + reach) / Level.TILE), Level.COLS - 1) + 1):
+		if row < 1 or row >= Level.ROWS or w.level.kind_at(c, row) != Level.Kind.TOP or w.level.kind_at(c, row - 1) == Level.Kind.TOP:
+			return false
+	return true
+
+
 func _check(w: World, condition: String) -> bool:
 	var e := Expression.new()
-	e.parse(condition, ["ticks", "scroll", "x", "y", "hanging", "at_end", "on_ground"])
-	return e.execute([w.ticks, w.scroll, w.x, w.y, w.hanging, w.at_end, w.on_ground])
+	e.parse(condition, ["ticks", "scroll", "x", "y", "hanging", "at_end", "on_ground", "flat"])
+	# flat: no pool or drop in the next 900 units (the staged shots let him run on with no pilot)
+	var flat := _flat_ahead(w, 900.0)
+	return e.execute([w.ticks, w.scroll, w.x, w.y, w.hanging, w.at_end, w.on_ground, flat])
 
 
 func _capture(device: String, shot: String) -> void:
