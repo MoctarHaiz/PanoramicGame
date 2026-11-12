@@ -7,6 +7,7 @@ pictures it makes: tools/art/gen/).
     python3 tools/art/kie/kie.py gen NAME --prompt FILE.txt [--ref a.png b.png ...] [--aspect 16:9] [--res 2K]
             [--model nb2|sunburst|seedream] [--quality low|medium|high|xhigh|max] [--transparent]
         -> tools/art/gen/kie/NAME.png (one picture a call: be economical)
+    python3 tools/art/kie/kie.py cutout NAME --first picture.png   (its subject on a transparent background)
     python3 tools/art/kie/kie.py video NAME --prompt FILE.txt --first a.png [--last a.png] [--seconds 3] [--res 1080p]
         -> tools/art/gen/kie/NAME.mp4 (Kling 4.0 keyframe-to-video: first = last frame for a cycle that loops)
 
@@ -110,6 +111,11 @@ def gen(name, prompt, refs, aspect, res, model="nb2", quality="medium", transpar
                                     "output_format": "png"}, note)
 
 
+def cutout(name, image):
+    """A picture's subject cut from its background (Recraft: 1 credit): NAME.png with alpha."""
+    run(name, "recraft/remove-background", {"image": upload(image)}, {"image": Path(image).name})
+
+
 def video(name, prompt, first, last, seconds, res, model):
     """A clip from a first (and last) frame: Kling 4.0 keyframe-to-video by default."""
     inp = {"prompt": prompt, "duration": seconds, "resolution": res, "first_frame_url": upload(first)}
@@ -120,7 +126,7 @@ def video(name, prompt, first, last, seconds, res, model):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["credits", "gen", "video", "fetch"])
+    ap.add_argument("cmd", choices=["credits", "gen", "video", "fetch", "cutout"])
     ap.add_argument("--task")
     ap.add_argument("name", nargs="?")
     ap.add_argument("--prompt")
@@ -138,6 +144,8 @@ if __name__ == "__main__":
         print(credits())
     elif a.cmd == "fetch":
         fetch(a.name, "", a.task, {})
+    elif a.cmd == "cutout":
+        cutout(a.name, a.first)
     elif a.cmd == "gen":
         gen(a.name, Path(a.prompt).read_text(), a.ref, a.aspect, a.res, a.model or "nb2", a.quality, a.transparent)
     else:
