@@ -15,7 +15,7 @@ const SPEC_AT := Vector2(-5.9, -6.4)  ## units from its middle (at SIZE): bob_sh
 ## Round 19 ("red on the warm pink mesas gets lost"): no pink glow added round it (on the pink cliffs it
 ## melted the ball into them): a soft dark wine ring under its rim instead, so its edge holds against any
 ## backdrop, the ruby's own bright rim and glint inside it (bob_sheet.py: bolder face, thicker ink).
-const GLOW := Color(0.2, 0.0, 0.06, 0.55)  ## the ring round it (normal blend), tight so a row never merges
+const GLOW := Color(0.2, 0.0, 0.06, 0.26)  ## the ring round it (normal blend), tight so a row never merges
 const GLOW_R := 0.7  ## its reach, a share of SIZE from the middle (the ball is 0.5)
 const SPEC_K := 0.85  ## the steady specular spark on its glint
 ## Round 20 (the judges, j16: "Red Bob rows run through the bandits' heads and torsos: one red-black knot at the
@@ -31,7 +31,7 @@ const SPEC_K := 0.85  ## the steady specular spark on its glint
 ## Round 23 (the judges, j19, two rounds running: "a half-faded, see-through Red Bob reads as a rendering bug"): binary.
 ## A Bob is drawn in full, or hidden while a bandit's head or body covers it (a quick ease, HIDE_RATE, never a lingering
 ## half-alpha); its neighbours no longer fade.
-const RIM := Color(1.0, 0.8, 0.36, 0.95)
+const RIM := Color(1.0, 0.8, 0.36, 0.0)  ## (the redesign: the medallion has its own gold rim; the ring is not drawn)
 const BEHIND_GROW := Vector2(14.0, 24.0)  ## units a bandit's drawn body (hair, cape) reaches past its box
 const HIDE_RATE := 14.0  ## its fade out and back in: ~70 ms each way
 const SHINE := """

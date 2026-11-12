@@ -21,10 +21,16 @@ extends Node2D
 const DIR := "res://assets/art/bandit/"
 const FLASH_TIME := Fx.FLASH_TIME  ## New (audio): the shared impact's white, 2 frames, then the reaction shows
 const KO_HOLD := 0.08  ## seconds frozen on the blow, in its recoil
-const KO_FLIGHT := 0.46  ## seconds thrown back through the air
-const KO_BACK := 170.0  ## units it is thrown back, the way the ring flew
-const KO_UP := 64.0  ## units its arc rises
-const KO_TURN := 1.35  ## radians it turns over backward in the flight
+const KO_FLIGHT := 0.5  ## seconds thrown back through the air
+const KO_BACK := 150.0  ## units it is thrown back, the way the ring flew
+const KO_UP := 92.0  ## units its arc rises: over the heads of those behind it
+## (blind round 5: "an unreadable smear inside a pale ring"; "two enemies stacked into one tangled silhouette": its
+## recoil pose stays readable (it leans back, it does not turn over), no ring of light is drawn over it, and it is
+## thrown away from the play: smaller and paler as it goes, so it never tangles with the bandit behind it)
+const KO_TURN := 0.6  ## radians it leans back in the flight
+const KO_AWAY := 0.4  ## how much smaller it is at the flight's end (thrown into the distance)
+const KO_PALE := 0.4  ## and how far toward the air's colour
+const KO_AIR := Color(0.94, 0.88, 0.77)
 const KO_POOF := 0.12  ## seconds, the flight's last: it shrinks into its puff
 ## its puff's sparks: the chakram's steel blue, its beadwork's red and white
 const KO_SPARKS: Array[Color] = [Color("ffffff"), Color("6cc4ff"), Color("e82808"), Color("ffd36b")]
@@ -479,20 +485,21 @@ func _disappear(delta: float) -> void:
 	var rise := KO_UP * 4.0 * t * (1.0 - t) + 10.0 * t
 	# turning about its middle (its node is at its feet): its head goes back, the way it is thrown
 	var middle := Vector2(0.0, -_middle())
-	var turn := KO_TURN * (1.0 - pow(1.0 - t, 1.6))
+	var turn := KO_TURN * smoothstep(0.05, 0.8, t)
 	_sprite.rotation = turn
 	_sprite.position = middle - middle.rotated(turn) + Vector2(0.0, -rise)
 	# stretched along its flight off the blow, then itself; at the end it shrinks into the puff
 	var out := clampf((t - (1.0 - KO_POOF / KO_FLIGHT)) / (KO_POOF / KO_FLIGHT), 0.0, 1.0)
 	var stretch := lerpf(1.1, 1.0, minf(t * 3.0, 1.0))
-	var size := _scale * (1.0 - 0.45 * out)
+	var size := _scale * (1.0 - KO_AWAY * t) * (1.0 - 0.4 * out)
+	_material.set_shader_parameter(&"tint", Color.WHITE if _flash > 0.05 else KO_AIR)  # (the blow's white, then the air)
+	_material.set_shader_parameter(&"amount", maxf(_flash * 0.85, KO_PALE * t))
 	_sprite.scale = Vector2(size * stretch * side, size * (2.0 - stretch))
 	_sprite.modulate.a = 1.0 - out * out
 	if out > 0.0 and not _poofed:
 		_poofed = true
 		var at := position + _sprite.position + middle.rotated(turn)
 		var parent := get_parent()
-		Fx.ring(parent, at, 10.0, 62.0, 0.24, Color(1.0, 0.97, 0.9, 0.85), 6.0)
 		Fx.dust(parent, at, 9, 210.0, 0.0, 1.15)
 		Confetti.make(parent, at).sparkle(7, KO_SPARKS, Vector2(150, 400), 0.9, Vector2(0.3, 0.55))
 

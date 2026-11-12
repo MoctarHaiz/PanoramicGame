@@ -151,7 +151,7 @@ func _capture(device: String, shot: String) -> void:
 			Save.best_bobs = 64
 			Save.best_stars = 2
 			Nav.go(&"menu")
-			await _wait(1.3)
+			await _wait(2.6)  # (its intro has played: the logo is down, the buttons are in)
 		"first_menu":
 			Save.tutorial_seen = false
 			Nav.go(&"menu")

@@ -63,17 +63,21 @@ const HORIZON := 432.0  ## play y of the plain's far edge: the landforms stand b
 ## from the same low sun on the left (a mirrored one was lit from the right).
 ## The redesign: the landforms are painted inked and lit (ink, planes 0); the far row small and deep in the far wall's
 ## blue-violet air, the near row in its full orange and red; none mirrored (all lit from the upper left).
-const AIR := Color(0.47, 0.46, 0.72)  ## the far wall's blue-violet: what distance draws everything toward
+## (blind round 5: "the midground at the play layer's saturation, contrast and line detail: no quiet zone; push the
+## whole background back one clear value step, lighter and hazier, a quarter less colour": every layer behind the
+## play is drawn toward a pale air and flattened (haze.gdshader's flatten: less colour, less contrast, its ink with it),
+## more the farther it is; the characters and the pickups are the only full-contrast layer)
+const AIR := Color(0.7, 0.66, 0.86)  ## the far air, a pale blue-violet: what distance draws the landforms toward
 const MESA_ROWS := [
-	{scroll = 0.014, bottom = 438.0, scale = Vector2(0.2, 0.28), haze = 0.56, foot = 0.14, haze_colour = AIR,
+	{scroll = 0.014, bottom = 438.0, scale = Vector2(0.2, 0.28), haze = 0.6, foot = 0.14, haze_colour = AIR,
 		tint = Color(1, 1, 1), mirror = 0.0, gap = Vector2(30.0, 190.0), kinds = [3.0, 1.5, 1.2, 1.0], cloud = 0.0, ink = 0.0, planes = 0.0,
-		flatten = 0.3, ink_amount = 0.0, ink_colour = Color(0.5, 0.53, 0.68)},
-	{scroll = 0.024, bottom = 444.0, scale = Vector2(0.3, 0.4), haze = 0.3, foot = 0.14, haze_colour = AIR,
+		flatten = 0.5, ink_amount = 0.0, ink_colour = Color(0.5, 0.53, 0.68)},
+	{scroll = 0.024, bottom = 444.0, scale = Vector2(0.3, 0.4), haze = 0.42, foot = 0.14, haze_colour = AIR,
 		tint = Color(1, 1, 1), mirror = 0.0, gap = Vector2(60.0, 300.0), kinds = [2.0, 2.0, 1.0, 1.4], cloud = 0.5, ink = 0.0, planes = 0.0,
-		flatten = 0.14, ink_amount = 0.0, ink_colour = Color(0.42, 0.36, 0.55)},
-	{scroll = 0.04, bottom = 452.0, scale = Vector2(0.44, 0.6), haze = 0.06, foot = 0.12, haze_colour = AIR,
+		flatten = 0.36, ink_amount = 0.0, ink_colour = Color(0.42, 0.36, 0.55)},
+	{scroll = 0.04, bottom = 452.0, scale = Vector2(0.44, 0.6), haze = 0.22, foot = 0.12, haze_colour = AIR,
 		tint = Color(1, 1, 1), mirror = 0.0, gap = Vector2(160.0, 560.0), kinds = [2.0, 1.6, 1.6, 1.4], cloud = 1.0, ink = 0.0, planes = 0.0,
-		flatten = 0.0, ink_amount = 0.0, ink_colour = Color(0.3, 0.19, 0.29)},
+		flatten = 0.24, ink_amount = 0.0, ink_colour = Color(0.3, 0.19, 0.29)},
 ]
 ## Round 23: the sky's cool light, laid into the shade side of the landforms, the plain and the grass (one light: the
 ## warm low sun for the lit faces, the sky's cool for the shade).
@@ -96,8 +100,8 @@ const DUSK_STRIPS := {&"far_wall": Color(0.6, 0.6, 0.9), &"far_hills": Color(0.7
 ## middle-ground rise (they move between the plain's speed and the rise's), big ones behind the tall grass, their trunks
 ## passing behind him and their crowns over the landforms. (The plain has its own far groves painted in.)
 const TREE_ROWS := [
-	[0.14, 330.0, 96.0, 540.0, 0.12, 0.0, 0.42, AIR],
-	[0.31, 760.0, 232.0, 594.0, 0.0, 0.0, 0.5, Color(0.96, 0.78, 0.5)],
+	[0.14, 330.0, 96.0, 540.0, 0.2, 0.0, 0.42, LANE_AIR],
+	[0.31, 760.0, 232.0, 594.0, 0.06, 0.0, 0.5, LANE_AIR],
 ]
 ## The big near row: only trees with a tall trunk, their crowns over his head: behind his body there is a trunk at
 ## most (a wide low crown behind him hid him and the bandits).
@@ -106,7 +110,7 @@ const TREE_TINT := [Color(0.96, 0.96, 1.0), Color(1, 1, 1)]
 const TREE_INK := [0.0, 0.0]  ## (painted inked)
 const TREE_INK_AMOUNT := [0.0, 0.0]
 const TREE_INK_COLOUR := [Color(0.3, 0.26, 0.33), Color(0.17, 0.085, 0.06)]
-const TREE_FLATTEN := [0.22, 0.12]
+const TREE_FLATTEN := [0.5, 0.34]
 const TREE_AMBIENT := [0.0, 0.0]
 ## Round 22 (the judges, j18: "the hero's lane has no value separation: a mid-orange hero on mid-gold grass"): the tall
 ## grass behind his legs and the savanna behind his body a value darker and greener (an olive band), so his warm skin,
@@ -120,10 +124,13 @@ const MID_TINT := Color(0.97, 0.98, 0.94)
 const LANE_TINT := Color(0.96, 0.98, 0.92)
 ## and each a little flatter than painted (less contrast, less colour: the shader's `flatten`), the plain most: the
 ## characters in front are the picture's strongest darks and colours
-const PLAIN_FLATTEN := 0.2
-const MID_FLATTEN := 0.2
-const LANE_FLATTEN := 0.12
-const LANE_AIR := Color(0.86, 0.8, 0.68)  ## what the lane's layers flatten toward: a pale warm straw
+const PLAIN_FLATTEN := 0.48
+const PLAIN_HAZE := 0.13
+const MID_FLATTEN := 0.42
+const MID_HAZE := 0.1
+const LANE_FLATTEN := 0.26
+const LANE_HAZE := 0.03
+const LANE_AIR := Color(0.94, 0.88, 0.77)  ## what the plain's and the lane's layers are drawn toward: a pale warm air
 const CLOUD_SHADOW_GAP := 700.0  ## round 10: units of the plain between two clouds' shadows
 const FRONT_PROP_SCROLL := 1.45  ## round 9: the big things in front, nearer still (round 20: 1.6 -> 1.45: longer in the corner)
 const FRONT_PROP := Vector2(260, 230)  ## one piece of fg_props.png (units, 2 px a unit), in 3 columns
@@ -179,7 +186,7 @@ func _ready() -> void:
 	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	_painter(_draw_sky, true)
 	# the far escarpment: as painted, its foot behind the plain
-	_wall_mat = _haze([0, 0, 0, 0, 0.0, 0.0, 0, AIR], Color.WHITE, 0.0, 0.0, true)
+	_wall_mat = _haze([0, 0, 0, 0, 0.3, 0.0, 0, Color(0.8, 0.72, 0.86)], Color.WHITE, 0.0, 0.0, true, {flatten = 0.3})
 	_painter(_draw_strip.bind(&"far_wall"), true).material = _wall_mat
 	_place_mesas()
 	for row in MESA_ROWS.size():  # three rows of landforms, the farther ones deeper in the air
@@ -190,13 +197,13 @@ func _ready() -> void:
 		hz.set_shader_parameter(&"cell_px", _mesa_pitch)
 		_painter(_draw_mesas.bind(row)).material = hz
 		_mesa_mats.append(hz)
-	_far_mat = _haze([0, 0, 0, 0, 0.04, 0.0, 0, LANE_AIR], Color.WHITE, 0.0, 0.0, true, {flatten = PLAIN_FLATTEN})
+	_far_mat = _haze([0, 0, 0, 0, PLAIN_HAZE, 0.0, 0, LANE_AIR], Color.WHITE, 0.0, 0.0, true, {flatten = PLAIN_FLATTEN})
 	_painter(_draw_strip.bind(&"far_hills"), true).material = _far_mat
 	_painter(_draw_trees.bind(0)).material = _tree_haze(0)
-	_mid_mat = _haze([0, 0, 0, 0, 0.0, 0.0, 0, LANE_AIR], MID_TINT, 0.0, 0.0, true, {flatten = MID_FLATTEN})
+	_mid_mat = _haze([0, 0, 0, 0, MID_HAZE, 0.0, 0, LANE_AIR], MID_TINT, 0.0, 0.0, true, {flatten = MID_FLATTEN})
 	_painter(_draw_strip.bind(&"mid_hills"), true).material = _mid_mat
 	_painter(_draw_trees.bind(1)).material = _tree_haze(1)
-	_painter(_draw_strip.bind(&"near_grass"), true).material = _haze([0, 0, 0, 0, 0.0, 0.0, 0, LANE_AIR], LANE_TINT, 0.0, 0.0, true, {flatten = LANE_FLATTEN})
+	_painter(_draw_strip.bind(&"near_grass"), true).material = _haze([0, 0, 0, 0, LANE_HAZE, 0.0, 0, LANE_AIR], LANE_TINT, 0.0, 0.0, true, {flatten = LANE_FLATTEN})
 	_painter(_draw_cloud_shadows)  # (round 10) shadows of the clouds sliding over the plain
 	_painter(_draw_motes).material = add
 	_painter(_draw_birds)

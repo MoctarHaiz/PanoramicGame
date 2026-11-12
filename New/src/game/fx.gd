@@ -623,7 +623,11 @@ static func ring_hit(parent: Node, at: Vector2) -> void:
 ## A bandit knocked out: the medium impact in the ring's blue (shards flung up and away), stars
 ## flying off and a puff of dust where he stood.
 static func knock_out(parent: Node, at: Vector2, feet: Vector2) -> void:
-	impact_burst(parent, at, Vector2(1, -0.4).normalized(), &"medium", RING_LIGHT[2])
+	# (no ring of light here, as the other impacts have: over the thrown bandit it read as "a pale ring round a smear";
+	# a burst of rays behind it and the shards flung the way it goes)
+	shards(parent, at, Vector2(1, -0.4).normalized(), IMPACTS[&"medium"].shards, 1.0, RING_LIGHT[2])
+	rays(parent, at, Color(1.0, 0.95, 0.8, 0.9), 9, 120.0, 0.2)
+	glow(parent, at, Color(1, 1, 1, 0.9), 0.12, 0.4, FLASH_TIME * 1.5)
 	var stars := Confetti.make(parent, at)
 	stars.gravity = 1400.0
 	stars.drag = 1.4
