@@ -32,6 +32,10 @@ KINDS = ("bandit", "bandit_strong")
 ## a pose sheet: its frames (indices in the old sheet), columns, rows; the cell of the sheet given to the generator
 SHEETS = {"run": (list(range(12)), 4, 3), "poses": ([12, 13, 14, 15, 16, 17, 18, 19, 20], 3, 3)}
 SHEET_PX = (1920, 1080)
+## a run's own pace (drawings a second), where its stride is not the old bandit's: the caped brute's is longer (his
+## planted boot goes back 62 px a drawing, measured on the packed sheet, the old one's 47): at the old 13.7 a second
+## his boots slid on the ground
+RUN_FPS = {"bandit_strong_a": 10.3}
 ## drawings painted again alone, each from its own prompt (raider_<kind>_<name>.txt): frame -> name
 REDONE = {15: "hit"}
 FOOT = 34  # px over a cell's bottom edge where a drawing's pivot (the ground under it) is put
@@ -167,6 +171,8 @@ def pack(look: str) -> None:
         Image.fromarray((np.dstack([rgb, al[..., 0]]).clip(0, 1) * 255 + 0.5).astype(np.uint8), "RGBA").save(ART / f"{kind}{post}.png")
         data = dict(old)
         data.update({"frames": rects, "head": heads})
+        if kind + post in RUN_FPS:
+            data["run_fps"] = RUN_FPS[kind + post]
         (ART / f"{kind}{post}.json").write_text(json.dumps(data, indent=1))
         print(f"{kind}{post}: {len(rects)} drawings, {atlas.shape[1]}x{atlas.shape[0]}")
 
