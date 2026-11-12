@@ -58,6 +58,8 @@ func _ready() -> void:
 
 
 func _check(ok: bool, what: String) -> void:
+	if "--names" in OS.get_cmdline_user_args():  # (to find a check that ran in one run and not in another)
+		print("check: ", what.left(60))
 	if _batch != null:
 		if not ok:
 			(_batch as Array).append(what)
