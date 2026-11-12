@@ -4,17 +4,17 @@ extends Node
 ## in his run animation (HeroView), never on a clock of its own, so sound and picture can't drift.
 ##
 ## The contract with the run animation (HeroView):
-## - the drawn run (2026-11-12: one whole stride, 12 drawings a loop): if HeroView has run_frame() (the frame
-##   showing, 0..12 fractional, -1 when he isn't running), a step sounds as the frame passes a
-##   contact, CONTACTS: a boot comes down on drawings 1 and 7 (tools/art/kie/hero_pack.py prints the planted
-##   boots). Two steps a loop, 6 drawings apart: at 16 frames a second, 2.7 steps a second.
-## - until HeroView has run_frame(): its run clock (_run, 0..12) while pose() is &"run" or &"throw"
+## - the drawn run (a Seedance sprint, 16 slots a loop): if HeroView has run_frame() (the frame
+##   showing, 0..16 fractional, -1 when he isn't running), a step sounds as the frame passes a
+##   contact, CONTACTS: a boot lands on slots 1, 5, 9 and 13 (video frames 8, 14, 20, 26 of the
+##   clip, 6 apart). Four steps a loop, 4 slots apart: at 16 frames a second, 4 steps a second.
+## - until HeroView has run_frame(): its run clock (_run, 0..16) while pose() is &"run" or &"throw"
 ##   (the throwing arm is drawn over the running legs);
 ## - the two drawn run poses of the old painted hero (run_a, run_b): a foot lands at each change.
 ## A step against a wall (pushing, blocked) is softer.
 
-const RUN_FRAMES := 12  ## the run loop's length in frames
-const CONTACTS: Array[float] = [1.0, 7.0]  ## frames where a foot touches the ground (0-based)
+const RUN_FRAMES := 16  ## the run loop's length in frames
+const CONTACTS: Array[float] = [1.0, 5.0, 9.0, 13.0]  ## frames where a foot touches the ground (0-based)
 const RUN_POSES: Array[StringName] = [&"run_a", &"run_b"]
 
 var world: World

@@ -95,11 +95,17 @@ def hair(a: np.ndarray) -> int:
 FIX = {"bandit_run_v1_fix": ("bandit_run_v1", [(9, "cycle12_a"), (3, None)]),
        "strong_run_v1_fix": ("strong_run_v1", [(9, "cycle12_b"), (3, None), (1, "cycle12_b"), (7, None)]),
        # (its gap 3 came out late in the 4-row chart: the planted boot already where the push-off has it)
-       "strong_run_v1_fix3": ("strong_run_v1", [(9, "cycle12_b"), (3, None)])}
+       "strong_run_v1_fix3": ("strong_run_v1", [(9, "cycle12_b"), (3, None)]),
+       # (2026-11-12, the blind judge on the small bandit: "drawings 4 and 10: the swinging leg already reached forward,
+       # low and nearly straight, the rear foot still planted: a walk contact; the next drawings pull the same knee
+       # high again: a stutter": both rolls again, the free leg folded under him this time, no example beside them)
+       "bandit_run_v1_fix2": ("bandit_run_v1", [(3, None), (9, None)])}
 KEPT = {"strong_run_v1_fix": [7]}  # the gaps taken from a chart (all it drew, unless named here)
-MIRRORED = {("bandit_run_v1", 3)}  # drawn facing the other way ("the same moment on his other leg"): turned back
+MIRRORED = {("bandit_run_v1_fix", 3)}  # drawn facing the other way ("the same moment on his other leg"): turned back
 ## clip -> gap -> the folder its in-between is taken from
-PICK = {"bandit_run_v1": {1: "cycle12_b", 3: "fix", 5: "cycle12_b", 7: "cycle12_b", 9: "cycle12_a", 11: "cycle12_b"},
+## (a pair: that folder's drawing of another gap: the small bandit's two steps are drawn alike, and the second chart's
+## roll of his other leg came out before the passing pose, not after it)
+PICK = {"bandit_run_v1": {1: "cycle12_b", 3: "fix", 5: "cycle12_b", 7: "cycle12_b", 9: ("fix", 3), 11: "cycle12_b"},
         "strong_run_v1": {1: "cycle12_b", 3: "fix", 5: "cycle12_b", 7: "fix", 9: "cycle12_b", 11: "cycle12_b"}}
 
 
@@ -162,7 +168,7 @@ def fixcut(name: str) -> None:
         for c in range(3):
             box = (round((c * (side + PAD) + PAD // 2) * k), round((r * (side + PAD) + PAD // 2) * ky), round(side * k), round(side * ky))
             got.append(cell_of(keyed, lab, owner, clip.split("_")[0], r * 3 + c, box, side))
-        if (clip, gap) in MIRRORED:
+        if (name, gap) in MIRRORED:
             got[1] = got[1][:, ::-1]
         placed, moves = [], []
         for c, ki in ((0, (gap - 1) // 2), (2, ((gap + 1) // 2) % 6)):
@@ -185,12 +191,18 @@ def pick(clip: str) -> None:
     out = []
     for i in range(12):
         src = "cycle12_b" if i % 2 == 0 else PICK[clip][i]
-        out.append(rgba(GEN / clip / src / ("%02d.png" % i)))
+        src, j = src if isinstance(src, tuple) else (src, i)
+        out.append(rgba(GEN / clip / src / ("%02d.png" % j)))
     side = out[0].shape[0] // 2
     for i in range(1, 12, 2):  # (a drawing of another chart: its head midway between these keys')
         want = (np.array(head(out[i - 1])) + np.array(head(out[(i + 1) % 12]))) / 2.0
         d = want - np.array(head(out[i]))
         out[i] = ndi.shift(out[i], (round(d[1]), round(d[0]), 0), order=0, mode="constant")
+    ground = max(boot(out[i])[0] for i in range(0, 12, 2))
+    for i in (1, 3, 7, 9):  # (the landing and the roll: his planted boot on the ground, not a few px over it)
+        up = ground - boot(out[i])[0]
+        if 6 < up < 60:
+            out[i] = ndi.shift(out[i], (up - 4, 0, 0), order=0, mode="constant")
     dst = GEN / clip / "cycle12"
     dst.mkdir(exist_ok=True)
     for f in dst.glob("*.png"):

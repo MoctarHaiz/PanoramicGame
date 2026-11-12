@@ -4,8 +4,8 @@ extends Node2D
 ## (ROOT/Making/Animation.blend): Nano Banana 2 stills, animated with Seedance clips (2.0 Mini) and
 ## resampled to the game's slots, packed into atlases (tools/art/hero_atlas_ai.py, assets/art/hero/hero_frames.json;
 ## the earlier 3D renders: tools/art/hero_atlas.py) and played by the state of the rules:
-## - the run (2026-11-12, tools/art/kie/hero_pack.py): one whole stride in 12 drawings, its motion from a Kling 4.0
-##   clip, each drawing redrawn crisp by Nano Banana 2, at the pace that keeps his planted boot on the scrolling ground;
+## - the run: 16 frames (the user, 2026-11-12, shown a 12-drawing stride from a Kling clip beside it: "the hero before
+##   run animation was better and smoother": this one stays);
 ## - the jump: the push-off, then his air poses by how far through the jump he is (the rules decide how high and how
 ##   far): the rise, the tuck at the top, opening, the fall, braced for the ground; he lands into the run's stride;
 ## - the vine: reaching up into it, hanging by his hands (a damped pendulum, legs swaying), the
@@ -20,19 +20,19 @@ const DIR := "res://assets/art/hero/"
 ## His drawn size is the atlas' (GameArt.HERO_DRAW_HEIGHT standing): kept for the views that size
 ## things after him.
 const DRAW_SCALE := 1.0
-## The run: atlas frames a second. 16, the user's choice (2026-11-07). The stride of 2026-11-12 (12 drawings, both
-## steps: 2.7 steps a second) holds its planted boot on the ground (233 units/s) at 14.1 (tools/art/kie/hero_pack.py
-## prints it): at 16 the boot moves back 1.14 times as fast as the ground.
+## The run: atlas frames a second. 16, the user's choice (2026-11-07): the pace the Seedance sprint was filmed at
+## (16 slots out of 24 video frames, a second of it). The boot pace that would match the ground (233 units/s) is
+## lower (tools/art/hero_atlas_ai.py prints it); at 16 the planted boot moves back faster than the ground.
 const RUN_FPS := 16.0
-const RUN_FRAMES := 12
+const RUN_FRAMES := 16
 const RUN_LAND := 1.0  ## the run's drawing a landing goes into: his front boot coming down, his weight onto it next
 const TAKEOFF := 0.07  ## seconds of the push-off (the rules have already left the ground)
 const THROW_TIME := 0.3  ## the throw: the chakram cocked overhead, then the arm thrown forward (legs running on)
 ## (2026-11-10: 0.3 -> 0.14: the ring flies 0.04 s after the tap, RingView.WIND_UP; cocked for 0.09 s he still held the
 ## chakram overhead while it was already in the air ahead of him: the release shows as it leaves)
 ## His thrown fist in the throw's drawings (the arm flung forward), from his feet (units; measured on the atlas:
-## 58 to 72 ahead, 98 to 114 up over the twelve): the ring is drawn leaving it (RingView.from_hand)
-const THROW_FIST := Vector2(66.0, -108.0)
+## 72 to 76 ahead, 104 to 108 up over the sixteen): the ring is drawn leaving it (RingView.from_hand)
+const THROW_FIST := Vector2(74.0, -106.0)
 const THROW_BACK := 0.14  ## share of the throw spent with the chakram cocked
 const MANTLE := 0.16  ## seconds standing up after a climb over a ledge
 const BLINK_HZ := 8.0  ## the mercy pulse after a hit (smooth, not a strobe)
@@ -127,10 +127,8 @@ const DIE_MIN_X := 70.0  ## play x he is never drawn left of when caught (the de
 ## his chest and head turned forward about his hips (actor.gdshader's bend: his legs and planted boots as drawn) and
 ## the whole drawing slanted forward from the ground line (Node2D.skew: his boots stay on it; the rules' box as it was),
 ## eased in with the ground's pace from a standstill, out at a jump's push-off, a landing, a blow
-## (2026-11-12) the stride of the new run is a sprint as drawn (his chest forward over a long step): the turn of his
-## chest is off (0.2 before: on these drawings it bent him double), the slant a touch (0.07 before)
-const LEAN_CHEST := 0.0  ## radians his upper body turns forward about his hips at full pace
-const LEAN_SLANT := 0.03  ## radians the whole of him slants forward from the ground line
+const LEAN_CHEST := 0.2  ## radians his upper body turns forward about his hips at full pace
+const LEAN_SLANT := 0.07  ## radians the whole of him slants forward from the ground line
 const LEAN_IN := 5.0  ## easing into the lean (/s: most of it in ~0.45 s from a standstill)
 const LEAN_OUT := 18.0  ## out of it
 const LEAN_REACH := 16.0  ## units his front (the fist, the face) reaches further at full lean (held back from walls)
@@ -310,8 +308,8 @@ func pose() -> StringName:
 	return _anim
 
 
-## For the footsteps (the audio track): the run frame showing (0..11), -1 when he isn't running.
-## A boot comes down at frames 1 and 7 (Footsteps.CONTACTS).
+## For the footsteps (the audio track): the run frame showing (0..15), -1 when he isn't running.
+## Boots touch the ground around frames 1 and 9.
 func run_frame() -> int:
 	return int(_run) % RUN_FRAMES if _anim in [&"run", &"throw"] else -1
 

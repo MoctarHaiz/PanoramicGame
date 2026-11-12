@@ -42,8 +42,14 @@ UP = 2  # sheet.py keeps the redrawn frames at twice the clip's size
 RUN_FPS = 16.0  # HeroView.RUN_FPS: the run's drawings a second (the user's 16 of 2026-11-07; the ground's pace is printed)
 K_AIR = 0.61  # the air sheet's
 KEEP = ["idle", "die", "win", "climb", "hang", "catch", "crouch", "hurt"]
+## (the user, 2026-11-12, on the two runs side by side over the moving ground: "the hero before run animation was better
+## and smoother") "before": his run (16 drawings) and the throw over it (32) are the atlas's of commit 1146f61 again,
+## rendered from his 3D model's own motion: even from drawing to drawing. "clip": the 12 drawings of the Kling clip,
+## redrawn (crisper one by one, but unevenly spaced and with no flight; kept for reference, not used).
+RUN = "before"
+AIR_SHEET = "hero_air_2"  # the sheet of his air poses (cells.py)
 AIR = [0, 0, 1, 2, 3, 4, 5, 7]  # the jump's slots: the air sheet's cells
-LAND = range(21, 27)  # the old jump's landing
+LAND = range(21, 25)  # the old jump's landing: its crouch (HeroView.LAND_CROUCH drawings; the two after are not shown)
 
 
 def rgba(path) -> np.ndarray:
@@ -145,6 +151,13 @@ def run_frames() -> tuple:
 def build() -> None:
     old, meta = old_frames()
     anims = {a: old[a] for a in KEEP}
+    if RUN == "before":
+        anims["run"], anims["throw"] = old["run"], old["throw"]
+        air = {c: frame(resized(rgba(GEN / AIR_SHEET / ("%02d.png" % c)), K_AIR)) for c in set(AIR)}
+        anims["jump"] = [air[c] for c in AIR]
+        anims["land"] = [old["jump"][i] for i in LAND]
+        pack(anims, dict(meta, jump=(30.0, False), land=(30.0, False)))
+        return
     pics, origin, hips = run_frames()
     n = len(pics)
     anims["run"] = [frame(a, origin, hips) for a in pics]
@@ -165,7 +178,9 @@ def build() -> None:
     print("run: boots planted", [None if b is None else (round(b[0]), "rl"[b[1]]) for b in boots],
           "back %.1f px a drawing: the ground's pace is %.1f drawings/s (played at %.0f: x%.2f)"
           % (per, GROUND_SPEED / (per * UNITS), RUN_FPS, RUN_FPS * per * UNITS / GROUND_SPEED))
-    air = {c: frame(resized(rgba(GEN / "hero_air_1" / ("%02d.png" % c)), K_AIR)) for c in set(AIR)}
+    # (hero_air_2: drawn from three of the run's own drawings as the model; hero_air_1, from the older key picture, was
+    # "a leaner, paler model with rounder, browner hair: a swap at take-off and landing", the blind judge, 2026-11-12)
+    air = {c: frame(resized(rgba(GEN / AIR_SHEET / ("%02d.png" % c)), K_AIR)) for c in set(AIR)}
     anims["jump"] = [air[c] for c in AIR]
     anims["land"] = [old["jump"][i] for i in LAND]
     throw = sorted((GEN / "hero_throw").glob("[0-9][0-9].png"))
@@ -180,7 +195,11 @@ def build() -> None:
     else:
         print("no throw drawings yet: the run's stand in")
         anims["throw"] = anims["run"] * 2
-    fps = dict(meta, run=(24.0, True), jump=(30.0, False), land=(30.0, False), throw=(24.0, False))
+    pack(anims, dict(meta, run=(24.0, True), jump=(30.0, False), land=(30.0, False), throw=(24.0, False)))
+
+
+def pack(anims: dict, fps: dict) -> None:
+    """The atlas pages and hero_frames.json from the animations' frames."""
     # unique pictures -> atlas regions (shelves, tallest first)
     uniq, order = {}, []
     for a in anims.values():
