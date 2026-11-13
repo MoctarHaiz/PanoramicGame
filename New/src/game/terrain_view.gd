@@ -17,8 +17,7 @@ extends Node2D
 ##   caps   the grass along every walkable top (grass_cap.png), rounded ends wrapping the corners
 ##   roots  roots reaching into the soil under the grass
 ##   tufts  clumps of grass and wild flowers standing on some tops, swaying (sway.gdshader)
-##   drape  grass hanging over each open side of a top: a tufted lip leaning out past the edge,
-##          drooping down the face (over banks it hangs over the water)
+##   (drape: no longer drawn, 2026-11-13: the ends bent from the turf wrap the corners)
 ##   foot   soft shade where a wall rises from a top: a short occlusion on the sun's side, a longer
 ##          one on the far side (the sun is upper left)
 ##   cast   (round 2) each wall's long shadow along the ground away from the sun
@@ -40,14 +39,16 @@ const ROOTS_H := 34.0
 const UNDER_TOP := 6.0  ## underside.png: the cell's bottom edge 6 units below the strip's top
 const UNDER_H := 44.0
 const TUFT := Vector2(64, 48)  ## tufts.png: one row of 8
-const FRONT_H := 24.0  ## front_grass.png: blades rise from 14 units under the surface
-const FRONT_BASE := 18.0
+const FRONT_H := 24.0  ## front_grass.png: 24 units of blades (48 px)
+## 2026-11-13 (the blind judge: "the foreground … hides the boots and ground contact"): the blades in front of the runners
+## drawn squat, their tips about FRONT_UP units over the walking line (his boots are about 14 tall), down to FRONT_DOWN
+## under it, whole (squashed, never cut), in clumps that come and go along the ground (FRONT_CLUMP units), gaps between
+const FRONT_UP := 5.0
+const FRONT_DOWN := 9.0
+const FRONT_CLUMP := 46.0
 const FOOT_SHADE := Color(0.14, 0.06, 0.14, 0.78)  ## at the foot of a wall (round 23, the judges: "no contact shadow at its base": darker)
 const CAST_SHADE := Color(0.16, 0.1, 0.2, 0.68)  ## a wall's long shadow on the ground (soft-started: no seam)
 const CAST_K := 0.75  ## its length per unit of the wall's height (a low sun)
-const DRAPE := Vector2(30, 50)  ## grass_drape.png: two pieces (left side, right side), each this size
-const DRAPE_IN := 8.0  ## units of a drape over its own cell (the rest hangs past the open side)
-const DRAPE_TOP := 12.0  ## units of a drape above the grass surface
 ## Round 20: a one- or two-cell-wide stack (the poles in the river, the stacks on the plain) is a carved column
 ## painted by spire.gdshader (round 19's spires.png and spire_feet.png pictures are gone), its slim grass mat on top.
 const SPIRE_SHADER := preload("res://src/game/spire.gdshader")
@@ -146,6 +147,30 @@ func prepare(lvl: Level, first_col: int, end_col: int) -> void:
 			if _solid[at] == 0 and _solid[at - _cols] == 1 and _solid[at + _cols] == 1 \
 					and _solid[at - 1] == 1 and _solid[at + 1] == 1:
 				_solid[at] = 1
+	# (2026-11-13, the director: "the column that hangs to nothing over the pit"): a narrow wall at least four cells tall
+	# whose foot is low over a pit (nothing under it to the map's bottom) is drawn on down into the pit, standing in its
+	# water as the stacks do; drawing only, the pit is where it was
+	for i in range(1, _cols - 1):
+		var rb := Level.ROWS - 1
+		while rb >= 0 and _solid[(rb + 1) * _cols + i] == 0:
+			rb -= 1
+		if rb < Level.ROWS - 5 or rb >= Level.ROWS - 1:
+			continue
+		var tall := 0
+		while tall < 4 and rb - tall >= 0 and _solid[(rb - tall + 1) * _cols + i] == 1:
+			tall += 1
+		var run := 1
+		var k := i - 1
+		while k >= 0 and _solid[(rb + 1) * _cols + k] == 1:
+			run += 1
+			k -= 1
+		k = i + 1
+		while k < _cols and _solid[(rb + 1) * _cols + k] == 1:
+			run += 1
+			k += 1
+		if tall >= 4 and run <= 3:
+			for r in range(rb + 1, Level.ROWS + 1):
+				_solid[(r + 1) * _cols + i] = 1
 	_first_col = first_col
 	_end_col = end_col
 	_poles.resize(end_col - first_col + 2)
@@ -174,7 +199,7 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 	var sway := ShaderMaterial.new()
 	sway.shader = preload("res://src/game/sway.gdshader")
 	# (round 9: the masses over the soil: their top fades into the ledge, its underside line hidden)
-	for name: StringName in [&"soil", &"mass", &"spires", &"roots", &"caps", &"ends", &"tufts", &"drape", &"foot", &"cast"]:
+	for name: StringName in [&"soil", &"mass", &"spires", &"roots", &"caps", &"ends", &"tufts", &"foot", &"cast"]:
 		var layer := Node2D.new()
 		layer.name = name
 		add_child(layer)
@@ -188,7 +213,6 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 	var ink := ShaderMaterial.new()
 	ink.shader = preload("res://src/game/ink.gdshader")
 	ink.set_shader_parameter(&"width", 2.6)
-	_layers[&"drape"].material = ink
 	# round 23 (the judges, j19: "he runs over the darkest band of the screen"): the turf he runs on lit a value lighter,
 	# a clean light lip along the walking line, its underside in the cool shade (ink.gdshader's `turf`)
 	var turf := ink.duplicate() as ShaderMaterial
@@ -218,7 +242,6 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 		&"roots": load(DIR + "roots.png"), &"caps": load(DIR + "grass_cap.png"),
 		&"ends": load(DIR + "grass_ends.png"), &"tufts": load(DIR + "tufts.png"),
 		&"front": load(DIR + "front_grass.png"), &"foot": soft_disc(), &"cast": cast_shade(),
-		&"drape": load(DIR + "grass_drape.png"),
 	}
 	textures[&"front_cast"] = textures[&"cast"]
 	_textures = textures
@@ -337,10 +360,15 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 	if not open_n and _wall_foot(c, r):  # (round 2) the ground's grass runs on across a wall's foot
 		b[&"caps"].items.append([Rect2(x, y - CAP_ABOVE, T, CAP_H),
 				Rect2(fposmod(x * PX, STRIP), 0, T * PX, CAP_H * PX), Color.WHITE])
-		b[&"front"].items.append(_lit(Rect2(x, y - FRONT_BASE + 4.0, T, FRONT_H),
-				Rect2(fposmod(x * PX, 1024.0), 0, T * PX, FRONT_H * PX), _dry(c)))
+		b[&"front"].items.append(_front(c, x, y))
 	if not open_n or _kind(c, r) != Level.Kind.TOP:
 		return
+	# (2026-11-13: a top running into a stack's side (a ledge against a river pinnacle) gets its rounded end there as at
+	# an open side: the stack's rock is narrower than its cell and the turf stopped square on it)
+	if not open_w and not pole and _stack_col(c - 1):
+		open_w = true
+	if not open_e and not pole and _stack_col(c + 1):
+		open_e = true
 	# the grass cap: a strip that runs on in level x; a cell with an open side gets a rounded end
 	# instead, which wraps the corner and fades into the next cell's strip
 	if not open_w and not open_e:
@@ -355,16 +383,16 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 		b[&"caps"].items.append(_lit(Rect2(x0, y - CAP_ABOVE, w, CAP_H),
 				Rect2(_strip_x(c, x0), 0, w * PX, CAP_H * PX), _grass_base(c)))
 	var pole_top := pole and open_w and open_e  # round 19: a pillar's cap: a slim mat, no hat
-	if pole_top:  # round 20: a slim turf across the column's top and a clump of grass on it (the rounded
-		# ends read as a lime box on the river's columns)
-		var k := 0.72
-		var reach := 3.0  # (its band and fringe only: the clump is its blades)
-		b[&"caps"].items.append([Rect2(x - reach, y, T + reach * 2.0, (CAP_H - CAP_ABOVE) * k),
-				Rect2(_strip_x(c, x), CAP_ABOVE * PX, (T + reach * 2.0) * PX, (CAP_H - CAP_ABOVE) * PX), _grass_tone(c)])
-		var v: int = [0, 2, 6, 7][_hash(c, r + 3, 4)]
-		var tw := TUFT.x * 0.8
-		b[&"tufts"].items.append([Rect2(x + T / 2 - tw / 2 + float(_hash(c, r + 1, 9)) - 4.0, y - TUFT.y * 0.8 + 6.0, tw, TUFT.y * 0.8),
-				Rect2(v * TUFT.x * PX, 0, TUFT.x * PX, TUFT.y * PX), Color(0.92, 0.94, 0.9)])
+	if pole_top:  # (2026-11-13, the blind judge on the river pinnacles: "a saturated orange, soft-airbrushed rock with a
+		# lime tuft": the tuft of tufts.png and the slim band were two more grass languages): the turf of every top across
+		# it, its blades and band, with the rounded ends cut from the same turf on both sides
+		var inset := 7.0
+		b[&"caps"].items.append(_lit(Rect2(x + inset, y - CAP_ABOVE, T - inset * 2.0, CAP_H),
+				Rect2(_strip_x(c, x + inset), 0, (T - inset * 2.0) * PX, CAP_H * PX), _grass_base(c)))
+		b[&"ends"].items.append([Rect2(x - END_OUT, y - CAP_ABOVE, END_W, END_H),
+				Rect2(0, 0, END_W * PX, END_H * PX), Color.WHITE])
+		b[&"ends"].items.append([Rect2(x - END_FADE, y - CAP_ABOVE, END_W, END_H),
+				Rect2(END_W * PX, 0, END_W * PX, END_H * PX), Color.WHITE])
 	elif open_w:
 		b[&"ends"].items.append([Rect2(x - END_OUT, y - CAP_ABOVE, END_W, END_H),
 				Rect2(0, 0, END_W * PX, END_H * PX), Color.WHITE])
@@ -397,8 +425,7 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 			b[&"cast"].items.append([Rect2(x - 4.0, y - 20.0, length, 46.0), Rect2(0, 0, 64, 32), CAST_SHADE])
 			b[&"front_cast"].items.append([Rect2(x - 4.0, y - 8.0, length * 0.8, 18.0), Rect2(0, 0, 64, 32),
 					Color(CAST_SHADE, CAST_SHADE.a * 0.45)])  # (trimmed: only the blades' lower half)
-	b[&"front"].items.append(_lit(Rect2(x, y - FRONT_BASE + 4.0, T, FRONT_H),
-			Rect2(fposmod(x * PX, 1024.0), 0, T * PX, FRONT_H * PX), _dry(c)))
+	b[&"front"].items.append(_front(c, x, y))
 	# some tops get a clump of grass or flowers (never on the edge cells); round 20 (the judges, j16: "the ground
 	# a straight band"): more of them, each its own size, in runs that come and go, so the grass line along the
 	# top rises and falls (drawn only: the ground he runs on is where it was)
@@ -410,8 +437,10 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 		var dx := float(_hash(c, r + 1, 17)) - 8.0
 		var k := 0.72 + 0.6 * _hash(c, r + 43, 100) / 100.0
 		var size := TUFT * k
-		b[&"tufts"].items.append([Rect2(x + T / 2 - size.x / 2 + dx, y - size.y + 6.0 * k, size.x, size.y),
-				Rect2(v * TUFT.x * PX, 0, TUFT.x * PX, TUFT.y * PX), Color.WHITE])
+		# (2026-11-13, the judge at home: "pale cream plumes at the hut's base … unlit cut-outs": they take the home's dusk
+		# and fire light as the turf does)
+		b[&"tufts"].items.append(_lit(Rect2(x + T / 2 - size.x / 2 + dx, y - size.y + 6.0 * k, size.x, size.y),
+				Rect2(v * TUFT.x * PX, 0, TUFT.x * PX, TUFT.y * PX), Color.WHITE))
 
 
 ## Round 2: under a floating ledge (from its left end, cell c of row r), the rock it carries (round 20: painted
@@ -470,8 +499,8 @@ func _hang_masses(c: int, r: int, batch_shadow: Batch) -> void:
 		a = c
 	if solid(e, r):
 		e = c + n
-	var x_left := a * T + 2.0
-	var x_right := e * T - 2.0
+	var x_left := a * T + (2.0 if a == c else -5.0)  # (over a wall: its broken end about the wall's side)
+	var x_right := e * T - (2.0 if e == c + n else -5.0)
 	var lip := 40.0 + (r - top_row) * 12.0  # (its front face: what shows under the grass mat, more on a thick ledge)
 	var depth := lip + minf((deepest - (r - top_row) * T) * 0.9, length * 0.3)  # (a short ledge: a shallow body, no spike)
 	var room := minf(54.0, length * 0.45)  # (under its lowest corner: its drips and roots; fewer under a short ledge)
@@ -574,20 +603,6 @@ class UnderRock extends Node2D:
 		draw_texture_rect(white, rect, false)
 
 
-## Round 22: whether the top at (c, r) is the top of a pillar standing on the ground: its row's run of solid cells at
-## most NARROW_CELLS wide, solid under it (not a floating ledge), not a stack (drawing only).
-func _pillar_top(c: int, r: int) -> bool:
-	if _in_pole(c, r) or not solid(c, r + 1):
-		return false
-	var a := c
-	while a > c - NARROW_CELLS - 1 and solid(a - 1, r):
-		a -= 1
-	var b := c
-	while b < c + NARROW_CELLS + 1 and solid(b + 1, r):
-		b += 1
-	return b - a + 1 <= NARROW_CELLS
-
-
 ## A cell at the ground line under a wall: a run of cells with a wall over them (at most 16), with
 ## open ground (a top) at the same height next to it on a side. The ground runs on under the wall
 ## there (its grass and soil). Found once per row in build() (_feet).
@@ -616,7 +631,9 @@ func _find_feet() -> void:
 			# the rock, which put a strip of turf and a lit band inside a wall)
 			top_left = top_left and _solid[(r - 1) * _cols + start - 1] == 0
 			top_right = top_right and i < _cols and _solid[(r - 1) * _cols + i] == 0
-			if (top_left or top_right) and i - start <= 16:
+			# (not across a one-cell stack's foot: the river's painted pinnacles flare wide over it, the strip ran across one)
+			var pinnacle := i - start == 1 and start < _poles.size() and _poles[start] >= 0 and _poles[start] / 10000 == 1
+			if (top_left or top_right) and i - start <= 16 and not pinnacle:
 				for k in range(start, i):
 					_feet[r * _cols + k] = 1
 
@@ -665,6 +682,29 @@ static func _lit(dest: Rect2, src: Rect2, base: Color) -> Array:
 	if dest.end.x <= HomeView.LEFT - 22.0 * T:
 		return [dest, src, base]
 	return [dest, src, base * _home_light_at(dest.position.x), base * _home_light_at(dest.end.x)]
+
+
+## 2026-11-13: the blades in front of the runners over cell c (x, y: its top left): squat (FRONT_UP over the walking
+## line), each end of the cell as thick as the clumps are there (_front_k()), in the home's light (_lit()).
+func _front(c: int, x: float, y: float) -> Array:
+	var it := _lit(Rect2(x, y - FRONT_UP, T, FRONT_UP + FRONT_DOWN), Rect2(fposmod(x * PX, 1024.0), 0, T * PX, FRONT_H * PX), _dry(c))
+	var left: Color = it[2]
+	var right: Color = it[3] if it.size() > 3 else it[2]
+	return [it[0], it[1], Color(left, left.a * _front_k(x)), Color(right, right.a * _front_k(x + T))]
+
+
+## How thick the front blades stand at level x (0: a gap): clumps of uneven length and gaps between them.
+static func _front_k(x: float) -> float:
+	var u := x / FRONT_CLUMP
+	var i := floori(u)
+	var f := u - i
+	var n := lerpf(_hash(i, 61, 100), _hash(i + 1, 61, 100), f * f * (3.0 - 2.0 * f)) / 100.0
+	return smoothstep(0.38, 0.62, n)
+
+
+## Whether column c is a stack's (one or two cells wide: _pole_column()).
+func _stack_col(c: int) -> bool:
+	return c >= _first_col - 1 and c <= _end_col and _poles[c - _first_col + 1] >= 0
 
 
 func _in_pole(c: int, r: int) -> bool:

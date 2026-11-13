@@ -4,13 +4,13 @@ extends Node
 ## seams, cut sprites and pieces drawn in another language than their neighbours.
 ##
 ## Godot --path . res://tests/flaw_shots.tscn -- --out=build/flaws/before [--x0=-200] [--x1=25800]
-##     [--step=800] [--w=960] [--scale=2]
+##     [--step=800] [--w=960] [--scale=2] [--y0=0]
 ## Each window is --w units wide and the level's 640 tall, at --scale pixels a unit, saved as
-## <out>/x<left>.png.
+## <out>/x<left>.png. --y0 is the window's top in level units (-180: the vine and the canopy over it).
 
 
 func _ready() -> void:
-	var a := {"out": "build/flaws/shots", "x0": "-200", "x1": "25800", "step": "800", "w": "960", "scale": "2"}
+	var a := {"out": "build/flaws/shots", "x0": "-200", "x1": "25800", "step": "800", "w": "960", "scale": "2", "y0": "0"}
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--") and "=" in arg:
 			var kv := arg.substr(2).split("=", true, 1)
@@ -29,6 +29,9 @@ func _ready() -> void:
 	view._background = SavannaView.new()
 	view._background.view_width = Level.WIDTH
 	view.add_child(view._background)
+	view._canopy = CanopyView.new()  # (as WorldView.setup(): the boughs the vine hangs from, behind the ground)
+	view._canopy.view_width = Level.WIDTH + 1000.0
+	view.add_child(view._canopy)
 	view._level_root = Node2D.new()
 	view.add_child(view._level_root)
 	view._add_home()
@@ -61,7 +64,7 @@ func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://" + a.out))
 	var x := float(a.x0)
 	while x < float(a.x1):
-		vp.canvas_transform = Transform2D(0.0, Vector2(k, k), 0.0, Vector2(-x * k, 0.0))
+		vp.canvas_transform = Transform2D(0.0, Vector2(k, k), 0.0, Vector2(-x * k, -float(a.y0) * k))
 		for i in 3:
 			await RenderingServer.frame_post_draw
 		var img := vp.get_texture().get_image()

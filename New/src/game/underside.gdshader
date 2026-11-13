@@ -109,6 +109,12 @@ void fragment() {
 	// (round 22, the judges: "a straight-edged plank": the front face's lower edge ragged, deeper here, shallower there)
 	float lip_y = lip * 0.8 + (noise(p.x * 0.028 + seed * 2.0) - 0.5) * 22.0 + (noise(p.x * 0.11) - 0.5) * 5.0
 			+ 10.0 * pow(noise(p.x * 0.07 + seed * 5.0), 3.0);
+	// 2026-11-13 (the director: over a wall "a flat grey-violet slab with a ruler-straight vertical cut at its outer end"):
+	// over a wall under an end it is the ledge's own front face down to its lower edge (no planes), its end broken and
+	// rounded (below)
+	float wz = max(wall_l > 0.0 ? 1.0 - smoothstep(wall_lw, wall_lw + 24.0, p.x) : 0.0,
+			wall_r > 0.0 ? 1.0 - smoothstep(wall_rw, wall_rw + 24.0, w - p.x) : 0.0);
+	lip_y = mix(lip_y, edge_y - 3.0, wz);
 	// the drips: a few tapering points of rock under the lower edge, round at their tips; roots hanging
 	float drip = 0.0;
 	float drip_edge = 99.0;
@@ -118,23 +124,30 @@ void fragment() {
 		if (fi > w / 110.0) {
 			break;
 		}
-		float dx = w * (0.12 + 0.76 * hash(seed * 1.7 + fi * 3.3));
-		float len = (12.0 + 26.0 * pow(hash(seed + fi * 9.1), 1.5) * clamp(deepest / 110.0, 0.5, 1.2)) * clamp(w / 400.0, 0.45, 1.0);
-		float wid = 8.0 + 9.0 * hash(seed + fi * 4.7);
+		// (2026-11-13, the director: "the shard-like side drips of the small undersides": under a short ledge they hang
+		// only from its deep middle, smaller and blunter, lumps of rock, not blades along its sloping sides)
+		float small = 1.0 - clamp((w - 90.0) / 210.0, 0.0, 1.0);
+		float dx = w * (mix(0.12, 0.38, small) + mix(0.76, 0.24, small) * hash(seed * 1.7 + fi * 3.3));
+		float len = (12.0 + 26.0 * pow(hash(seed + fi * 9.1), 1.5) * clamp(deepest / 110.0, 0.5, 1.2)) * clamp(w / 400.0, 0.45, 1.0)
+				* mix(1.0, 0.55, small);
+		float wid = (8.0 + 9.0 * hash(seed + fi * 4.7)) * mix(1.0, 0.7, small);
 		float top_y = edge_y;  // (it hangs from the edge right above it: close enough for a thin drip)
 		float tt = (p.y - top_y + 6.0) / (len + 6.0);
 		if (tt > 0.0 && tt < 1.0) {
-			float half_w = wid * pow(1.0 - tt, 1.2) + 2.2;
+			float half_w = wid * pow(1.0 - tt, mix(1.2, 0.6, small)) + mix(2.2, 3.4, small);
 			float dd = abs(p.x - dx - sin(tt * 2.5 + fi) * 2.0) - half_w;
 			drip = max(drip, 1.0 - smoothstep(-0.6, 0.6, dd));
 			drip_edge = min(drip_edge, abs(dd));
 			drip_lit = max(drip_lit, (1.0 - smoothstep(-0.6, 0.6, dd)) * step(p.x, dx - half_w * 0.2));
 		}
 		// a round bead of rock at its tip
-		float bead = length(p - vec2(dx + sin(2.5 + fi) * 2.0, top_y + len)) - 2.2;  // (its round tip)
+		float bead = length(p - vec2(dx + sin(2.5 + fi) * 2.0, top_y + len)) - mix(2.2, 3.4, small);  // (its round tip)
 		drip = max(drip, 1.0 - smoothstep(-0.6, 0.6, bead));
 		drip_edge = min(drip_edge, abs(bead));
 	}
+	float small_k = 1.0 - clamp((w - 90.0) / 210.0, 0.0, 1.0);
+	drip *= 1.0 - smoothstep(0.4, 0.6, small_k);  // (under the shortest ledges no drip at all: claws at its point)
+	drip_edge = mix(drip_edge, 99.0, smoothstep(0.4, 0.6, small_k));
 	float root = 0.0;
 	for (int i = 0; i < 7; i++) {
 		float fi = float(i);
@@ -142,7 +155,7 @@ void fragment() {
 			break;
 		}
 		float rx = w * (0.08 + 0.84 * hash(seed * 2.3 + fi * 5.9));
-		float len = 18.0 + 46.0 * hash(seed + fi * 6.1) + (hash(seed + fi * 2.9) < 0.3 ? 30.0 : 0.0);  // (a few long ones)
+		float len = (18.0 + 46.0 * hash(seed + fi * 6.1) + (hash(seed + fi * 2.9) < 0.3 ? 30.0 : 0.0)) * mix(1.0, 0.35, small_k);  // (a few long ones)
 		float tt = (p.y - edge_y + 2.0) / len;
 		if (tt > 0.0 && tt < 1.0) {
 			float x = rx + sin(p.y * 0.16 + fi * 2.0) * 3.0 * tt + tt * tt * (hash(fi + seed) - 0.5) * 16.0;
@@ -159,7 +172,7 @@ void fragment() {
 			break;
 		}
 		float rx = w * (0.05 + 0.9 * hash(seed * 4.1 + fi * 3.7));
-		float len = 14.0 + 34.0 * hash(seed + fi * 8.3);
+		float len = (14.0 + 34.0 * hash(seed + fi * 8.3)) * mix(1.0, 0.4, small_k);
 		float tt = (p.y - edge_y + 6.0) / len;
 		if (tt > 0.0 && tt < 1.0) {
 			float x = rx + sin(p.y * 0.12 + fi * 1.3 + TIME * 0.7) * 2.2 * tt + tt * (hash(fi * 1.7 + seed) - 0.5) * 12.0;
@@ -170,7 +183,15 @@ void fragment() {
 	root_back *= 1.0 - root;
 	float body = 1.0 - smoothstep(edge_y - 0.7, edge_y + 0.7, p.y);
 	// (its ends cut back like the ledge's rounded ends above it: a wedge, not a square end)
-	float end_d = min(wall_l > 0.0 ? 999.0 : p.x, wall_r > 0.0 ? 999.0 : w - p.x) - max(p.y - 6.0, 0.0) * 0.5;
+	float end_d = min(p.x, w - p.x) - max(p.y - 6.0, 0.0) * 0.5;
+	if (wall_l > 0.0 || wall_r > 0.0) {  // (an end over a wall: broken, its lower corner rounded, not a wedge or a cut)
+		float broken = (noise(p.y * 0.17 + seed * 3.0) - 0.5) * 5.0 + (noise(p.y * 0.6 + seed) - 0.5) * 1.6;
+		float round_in = 16.0 - sqrt(max(256.0 - pow(max(p.y - (edge_y - 16.0), 0.0), 2.0), 0.0));
+		float wall_d = broken - 5.0 - round_in;  // (inside its rectangle: never on its edge)
+		float e_l = wall_l > 0.0 ? p.x + wall_d : p.x - max(p.y - 6.0, 0.0) * 0.5;
+		float e_r = wall_r > 0.0 ? w - p.x + wall_d : w - p.x - max(p.y - 6.0, 0.0) * 0.5;
+		end_d = min(e_l, e_r);
+	}
 	body *= smoothstep(-0.7, 0.7, end_d);
 	float shape = max(body, drip);
 	float alpha = max(max(shape, root), root_back);

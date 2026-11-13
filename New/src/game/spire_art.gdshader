@@ -43,7 +43,10 @@ void fragment() {
 	// one palette with the landforms behind it (blind round 16: "hard-faceted, saturated, chunky orange pinnacles"
 	// against "soft pale pastel mesas"): its orange a step toward their rose sandstone, its darkest lines lifted
 	// into the dusk's violet air
-	c = mix(c, lum * vec3(1.14, 0.9, 0.86), 0.36);
+	c = mix(c, lum * vec3(1.14, 0.9, 0.86), 0.5);  // (2026-11-13, the judge: "a saturated orange": a step further)
+	// (and "soft-airbrushed": its values gathered into a few painted planes, as the inked mesas' are)
+	float q = (floor(lum * 5.0) + smoothstep(0.35, 0.65, fract(lum * 5.0))) / 5.0;
+	c *= mix(1.0, q / max(lum, 0.02), 0.45);
 	c = mix(c, vec3(0.5, 0.38, 0.56), (1.0 - smoothstep(0.0, 0.42, lum)) * 0.34);
 	// moss: creeping down from under the grass mat in a few tongues (the painted rock shows through it)
 	float tongue = 13.0 + 16.0 * pow(noise(at.x * 0.13 + seed * 7.0), 2.0) + 30.0 * pow(noise(at.x * 0.21 + seed), 5.0);

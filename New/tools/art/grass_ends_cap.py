@@ -70,7 +70,8 @@ def left_end(cap: np.ndarray, at: int, seed: int) -> np.ndarray:
     theta = np.arctan2(CX - xs, CY - ys)  # 0 straight up, pi / 2 out over the open side, pi straight down
     wrap = (xs < CX) & (theta <= THETA_MAX)
     sx = np.where(wrap, CX - theta * RC, np.maximum(xs, CX))
-    sy = np.where(wrap, CY - rho, ys)
+    # (round the corner it reads the band's green under the straw lip: its outer face is turf, not the lit walking line)
+    sy = np.where(wrap, CY - rho + 12.0 * smooth(0.3, 0.8, theta), ys)
     ix = np.clip(np.round(sx).astype(int), 0, W - 1)
     iy = np.round(sy).astype(int)
     out = src[np.clip(iy, 0, H - 1), ix]
@@ -82,6 +83,9 @@ def left_end(cap: np.ndarray, at: int, seed: int) -> np.ndarray:
     recede = CX - RC * 0.9 + np.maximum(ys - CY, 0.0) * 0.8 + rng.uniform(-1.5, 1.5, H)[:, None]
     a *= np.where(under, smooth(recede - 2.0, recede + 2.0, xs) * (ys > CY), 1.0)
     a *= np.where(wrap, 1.0 - smooth(THETA_MAX - 0.3, THETA_MAX + 0.02 + jag, theta) * (ys < CY + 2), 1.0)
+    # (2026-11-13, the director: "the ragged yellow bits at the two ends of the mat": round the corner the blades over the
+    # walking line are left off, the band's clean rounded edge in the turf's own green; they stay where it joins the strip)
+    a *= np.where(wrap, 1.0 - smooth(0.3, 0.75, theta) * smooth(RC + 1.0, RC + 3.5, rho), 1.0)
     # into the strip under it, and nothing reaching the piece's bottom
     a *= 1.0 - smooth(SOLID_TO, SOLID_TO + MELT, xs)
     a *= 1.0 - smooth(H - 14, H - 2, ys)

@@ -8,7 +8,9 @@ heart-shaped leaves of several sizes hanging down and curled tendrils. Round 9 (
 blossoms, leaves in one to four clusters of very different sizes at uneven places (a span or two
 nearly bare), a thinner liana looping lower under some spans, tendrils of very different lengths.
 Lit from the upper left.
-Drawn span after span by src/game/vine_view.gd (the rope's ends meet at y = 4 units), bent down
+2026-11-13: only the rope is written (span(with_leaves=False)), its twist and strand in whole turns across the
+picture so it tiles along the level; the leaves are tools/art/vine_leaves.py's (a leaf cut out of a span's rectangle ended
+on a straight line). Drawn along the level by src/game/vine_view.gd (the rope's ends meet at y = 4 units), bent down
 where Panoramic hangs.
 
     python3 tools/art/vine.py
@@ -32,7 +34,7 @@ def rope_y(t):
     return TOP + np.sin(np.pi * t) * SAG
 
 
-def span(seed: int) -> tuple:
+def span(seed: int, with_leaves: bool = False) -> tuple:
     rng = np.random.default_rng(seed)
     w, h = SPAN * PX, H * PX
     yy, xx = np.mgrid[0:h, 0:w].astype(float)
@@ -42,7 +44,7 @@ def span(seed: int) -> tuple:
     d = yy - cy
     rope = np.clip(thick - np.abs(d) + 0.5, 0, 1)
     # twist: diagonal bands along the rope, light on the upper side
-    twist = np.sin((xx * 0.42 + d * 1.3))
+    twist = np.sin((xx * (2 * np.pi * 21 / w) + d * 1.3))  # (2026-11-13: whole turns across the picture: it tiles)
     across = np.clip(-d / thick, -1, 1)  # 1 at the top edge
     shade = 0.42 + 0.38 * across + 0.18 * twist
     rope_col = mix(hexc("2a1c10"), hexc("8a7a3c"), np.clip(shade, 0, 1)[..., None][..., 0])
@@ -53,10 +55,12 @@ def span(seed: int) -> tuple:
     col = rope_col * 1.0
     alpha = rope.copy()
     # a second thin strand winding round the first
-    d2 = yy - (cy + np.sin(xx * 0.08 + seed) * thick * 1.1)
+    d2 = yy - (cy + np.sin(xx * (2 * np.pi * 4 / w) + seed) * thick * 1.1)
     strand = np.clip(1.0 * PX - np.abs(d2) + 0.5, 0, 1)
     col = mix(col, mix(hexc("3a3018"), hexc("a09a50"), np.clip(-d2 / PX * 0.5 + 0.5, 0, 1)), strand * 0.9)
     alpha = np.maximum(alpha, strand)
+    if not with_leaves:  # 2026-11-13: the rope alone, tiling (vine_view.gd draws it along the level, its knots and leaves its own)
+        return col, alpha
     # knots at the hooks (both ends, so spans meet on a knot)
     for kx in (0.0, w):
         knot = poly_mask(w, h, [], ellipses=[(kx, TOP * PX + 1.0 * PX, 4.2 * PX, 3.6 * PX)])

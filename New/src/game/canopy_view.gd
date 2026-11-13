@@ -21,6 +21,12 @@ var scroll := 0.0
 var dusk := 0.0
 
 
+func _ready() -> void:
+	var m := ShaderMaterial.new()  # (2026-11-13: each hanging strand ends at its own height: canopy.gdshader)
+	m.shader = preload("res://src/game/canopy.gdshader")
+	material = m
+
+
 func _process(_delta: float) -> void:
 	queue_redraw()
 
