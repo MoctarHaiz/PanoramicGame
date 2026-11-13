@@ -10,8 +10,6 @@ const CONFETTI: Array[Color] = [Color("f2662e"), Color("ffd36b"), Color("e82808"
 ## indigo of his beads, cream.
 const PARTY: Array[Color] = [Color("ffd36b"), Color("e8a317"), Color("e85a3a"), Color("c8341f"), Color("f2662e"),
 		Color("4a43a8"), Color("2f2b7a"), Color("fff1d0")]
-## Blue sparks of a ring hitting a bandit.
-const RING_SPARKS: Array[Color] = [Color("ffffff"), Color("8fd0ff"), Color("3fa2ff")]
 ## Red Bob bits.
 const BOB_BITS: Array[Color] = [Color("e82808"), Color("ff6a4a"), Color("ffd36b"), Color("ffffff")]
 const SPARKS: Array[Color] = [Color("ffffff"), Color("ffd36b"), Color("fff0c2")]
@@ -61,8 +59,6 @@ const PLUS_OUT := 0.16
 ## The badges' outlines (px): the dark stroke and the warm rim. The "+1" and the "×N" share them and
 ## the font size, so their glyphs are rasterised once (each size and outline is megabytes of pages).
 const BADGE_OUTLINES: Array[int] = [34, 16]
-## The ring's light: white-hot core, its blue, a deeper blue at the edge.
-const RING_LIGHT: Array[Color] = [Color("ffffff"), Color("bfe6ff"), Color("6cc4ff"), Color("2f8bff")]
 ## A Red Bob's streak: hot gold to its red.
 const BOB_LIGHT: Array[Color] = [Color("fff1c4"), Color("ffc65a"), Color("ff7a3a"), Color("e82808")]
 const EMBERS: Array[Color] = [Color("ffe2a0"), Color("ffb347"), Color("ff7a2a")]
@@ -469,7 +465,7 @@ static func ring_hit(parent: Node, at: Vector2) -> void:
 ## carries its own splinters; the added rays, the blue shards of light and the gold stars that flew off are gone.)
 static func knock_out(parent: Node, at: Vector2, feet: Vector2) -> void:
 	glow(parent, at, Color(1, 1, 1, 0.9), 0.25, 0.8, FLASH_TIME * 2.5)
-	hit_spark(parent, at, Vector2(1.0, -0.12).normalized(), 70.0)
+	hit_spark(parent, at, Vector2(1.0, -0.12).normalized(), 58.0)  # (blind round 15: "hides the bandit's midriff and half the ring": 70)
 	dust(parent, feet, 16, 300.0, 0.0, 1.7)
 
 
@@ -559,83 +555,6 @@ static func ribbon(canvas: CanvasItem, path: Array[Vector3], life: float, width:
 		canvas.draw_polygon(left, cols)
 	if with_core:
 		canvas.draw_polyline_colors(line, line_cols, 3.0, true)
-
-
-## The ring leaving his hand: a flash of blue light, a small ring and sparks thrown forward.
-static func ring_launch(parent: Node, at: Vector2) -> void:
-	glow(parent, at, Color(0.5, 0.8, 1.0, 0.8), 0.2, 1.0, 0.16)
-	ring(parent, at, 10.0, 54.0, 0.18, Color(0.75, 0.9, 1.0, 0.85), 6.0)
-	var c := Confetti.make(parent, at)
-	c.sparkle(5, RING_SPARKS, Vector2(220, 520), 0.7, Vector2(0.18, 0.32))
-
-
-## The light of a ring in flight, over its picture (RingView): a bloom breathing round it, a long
-## tapered ribbon of blue light with a white-hot core behind it, sparks shed along its path that
-## drift and fade. It follows the rules' ring (`world`, `r`: play units, drawn at twice the size
-## here, like everything in the effects layer) and, once the ring is gone, lets its light die away.
-static func ring_flight(parent: Node, world: World, r: World.Ring) -> void:
-	var f := RingFlight.new()
-	f.world = world
-	f.ring = r
-	f.material = additive()
-	parent.add_child(f)
-
-
-class RingFlight extends Node2D:
-	const TRAIL_TIME := 0.11  ## seconds of path the streak keeps (0.05 until blind round 6: "no trail on the thrown ring")
-	const WIDTH := 34.0  ## the streak's width at the ring (effects px)
-	var world: World
-	var ring: World.Ring
-	var _path: Array[Vector3] = []  # x, y, age
-	var _sparks: Array[Vector4] = []  # x, y, age, life
-	var _drift: Array[Vector2] = []
-	var _clock := 0.0
-	var _flying := true
-	var _at := Vector2.ZERO
-
-	## The ring's picture (WorldView's RingView for it), where its light goes: RingView launches it
-	## from his hand, so the light follows the picture, not the rules.
-	func _ring_view() -> Node2D:
-		var rings: Variant = get_parent().get_parent().get(&"_rings") if get_parent() and get_parent().get_parent() else null
-		var v: Variant = (rings as Dictionary).get(ring.id) if rings is Dictionary else null
-		return v if is_instance_valid(v) else null
-
-	func _process(delta: float) -> void:
-		_clock += delta
-		if _flying:
-			_flying = world.rings.has(ring) and world.state == World.State.RUNNING
-		if _flying:
-			var drawn: Node2D = _ring_view()
-			_at = (drawn.position if drawn else Vector2(lerpf(ring.prev_x, ring.x, world.alpha) + 12.0, ring.y + 14.0)) * 2.0
-			_path.push_front(Vector3(_at.x, _at.y, 0.0))
-			if randf() < delta * 20.0:
-				_sparks.append(Vector4(_at.x + randf_range(-14, 14), _at.y + randf_range(-18, 18), 0.0, randf_range(0.2, 0.4)))
-				_drift.append(Vector2(randf_range(-160, -40), randf_range(-60, 60)))
-		for i in _path.size():
-			_path[i].z += delta
-		while not _path.is_empty() and _path[_path.size() - 1].z > TRAIL_TIME:
-			_path.pop_back()
-		for i in range(_sparks.size() - 1, -1, -1):
-			_sparks[i].z += delta
-			_sparks[i].x += _drift[i].x * delta
-			_sparks[i].y += _drift[i].y * delta
-			if _sparks[i].z > _sparks[i].w:
-				_sparks.remove_at(i)
-				_drift.remove_at(i)
-		if not _flying and _path.is_empty() and _sparks.is_empty():
-			queue_free()
-		queue_redraw()
-
-	func _draw() -> void:
-		var tex := Fx.glow_texture()
-		Fx.ribbon(self, _path, TRAIL_TIME, WIDTH, Color(Fx.RING_LIGHT[1], 0.8), Fx.RING_LIGHT[3], Color(1, 1, 1, 0.0))
-		for sp in _sparks:
-			var k := 1.0 - sp.z / sp.w
-			var r := 7.0 + 6.0 * k
-			draw_texture_rect(tex, Rect2(Vector2(sp.x, sp.y) - Vector2(r, r), Vector2(r, r) * 2), false, Color(Fx.RING_LIGHT[1], k))
-		if _flying:
-			var r := 40.0 * (1.0 + 0.1 * sin(_clock * 30.0))  # (RingView has its own halo)
-			draw_texture_rect(tex, Rect2(_at - Vector2(r, r), Vector2(r, r) * 2), false, Color(0.35, 0.65, 1.0, 0.22))
 
 
 ## A Red Bob flying to the counter (screen units): it pops, rises a little (an overshoot up),

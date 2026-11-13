@@ -19,8 +19,9 @@ the frame, then each layer of it alone on a transparent background, with the fra
     sky_clouds.png       the sky's cumulus alone, off the finished sky.png (clouds): drawn again higher up
     spires.png           three rock pinnacles, each in a cell (spires: TerrainView's stacks in the river)
     earth.png            the cut bank of the main ground under the turf (terrain.gdshader), repeating
+    canopy.png           the boughs the liana hangs from, along the top of the level (canopy: CanopyView)
 
-    python3 tools/art/kie/world.py [sky wall mesas plain rise grass trees front fire earth | sign door clouds impact spires]
+    python3 tools/art/kie/world.py [sky wall mesas plain rise grass trees front fire earth | sign door clouds impact spires canopy]
     (none: the first ten)
 
 A strip repeats: its right end is laid over its left end along the path where the two differ least (the plain, the
@@ -383,6 +384,25 @@ def spires() -> None:
     save(sheet, OUT / "spires.png")
     print("spires.png: %d cells of %dx%d, caps %s px wide, feet %s px wide" % (len(cut), half * 2, high,
             [int(c[5]) for c in cut], [int(c[1] - c[0]) for c in cut]))
+
+
+def canopy() -> None:
+    """The canopy over the level (canopy.png: CanopyView): the great boughs the liana hangs from, hanging down from the
+    picture's top edge. Blind round 15: "a thin wavy vine that hangs from nothing", "the top half a flat saturated
+    blue gradient". Kept whole and at half its size (CanopyView lays it mirrored every other time, each end meeting
+    itself: no seam to mend)."""
+    a = load("canopy")
+    h = a.shape[0]
+    # its long hanging strands end a little under the rope (0.63 of its height: 86 units down, CanopyView): longer,
+    # their tips hung into the top of the picture from nowhere while he runs on the ground (the boughs are over the
+    # screen's top then)
+    v = np.arange(h, dtype=np.float32)[:, None, None] / h
+    a *= 1.0 - np.clip((v - 0.55) / 0.08, 0.0, 1.0) ** 1.5
+    a = resize(a, (a.shape[1] // 2, h // 2))
+    save(a, OUT / "canopy.png")
+    al = a[..., 3]
+    print("canopy.png: %dx%d, solid to row %d, leaves to row %d" % (a.shape[1], a.shape[0],
+            int(np.flatnonzero((al > 0.5).mean(axis=1) > 0.97).max()), int(np.flatnonzero((al > 0.5).mean(axis=1) > 0.3).max())))
 
 
 if __name__ == "__main__":

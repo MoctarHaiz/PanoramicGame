@@ -45,6 +45,10 @@ uniform float bounce_scale = 0.01;  // 1 / (half the frame's width, in local px)
 // and `bounce_dusk`: the evening over all of him, under the fire's light (multiplied; white: none).
 uniform float bounce_far = -1.0;  // (< 0: as `bounce`)
 uniform vec4 bounce_dusk : source_color = vec4(1.0);
+// (blind round 15) how much his whites and metal take the light's own hue (0: none), toward these (times their value)
+uniform float bounce_take = 0.0;
+uniform vec4 bounce_fire_hue : source_color = vec4(1.3, 0.92, 0.56, 1.0);
+uniform vec4 bounce_dusk_hue : source_color = vec4(0.82, 0.84, 1.3, 1.0);
 // A warm back rim (round 10, home: the lit hut behind him): a band just inside the ink on the edges that face
 // up and to the sides, the light from behind wrapping his silhouette; the ink line itself stays dark.
 // (round 12) the level's light on him: his lit colours raised by up to `light_gain` (the shade less, the ink not at
@@ -191,9 +195,23 @@ void fragment() {
 		float x = dot(local_pos * bounce_scale, normalize(bounce_dir));
 		float side = smoothstep(-0.15, 0.85, x);
 		float far = bounce_far < 0.0 ? smoothstep(0.1, -0.7, x) : smoothstep(0.3, -0.6, x);
+		// (blind round 15: "his loincloth stays day-white, his armour clean blue") what has little colour of its own
+		// shows the light's: his whites (pale, unsaturated) and his metal (blue) take the fire's orange on its side
+		// and the dusk's violet on the other, by value and hue only (`bounce_take`; no rim, no glow)
+		float hi = max(c.r, max(c.g, c.b));
+		float lo = min(c.r, min(c.g, c.b));
+		float pale = smoothstep(0.5, 0.82, hi) * (1.0 - smoothstep(0.1, 0.3, hi - lo));
+		float metal = smoothstep(0.04, 0.2, c.b - max(c.r, c.g)) * smoothstep(0.25, 0.5, hi);
+		float take = max(pale, metal * 0.8) * bounce_take;
 		c.rgb *= mix(vec3(1.0), bounce_dusk.rgb, bounce);
 		c.rgb *= mix(vec3(1.0), bounce_colour.rgb, bounce * side);
 		c.rgb *= mix(vec3(1.0), bounce_cool.rgb, (bounce_far < 0.0 ? bounce : bounce_far) * far);
+		if (take > 0.0) {
+			// (split about his middle, not across his whole frame: his cloth hangs at its middle, between the two)
+			float l3 = dot(c.rgb, vec3(0.3, 0.59, 0.11));
+			float lit = smoothstep(-0.3, -0.08, x);
+			c.rgb = mix(c.rgb, l3 * mix(bounce_dusk_hue.rgb, bounce_fire_hue.rgb, lit), take * min(bounce * 1.3, 1.0));
+		}
 	}
 	if (spill > 0.0) {
 		float side = smoothstep(-0.3, 0.45, dot(UV - vec2(0.5), normalize(spill_dir)));

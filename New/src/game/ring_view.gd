@@ -17,18 +17,25 @@ const SPIN_FPS := 24.0
 const TRAIL := 9  ## positions kept for its streak on its way back
 ## Its wake (blind round 14: "the ring is a small disc with a short white comet: give it a bold full-length motion arc
 ## from his hand across the gap, so the weapon and its path are the brightest, largest shape between the two
-## figures"): one swept stroke from his throwing hand to the ring, as wide as the ring at the ring and a point at his
-## hand, in three flat bands as a cel painter lays them (a red-orange rim, gold, a cream core: the blow's colours),
-## two thin lines of speed beside it; WAKE_LEN at the longest, and what is left of it (WAKE_SHORT) once the ring is
-## far from him. On its way back the same stroke follows its arc.
+## figures"): one swept stroke from his throwing hand to the ring; WAKE_LEN at the longest, and what is left of it
+## (WAKE_SHORT) once the ring is far from him. On its way back the same stroke follows its arc.
+## Blind round 15 (of that stroke in three flat bands as wide as the ring: "a fat, flat banana, a flamethrower sticker,
+## the loudest thing on screen": "a thin, tapered, semi-transparent painted smear that fades to nothing at the hand
+## and leaves the ring crisp at its head"): a dry brush's smear, narrower than the ring: six thin strands over a faint
+## wash (WAKE_STRANDS), each starting at its own place along the way and all closing on one another toward his hand,
+## where they are gone to nothing; half see-through at the ring.
 const WAKE_LEN := 250.0
 const WAKE_SHORT := 130.0
 const WAKE_HOLD := 0.34  ## seconds of flight it keeps its full length
 const WAKE_STEPS := 16
 const WAKE_TUCK := 14.5  ## units short of the ring's middle it ends: under its rim (its hole stays open)
-const WAKE_RIM := Color("e4532b")
+const WAKE_HALF := RADIUS * 0.52  ## half its width at the ring: inside the ring's own width
 const WAKE_BODY := Color("ffbf47")
-const WAKE_CORE := Color("fff6dc")
+const WAKE_TONES: Array[Color] = [Color("ee8a3c"), Color("ffc457"), Color("fff3d8")]  # its strands: amber outside, cream at its heart
+## Its strands, as a dry brush leaves them: where each lies across it at the ring (-1 to 1), its half width (a share
+## of WAKE_HALF), how far along the wake it starts (0 at his hand), how solid it is, its tone (WAKE_TONES).
+const WAKE_STRANDS := [[-0.84, 0.13, 0.46, 0.5, 0], [-0.5, 0.2, 0.22, 0.6, 1], [-0.14, 0.24, 0.06, 0.7, 2],
+		[0.22, 0.22, 0.14, 0.66, 2], [0.56, 0.18, 0.32, 0.56, 1], [0.86, 0.12, 0.54, 0.44, 0]]
 const WIND_UP := 0.04  ## seconds hidden while his hand swings back (HeroView.THROW_TIME)
 const HOT := Color("e6f6ff")
 ## It leaves from his hand (the rules start it at his middle, ahead of him): drawn from this offset
@@ -186,21 +193,24 @@ func _wake_path() -> PackedVector2Array:
 
 
 ## One band of its wake along `path` on `on`: `half` units to each side at the ring, a point where it starts (`from`:
-## how far along the path that is, 0 to 1).
-func _band(on: Node2D, path: PackedVector2Array, half: float, from: float, colour: Color) -> void:
+## how far along the path that is, 0 to 1), `shift` units off the path's line at the ring.
+func _band(on: Node2D, path: PackedVector2Array, half: float, from: float, colour: Color, shift := 0.0) -> void:
 	var n := path.size()
 	var left := PackedVector2Array()
 	var right := PackedVector2Array()
 	var cols := PackedColorArray()
 	for i in n:
-		var v := clampf((float(i) / (n - 1) - from) / (1.0 - from), 0.0, 1.0)
+		var u := float(i) / (n - 1)
+		var v := clampf((u - from) / (1.0 - from), 0.0, 1.0)
 		var way := path[mini(i + 1, n - 1)] - path[maxi(i - 1, 0)]
 		var across := way.orthogonal().normalized() if way.length_squared() > 0.01 else Vector2.UP
-		var p := on.to_local(get_parent().to_global(path[i]))
+		# (its strands close on one another toward his hand: `shift` is where this one lies at the ring)
+		var p := on.to_local(get_parent().to_global(path[i])) + across * shift * pow(u, 0.8)
 		var w := half * pow(v, 0.62) * (0.5 if i == n - 1 and _back < 0.0 else 1.0)
 		left.append(p + across * w)
 		right.append(p - across * w)
-		cols.append(Color(colour, colour.a * smoothstep(0.0, 0.22, v)))
+		# gone to nothing at his hand, full only near the ring
+		cols.append(Color(colour, colour.a * smoothstep(0.0, 0.3, v) * pow(u, 1.15)))
 	var uv := PackedVector2Array([Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO])
 	for i in n - 1:
 		if cols[i + 1].a <= 0.0:
@@ -218,22 +228,10 @@ func _draw_wake() -> void:
 	if path.size() < 3:
 		return
 	var fade := 1.0 if _back < 0.0 else 0.85
-	_band(_wake, path, RADIUS * 1.02, 0.0, Color(WAKE_RIM, 0.92 * fade))
-	_band(_wake, path, RADIUS * 0.76, 0.1, Color(WAKE_BODY, fade))
-	_band(_wake, path, RADIUS * 0.44, 0.24, Color(WAKE_CORE, fade))
-	# two lines of speed beside it
-	var n := path.size()
-	for line: Array in [[-1.42, 0.3, 0.78], [1.36, 0.48, 0.94]]:
-		var pts := PackedVector2Array()
-		for i in n:
-			var u := float(i) / (n - 1)
-			if u < line[1] or u > line[2]:
-				continue
-			var way := path[mini(i + 1, n - 1)] - path[maxi(i - 1, 0)]
-			var across := way.orthogonal().normalized() if way.length_squared() > 0.01 else Vector2.UP
-			pts.append(_wake.to_local(get_parent().to_global(path[i])) + across * RADIUS * float(line[0]) * pow(u, 0.62))
-		if pts.size() > 1:
-			_wake.draw_polyline(pts, Color(WAKE_CORE, 0.8 * fade), 2.2, true)
+	_band(_wake, path, WAKE_HALF, 0.0, Color(WAKE_BODY, 0.2 * fade))  # a thin wash under its strands
+	for strand: Array in WAKE_STRANDS:
+		_band(_wake, path, WAKE_HALF * float(strand[1]), strand[2], Color(WAKE_TONES[int(strand[4])], float(strand[3]) * fade),
+				WAKE_HALF * float(strand[0]))
 
 
 func _draw_glow() -> void:
@@ -242,7 +240,7 @@ func _draw_glow() -> void:
 	# its wake's heart, hot
 	var path := _wake_path()
 	if path.size() > 2:
-		_band(_glow, path, RADIUS * 0.56, 0.16, Color(1.0, 0.74, 0.36, 0.3))
+		_band(_glow, path, WAKE_HALF * 0.5, 0.3, Color(1.0, 0.8, 0.5, 0.22))
 	# (round 4: no pale halo round it, no launch disc: it read as a pool float; a steel ring)
 	# sparks shed into the air
 	for s in _sparks:

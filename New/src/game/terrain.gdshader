@@ -192,8 +192,11 @@ void fragment() {
 		vec3 painted = texture(earth_tex, vec2(lp.x / earth_size.x, clamp(depth / earth_size.y, 0.0, 0.99))).rgb * earth_tint;
 		// (a little less red; blind round 14: "the saturated red-brown earth cross-section is the heaviest band and
 		// pulls the eye down": quieter still, and falling into a cool shade with its depth, under the play's value)
-		painted = mix(vec3(dot(painted, vec3(0.3, 0.59, 0.11))), painted, 0.7);
-		painted *= mix(vec3(1.0), vec3(0.8, 0.77, 0.9), smoothstep(8.0, 100.0, depth));
+		painted = mix(vec3(dot(painted, vec3(0.3, 0.59, 0.11))), painted, 0.62);
+		painted *= mix(vec3(1.0), vec3(0.86, 0.82, 0.92), smoothstep(8.0, 100.0, depth));
+		// (blind round 15: "the dark, saturated earth strip is a third exposure": the lane's dusty air on it too, a
+		// value up: one exposure from the plain down to the bank)
+		painted = mix(painted, vec3(0.8, 0.6, 0.54), 0.2);
 		earth = mix(earth, painted, earth_k);
 		wide_ink *= 1.0 - earth_k;
 		bed_ink *= 1.0 - earth_k;
@@ -475,7 +478,7 @@ void fragment() {
 	c = mix(c, outline_colour, ledge * (1.0 - smoothstep(bump + 1.5, bump + 3.0, to_bottom)) * 0.9);
 	if (home_reach > 0.0) {
 		float d = (level_pos.x - home_fire) / home_reach;
-		c *= mix(vec3(1.0), mix(home_dusk, home_warm, exp(-d * d * 1.6)), smoothstep(home_from - 512.0, home_from, level_pos.x));
+		c *= mix(vec3(1.0), mix(home_dusk, home_warm, exp(-d * d * 2.2)), smoothstep(home_from - 512.0, home_from, level_pos.x));
 	}
 	COLOR = vec4(c, shape.a * (1.0 - erode) * (1.0 - taper) * (1.0 - under_cut));
 }

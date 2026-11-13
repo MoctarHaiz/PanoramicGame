@@ -619,11 +619,10 @@ func _impact(kind: StringName, kick := Vector2.ZERO) -> void:
 		_kick += kick
 
 
-## A ring thrown: its whoosh, its light in flight (following RingView, which launches it from his
-## hand with its own flash), a small recoil.
-func _on_thrown(r: World.Ring) -> void:
+## A ring thrown: its whoosh, a small recoil (its wake and its sparks are RingView's: the blue ribbon of light and
+## the blue bloom laid over it here covered the ring's open hole: round 16).
+func _on_thrown(_r: World.Ring) -> void:
 	Audio.play_sfx(&"throw")
-	Fx.ring_flight(view.fx, world, r)
 	_jolt(0.0, Vector2(-1.5, 0.0))
 
 

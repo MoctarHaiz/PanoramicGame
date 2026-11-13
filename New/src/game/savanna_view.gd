@@ -70,17 +70,17 @@ const HORIZON := 432.0  ## play y of the plain's far edge: the landforms stand b
 ## whole background back one clear value step, lighter and hazier, a quarter less colour": every layer behind the
 ## play is drawn toward a pale air and flattened (haze.gdshader's flatten: less colour, less contrast, its ink with it),
 ## more the farther it is; the characters and the pickups are the only full-contrast layer)
-const AIR := Color(0.7, 0.66, 0.86)  ## the far air, a pale blue-violet: what distance draws the landforms toward
+const AIR := Color(0.76, 0.66, 0.84)  ## the far air, a pale blue-violet: what distance draws the landforms toward
 const MESA_ROWS := [
-	{scroll = 0.014, bottom = 438.0, scale = Vector2(0.2, 0.28), haze = 0.6, foot = 0.14, haze_colour = AIR,
+	{scroll = 0.014, bottom = 438.0, scale = Vector2(0.2, 0.28), haze = 0.7, foot = 0.14, haze_colour = AIR,
 		tint = Color(1, 1, 1), mirror = 0.0, gap = Vector2(30.0, 190.0), kinds = [3.0, 1.5, 1.2, 1.0], cloud = 0.0, ink = 0.0, planes = 0.0,
-		flatten = 0.5, ink_amount = 0.0, ink_colour = Color(0.5, 0.53, 0.68)},
-	{scroll = 0.024, bottom = 444.0, scale = Vector2(0.3, 0.4), haze = 0.42, foot = 0.14, haze_colour = AIR,
+		flatten = 0.58, ink_amount = 0.0, ink_colour = Color(0.5, 0.53, 0.68)},
+	{scroll = 0.024, bottom = 444.0, scale = Vector2(0.3, 0.4), haze = 0.58, foot = 0.14, haze_colour = AIR,
 		tint = Color(1, 1, 1), mirror = 0.0, gap = Vector2(60.0, 300.0), kinds = [2.0, 2.0, 1.0, 1.4], cloud = 0.5, ink = 0.0, planes = 0.0,
-		flatten = 0.36, ink_amount = 0.0, ink_colour = Color(0.42, 0.36, 0.55)},
-	{scroll = 0.04, bottom = 452.0, scale = Vector2(0.44, 0.6), haze = 0.22, foot = 0.12, haze_colour = AIR,
+		flatten = 0.48, ink_amount = 0.0, ink_colour = Color(0.42, 0.36, 0.55)},
+	{scroll = 0.04, bottom = 452.0, scale = Vector2(0.44, 0.6), haze = 0.44, foot = 0.12, haze_colour = AIR,
 		tint = Color(1, 1, 1), mirror = 0.0, gap = Vector2(160.0, 560.0), kinds = [2.0, 1.6, 1.6, 1.4], cloud = 1.0, ink = 0.0, planes = 0.0,
-		flatten = 0.24, ink_amount = 0.0, ink_colour = Color(0.3, 0.19, 0.29)},
+		flatten = 0.38, ink_amount = 0.0, ink_colour = Color(0.3, 0.19, 0.29)},
 ]
 ## Round 23: the sky's cool light, laid into the shade side of the landforms, the plain and the grass (one light: the
 ## warm low sun for the lit faces, the sky's cool for the shade).
@@ -96,20 +96,23 @@ const DUSK_LOW := Color(0.8, 0.74, 0.96)
 ## (2026-11-12, three blind judges on the home picture: "the far mesas are translucent rectangular ghosts: a rendering
 ## fault": at dusk the two far rows stood at the sky's own value; now a clear step under it, solid silhouettes)
 const DUSK_MESAS := [Color(0.5, 0.5, 0.8), Color(0.56, 0.56, 0.84), Color(0.74, 0.66, 0.92)]
-const DUSK_STRIPS := {&"far_wall": Color(0.6, 0.6, 0.9), &"far_hills": Color(0.5, 0.5, 0.78), &"mid_hills": Color(0.56, 0.54, 0.8)}
+## (blind round 15, of the home: "a pale wedge-shaped streak from the fire's base toward the hut like a rendering
+## glitch": the tall grass behind the path kept the day's pale gold, its plumes the one bright thing in the dusk)
+const DUSK_STRIPS := {&"far_wall": Color(0.6, 0.6, 0.9), &"far_hills": Color(0.5, 0.5, 0.78), &"mid_hills": Color(0.56, 0.54, 0.8),
+		&"near_grass": Color(0.46, 0.44, 0.7)}
 ## Tree rows: scroll factor, spacing (level units of that layer), size (of the picture's height in
 ## units), ground y, haze, foot haze, share of empty slots, haze colour.
 ## The redesign: two rows, each standing behind a rise so the foot of its trunks is hidden: smaller trees behind the
 ## middle-ground rise (they move between the plain's speed and the rise's), big ones behind the tall grass, their trunks
 ## passing behind him and their crowns over the landforms. (The plain has its own far groves painted in.)
 const TREE_ROWS := [
-	[0.14, 330.0, 96.0, 540.0, 0.34, 0.0, 0.42, LANE_AIR],
-	[0.31, 760.0, 232.0, 594.0, 0.28, 0.0, 0.8, LANE_AIR],  # (few: "the baobab behind the action out-contrasts him")
+	[0.14, 330.0, 96.0, 540.0, 0.3, 0.0, 0.42, TREE_AIR],
+	[0.31, 760.0, 232.0, 594.0, 0.2, 0.0, 0.8, TREE_AIR],  # (few: "the baobab behind the action out-contrasts him")
 ]
 ## The big near row: only trees with a tall trunk, their crowns over his head: behind his body there is a trunk at
 ## most (a wide low crown behind him hid him and the bandits).
 const TREE_TALL: Array[String] = ["tree_acacia_2", "tree_acacia_5", "tree_baobab_2", "tree_baobab_4"]
-const TREE_TINT := [Color(0.96, 0.96, 1.0), Color(1, 1, 1)]
+const TREE_TINT := [Color(0.95, 0.9, 0.98), Color(0.98, 0.92, 0.96)]
 const TREE_INK := [0.0, 0.0]  ## (painted inked)
 const TREE_INK_AMOUNT := [0.0, 0.0]
 const TREE_INK_COLOUR := [Color(0.3, 0.26, 0.33), Color(0.17, 0.085, 0.06)]
@@ -124,14 +127,20 @@ const TREE_AMBIENT := [0.0, 0.0]
 ## "quieten the band directly behind the fighters, one value step lighter, less line"): the rise, the trees and the
 ## grass behind the path further out of focus, and their ink and deep shade lifted toward the air (LIFT_*, the
 ## shader's `lift`): their colour stays (a pale veil over them read as "milky"), their line goes.
-const SOFT_MESAS := 1.3
-const SOFT_PLAIN := 1.7
-const SOFT_TREES := [2.1, 1.9]
-const SOFT_MID := 2.0
-const SOFT_LANE := 1.0
-const LIFT_TREES := [0.7, 0.75]
-const LIFT_MID := 0.7
-const LIFT_LANE := 0.45
+## Blind round 15 ("aerial perspective is inverted: the far mesas crisp, dark and saturated, the nearer acacias and
+## mound washed to pale beige by a milky veil": "haze the far mesas more than the lane, grade the lane's trees toward
+## the sky's violet-peach while keeping their darks, instead of a white lift"): the air and the lens both grow with
+## distance: the landforms the palest and softest (MESA_ROWS' haze and flatten, SOFT_MESAS), the plain next, the trees
+## and the rise nearer the play clearer and darker than what is behind them, graded toward the horizon's violet-peach
+## (TREE_AIR, TREE_TINT); the lift and the dust veil over them (MIST_FULL) are a third of what they were.
+const SOFT_MESAS := 2.2
+const SOFT_PLAIN := 1.9
+const SOFT_TREES := [1.8, 1.4]
+const SOFT_MID := 1.4
+const SOFT_LANE := 0.8
+const LIFT_TREES := [0.3, 0.3]
+const LIFT_MID := 0.3
+const LIFT_LANE := 0.2
 ## Round 22 (the judges, j18: "the hero's lane has no value separation: a mid-orange hero on mid-gold grass"): the tall
 ## grass behind his legs and the savanna behind his body a value darker and greener (an olive band), so his warm skin,
 ## white loincloth and red scarf read against it (the warm add of round 3's lane light is gone).
@@ -154,18 +163,19 @@ const LANE_TINT := Color(0.96, 0.98, 0.92)
 ## (blind round 14, the plain seen from the vine: "a pale soft wash while the pinnacles are crisp: graded atmospheric
 ## planes"): its near side keeps its colour and its darks (PLAIN_HAZE, PLAIN_FLATTEN lower), its far side goes into
 ## the horizon's air (PLAIN_FAR more haze at its top)
-const PLAIN_FLATTEN := 0.38
-const PLAIN_HAZE := 0.14
-const PLAIN_FAR := 0.3
+const PLAIN_FLATTEN := 0.44
+const PLAIN_HAZE := 0.24
+const PLAIN_FAR := 0.34
 const MID_FLATTEN := 0.46
 const MID_HAZE := 0.1
 const LANE_FLATTEN := 0.3
 const LANE_HAZE := 0.04
-const MIST := Color(0.97, 0.75, 0.53)  ## the low dust behind the path (_draw_lane_mist)
+const MIST := Color(0.96, 0.74, 0.64)  ## the low dust behind the path (_draw_lane_mist)
 const MIST_DUSK := Color(0.3, 0.375, 0.86)  ## ... at dusk
-const MIST_FULL := 0.5  ## how much of it at its thickest
+const MIST_FULL := 0.2  ## how much of it at its thickest
 const MIST_FROM := 446.0  ## play y where it starts (the far plain's foot)
 const MIST_AT := 528.0  ## ... and where it is at its thickest (the rise's top, his head)
+const TREE_AIR := Color(0.9, 0.72, 0.74)  ## what the trees behind the path are drawn toward: the horizon's violet-peach (blind round 15)
 const LANE_AIR := Color(0.96, 0.82, 0.66)  ## what the lane's layers are drawn toward: the golden hour's dust (blind round 13: it was a pale neutral air, "a milky white overlay")
 const PLAIN_AIR := Color(0.96, 0.72, 0.64)  ## the far plain's: the horizon's rose glow lying on it (blind round 13)
 ## (blind round 6: "acacias, mound, pool and boulders at full strength right at his height; his white loincloth and legs

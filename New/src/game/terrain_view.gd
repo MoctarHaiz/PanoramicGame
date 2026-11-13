@@ -186,8 +186,8 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 	soil.set_shader_parameter(&"home_from", HomeView.LEFT - 6.0 * T)  # (as _home_light() on the turf over it)
 	soil.set_shader_parameter(&"home_fire", HomeView.LEFT + HomeView.FIRE_X)
 	soil.set_shader_parameter(&"home_reach", HomeView.FIRE_REACH)
-	soil.set_shader_parameter(&"home_dusk", HomeView.DUSK)
-	soil.set_shader_parameter(&"home_warm", HomeView.FIRE_TINT)
+	soil.set_shader_parameter(&"home_dusk", HomeView.GROUND_DUSK)
+	soil.set_shader_parameter(&"home_warm", HomeView.GROUND_FIRE)
 	if ResourceLoader.exists(DIR + "earth.png"):  # the painted bank of the main ground
 		var earth: Texture2D = load(DIR + "earth.png")
 		soil.set_shader_parameter(&"earth_tex", earth)
@@ -597,14 +597,15 @@ static func _grass_tone(c: int) -> Color:
 ## home the turf dries to the savanna's straw (multiplied; white elsewhere).
 ## Blind round 14 ("a bright yellow line along the top of the earth strip; the grass as bright far right as at the
 ## fire"): and at home the ground is in the home's one light, as its huts are (HomeView.fire_colour): warm round the
-## fire, in the dusk's shade away from it (_home_light: the turf and its blades; the earth under it: terrain.gdshader).
+## fire, in the dusk's shade away from it (_home_light: the turf and its blades; the earth under it: terrain.gdshader;
+## blind round 15: HomeView.ground_colour, a deeper night and a rounder pool than the huts': "a strip, not a pool").
 static func _home_dry(c: int) -> Color:
 	return Color.WHITE.lerp(Color(1.0, 0.84, 0.6), smoothstep(PropView.HOME_COL - 40.0, PropView.HOME_COL - 4.0, float(c))) * _home_light(c)
 
 
 static func _home_light(c: int) -> Color:
 	var near := smoothstep(HomeView.LEFT / T - 22.0, HomeView.LEFT / T - 6.0, float(c))
-	return Color.WHITE.lerp(HomeView.fire_colour((c + 0.5) * T), near) if near > 0.0 else Color.WHITE
+	return Color.WHITE.lerp(HomeView.ground_colour((c + 0.5) * T), near) if near > 0.0 else Color.WHITE
 
 
 func _in_pole(c: int, r: int) -> bool:

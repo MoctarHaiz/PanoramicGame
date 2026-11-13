@@ -29,6 +29,7 @@ var safe_right := INF  ## play x of the right edge of the screen's safe area (Ga
 
 var _background: SavannaView
 var _vine: VineView
+var _canopy: CanopyView  # the boughs it hangs from (blind round 15), behind the ground
 var _level_root: Node2D
 var _props: PropView  # trees, rocks, shrubs: the 2017 decorations redrawn, and some dressing
 var _ground: TerrainView  # the painted ground (its front blades are drawn above the actors)
@@ -56,6 +57,9 @@ func setup(w: World) -> void:
 	_background = SavannaView.new()
 	_background.name = &"Savanna"  # (round 12, QA: names for perf.tscn --hide)
 	add_child(_background)
+	_canopy = CanopyView.new()
+	_canopy.name = &"Canopy"
+	add_child(_canopy)
 
 	_level_root = Node2D.new()
 	_level_root.name = &"Level"
@@ -328,10 +332,11 @@ func _place_grade() -> void:
 ## Places everything for the current frame (after the world has advanced).
 func refresh(delta := 0.0) -> void:
 	var scroll := world.draw_scroll()
-	for layer: Node in [_background, _vine]:
+	for layer: Node in [_background, _vine, _canopy]:
 		layer.scroll = scroll
 		layer.view_left = view_left
 		layer.view_width = view_width
+	_canopy.dusk = _background.dusk
 	_background.view_top = view_top
 	_background.hero_x = world.draw_hero().x
 	_level_root.position.x = -scroll

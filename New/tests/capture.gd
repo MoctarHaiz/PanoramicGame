@@ -306,6 +306,12 @@ func _clear_stage(game: Node) -> void:
 	await _wait(0.7)
 	game.world.rings.clear()  # (a ring still flying met the bandit staged next: a second ring on its way back)
 	await _wait(0.1)
+	# (blind round 15: "two red pickups sliced by the left edge like a glitch") the Red Bobs he has run past, about to
+	# leave by the screen's left edge, are not in the still
+	for bob: Node2D in game.view._bobs.values():
+		if bob.position.x < game.world.scroll + game.world.x - 60.0:
+			bob.set_process(false)  # (it shows and hides itself each frame: behind a bandit)
+			bob.visible = false
 
 
 ## Brings the last bandit (far away) `ahead` units in front of Panoramic, on his ground (closer if a

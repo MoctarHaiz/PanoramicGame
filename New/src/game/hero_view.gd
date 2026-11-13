@@ -91,6 +91,9 @@ const SHADOW_HOME_LONG := 1.7
 ## falling to the dusk's blue-violet; only values and hue"): at home his side away from the fire takes this much of
 ## HOME_COOL, and all of him HOME_DUSK under the fire's light (actor.gdshader bounce_far, bounce_dusk); no rim, no glow.
 const HOME_FAR := 0.9
+## (blind round 15: "his loincloth stays day-white, his armour clean blue") his whites and his metal take the light's
+## own hue: the fire's orange on its side, the dusk's violet on the other (actor.gdshader bounce_take)
+const HOME_TAKE := 1.0
 const HOME_COOL := Color(0.6, 0.58, 0.9)
 const HOME_DUSK := Color(0.86, 0.82, 0.9)
 const CONTACT_HOME := 0.5
@@ -638,6 +641,7 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 	var home_k := clampf(_end_time / 0.5, 0.0, 1.0) if phase == &"home" else 0.0
 	_material.set_shader_parameter(&"bounce", 0.6 * home_k)
 	_material.set_shader_parameter(&"bounce_far", HOME_FAR * home_k)
+	_material.set_shader_parameter(&"bounce_take", HOME_TAKE * home_k)
 	_material.set_shader_parameter(&"form_amount", lerpf(FORM, FORM_HOME, home_k))
 	_material.set_shader_parameter(&"key_amount", lerpf(KEY, KEY_HOME, home_k))
 	_material.set_shader_parameter(&"hair_lift", HAIR_LIFT * home_k)

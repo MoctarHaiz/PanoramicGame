@@ -23,17 +23,19 @@ const FIRE_REACH := 330.0  ## how far the campfire's light carries on the props 
 const DUSK := Color(0.6, 0.58, 0.82)  ## the shade away from it (form.gdshader's dusk)
 const FIRE_TINT := Color(1.16, 0.98, 0.8)  ## its light (form.gdshader's fire_tint)
 const FIRE_X := 644.0  ## play x of the campfire on the last screen
+## Blind round 15 ("the bright yellow line along the grass base reads as a strip, not a light pool"): the ground's own
+## light: the grass and the earth are in a deeper night away from the fire (the turf's straw at DUSK was still the
+## brightest thing far right of the hut) and warmer in its pool (ground_colour: the turf, the props, the earth)
+const GROUND_DUSK := Color(0.4, 0.4, 0.7)
+const GROUND_FIRE := Color(1.2, 0.94, 0.7)
 
 var back: Node2D
 var yard: Node2D  ## over the ground's grass, under the actors (WorldView adds it after the ground)
 var front: Node2D
 var _glow: Sprite2D
 var _fire: Node2D
-var _spill: Sprite2D  # firelight on the ground before the doorway
-var _pour: Sprite2D  # round 10: the light pouring out of the doorway onto the grass
 var _fire_light: Sprite2D  # round 19: the campfire's light on the hut, the sign and the fence
 var _fire_pool: Sprite2D  # round 19: and on the grass round it
-var _fire_reach: Sprite2D  # round 21: its light running along the grass to his left side
 var _fire_side: Sprite2D  # round 21: and on the hut's thatch by the doorway, at his left
 var _clock := 0.0
 var _welcome := 0.0  # the fire flares when he walks in (1 -> 0)
@@ -87,25 +89,11 @@ func build() -> void:
 	# (round 5: no patch of trodden earth: it read as his boots standing in the dirt under the grass
 	# line; the grass runs on to the doorway)
 	path.queue_free()
-	_spill = _sprite("home_glow", 1.0)  # the fire's light on the ground before the doorway
-	_spill.centered = true
-	_spill.offset = Vector2.ZERO
-	_spill.position = Vector2(door_x + 10.0, GROUND + 6.0)
-	_spill.scale = Vector2(3.6, 0.62)  # (round 2: a long warm pool along the ground)
+	# (blind round 15: "the bright yellow line along the grass base reads as a strip, not a light pool": the long
+	# warm pool before the doorway and the fan of light pouring out of it are gone: the doorway is dark, the campfire
+	# is the yard's one light and its pool is round it: _fire_pool)
 	var spill_add := CanvasItemMaterial.new()
 	spill_add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
-	_spill.material = spill_add
-	yard.add_child(_spill)
-	# round 10: the hut's firelight pouring out of the doorway onto the grass before it, a fan from
-	# the threshold (the doorway's rays read as "a cheap starburst, not light pouring out")
-	_pour = Sprite2D.new()
-	_pour.texture = load(DIR + "home_door_light.png")
-	_pour.centered = false
-	_pour.offset = Vector2(-128, 0)
-	_pour.position = Vector2(door_x + 4.0, GROUND - 14.0)
-	_pour.scale = Vector2(0.9, 0.42)
-	_pour.material = spill_add
-	yard.add_child(_pour)
 	var shade := Sprite2D.new()  # the hut's shadow on the ground, falling to the right (round 4: over the
 	shade.texture = TerrainView.cast_shade()  # grass of the yard, long: the sun is low on the left)
 	shade.centered = false
@@ -145,20 +133,14 @@ func build() -> void:
 	_fire_pool = _sprite("home_glow", 1.0)
 	_fire_pool.centered = true
 	_fire_pool.offset = Vector2.ZERO
-	_fire_pool.position = _fire.position + Vector2(6, 10)
-	_fire_pool.scale = Vector2(1.3, 0.3)
+	# (blind round 15: "a strip, not a light pool": one wide soft pool lying on the yard, brightest under the fire
+	# and falling off on every side; the band of light that ran along the grass from the fire to the doorway is gone)
+	_fire_pool.position = _fire.position + Vector2(24, 8)
+	_fire_pool.scale = Vector2(2.3, 0.36)
 	_fire_pool.material = spill_add
 	yard.add_child(_fire_pool)
-	# round 21 (the judges, j17: "the fire's glow doesn't reach him"): its light runs on along the grass to his left
-	# foot, fading as it goes (brightest at the fire), and warms the thatch by the doorway at his left; the doorway
-	# behind him and the ground under him stay as they were (no bloom at his feet)
-	_fire_reach = Sprite2D.new()
-	_fire_reach.texture = TerrainView.cast_shade()  # (darkest on its left edge, fading out to the right: the light here)
-	_fire_reach.centered = false
-	_fire_reach.position = _fire.position + Vector2(-6, -20)
-	_fire_reach.scale = Vector2((door_x - 46.0 - _fire.position.x) / 64.0, 34.0 / 32.0)
-	_fire_reach.material = spill_add
-	yard.add_child(_fire_reach)
+	# round 21 (the judges, j17: "the fire's glow doesn't reach him"): it warms the thatch by the doorway at his
+	# left; the doorway behind him and the ground under him stay as they were (no bloom at his feet)
 	_fire_side = _sprite("home_glow", 1.0)
 	_fire_side.centered = true
 	_fire_side.offset = Vector2.ZERO
@@ -187,15 +169,12 @@ func _process(delta: float) -> void:
 		# dark contact shadow": the doorway stays a cool dark behind him, the light on the ground before it low)
 		_glow.modulate = Color(1, 0.8, 0.6, minf(f * 0.26 + 0.14 * _welcome, 0.36))
 		_glow.scale = Vector2(0.9, 0.55) * (1.0 + 0.2 * _welcome)
-		_spill.modulate = Color(1, 0.56, 0.3, minf(f * 0.2 + 0.1 * _welcome, 0.32))
-		_pour.modulate = Color(1, 0.72, 0.5, minf(0.1 + f * 0.1 + 0.1 * _welcome, 0.3))
 		(_fire as Fire).flare = _welcome
 		var flick := 0.08 * sin(_clock * 9.0) + 0.05 * sin(_clock * 23.0) + 0.03 * sin(_clock * 3.7)
 		# (round 20: kept round the fire, not over the whole left of the home: the dusk's cool reads round it)
 		# (round 22, the judges, j18: "the fire's orange washes the left third": its light kept nearer it)
 		_fire_light.modulate = Color(1, 0.6, 0.3, 0.05 + flick * 0.35 + 0.03 * _welcome)
-		_fire_pool.modulate = Color(1, 0.66, 0.34, 0.24 + flick * 0.8 + 0.08 * _welcome)
-		_fire_reach.modulate = Color(1, 0.62, 0.3, 0.24 + flick * 0.7 + 0.06 * _welcome)
+		_fire_pool.modulate = Color(1, 0.62, 0.3, 0.3 + flick * 0.8 + 0.08 * _welcome)
 		_fire_side.modulate = Color(1, 0.58, 0.28, 0.12 + flick * 0.5 + 0.05 * _welcome)
 
 
@@ -243,6 +222,13 @@ func _fire_colour(x: float) -> Color:
 static func fire_colour(x: float) -> Color:
 	var d := (x - (LEFT + FIRE_X)) / FIRE_REACH
 	return DUSK.lerp(FIRE_TINT, exp(-d * d * 1.6))
+
+
+## The same on the ground (the turf, its blades and flowers, the props standing on it): a pool round the fire, the
+## night away from it.
+static func ground_colour(x: float) -> Color:
+	var d := (x - (LEFT + FIRE_X)) / FIRE_REACH
+	return GROUND_DUSK.lerp(GROUND_FIRE, exp(-d * d * 2.2))
 
 
 ## The fire's light and the dusk's shade on a prop (form.gdshader): where the fire is in the prop's own pixels.
@@ -340,6 +326,8 @@ class Fire extends Node2D:
 	const FRAMES := 4
 	const FPS := 9.0
 	var _painted: Sprite2D  # the painted fire (home_fire.png: stones, logs and four flames), when it is there
+	var _bloom: Sprite2D  # over it: its light a little past the flame's edge
+	var _heart: Sprite2D  # and its soft white-hot heart
 
 	func _ready() -> void:
 		_glow = Sprite2D.new()
@@ -373,6 +361,20 @@ class Fire extends Node2D:
 			_painted.scale = Vector2(k, k)
 			_painted.position = Vector2(-size.x * k / 2.0, 5.0 - size.y * k)
 			add_child(_painted)
+			# (blind round 15: "a hard-edged cartoon flame with a weak glow": a soft white-hot heart over the painted
+			# flame and a bloom a little wider than it: the flame's ink softens into its own light)
+			_bloom = Sprite2D.new()
+			_bloom.texture = _glow.texture
+			_bloom.scale = Vector2(0.4, 0.46)
+			_bloom.position = Vector2(0, -30)
+			_bloom.material = add
+			add_child(_bloom)
+			_heart = Sprite2D.new()
+			_heart.texture = _glow.texture
+			_heart.scale = Vector2(0.16, 0.24)
+			_heart.position = Vector2(0, -20)
+			_heart.material = add
+			add_child(_heart)
 			add_child(_sparks())
 			return
 		var img := Image.create_empty(4, 4, false, Image.FORMAT_RGBA8)
@@ -404,6 +406,8 @@ class Fire extends Node2D:
 			m.set_shader_parameter(&"flare", flare)
 		if _painted:
 			_painted.frame = int(_clock * FPS) % FRAMES
+			_bloom.modulate = Color(1.0, 0.56, 0.24, 0.3 + flicker * 0.5 + 0.1 * flare)
+			_heart.modulate = Color(1.0, 0.9, 0.62, 0.5 + flicker * 0.8 + 0.1 * flare)
 			return
 		queue_redraw()
 
