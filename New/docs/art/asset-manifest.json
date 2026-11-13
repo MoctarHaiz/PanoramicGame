@@ -8,7 +8,42 @@
    "path": "assets/art/bandit/bandit.png",
    "status": "approved",
    "technical": {
-    "dimensions": "1012x1380",
+    "dimensions": "1024x1974",
+    "alpha": true,
+    "anchor": "per bandit.json (the ground under his body)",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "identity",
+    "silhouette",
+    "palette",
+    "facing"
+   ],
+   "source": {
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai Nano Banana 2 from the user's 2017 frames (prompts and inputs: ROOT/_agents/kie/bandit/), packed by tools/art/bandit_sheet.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "Old/app/src/main/assets/bandit/bandit1-10.png; ROOT/_agents/kie/bandit/p/run.txt, poses.txt; ROOT/_agents/kie/ledger.jsonl (tags bandit_*)",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "bandit-bandit_a",
+   "role": "the 2017 bandit's sheet (his 10-frame run, waiting, the punch drawn back and thrown, hit, the leap): the user's own drawing (Old/app/src/main/assets/bandit/bandit1-10.png) redrawn clean with kie.ai, packed by tools/art/bandit_sheet.py",
+   "path": "assets/art/bandit/bandit_a.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "1024x1956",
     "alpha": true,
     "anchor": "per bandit.json (the ground under his body)",
     "frames": null,
@@ -43,7 +78,42 @@
    "path": "assets/art/bandit/bandit_strong.png",
    "status": "approved",
    "technical": {
-    "dimensions": "940x2432",
+    "dimensions": "1024x3497",
+    "alpha": true,
+    "anchor": "per bandit.json (the ground under his body)",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "identity",
+    "silhouette",
+    "palette",
+    "facing"
+   ],
+   "source": {
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai Nano Banana 2 from the user's 2017 frames (prompts and inputs: ROOT/_agents/kie/bandit/), packed by tools/art/bandit_sheet.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "Old/app/src/main/assets/bandit/bandit1-10.png; ROOT/_agents/kie/bandit/p/run.txt, poses.txt; ROOT/_agents/kie/ledger.jsonl (tags bandit_*)",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "bandit-bandit_strong_a",
+   "role": "the 2017 bandit's sheet (his 10-frame run, waiting, the punch drawn back and thrown, hit, the leap): the user's own drawing (Old/app/src/main/assets/bandit/bandit1-10.png) redrawn clean with kie.ai, packed by tools/art/bandit_sheet.py",
+   "path": "assets/art/bandit/bandit_strong_a.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "1024x3108",
     "alpha": true,
     "anchor": "per bandit.json (the ground under his body)",
     "frames": null,
@@ -906,12 +976,76 @@
    }
   },
   {
+   "id": "ui-ink_band",
+   "role": "the panels' ink: one thick dry-brush stroke of black ink (InkStyle lays several into a band) and the red stroke under a title set in the display font",
+   "path": "assets/art/ui/ink_band.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "1280x372",
+    "alpha": true,
+    "anchor": "stretched in its solid middle only",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette"
+   ],
+   "source": {
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own screens (prompts: tools/art/gen/kie/world/menu_ui*.txt, logo_a.txt, panels_*.txt, titles_c.txt, words_c2.txt, ink_band.txt), cut by tools/art/kie/menu_ui.py and panel_ui.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/*.txt; tools/art/gen/kie/ledger.jsonl (names menu_ui_*, logo_a, panels_*, titles_c, words_c2, ink_band)",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "ui-ink_stroke",
+   "role": "the panels' ink: one thick dry-brush stroke of black ink (InkStyle lays several into a band) and the red stroke under a title set in the display font",
+   "path": "assets/art/ui/ink_stroke.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "900x152",
+    "alpha": true,
+    "anchor": "stretched in its solid middle only",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette"
+   ],
+   "source": {
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own screens (prompts: tools/art/gen/kie/world/menu_ui*.txt, logo_a.txt, panels_*.txt, titles_c.txt, words_c2.txt, ink_band.txt), cut by tools/art/kie/menu_ui.py and panel_ui.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/*.txt; tools/art/gen/kie/ledger.jsonl (names menu_ui_*, logo_a, panels_*, titles_c, words_c2, ink_band)",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
    "id": "ui-logo",
-   "role": "CHAKA ZULU logo: letters drawn for it (chiselled polished gold, an assegai-point A) locked up with a Zulu shield, its stick and an assegai",
+   "role": "CHAKA ZULU logo: the title in angular gold lettering, inked, over a cowhide shield and two crossed spears (the menu, the settings' mark, the share card)",
    "path": "assets/art/ui/logo.png",
    "status": "approved",
    "technical": {
-    "dimensions": "1150x887",
+    "dimensions": "1300x862",
     "alpha": true,
     "anchor": "centre",
     "frames": null,
@@ -921,11 +1055,11 @@
     "palette"
    ],
    "source": {
-    "kind": "authored-procedural",
-    "url_or_tool": "tools/art/ui_logo.py",
-    "creator": "Claude for Haiz Studio",
-    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
-    "prompt_or_source_record": "tools/art/ui_logo.py",
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own screens (prompts: tools/art/gen/kie/world/menu_ui*.txt, logo_a.txt, panels_*.txt, titles_c.txt, words_c2.txt, ink_band.txt), cut by tools/art/kie/menu_ui.py and panel_ui.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/*.txt; tools/art/gen/kie/ledger.jsonl (names menu_ui_*, logo_a, panels_*, titles_c, words_c2, ink_band)",
     "created_at": "2026-10-30",
     "attribution": ""
    },
@@ -1163,6 +1297,518 @@
    }
   },
   {
+   "id": "ui-title_a_propos",
+   "role": "a panel's title in gold brush lettering over a fast red brush stroke, in English and French (Ui.ink_title)",
+   "path": "assets/art/ui/title_a_propos.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "1176x251",
+    "alpha": true,
+    "anchor": "centre",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette"
+   ],
+   "source": {
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own screens (prompts: tools/art/gen/kie/world/menu_ui*.txt, logo_a.txt, panels_*.txt, titles_c.txt, words_c2.txt, ink_band.txt), cut by tools/art/kie/menu_ui.py and panel_ui.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/*.txt; tools/art/gen/kie/ledger.jsonl (names menu_ui_*, logo_a, panels_*, titles_c, words_c2, ink_band)",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "ui-title_about",
+   "role": "a panel's title in gold brush lettering over a fast red brush stroke, in English and French (Ui.ink_title)",
+   "path": "assets/art/ui/title_about.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "1059x235",
+    "alpha": true,
+    "anchor": "centre",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette"
+   ],
+   "source": {
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own screens (prompts: tools/art/gen/kie/world/menu_ui*.txt, logo_a.txt, panels_*.txt, titles_c.txt, words_c2.txt, ink_band.txt), cut by tools/art/kie/menu_ui.py and panel_ui.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/*.txt; tools/art/gen/kie/ledger.jsonl (names menu_ui_*, logo_a, panels_*, titles_c, words_c2, ink_band)",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "ui-title_enfin_a_la_maison",
+   "role": "a panel's title in gold brush lettering over a fast red brush stroke, in English and French (Ui.ink_title)",
+   "path": "assets/art/ui/title_enfin_a_la_maison.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "1570x227",
+    "alpha": true,
+    "anchor": "centre",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette"
+   ],
+   "source": {
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own screens (prompts: tools/art/gen/kie/world/menu_ui*.txt, logo_a.txt, panels_*.txt, titles_c.txt, words_c2.txt, ink_band.txt), cut by tools/art/kie/menu_ui.py and panel_ui.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/*.txt; tools/art/gen/kie/ledger.jsonl (names menu_ui_*, logo_a, panels_*, titles_c, words_c2, ink_band)",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "ui-title_game_over",
+   "role": "a panel's title in gold brush lettering over a fast red brush stroke, in English and French (Ui.ink_title)",
+   "path": "assets/art/ui/title_game_over.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "1274x237",
+    "alpha": true,
+    "anchor": "centre",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette"
+   ],
+   "source": {
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own screens (prompts: tools/art/gen/kie/world/menu_ui*.txt, logo_a.txt, panels_*.txt, titles_c.txt, words_c2.txt, ink_band.txt), cut by tools/art/kie/menu_ui.py and panel_ui.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/*.txt; tools/art/gen/kie/ledger.jsonl (names menu_ui_*, logo_a, panels_*, titles_c, words_c2, ink_band)",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "ui-title_home_sweet_home",
+   "role": "a panel's title in gold brush lettering over a fast red brush stroke, in English and French (Ui.ink_title)",
+   "path": "assets/art/ui/title_home_sweet_home.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "1568x236",
+    "alpha": true,
+    "anchor": "centre",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette"
+   ],
+   "source": {
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own screens (prompts: tools/art/gen/kie/world/menu_ui*.txt, logo_a.txt, panels_*.txt, titles_c.txt, words_c2.txt, ink_band.txt), cut by tools/art/kie/menu_ui.py and panel_ui.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/*.txt; tools/art/gen/kie/ledger.jsonl (names menu_ui_*, logo_a, panels_*, titles_c, words_c2, ink_band)",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "ui-title_pause",
+   "role": "a panel's title in gold brush lettering over a fast red brush stroke, in English and French (Ui.ink_title)",
+   "path": "assets/art/ui/title_pause.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "1066x239",
+    "alpha": true,
+    "anchor": "centre",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette"
+   ],
+   "source": {
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own screens (prompts: tools/art/gen/kie/world/menu_ui*.txt, logo_a.txt, panels_*.txt, titles_c.txt, words_c2.txt, ink_band.txt), cut by tools/art/kie/menu_ui.py and panel_ui.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/*.txt; tools/art/gen/kie/ledger.jsonl (names menu_ui_*, logo_a, panels_*, titles_c, words_c2, ink_band)",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "ui-title_paused",
+   "role": "a panel's title in gold brush lettering over a fast red brush stroke, in English and French (Ui.ink_title)",
+   "path": "assets/art/ui/title_paused.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "1202x289",
+    "alpha": true,
+    "anchor": "centre",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette"
+   ],
+   "source": {
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own screens (prompts: tools/art/gen/kie/world/menu_ui*.txt, logo_a.txt, panels_*.txt, titles_c.txt, words_c2.txt, ink_band.txt), cut by tools/art/kie/menu_ui.py and panel_ui.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/*.txt; tools/art/gen/kie/ledger.jsonl (names menu_ui_*, logo_a, panels_*, titles_c, words_c2, ink_band)",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "ui-title_perdu",
+   "role": "a panel's title in gold brush lettering over a fast red brush stroke, in English and French (Ui.ink_title)",
+   "path": "assets/art/ui/title_perdu.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "1110x225",
+    "alpha": true,
+    "anchor": "centre",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette"
+   ],
+   "source": {
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own screens (prompts: tools/art/gen/kie/world/menu_ui*.txt, logo_a.txt, panels_*.txt, titles_c.txt, words_c2.txt, ink_band.txt), cut by tools/art/kie/menu_ui.py and panel_ui.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/*.txt; tools/art/gen/kie/ledger.jsonl (names menu_ui_*, logo_a, panels_*, titles_c, words_c2, ink_band)",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "ui-title_reglages",
+   "role": "a panel's title in gold brush lettering over a fast red brush stroke, in English and French (Ui.ink_title)",
+   "path": "assets/art/ui/title_reglages.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "1236x250",
+    "alpha": true,
+    "anchor": "centre",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette"
+   ],
+   "source": {
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own screens (prompts: tools/art/gen/kie/world/menu_ui*.txt, logo_a.txt, panels_*.txt, titles_c.txt, words_c2.txt, ink_band.txt), cut by tools/art/kie/menu_ui.py and panel_ui.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/*.txt; tools/art/gen/kie/ledger.jsonl (names menu_ui_*, logo_a, panels_*, titles_c, words_c2, ink_band)",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "ui-title_settings",
+   "role": "a panel's title in gold brush lettering over a fast red brush stroke, in English and French (Ui.ink_title)",
+   "path": "assets/art/ui/title_settings.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "1246x263",
+    "alpha": true,
+    "anchor": "centre",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette"
+   ],
+   "source": {
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own screens (prompts: tools/art/gen/kie/world/menu_ui*.txt, logo_a.txt, panels_*.txt, titles_c.txt, words_c2.txt, ink_band.txt), cut by tools/art/kie/menu_ui.py and panel_ui.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/*.txt; tools/art/gen/kie/ledger.jsonl (names menu_ui_*, logo_a, panels_*, titles_c, words_c2, ink_band)",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "ui-word_jouer",
+   "role": "a main button's word in heavy slanted white capitals, inked (PLAY, RESUME, PLAY AGAIN and their French: Ui.cta_button)",
+   "path": "assets/art/ui/word_jouer.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "641x150",
+    "alpha": true,
+    "anchor": "centre",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette"
+   ],
+   "source": {
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own screens (prompts: tools/art/gen/kie/world/menu_ui*.txt, logo_a.txt, panels_*.txt, titles_c.txt, words_c2.txt, ink_band.txt), cut by tools/art/kie/menu_ui.py and panel_ui.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/*.txt; tools/art/gen/kie/ledger.jsonl (names menu_ui_*, logo_a, panels_*, titles_c, words_c2, ink_band)",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "ui-word_play",
+   "role": "a main button's word in heavy slanted white capitals, inked (PLAY, RESUME, PLAY AGAIN and their French: Ui.cta_button)",
+   "path": "assets/art/ui/word_play.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "585x150",
+    "alpha": true,
+    "anchor": "centre",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette"
+   ],
+   "source": {
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own screens (prompts: tools/art/gen/kie/world/menu_ui*.txt, logo_a.txt, panels_*.txt, titles_c.txt, words_c2.txt, ink_band.txt), cut by tools/art/kie/menu_ui.py and panel_ui.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/*.txt; tools/art/gen/kie/ledger.jsonl (names menu_ui_*, logo_a, panels_*, titles_c, words_c2, ink_band)",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "ui-word_play_again",
+   "role": "a main button's word in heavy slanted white capitals, inked (PLAY, RESUME, PLAY AGAIN and their French: Ui.cta_button)",
+   "path": "assets/art/ui/word_play_again.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "1138x150",
+    "alpha": true,
+    "anchor": "centre",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette"
+   ],
+   "source": {
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own screens (prompts: tools/art/gen/kie/world/menu_ui*.txt, logo_a.txt, panels_*.txt, titles_c.txt, words_c2.txt, ink_band.txt), cut by tools/art/kie/menu_ui.py and panel_ui.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/*.txt; tools/art/gen/kie/ledger.jsonl (names menu_ui_*, logo_a, panels_*, titles_c, words_c2, ink_band)",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "ui-word_rejouer",
+   "role": "a main button's word in heavy slanted white capitals, inked (PLAY, RESUME, PLAY AGAIN and their French: Ui.cta_button)",
+   "path": "assets/art/ui/word_rejouer.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "889x150",
+    "alpha": true,
+    "anchor": "centre",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette"
+   ],
+   "source": {
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own screens (prompts: tools/art/gen/kie/world/menu_ui*.txt, logo_a.txt, panels_*.txt, titles_c.txt, words_c2.txt, ink_band.txt), cut by tools/art/kie/menu_ui.py and panel_ui.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/*.txt; tools/art/gen/kie/ledger.jsonl (names menu_ui_*, logo_a, panels_*, titles_c, words_c2, ink_band)",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "ui-word_reprendre",
+   "role": "a main button's word in heavy slanted white capitals, inked (PLAY, RESUME, PLAY AGAIN and their French: Ui.cta_button)",
+   "path": "assets/art/ui/word_reprendre.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "1143x150",
+    "alpha": true,
+    "anchor": "centre",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette"
+   ],
+   "source": {
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own screens (prompts: tools/art/gen/kie/world/menu_ui*.txt, logo_a.txt, panels_*.txt, titles_c.txt, words_c2.txt, ink_band.txt), cut by tools/art/kie/menu_ui.py and panel_ui.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/*.txt; tools/art/gen/kie/ledger.jsonl (names menu_ui_*, logo_a, panels_*, titles_c, words_c2, ink_band)",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "ui-word_resume",
+   "role": "a main button's word in heavy slanted white capitals, inked (PLAY, RESUME, PLAY AGAIN and their French: Ui.cta_button)",
+   "path": "assets/art/ui/word_resume.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "832x150",
+    "alpha": true,
+    "anchor": "centre",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette"
+   ],
+   "source": {
+    "kind": "user-generated",
+    "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own screens (prompts: tools/art/gen/kie/world/menu_ui*.txt, logo_a.txt, panels_*.txt, titles_c.txt, words_c2.txt, ink_band.txt), cut by tools/art/kie/menu_ui.py and panel_ui.py",
+    "creator": "Haiz Studio",
+    "license": "owned by Haiz Studio",
+    "prompt_or_source_record": "tools/art/gen/kie/world/*.txt; tools/art/gen/kie/ledger.jsonl (names menu_ui_*, logo_a, panels_*, titles_c, words_c2, ink_band)",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
    "id": "world-bird",
    "role": "level world layer or terrain texture",
    "path": "assets/art/world/bird.png",
@@ -1170,6 +1816,39 @@
    "technical": {
     "dimensions": "256x32",
     "alpha": true,
+    "anchor": "per view",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette",
+    "light-direction"
+   ],
+   "source": {
+    "kind": "authored-procedural",
+    "url_or_tool": "tools/art/savanna.py / terrain.py",
+    "creator": "Claude for Haiz Studio",
+    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
+    "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "world-earth",
+   "role": "level world layer or terrain texture",
+   "path": "assets/art/world/earth.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "1792x240",
+    "alpha": false,
     "anchor": "per view",
     "frames": null,
     "filtering": "linear"
@@ -1532,6 +2211,39 @@
    "status": "approved",
    "technical": {
     "dimensions": "1024x168",
+    "alpha": true,
+    "anchor": "bottom-centre at the ground",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette",
+    "light-direction"
+   ],
+   "source": {
+    "kind": "authored-procedural",
+    "url_or_tool": "tools/art/home.py",
+    "creator": "Claude for Haiz Studio",
+    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
+    "prompt_or_source_record": "tools/art/home.py",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
+   "id": "world-home_fire",
+   "role": "HOME homestead piece (hut, fence, granary, sign, pot, glow)",
+   "path": "assets/art/world/home_fire.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "632x196",
     "alpha": true,
     "anchor": "bottom-centre at the ground",
     "frames": null,

@@ -8,6 +8,8 @@ extends StyleBox
 ##   an ink line all round, the face in one flat colour with a darker lower band (a cel shade), a thin pale line
 ##   a little inside its edge
 ## Pressed, the plate sits down on its shadow. No gloss, no gradient, no rounded corner.
+## The quiet plates beside it (Ui.plate_button: Home, Share, the pause's tiles, the settings' help) are the same shape
+## with no shadow (depth 0) and no cel band (shade = face): dark ink, a thin gold line just inside its edge.
 
 var face := Color("d9261c")  ## the hero's scarf red
 var shade := Color("b0180f")  ## its lower band
@@ -24,7 +26,7 @@ var pressed := false
 
 func _draw(to: RID, rect: Rect2) -> void:
 	var size := rect.size - Vector2(depth * 0.6, depth)
-	if not pressed:
+	if not pressed and depth > 0.0:
 		_fill(to, _plate(Rect2(rect.position + Vector2(depth * 0.6, depth), size)), Color(0.06, 0.02, 0.03, 0.6))
 	var at := rect.position + (Vector2(depth * 0.3, depth * 0.5) if pressed else Vector2.ZERO)
 	var outer := _plate(Rect2(at, size))
@@ -36,8 +38,9 @@ func _draw(to: RID, rect: Rect2) -> void:
 	var y := at.y + ink_width + (size.y - ink_width * 2.0) * shade_from
 	var band := PackedVector2Array([Vector2(at.x - 4.0, y), Vector2(at.x + size.x + 4.0, y),
 			Vector2(at.x + size.x + 4.0, at.y + size.y + 4.0), Vector2(at.x - 4.0, at.y + size.y + 4.0)])
-	for part: PackedVector2Array in Geometry2D.intersect_polygons(inner, band):
-		_fill(to, part, shade)
+	if shade != face:
+		for part: PackedVector2Array in Geometry2D.intersect_polygons(inner, band):
+			_fill(to, part, shade)
 	var ring := _inset(outer, ink_width + line_inset)
 	if not ring.is_empty() and line.a > 0.0:
 		ring.append(ring[0])

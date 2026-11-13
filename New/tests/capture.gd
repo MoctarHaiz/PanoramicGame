@@ -23,7 +23,7 @@ extends Node
 ## gameover (caught), fell (game over by a fall), win (these three once the panel's reveal is over:
 ## the stars, the count, the new best), settings, settings_end (scrolled to the bottom).
 ## Not in the default list: share (the 1200 x 630 picture a player shares, ShareCard: the same on
-## every device).
+## every device), controls (the pause with its Controls open: the five moves), credits (the settings' About).
 
 ## Screen size (landscape) and safe-area margins (left, top, right, bottom) in device pixels.
 const DEVICES := {
@@ -37,7 +37,7 @@ const DEVICES := {
 const SHOTS := ["boot", "menu", "first_menu", "start", "lesson", "lesson_pause", "game", "throw", "hurt", "climb", "hang", "home", "pause", "resume",
 		"gameover", "fell", "win", "settings", "settings_end"]
 ## Shots that start from another one's moment.
-const MOMENT_OF := {"pause": "game", "resume": "game", "throw": "game", "hurt": "game", "gameover": "climb",
+const MOMENT_OF := {"pause": "game", "controls": "game", "resume": "game", "throw": "game", "hurt": "game", "gameover": "climb",
 		"fell": "climb", "win": "home"}
 ## Moments of the bot's run used by the level shots: name -> condition on the world.
 const MOMENTS := {
@@ -145,7 +145,8 @@ func _capture(device: String, shot: String) -> void:
 	match shot:
 		"boot":
 			Nav.go(&"boot")
-			await _wait(0.7)
+			await _wait(0.2)  # (its first frame is a long one, the effects' shaders compiling: on a busy machine it ate
+			await _wait(0.5)  # one 0.7 s wait whole, and the picture was taken before its plaque had faded in)
 		"menu":
 			Save.games_played = 6
 			Save.best_bobs = 64
@@ -199,11 +200,16 @@ func _capture(device: String, shot: String) -> void:
 			if shot == "lesson_pause":
 				game.pause_game()
 				await _wait(0.6)
-		"pause":
+		"pause", "controls":
 			await _start_game("game")
 			await _wait(0.5)
 			Nav.current.pause_game()
 			await _wait(0.6)
+			if shot == "controls":  # its third plate opens the moves
+				for n in Nav.current.find_children("*", "", true, false):
+					if n is GamePanel:  # (its buttons: music, sounds, controls, home, resume)
+						((n as GamePanel).card.find_children("*", "JuicyButton", true, false)[2] as JuicyButton).pressed.emit()
+				await _wait(0.6)
 		"resume":  # the countdown's first number
 			await _start_game("game")
 			await _wait(0.5)
@@ -223,9 +229,12 @@ func _capture(device: String, shot: String) -> void:
 			await get_tree().process_frame
 			Nav.current.autopilot = null
 			await _results(Nav.current)
-		"settings":
+		"settings", "credits":
 			Nav.go(&"settings")
 			await _wait(1.0)
+			if shot == "credits":
+				Nav.current._show_credits()
+				await _wait(0.6)
 		"settings_end":  # every scrolling list scrolled to its end
 			Nav.go(&"settings")
 			await _wait(0.8)

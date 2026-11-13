@@ -32,6 +32,13 @@ const MIN_TOUCH := 86.0
 const CREAM := Color("fff6e4")
 const SAND := Color("f3d9ac")
 const SAND_DEEP := Color("dcb47c")
+## The inked panels (the pause, the results, the settings; the user, 2026-11-13: "C", no box, ink brush): text and
+## glyphs on the ink are BONE, its thin lines INK_GOLD, the one loud colour the hero's scarf red (SlantStyle).
+const BONE := Color("fff1d6")
+const BONE_SOFT := Color("d8c4a2")  ## the small print on it
+const INK_GOLD := Color("f2b93c")
+const INK_BLACK := Color("140d0b")
+const SCARF_RED := Color("d9261c")
 
 ## The colours of the interface kit (buttons, chips, banners, panels): clean, saturated faces (the
 ## colour that reads over warm art) with a soft light across their top (no glaze, no sticker
@@ -74,6 +81,7 @@ const FRAMES := {
 var font_title: FontVariation  ## Fredoka Bold: titles, buttons, numbers
 var font_display: FontVariation  ## Fredoka at its heaviest: display text (DisplayText)
 var font_strong: FontVariation  ## Fredoka SemiBold
+var font_slant: FontVariation  ## Fredoka at its heaviest, leaning as the red plates do (the words on the ink)
 var font_body: FontVariation  ## Quicksand SemiBold: sentences
 var font_body_bold: FontVariation  ## Quicksand Bold
 var theme: Theme
@@ -93,6 +101,8 @@ func _ready() -> void:
 	font_title = title_font(680)
 	font_display = title_font(700)
 	font_strong = title_font(580)
+	font_slant = title_font(700)
+	font_slant.variation_transform = Transform2D(Vector2(1.0, 0.2), Vector2(0.0, 1.0), Vector2.ZERO)
 	font_body = _weight(quicksand, 600)
 	font_body_bold = _weight(quicksand, 700)
 	theme = _build_theme()
@@ -366,8 +376,10 @@ func _candy_button(text: String, icon_name: String, c: Dictionary, height: int, 
 ## The main button (the menu's PLAY; the user, 2026-11-13, of three interfaces shown: "the A, inked gold, but with the
 ## RED play in the C, bold action"): a flat red plate leaning to the right, inked, on a hard shadow (SlantStyle), a
 ## white play mark and the word in heavy slanted white capitals: the art's for the game's own languages
-## (assets/art/ui/word_<word>.png: tools/art/kie/menu_ui.py), any other word set in the display font. No gloss, no gem.
-func cta_button(text: String, height := 116.0, font_size := 60) -> JuicyButton:
+## (assets/art/ui/word_<slug>.png: tools/art/kie/menu_ui.py, panel_ui.py), any other word set in the display font. No
+## gloss, no gem. The panels' Resume and Play again are the same plate.
+## `icon_name`: another mark than the play triangle (a flat white glyph in an ink line: Play again's turning arrow).
+func cta_button(text: String, height := 116.0, font_size := 60, icon_name := "") -> JuicyButton:
 	var b := JuicyButton.new()
 	b.custom_minimum_size = Vector2(0, height)
 	var depth := roundf(height * 0.09)
@@ -391,8 +403,14 @@ func cta_button(text: String, height := 116.0, font_size := 60) -> JuicyButton:
 	row.add_theme_constant_override(&"separation", roundi(height * 0.16))
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var word_h := roundf(height * 0.4)
-	row.add_child(PlayMark.new(word_h))
-	var art := "res://assets/art/ui/word_%s.png" % text.to_lower()
+	if icon_name.is_empty():
+		row.add_child(PlayMark.new(word_h))
+	else:
+		var mark := BoldIcon.new(icon_texture(icon_name), word_h * 1.1, WHITE, Color("140607"), maxf(word_h * 0.07, 2.0))
+		mark.depth = 0.0
+		mark.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(mark)
+	var art := "res://assets/art/ui/word_%s.png" % slug(text)
 	if ResourceLoader.exists(art):
 		var word := TextureRect.new()
 		word.texture = load(art)
@@ -418,7 +436,163 @@ func cta_button(text: String, height := 116.0, font_size := 60) -> JuicyButton:
 	holder.add_child(row)
 	b.add_child(holder)
 	b.content = row
+	b.custom_minimum_size.x = row.get_combined_minimum_size().x + height  # its mark and word, with air inside the lean
 	return b
+
+
+## A text as a file name: lower case, its accents dropped, everything else one underscore ("Enfin à la maison !" ->
+## "enfin_a_la_maison"): the painted words and titles (assets/art/ui/word_<slug>.png, title_<slug>.png).
+func slug(text: String) -> String:
+	const FROM := "àâäáãéèêëîïíôöóõùûüúçñ"
+	const TO := "aaaaaeeeeiiioooouuuucn"
+	var out := ""
+	for ch in text.to_lower():
+		var i := FROM.find(ch)
+		if i >= 0:
+			ch = TO[i]
+		if (ch >= "a" and ch <= "z") or (ch >= "0" and ch <= "9"):
+			out += ch
+		elif not out.is_empty() and not out.ends_with("_"):
+			out += "_"
+	return out.trim_suffix("_")
+
+
+## A panel's title on the ink (the user, 2026-11-13: "C", no box, ink brush): gold brush lettering in an ink line over
+## a fast red brush stroke, painted for the game's two languages (assets/art/ui/title_<slug>.png:
+## tools/art/kie/panel_ui.py); any other title is set in the leaning display font, gold, over the red stroke
+## (ink_stroke.png). `height` units tall, narrower if it would be wider than `max_width`.
+func ink_title(text: String, height := 112.0, max_width := 600.0) -> Control:
+	var art := "res://assets/art/ui/title_%s.png" % slug(text)
+	if ResourceLoader.exists(art):
+		var t := TextureRect.new()
+		t.texture = load(art)
+		t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		t.stretch_mode = TextureRect.STRETCH_SCALE
+		var ts := t.texture.get_size()
+		t.custom_minimum_size = (ts * minf(height / ts.y, max_width / ts.x)).round()
+		t.size = t.custom_minimum_size
+		t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		return t
+	var box := Control.new()
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var px := roundi(height * 0.56)
+	var word := display_text(text, px, Color("ffe27a"), Color("140607"), Color("f59a0c"))
+	word.font = font_slant
+	word.outline_width = roundf(px * 0.09)
+	word.depth = 0.0
+	word.shadow = Color(0, 0, 0, 0)
+	word.refresh()
+	var k := minf(1.0, max_width / (word.custom_minimum_size.x + height * 0.8))
+	box.custom_minimum_size = Vector2((word.custom_minimum_size.x + height * 0.8) * k, height * k).round()
+	box.size = box.custom_minimum_size
+	var stroke := TextureRect.new()
+	stroke.texture = load("res://assets/art/ui/ink_stroke.png")
+	stroke.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	stroke.stretch_mode = TextureRect.STRETCH_SCALE
+	stroke.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stroke.size = Vector2(box.size.x, box.size.y * 0.62)
+	stroke.position = Vector2(0.0, box.size.y * 0.3)
+	box.add_child(stroke)
+	word.scale = Vector2.ONE * k
+	word.size = word.custom_minimum_size
+	word.position = (box.size - word.size * k) / 2.0
+	box.add_child(word)
+	return box
+
+
+## The quiet plate's style (plate_button; the pause's tiles; the settings' switch when off): the red plate's shape with
+## no shadow and no cel band, dark ink, a thin gold line just inside its edge. `lit`: held down (a warm face).
+func plate_style(lit := false, height := 90.0) -> SlantStyle:
+	var st := SlantStyle.new()
+	st.depth = 0.0
+	st.slant = 0.22
+	st.ink = Color(0.04, 0.02, 0.02, 0.92)
+	st.ink_width = maxf(roundf(height * 0.03), 2.0)
+	st.face = Color("4a3220") if lit else Color("1c1310")
+	st.shade = st.face
+	st.line = Color(INK_GOLD.lerp(BONE, 0.35), 0.95)
+	st.line_inset = 0.5
+	st.line_width = maxf(height * 0.026, 2.0)
+	return st
+
+
+## A quiet button on the ink beside the red one (Home, Share, the settings' help): a dark leaning plate in a thin gold
+## line, a flat cream glyph and, with `text`, its word in leaning cream capitals. With a word it is as wide as it needs.
+func plate_button(icon_name: String, plate: Vector2, text := "", font_size := 32) -> JuicyButton:
+	var b := JuicyButton.new()
+	b.custom_minimum_size = plate
+	for state in [&"normal", &"hover"]:
+		b.add_theme_stylebox_override(state, plate_style(false, plate.y))
+	b.add_theme_stylebox_override(&"pressed", plate_style(true, plate.y))
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override(&"separation", roundi(font_size * 0.4))
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if not icon_name.is_empty():
+		row.add_child(icon(icon_name, plate.y * 0.64 if text.is_empty() else font_size * 1.3, BONE))
+	if not text.is_empty():
+		row.add_child(label(text.to_upper(), font_size, BONE, font_slant))
+		var fit := func() -> void:  # (a label's width is known for sure once it is in the tree)
+			b.custom_minimum_size.x = maxf(plate.x, row.get_combined_minimum_size().x + plate.y * 0.85)
+		fit.call()
+		row.minimum_size_changed.connect(fit)
+	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	b.add_child(row)
+	b.content = row
+	return b
+
+
+## A round button on the painting beside an inked panel (the settings' back and info, the credits' cross): a flat disc
+## of the panel's ink in a thin gold ring, a cream glyph.
+func disc_button(icon_name: String, side: float) -> JuicyButton:
+	var b := JuicyButton.new()
+	b.custom_minimum_size = Vector2(side, side)
+	for state in [&"normal", &"hover", &"pressed"]:
+		var s := StyleBoxFlat.new()
+		s.bg_color = Color("4a3220") if state == &"pressed" else INK_BLACK
+		s.border_color = INK_GOLD
+		s.set_border_width_all(3)
+		s.set_corner_radius_all(int(side))
+		s.corner_detail = 16
+		s.anti_aliasing = true
+		b.add_theme_stylebox_override(state, s)
+	var i := icon(icon_name, side * 0.5, BONE)
+	i.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	b.add_child(i)
+	b.content = i
+	return b
+
+
+## A thin gold line on the ink between two groups, fading out at both ends: `length` units long (0: as long as its
+## container gives it), lying or standing.
+func rule(length := 0.0, standing := false) -> Control:
+	var r := _Rule.new()
+	r.standing = standing
+	r.custom_minimum_size = Vector2(3.0, length) if standing else Vector2(length, 3.0)
+	if standing:
+		r.size_flags_vertical = Control.SIZE_EXPAND_FILL if length <= 0.0 else Control.SIZE_SHRINK_CENTER
+	else:
+		r.size_flags_horizontal = Control.SIZE_EXPAND_FILL if length <= 0.0 else Control.SIZE_SHRINK_CENTER
+	return r
+
+
+class _Rule extends Control:
+	var standing := false
+	var colour := Color("f2b93c")
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var pts := PackedVector2Array()
+		var cols := PackedColorArray()
+		for u: float in [0.0, 0.14, 0.86, 1.0]:  # its near side, then its far side back
+			pts.append(Vector2(0.0, size.y * u) if standing else Vector2(size.x * u, 0.0))
+			cols.append(Color(colour, 0.0 if u == 0.0 or u == 1.0 else 0.9))
+		for u: float in [1.0, 0.86, 0.14, 0.0]:
+			pts.append(Vector2(size.x, size.y * u) if standing else Vector2(size.x * u, size.y))
+			cols.append(Color(colour, 0.0 if u == 0.0 or u == 1.0 else 0.9))
+		draw_polygon(pts, cols)
 
 
 ## A line engraved round a lacquered face, a little inside its edge: cut dark, lit along its lower lip; a crisp
@@ -491,15 +665,6 @@ func wood_button(icon_name: String, button_size := Vector2(84, 84), radius := 42
 ## outline (UI r21, the judges of j17: r20's cream buttons in a wood ring read "bolted on").
 func frame_button(icon_name: String, side: float) -> JuicyButton:
 	return _icon_button(icon_name, GLASS, Vector2(side, side), side / 2.0, CREAM)
-
-
-## A square-ish candy icon button in a tone (the menu's records and settings).
-## `ring`: another ring than the tone's (FRAMES), e.g. the bright brass for a gold face on a dark HUD.
-func icon_button(icon_name: String, tone := Tone.SUNSET, side := 124.0, radius := 38.0, ring: Array = []) -> JuicyButton:
-	var c := tone_colours(tone)
-	if not ring.is_empty():
-		c.frame = ring
-	return _icon_button(icon_name, c, Vector2(side, side), radius, LABEL_DEEP if tone == Tone.WHITE else WHITE)
 
 
 func _icon_button(icon_name: String, c: Dictionary, button_size: Vector2, radius: float,

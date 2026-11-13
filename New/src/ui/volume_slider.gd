@@ -1,15 +1,14 @@
 class_name VolumeSlider
 extends Control
-## A volume that reads as a slider, not a switch (j15: "sliders look like toggles, 100% collides with
-## the knob"): a thick groove sunk into the panel (UI r21, the judges of j17: "thin short sliders") with
-## a notch at each step, filled with gold up to the value (a soft light along it), a round gold-rimmed
-## knob bigger than the groove, a glossy dome (no grip lines: they read as a pause sign), to drag (or tap
-## the groove); no value written beside it (UI r23, the judges of j19: "the redundant 100 % labels": the
-## gold fill says it). Steps of 10 %; at 0 the sound is off. A tick plays at each step while dragging.
+## A volume on the inked panels (the user, 2026-11-13: "C", no box, ink brush): a cream line, bright up to the value
+## and faint after it, a small tick at each step still to go, and an angular red handle in an ink line (the red
+## plate's colours, a spear point's shape) to drag (or tap the line); no value written beside it (UI r23, the judges
+## of j19: "the redundant 100 % labels"). Steps of 10 %; at 0 the sound is off. A tick plays at each step while
+## dragging. (Before: a thick sunk groove filled with gold, a round gold-rimmed knob.)
 
 signal changed(value: float)
 
-const INK := Color("4a1e04")
+const INK := Color("140607")
 const STEPS := 10
 
 var value := 1.0
@@ -40,7 +39,7 @@ func _gui_input(event: InputEvent) -> void:
 
 ## The knob's radius and the groove's two ends (the knob's centre at 0 % and at 100 %).
 func _knob_r() -> float:
-	return size.y * 0.44
+	return size.y * 0.4
 
 
 func _ends() -> Vector2:
@@ -61,36 +60,29 @@ func _set_from(x: float) -> void:
 
 
 func _draw() -> void:
-	var ci := get_canvas_item()
 	var e := _ends()
 	var mid := size.y / 2
-	var gh := maxf(roundf(size.y * 0.36), 14.0)  # a thick groove: the knob still stands over it
-	var groove := Rect2(Vector2(e.x - gh * 0.5, mid - gh / 2), Vector2(e.y - e.x + gh, gh))
-	var gr := gh / 2
-	GlossStyle.fill_rounded(ci, Rect2(groove.position + Vector2(0, 2), groove.size).grow(1.5), gr + 1.5,
-			Color(1, 1, 0.95, 0.8), Color(1, 1, 0.95, 0.8))  # the panel's lit lip under it
-	GlossStyle.fill_rounded(ci, groove.grow(1.5), gr + 1.5, INK, INK)
-	GlossStyle.fill_rounded(ci, groove, gr, Color("5a3a26"), Color("8a6a50"))  # sunk: dark under its upper edge
 	var cx := lerpf(e.x, e.y, value)
-	for i in range(1, STEPS):  # a notch at each step, on the way still to go
+	var cream := Ui.BONE
+	draw_line(Vector2(e.x, mid), Vector2(e.y, mid), Color(cream, 0.3), 4.0, true)  # the way still to go
+	for i in range(1, STEPS + 1):
 		var x := lerpf(e.x, e.y, float(i) / STEPS)
 		if x > cx + _knob_r():
-			draw_circle(Vector2(x, mid), 2.6, Color(1, 0.92, 0.78, 0.5), true, -1, true)
+			draw_line(Vector2(x, mid - 5.0), Vector2(x, mid + 5.0), Color(cream, 0.4), 2.0, true)
 	if value > 0.0:
-		var fill := Rect2(groove.position, Vector2(cx - groove.position.x, groove.size.y)).grow(-1.0)
-		GlossStyle.fill_rounded(ci, fill.grow(3.0), gr + 3.0, Color(1, 0.8, 0.3, 0.22), Color(1, 0.8, 0.3, 0.22))  # its glow
-		GlossStyle.fill_rounded(ci, fill, gr - 1.0, Color("ffe066"), Color("e8860e"))
-		GlossStyle.fill_rounded(ci, Rect2(fill.position + Vector2(gr * 0.6, 2.0), Vector2(maxf(fill.size.x - gr * 1.2, 0), 3.5)), 1.7,
-				Color(1, 1, 0.92, 0.8), Color(1, 1, 0.92, 0.8))
-	var knob_r := _knob_r()
-	var centre := Vector2(cx, mid)
-	draw_circle(centre + Vector2(0, 3.5), knob_r, Color(Ui.NIGHT, 0.32), true, -1, true)
-	draw_circle(centre, knob_r, INK, true, -1, true)
-	draw_circle(centre, knob_r - 2.5, Color("d8781a"), true, -1, true)  # the gold rim, lit at its top
-	draw_circle(centre - Vector2(0, 1.2), knob_r - 3.5, Color("ffd45a"), true, -1, true)
-	draw_circle(centre + Vector2(0, 1.0), knob_r - 7.5, Color("e8a83a"), true, -1, true)  # its face, a shallow dome
-	draw_circle(centre, knob_r - 8.5, Color("fff0c0"), true, -1, true)
-	# (round 20, the judges: the grip's two cuts "read as a pause button") a plain glossy dome: its light
-	# caught at its top left
-	draw_circle(centre + Vector2(-knob_r * 0.24, -knob_r * 0.28), knob_r * 0.24, Color(1, 1, 0.96, 0.9), true, -1, true)
-
+		draw_line(Vector2(e.x, mid), Vector2(cx, mid), cream, 5.0, true)
+		draw_circle(Vector2(e.x, mid), 2.5, cream, true, -1, true)
+	# the handle: a spear point, its tip to the right
+	var r := _knob_r()
+	var c := Vector2(cx, mid)
+	var head := PackedVector2Array([c + Vector2(-r * 0.95, -r * 0.5), c + Vector2(r * 0.1, -r * 0.92), c + Vector2(r * 1.05, 0.0),
+			c + Vector2(r * 0.1, r * 0.92), c + Vector2(-r * 0.95, r * 0.5), c + Vector2(-r * 0.55, 0.0)])
+	for part in Geometry2D.offset_polygon(head, 3.0, Geometry2D.JOIN_MITER):
+		draw_colored_polygon(part, INK)
+		var edge := part.duplicate()
+		edge.append(part[0])
+		draw_polyline(edge, INK, 1.0, true)
+	draw_colored_polygon(head, Ui.SCARF_RED)
+	var low := PackedVector2Array([c + Vector2(-r * 0.55, 0.0), c + Vector2(r * 1.05, 0.0), c + Vector2(r * 0.1, r * 0.92),
+			c + Vector2(-r * 0.95, r * 0.5)])
+	draw_colored_polygon(low, Color("b0180f"))  # its lower half in shade (one cel step)

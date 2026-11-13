@@ -8,16 +8,18 @@ extends Control
 ## nudged into one mood, a soft light behind the card, closed corners, so the scene steps back and the
 ## panel owns the screen: a deep warm dusk for the pause, the place where he fell cool, soft and still
 ## coloured for a defeat, the home flooded with warm golden light for a win, soft rays turning behind him
-## and the card (UI r23, the judges of j19). A Card in the middle of the safe area, its title on a ribbon
-## over its top edge; a character (`art`) at its left, standing on his own contact occlusion on a patch of
-## ground drawn under him and lit (UI r23, the judges of j19: r22's "dim spotlight oval with a grass tuft on
-## each side, a stage prop"; _Dais); the group is centred. The card pops in opaque (0.7 -> 1.06 -> 1,
-## a back-ease), the ribbon drops in after it, the character slides in; never a see-through crossfade.
+## and the card (UI r23, the judges of j19). In the middle of the safe area, no box (the user, 2026-11-13, of three
+## panel styles shown: "C", no box, ink brush): a band of brushed ink behind what the panel holds (Card.ink,
+## InkStyle), its title in gold brush lettering over a red stroke across the band's top edge (Ui.ink_title); a
+## character (`art`) at its left, standing on his own contact occlusion on a patch of ground drawn under him and lit
+## (UI r23, the judges of j19: r22's "dim spotlight oval with a grass tuft on each side, a stage prop"; _Dais); the
+## group is centred. The band pops in opaque (0.7 -> 1.06 -> 1, a back-ease), the title drops in after it, the
+## character slides in; never a see-through crossfade.
 
 const SOFT_BLUR := preload("res://src/ui/soft_blur.gdshader")
 
 var card: Card
-var banner: Banner
+var banner: Control  # its title (Ui.ink_title)
 var art: Control
 var _pop: Control
 var _ground: TextureRect
@@ -31,8 +33,7 @@ var _hidden: Array[CanvasItem] = []  # what it hid behind it, shown again when i
 var _out_of_picture: Array[CanvasItem] = []  # hidden for the picture only
 var _to_cover: Array = []  # what its picture stands for (the world): hidden once the picture covers it
 var _covered: Array[CanvasItem] = []
-var _mood := &""  # &"win", &"loss" or none (Card.set_mood)
-var _gild: _Gilding  # a win's shine over the card
+var _mood := &""  # &"win", &"loss" or none: how the picture behind is graded
 var _top := 0.0
 var _min_w := 560.0
 var _k := 1.0  # shrink to fit a small screen
@@ -43,19 +44,19 @@ var _u := 0.7  # the entrance's pop
 ## (its alpha: how much); `glow`: the light the character stands in; `rays`: a warm light blooming
 ## behind the card (a win); `hide`: what to leave out of the picture behind (the HUD, the effects).
 ## The panel shows a frame later, once that picture is taken.
-static func open(host: Control, title: String, tone: Ui.Tone, body: Control, character: Control = null,
+static func open(host: Control, title: String, body: Control, character: Control = null,
 		veil := Color(0.05, 0.02, 0.06, 0.42), glow := Color(1, 0.8, 0.45, 0.55), rays := false,
 		hide: Array = [], mood := &"") -> GamePanel:
 	var p := GamePanel.new()
 	p.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	host.add_child(p)
 	p._mood = mood
-	p._build(title, tone, body, character, veil, glow, rays)
+	p._build(title, body, character, veil, glow, rays)
 	p._snapshot_then_enter(hide)
 	return p
 
 
-func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tint: Color, glow: Color,
+func _build(title: String, body: Control, character: Control, tint: Color, glow: Color,
 		rays: bool) -> void:
 	_back = Control.new()  # the blurred game, its tint and vignette: what fades in
 	_back.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -99,13 +100,11 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 	_pop = Control.new()  # placed by hand in the safe area (_place): what the entrance animates
 	_pop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_pop)
-	card = Card.new(Vector4(58, 70, 58, 50))  # inside the thick frame and its trim
-	card.set_mood(_mood)
+	card = Card.ink(Vector4(44, 62, 44, 26))  # (its top: under the title's lower half)
 	card.add_child(body)
-	banner = Banner.new(title, tone, 54)
-	banner.size = banner.custom_minimum_size
-	_top = banner.size.y * 0.55
-	_min_w = maxf(banner.size.x + 60.0, 600.0)
+	banner = Ui.ink_title(title, 112.0, 600.0)
+	_top = banner.size.y * 0.5
+	_min_w = maxf(banner.size.x * 0.84, 520.0)
 	art = character
 	if art:
 		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -129,10 +128,6 @@ func _build(title: String, tone: Ui.Tone, body: Control, character: Control, tin
 		_pop.add_child(art)  # in front of the card's edge
 	else:
 		_pop.add_child(card)
-	if _mood == &"win":  # the premium step up: a shine sweeping the panel, sparkles along its gold
-		_gild = _Gilding.new()
-		_gild.radius = card.radius
-		_pop.add_child(_gild)
 	_pop.add_child(banner)
 	card.resized.connect(_place)
 	resized.connect(_place)
@@ -288,7 +283,11 @@ func _place() -> void:
 	if art:  # and the lit ground under him (_Dais: its middle may lie up his picture, the floor seen from above)
 		var dy := art.size.y * (float(art.get_meta(&"dais_y", ground)) - ground)
 		below = maxf(below, dy + _Dais.depth_under(art.size.x * float((art.get_meta(&"dais", Vector2(0.5, 0.5)) as Vector2).y)))
-	var whole := Vector2(card_size.x + art_w, card_size.y + _top + lift + below)
+	# the band's rough ends are part of the group (most of them: their last bristles may leave a narrow screen): on
+	# its right, and on its left where no one stands
+	var ends := card.band.reach(Rect2(Vector2.ZERO, card_size)) * 0.8 if card.band else Vector2.ZERO
+	var lead := art_w if art else ends.x  # from the group's left to the card
+	var whole := Vector2(lead + card_size.x + ends.y, card_size.y + _top + lift + below)
 	var insets := Device.insets()
 	var side_l := maxf(insets.x + 12.0, size.x * 0.06)  # never near an edge (the group would lean)
 	var side_r := maxf(insets.z + 12.0, size.x * 0.06)
@@ -301,7 +300,7 @@ func _place() -> void:
 	_pop.pivot_offset = whole / 2
 	_pop.position = centre - whole / 2
 	_pop.scale = Vector2.ONE * _u * _k
-	var at := centre + (Vector2(art_w + card_size.x / 2, _top + lift + card_size.y / 2) - whole / 2) * _k  # the card's middle
+	var at := centre + (Vector2(lead + card_size.x / 2, _top + lift + card_size.y / 2) - whole / 2) * _k  # the card's middle
 	# (UI r23, the judges of j19: a win's backdrop "gloomy navy-purple") the warm light floods from behind the whole
 	# group, him and the card: its middle between them, a little high
 	var group := centre + (Vector2(whole.x * 0.5, _top + lift + card_size.y * 0.42) - whole / 2) * _k
@@ -316,11 +315,8 @@ func _place() -> void:
 		_rays.queue_redraw()
 	if size.x > 0.0 and size.y > 0.0:  # the scrim's light behind the card
 		(_picture.material as ShaderMaterial).set_shader_parameter(&"glow_at", (group if _rays else at) / size)
-	card.position = Vector2(art_w, _top + lift)
-	if _gild:
-		_gild.position = card.position
-		_gild.size = card_size
-	banner.position = Vector2(art_w + (card_size.x - banner.size.x) / 2, lift)
+	card.position = Vector2(lead, _top + lift)
+	banner.position = Vector2(lead + (card_size.x - banner.size.x) / 2, lift)
 	if art:
 		var feet := Vector2(art.size.x * 0.5, lift + _top + card_size.y + 4.0)
 		# a picture with its own contact shadow stands on it (its "ground": the share of its height where
@@ -335,44 +331,6 @@ func _place() -> void:
 		var d: Vector2 = art.get_meta(&"dais", Vector2(0.5, 0.5))  # its middle and half width, shares of his picture's width
 		var dais_y := float(art.get_meta(&"dais_y", ground))  # and how far down his picture its middle is
 		_dais.place(art.position + Vector2(art.size.x * d.x, art.size.y * dais_y), art.size.x * d.y)
-
-
-## A win's gilding over its card (added light): a soft band of light sweeping across the panel now and
-## then (the twinkling dots along its frame read as tiny marquee bulbs: gone).
-class _Gilding extends Control:
-	var radius := 34.0
-	var _t := 0.0
-
-	func _init() -> void:
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
-		material = Fx.additive()
-
-	func _process(delta: float) -> void:
-		if Prefs.motion():
-			_t += delta
-			queue_redraw()
-
-	func _draw() -> void:
-		var r := Rect2(Vector2.ZERO, size)
-		if r.size.x < 10.0:
-			return
-		# the sweep: every 2.8 s, 0.9 s across, a slanted band, brightest in its middle
-		var k := fposmod(_t - 1.2, 2.8) / 0.9
-		if Prefs.motion() and _t > 1.2 and k < 1.0:
-			var clip := GlossStyle.rounded_points(r, radius)
-			var w := r.size.y * 0.35
-			var slant := r.size.y * 0.45
-			var x := lerpf(-w - slant, r.size.x + w, k)
-			for i in 6:
-				var a := x + w * i / 6.0
-				var b := x + w * (i + 1) / 6.0
-				var band := PackedVector2Array([Vector2(a + slant, 0), Vector2(b + slant, 0), Vector2(b, r.size.y), Vector2(a, r.size.y)])
-				for poly in Geometry2D.intersect_polygons(clip, band):
-					var cols := PackedColorArray()
-					for p in poly:
-						var u := (p.x - x - slant * (r.size.y - p.y) / r.size.y) / w
-						cols.append(Color(1, 0.92, 0.7, sin(clampf(u, 0.0, 1.0) * PI) * 0.22))
-					draw_polygon(poly, cols)
 
 
 ## The ground he stands on beside the card (UI r23, the judges of j19: r22's "dim spotlight oval with a grass tuft

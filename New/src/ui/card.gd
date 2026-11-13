@@ -1,18 +1,15 @@
 class_name Card
 extends PanelContainer
-## The panel of the interface kit (pause, results, settings, About). The user (2026-11-08): "I don't like the woody
-## effect: make it sleeker, more beautiful, more modern": a clean warm-white body (a soft gradient, no grain) in a slim
-## polished gold bezel, a fine highlight along its top, a soft deep shadow; no carved wood, no beadwork. (Before:) a deep shadow cast on the game behind, a dark ink outline, a thick
-## frame of carved wood bevelled (lit along its top and outer edge, shaded at its foot) with an inlay
-## of Zulu beadwork along its middle, a broad gold trim inside it, and a body of tanned hide (paper.png
-## grain) that sinks under the frame (shade along its top, sides and foot, a soft light in its middle:
-## it curves). Text on the body is dark brown. A mood (set_mood) gilds it for a win (a thicker polished
-## gold frame), or darkens it to smoked wood, dusty beads and hide for a loss.
-## The beadwork: a calm run of oxblood beads close in value to the wood along each straight side (an inlay, not a
-## stripe; tools/art/ui_beadwork.py), the corners plain wood (UI r23, the judges of j19: r22's motif blocks and
-## corner diamonds made four border layers: dropped).
-## The light variant (the start card, tutorial hints) is a see-through dark glass with a gold line.
-## `well()` is the style of a sunken area inside the body (the results' counts, settings' rows).
+## The panel of the interface kit, in three kinds:
+## - the framed one (the boot's plaque): a clean warm-white body (a soft gradient, no grain) in a slim polished gold
+##   bezel, a fine highlight along its top, a soft deep shadow (the user, 2026-11-08: "I don't like the woody effect:
+##   make it sleeker, more beautiful, more modern"; before it, carved wood, beadwork and tanned hide); text on its body
+##   is dark brown;
+## - the light one (the start card, tutorial hints, the menu's best strip): a see-through dark glass with a gold line;
+## - the inked one (Card.ink: the pause, the results, the settings and its credits; the user, 2026-11-13, of three
+##   panel styles shown: "C", no box, ink brush): no body and no frame, a band of brushed ink behind what it holds
+##   (InkStyle), cream text on it. (Until then those panels were framed cards, gilded for a win and pewter for a
+##   loss, with sunken wells inside them.)
 
 const INK := Color("2e0d04")
 const FRAME := 12.0  ## width of the bezel (2026-11-08: slim polished gold, was 34 of carved wood)
@@ -24,14 +21,13 @@ const TRIM_BOTTOM := Color("f3d58c")
 
 var top_colour := Color("fffcf5")  ## a clean warm white at the top
 var bottom_colour := Color("f2e6cf")  ## a soft sand towards its foot
-var frame_top := FRAME_TOP  ## the frame's wood (a mood changes it: gold for a win, dark for a loss)
+var frame_top := FRAME_TOP
 var frame_bottom := FRAME_BOTTOM
 var trim_top := TRIM_TOP
 var trim_bottom := TRIM_BOTTOM
 var radius := 34.0
-var bronze := false  ## a defeat's: the beads dusty, as the smoked wood
-var frame_w := FRAME  ## the frame's width (a win's is thicker)
-var ornate := false  ## a win's frame: thick polished gold
+var frame_w := FRAME  ## the frame's width
+var band: InkStyle  ## the inked panel's band (null: a framed card or the glass)
 var _framed := true
 var _shadow_box: StyleBoxFlat
 
@@ -51,51 +47,18 @@ func _init(margin := Vector4(34, 40, 34, 34), light := false) -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
 
-## A mood for the panel: &"win" a gold frame and a bright trim on a warm hide; &"loss" dark smoked
-## wood, a dull bronze trim, dusty beads, a dusty grey hide (the defeat drained, still of his warm
-## world, not cold steel); anything else the wood.
-func set_mood(mood: StringName) -> void:
-	match mood:
-		&"win":  # the biggest reward: a broader, brighter gold bezel on a warmer white
-			frame_top = Color("fff2b0")
-			frame_bottom = Color("e0a020")
-			frame_w = 16.0
-			radius = 40.0
-			ornate = true
-			trim_top = Color("ffffff")
-			trim_bottom = Color("ffe9a6")
-			top_colour = Color("fffaf0")
-			bottom_colour = Color("f8e7c2")
-		&"loss":  # quieter: a cool pewter bezel on a cooler white
-			frame_top = Color("e4e8f0")
-			frame_bottom = Color("8a94a8")
-			trim_top = Color("ffffff")
-			trim_bottom = Color("d6dbe6")
-			top_colour = Color("fbfbfd")
-			bottom_colour = Color("e6e8ee")
-			bronze = true
-	queue_redraw()
-
-
-## A sunken area inside a card's cream body: deeper sand in the shade of its upper edge, warmer
-## and lighter towards its foot, a fine brown outline, a lit lip under it (GlossStyle, no gloss).
-static func well(corner := 20) -> GlossStyle:
-	var s := GlossStyle.new(Color("ecdcbc"), Color("f8eedb"), Color(0, 0, 0, 0), corner, 0.0)  # (2026-11-08: soft, no wood brown)
-	s.set_outline(Color("d8c098"), 2.0)
-	s.gloss = 0.0
-	s.spark = 0.0
-	s.rim = 0.0
-	s.shadow.shadow_color = Color(1, 1, 0.95, 0.75)  # the lit lip under it
-	s.shadow.shadow_size = 0
-	s.shadow.shadow_offset = Vector2(0, 3)
-	s.set_content_margin_all(16)
-	s.content_margin_left = 22
-	s.content_margin_right = 22
-	return s
+## A panel with no box: a band of brushed ink behind what it holds (InkStyle), `margin` round its content.
+static func ink(margin := Vector4(48, 60, 48, 40)) -> Card:
+	var c := Card.new(margin)
+	c.band = InkStyle.new()
+	return c
 
 
 func _draw() -> void:
 	var r := Rect2(Vector2.ZERO, size)
+	if band:
+		draw_style_box(band, r)
+		return
 	if _framed:  # a deep soft shadow under it: one smooth falloff
 		if not _shadow_box or _shadow_box.corner_radius_top_left != int(radius):
 			_shadow_box = StyleBoxFlat.new()
@@ -131,12 +94,6 @@ func _draw() -> void:
 		var line := _rounded(body.grow(-3.0), inner - 3.0)
 		line.append(line[0])
 		draw_polyline(line, Color(Ui.GOLD, 0.55), 2.0, true)
-
-
-## A rectangle with a horizontal gradient.
-func _fill_h(r: Rect2, left: Color, right: Color) -> void:
-	draw_polygon(PackedVector2Array([r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]),
-			PackedColorArray([left, right, right, left]))
 
 
 ## A soft lighter oval: the light falling on the content.

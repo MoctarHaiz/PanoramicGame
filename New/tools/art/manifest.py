@@ -32,6 +32,12 @@ SUNBURST = {"kind": "user-generated", "url_or_tool": "kie.ai GPT Image 2.6 Sunbu
             "prompt_or_source_record": "tools/art/gen/kie/world/frame.txt and one prompt per layer; tools/art/gen/kie/ledger.jsonl (names world/*)"}
 
 
+## the inked interface (2026-11-13): options painted over the game's own screens, then the chosen one's pieces, each alone
+INKED = {"kind": "user-generated", "url_or_tool": "kie.ai GPT Image 2.6 Sunburst from the game's own screens (prompts: tools/art/gen/kie/world/menu_ui*.txt, logo_a.txt, panels_*.txt, titles_c.txt, words_c2.txt, ink_band.txt), cut by tools/art/kie/menu_ui.py and panel_ui.py",
+         "creator": "Haiz Studio", "license": "owned by Haiz Studio",
+         "prompt_or_source_record": "tools/art/gen/kie/world/*.txt; tools/art/gen/kie/ledger.jsonl (names menu_ui_*, logo_a, panels_*, titles_c, words_c2, ink_band)"}
+
+
 def authored(tool: str) -> dict:
     return {"kind": "authored-procedural", "url_or_tool": tool, "creator": "Claude for Haiz Studio",
             "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
@@ -48,7 +54,10 @@ FAMILIES = [
       "prompt_or_source_record": "Old/app/src/main/assets/bandit/bandit1-10.png; ROOT/_agents/kie/bandit/p/run.txt, poses.txt; ROOT/_agents/kie/ledger.jsonl (tags bandit_*)"},
      True, "per bandit.json (the ground under his body)", ["identity", "silhouette", "palette", "facing"]),
     ("bob/", "Red Bob collectible faces (smile, blink, joy, wink): a translucent ruby painted in crisp cel shapes with the 2017 face drawn on", authored("tools/art/bob_sheet.py (numpy)"), True, "centre", ["palette", "silhouette"]),
-    ("ui/logo", "CHAKA ZULU logo: letters drawn for it (chiselled polished gold, an assegai-point A) locked up with a Zulu shield, its stick and an assegai", authored("tools/art/ui_logo.py"), True, "centre", ["palette"]),
+    ("ui/logo", "CHAKA ZULU logo: the title in angular gold lettering, inked, over a cowhide shield and two crossed spears (the menu, the settings' mark, the share card)", INKED, True, "centre", ["palette"]),
+    ("ui/word_", "a main button's word in heavy slanted white capitals, inked (PLAY, RESUME, PLAY AGAIN and their French: Ui.cta_button)", INKED, True, "centre", ["palette"]),
+    ("ui/title_", "a panel's title in gold brush lettering over a fast red brush stroke, in English and French (Ui.ink_title)", INKED, True, "centre", ["palette"]),
+    ("ui/ink_", "the panels' ink: one thick dry-brush stroke of black ink (InkStyle lays several into a band) and the red stroke under a title set in the display font", INKED, True, "stretched in its solid middle only", ["palette"]),
     ("ui/ribbon_plain", "the menu's subtitle ribbon without its dashed stitch (from ui/ribbon.png)", authored("tools/art/ui_kit.py"), True, "9-sliced: tails 58 px", ["palette"]),
     ("ui/corners", "the panels' jewelled corner bosses (a bevelled ring set with beads, a domed cabochon: brass and red, dark bronze and garnet)", authored("tools/art/ui_kit.py"), True, "centre", ["palette", "light-direction"]),
     ("ui/hero_", "Panoramic for the menu and results (cut from the user's 3D renders, Making/)", USER_ART | {"url_or_tool": "tools/art/ui_hero.py", "prompt_or_source_record": "Making/IdleFront/0001.png, Making/DieFront/0026.png"}, True, "bottom-centre at the boots", ["identity", "palette"]),

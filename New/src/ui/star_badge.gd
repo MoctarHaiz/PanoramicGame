@@ -1,22 +1,20 @@
 class_name StarBadge
 extends Control
-## A big shiny star (results, best run): a fat five-point star with a fine warm rim, a gold face
-## lit from the top, a lit bevel inside its edge, a darker bevel along its lower edge, a glossy
-## highlight on its upper left, its shadow on the panel, a warm glow behind it, sparkles twinkling
-## round it and now and then a twinkle on a tip. Unlit, a star not yet earned (UI r23, the judges of j19: r22's
-## pale grey star "reads as disabled UI"): its socket, a dark recess in a bevelled gold edge, waiting for it.
+## A star of the results and the best run, flat and inked (the user, 2026-11-13, of three panel styles shown: "C", no
+## box, ink brush): a fat five-point star in one flat gold with an ink line round it and one cel step (its lower right
+## in a deeper gold, its upper left edge lit by a thin pale line): no gloss, no glow, no sparkle. A star not yet
+## earned is its outline alone: a thin gold line on the ink.
+## (Before: a glossy bevelled star in a warm glow, sparkles twinkling round it; unlit, a dark socket in a gold edge.)
 
-const INK := Color("2e0d04")
-const FACE_TOP := Color("fff47e")
-const FACE_MID := Color("ffc61e")
-const FACE_LOW := Color("f2860c")
-const BEVEL := Color("b4520a")
+const INK := Color("140607")
+const GOLD := Color("ffc928")
+const GOLD_DEEP := Color("f0940e")
+const GOLD_PALE := Color("fff0a0")
 
 var lit := true:
 	set(value):
 		lit = value
 		queue_redraw()
-var _clock := 0.0
 
 
 func _init(side: float, is_lit := true) -> void:
@@ -25,46 +23,9 @@ func _init(side: float, is_lit := true) -> void:
 	size = custom_minimum_size
 	pivot_offset = size / 2
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	set_process(is_lit)
-	if is_lit:  # a warm glow behind it
-		var glow := TextureRect.new()
-		glow.texture = Fx.glow_texture()
-		glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		glow.material = Fx.additive()
-		glow.modulate = Color(1, 0.75, 0.3, 0.42)  # warm, not a white wash behind them
-		glow.size = Vector2(side, side) * 1.9
-		glow.position = Vector2(side, side) / 2 - glow.size / 2
-		glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		glow.show_behind_parent = true
-		add_child(glow)
 
 
-func _process(delta: float) -> void:
-	_clock += delta
-	queue_redraw()
-
-
-## A four-point glint: long arms fading to their tips around a white core.
-func _glint(at: Vector2, arm: float, alpha: float) -> void:
-	var pts := PackedVector2Array()
-	var cols := PackedColorArray()
-	for i in 8:
-		pts.append(at + Vector2.from_angle(i * PI / 4 - PI / 2) * (arm if i % 2 == 0 else arm * 0.2))
-		cols.append(Color(1, 1, 0.9, 0.0 if i % 2 == 0 else alpha))
-	draw_polygon(pts, cols)
-	draw_circle(at, arm * 0.16, Color(1, 1, 0.95, alpha), true, -1, true)
-
-
-## Fills a star's points with a vertical gradient from `top` (its top tip) to `bottom` (its feet).
-func _gradient(pts: PackedVector2Array, c: Vector2, r: float, top: Color, bottom: Color) -> void:
-	var cols := PackedColorArray()
-	for p in pts:
-		cols.append(top.lerp(bottom, clampf((p.y - (c.y - r)) / (r * 1.8), 0.0, 1.0)))
-	draw_polygon(pts, cols)
-
-
-## The ten corners of a star of outer radius `r` around `c` (points rounded off a little by the
-## caller's outline).
+## The ten corners of a star of outer radius `r` around `c`.
 static func points(c: Vector2, r: float, inner := 0.52) -> PackedVector2Array:
 	var pts := PackedVector2Array()
 	for i in 10:
@@ -73,59 +34,30 @@ static func points(c: Vector2, r: float, inner := 0.52) -> PackedVector2Array:
 	return pts
 
 
-const RIM := Color("8a4004")  ## the lit star's edge: a fine warm brown, not a heavy ink line
-
-
 func _draw() -> void:
 	var side := minf(size.x, size.y)
-	var o := maxf(side * 0.06, 2.5)  # outline thickness
+	var o := maxf(side * 0.05, 2.0)  # the ink line
 	var c := size / 2 + Vector2(0, side * 0.04)
 	var r := side * 0.5 - o
-	if not lit:  # not yet earned (UI r23, the judges of j19: r22's pale grey star "reads as disabled UI"): a
-		# star socket waiting for its star: a bevelled gold edge (lit at its top, deeper at its foot) round a
-		# dark recess sunk into the plate (shade under its upper walls, the light caught on its lower walls)
-		draw_colored_polygon(points(c, r + o * 0.55, 0.55), INK)
-		_gradient(points(c, r - o * 0.05, 0.55), c, r, Color("fff4b0"), Color("d0860e"))  # the gold edge, lit at its top
-		var wall := points(c, r - o * 1.45, 0.53)
-		_gradient(wall, c, r, Color("1c0a02"), Color("7a4618"))  # the recess: dark under its top, lit at its foot
-		_gradient(points(c + Vector2(0, o * 0.45), r - o * 2.2, 0.52), c, r, Color("2a1206"), Color("4e2a0e"))  # its floor
-		wall.append(wall[0])
-		draw_polyline(wall, Color(0.1, 0.03, 0.0, 0.95), maxf(o * 0.4, 1.2), true)  # the edge's inner ink
-		var lip := PackedVector2Array()  # the light caught along its lower walls (the feet and the lower notches)
-		var inner := points(c, r - o * 1.9, 0.53)
-		for i in [3, 4, 5, 6, 7]:
-			lip.append(inner[i])
-		draw_polyline(lip, Color(1, 0.8, 0.4, 0.55), maxf(o * 0.35, 1.0), true)
+	if not lit:  # not yet earned: its outline, a thin gold line
+		var hollow := points(c, r - o * 0.5, 0.5)
+		draw_colored_polygon(hollow, Color(0.0, 0.0, 0.0, 0.25))
+		hollow.append(hollow[0])
+		draw_polyline(hollow, Color(GOLD, 0.9), maxf(o * 0.6, 2.0), true)
 		return
-	# its shadow on the panel, the ink outline (a fatter star), the bevel under the face, then the face
-	draw_colored_polygon(points(c + Vector2(o * 0.5, o * 2.4), r + o * 0.5, 0.55), Color(0.3, 0.1, 0.0, 0.32))
-	draw_colored_polygon(points(c + Vector2(0, o * 0.4), r + o * 0.6, 0.55), RIM)  # a fine warm rim
-	draw_colored_polygon(points(c + Vector2(0, o * 0.55), r, 0.52), BEVEL)
-	var face := points(c, r - o * 0.15, 0.52)
-	var cols := PackedColorArray()
-	for p in face:
-		var t := clampf((p.y - (c.y - r)) / (r * 1.9), 0.0, 1.0)
-		cols.append(FACE_TOP.lerp(FACE_MID, t * 1.6) if t < 0.6 else FACE_MID.lerp(FACE_LOW, (t - 0.6) / 0.4))
-	draw_polygon(face, cols)
-	var bevel := points(c, r - o * 0.8, 0.52)  # a lit bevel just inside its edge
-	bevel.append(bevel[0])
-	draw_polyline(bevel, Color(1, 1, 0.86, 0.55), maxf(o * 0.4, 1.2), true)
-	# the gloss on the upper left (the face's gradient already lights its middle)
-	var gloss := PackedVector2Array()
-	for i in 16:
-		var a := i * TAU / 16
-		gloss.append(c + Vector2(-r * 0.22, -r * 0.3) + Vector2(cos(a) * r * 0.2, sin(a) * r * 0.1).rotated(-0.6))
-	draw_colored_polygon(gloss, Color(1, 1, 1, 0.7))
-	# sparkles round it, each twinkling on its own beat (never quite out: it reads as alive in a still)
-	for g: Array in [[Vector2(0.62, -0.55), 0.0, 0.26], [Vector2(-0.7, -0.2), 1.9, 0.2], [Vector2(0.55, 0.62), 3.7, 0.16]]:
-		var beat := 0.5 + 0.5 * sin(_clock * 3.1 + float(g[1]))
-		_glint(c + (g[0] as Vector2) * r * 1.1, r * float(g[2]) * (0.7 + 0.3 * beat), 0.45 + 0.55 * beat)
-	# a twinkle that moves from tip to tip
-	var t := _clock * 0.6 + c.x * 0.01
-	var phase := fposmod(t, 2.5)
-	if phase < 0.5:
-		var tip := points(c, r)[(int(t / 2.5) % 5) * 2]
-		var k := sin(phase / 0.5 * PI)
-		var arm := r * 0.42 * k
-		draw_line(tip - Vector2(arm, 0), tip + Vector2(arm, 0), Color(1, 1, 0.9, k), maxf(o * 0.45, 1.5), true)
-		draw_line(tip - Vector2(0, arm), tip + Vector2(0, arm), Color(1, 1, 0.9, k), maxf(o * 0.45, 1.5), true)
+	var outer := points(c, r + o * 0.6, 0.53)
+	draw_colored_polygon(outer, INK)
+	outer.append(outer[0])
+	draw_polyline(outer, INK, 1.0, true)
+	var face := points(c, r - o * 0.4, 0.5)
+	draw_colored_polygon(face, GOLD)
+	# one cel step: what lies under a line falling to the left through its middle is in a deeper gold
+	var d := Vector2(-0.5, 0.86)  # along the line
+	var n := Vector2(0.86, 0.5)  # to its shaded side
+	var at := c + n * r * 0.16
+	var half := PackedVector2Array([at - d * r * 2.0, at + d * r * 2.0, at + d * r * 2.0 + n * r * 2.0, at - d * r * 2.0 + n * r * 2.0])
+	for part in Geometry2D.intersect_polygons(face, half):
+		if not Geometry2D.triangulate_polygon(part).is_empty():
+			draw_colored_polygon(part, GOLD_DEEP)
+	var edge := points(c, r - o * 1.5, 0.5)  # a thin pale line inside its upper left edge
+	draw_polyline(PackedVector2Array([edge[7], edge[8], edge[9], edge[0]]), Color(GOLD_PALE, 0.9), maxf(o * 0.45, 1.5), true)
