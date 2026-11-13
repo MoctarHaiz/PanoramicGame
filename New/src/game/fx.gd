@@ -69,12 +69,12 @@ const EMBERS: Array[Color] = [Color("ffe2a0"), Color("ffb347"), Color("ff7a2a")]
 const GOLD: Array[Color] = [Color("ffcf3a"), Color("f5b81c"), Color("ffe27a"), Color("e8a317")]
 ## The shared impacts, from a ring's tap to the last blow (the game screen applies them: _impact).
 ## stop: hit-stop (s: 3, 4, 5 frames); shake: camera shake (design units: about 4-8 px on a phone,
-## gone in 8-12 frames); shards: sparks thrown away from the contact; knock: how far the one hit is
-## knocked (design units; it springs back, the rules don't move); scale: the size of the burst.
+## gone in 8-12 frames); knock: how far the one hit is knocked (design units; it springs back, the rules
+## don't move).
 const IMPACTS := {
-	&"small": {"stop": 0.05, "shake": 3.0, "shards": 5, "knock": 16.0, "scale": 0.7},
-	&"medium": {"stop": 0.067, "shake": 4.5, "shards": 8, "knock": 30.0, "scale": 1.0},
-	&"fatal": {"stop": 0.083, "shake": 6.5, "shards": 12, "knock": 46.0, "scale": 1.35},
+	&"small": {"stop": 0.05, "shake": 3.0, "knock": 16.0},
+	&"medium": {"stop": 0.067, "shake": 4.5, "knock": 30.0},
+	&"fatal": {"stop": 0.083, "shake": 6.5, "knock": 46.0},
 }
 const FLASH_TIME := 0.035  ## the white of a blow: 2 frames, then the one hit shows (the views use it)
 const MAX_FLIERS := 6  ## Red Bobs flying to the counter at once (more just pop on it)
@@ -126,22 +126,6 @@ static func knock_offset(key: Variant) -> Vector2:
 ## The knocks' clock: advanced by the game while the world runs (a hit-stop holds the knock too).
 static func advance_knocks(delta: float) -> void:
 	_knock_clock += delta
-
-
-## The light of a blow at `at` (effects units), sized by an IMPACTS preset: a white-hot core for
-## two frames, then only a thin ring spreading (the one hit is never hidden), sharp shards thrown
-## `away` from the contact, a few sparks. `tint`: the colour of the light (the ring's blue, red
-## for a blow on Panoramic).
-static func impact_burst(parent: Node, at: Vector2, away: Vector2, size: StringName, tint: Color) -> void:
-	var k: float = IMPACTS[size].scale
-	# all added light, so the order doesn't show: the lines first (ring, shards), then the soft light
-	# (core, sparks), so each kind batches into one draw call
-	# (blind rounds 9 and 10: "the hit is a thin empty white circle": a burst of rays in the blow's colour, no ring)
-	rays(parent, at, Color(tint.lerp(Color.WHITE, 0.55), 0.95), 8, 130.0 * k, 0.2)
-	shards(parent, at, away, IMPACTS[size].shards, k, tint)
-	glow(parent, at, Color(1, 1, 1, 0.9), 0.12 * k, 0.4 * k, FLASH_TIME * 1.5)
-	Confetti.make(parent, at).sparkle(int(4 * k), [Color.WHITE, tint.lightened(0.4)], Vector2(160, 420), 0.7 * k,
-			Vector2(0.2, 0.4))
 
 
 ## The "+1" of a knock-out, in the HUD's ink (blind round 12: "it floats like a UI badge": it was filled white to
@@ -466,16 +450,12 @@ static func counter_pop(parent: Node, at: Vector2) -> void:
 	Confetti.make(parent, at).sparkle(7, SPARKS, Vector2(160, 380), 0.85, Vector2(0.35, 0.6))
 
 
-## Panoramic takes a blow: the medium impact in red (shards thrown the way he is knocked, `push`),
-## a few stars knocked loose.
+## A bandit strikes him: the painted burst at the contact, blown the way he is pushed (`push`: -1 left, 1 right),
+## a short white light under it. (Round 15: it was the last blow of the older kit: additive rays, shards of light and
+## five gold stars over a painted fight.)
 static func impact(parent: Node, at: Vector2, push: float) -> void:
-	impact_burst(parent, at, Vector2(push, -0.4).normalized(), &"medium", Color(1.0, 0.45, 0.3))
-	var stars := Confetti.make(parent, at)
-	stars.gravity = 1500.0
-	stars.drag = 1.2
-	stars.flutter = 0.0
-	stars.spray(5, [Confetti.Shape.STAR], [Color("ffd36b"), Color("ffffff")], Vector2(300, 620),
-			Vector2(push, -1.3).normalized(), 55.0, 0.9, Vector2(0.5, 0.75))
+	glow(parent, at, Color(1, 1, 1, 0.9), 0.16, 0.5, FLASH_TIME * 1.8)
+	hit_spark(parent, at, Vector2(push, -0.18).normalized(), 54.0)
 
 
 ## A ring strikes a bandit: the small painted burst, a short light under it.
@@ -541,36 +521,6 @@ static func glint(parent: Node, at: Vector2, size: float, time: float) -> void:
 	t.tween_method(func(k: float) -> void:
 		state[0] = k
 		node.queue_redraw(), 0.0, 1.0, time)
-	t.tween_callback(node.queue_free)
-
-
-## Streaks of light flung out from a hit (`towards`: the way the blow went), each a tapered line
-## that flies, slows and fades: the shrapnel of the ring's light.
-static func shards(parent: Node, at: Vector2, towards: Vector2, count: int, power: float,
-		tint := Color("6cc4ff")) -> void:
-	var node := Node2D.new()
-	node.position = at
-	node.material = additive()
-	parent.add_child(node)
-	var bits: Array[Vector4] = []  # angle, speed, length, width
-	for i in count:
-		var a := towards.angle() + randf_range(-1.1, 1.1) if i % 3 != 0 else randf() * TAU
-		bits.append(Vector4(a, randf_range(380.0, 820.0) * power, randf_range(26.0, 60.0) * power, randf_range(3.0, 6.0)))
-	var state := [0.0]
-	node.draw.connect(func() -> void:
-		var k: float = state[0]
-		var travel := 1.0 - pow(1.0 - k, 2.5)  # fast out, slowing
-		for b in bits:
-			var dir := Vector2.from_angle(b.x)
-			var head := dir * b.y * 0.3 * travel
-			var tail := head - dir * b.z * (1.0 - k)
-			var c := tint.lightened(0.45).lerp(tint.darkened(0.2), k)
-			node.draw_line(tail, head, Color(c, 0.9 * (1.0 - k)), b.w * (1.0 - 0.6 * k), true)
-			node.draw_line(tail.lerp(head, 0.5), head, Color(1, 1, 1, 0.8 * (1.0 - k)), b.w * 0.4, true))
-	var t := node.create_tween()
-	t.tween_method(func(k: float) -> void:
-		state[0] = k
-		node.queue_redraw(), 0.0, 1.0, 0.32)
 	t.tween_callback(node.queue_free)
 
 

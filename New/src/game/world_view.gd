@@ -101,7 +101,7 @@ func setup(w: World) -> void:
 
 	w.bob_collected.connect(_on_bob)
 	w.bandit_hit.connect(_on_bandit_hit)
-	w.hurt.connect(func(_b: World.Bandit, _l: int) -> void: Fx.impact(fx, _fx(world.draw_hero()), -1.0))
+	w.hurt.connect(_on_hurt)
 	w.landed.connect(func() -> void: _dust(int(lerpf(6.0, 22.0, clampf(w.land_speed / 50.0, 0.0, 1.0))), Vector2(70, 190)))
 	w.jumped.connect(func() -> void: _dust(8, Vector2(40, 120)))
 	w.hung.connect(_on_hung)
@@ -385,6 +385,14 @@ func _dust(amount: int, speed: Vector2, dx := 0.0) -> void:
 
 func _fx(p: Vector2) -> Vector2:
 	return p * 2.0
+
+
+## A bandit struck him: the blow's burst on him, and no "!" left over the one that struck (one sign at a time).
+func _on_hurt(b: World.Bandit, _lives: int) -> void:
+	Fx.impact(fx, _fx(world.draw_hero() + Vector2(10.0, -24.0)), -1.0)  # on his chest, the side it came from
+	var v: BanditView = _bandits.get(b.id) if b else null
+	if v:
+		v.struck()
 
 
 func _on_bandit_hit(b: World.Bandit, knocked_out: bool) -> void:

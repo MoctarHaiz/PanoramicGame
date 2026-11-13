@@ -281,6 +281,11 @@ func touched_down(hard: float) -> void:
 	_lean = 0.0
 
 
+## It struck him: its "!" goes (one sign at a time: the mark stood over its chest as it leapt on him).
+func struck() -> void:
+	_spot = 0.0
+
+
 ## A ring hit it (knocked_out: the second one).
 func hit(knocked_out: bool) -> void:
 	_flash = 1.0
