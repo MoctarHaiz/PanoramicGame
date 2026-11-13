@@ -38,7 +38,7 @@ def smooth(a, b, x):
 
 
 def turf(src: np.ndarray) -> np.ndarray:
-    """ink.gdshader's `turf` light (round 23), baked before the bend: the strip gets it by its rows on screen, so a
+    """the turf's light (turf.gdshader; ink.gdshader's `turf` before), baked before the bend: the strip gets it by its rows on screen, so a
     bent end drawn with it had its blades repainted as a smooth lime band; TerrainView draws the ends with plain ink."""
     out = src.copy()
     c = out[..., :3] / 255.0
@@ -47,12 +47,14 @@ def turf(src: np.ndarray) -> np.ndarray:
     out[..., 3] *= smooth(0.05, 0.13, v[..., 0])
     c = c + ((c * np.array([1.12, 1.1, 0.96]) + np.array([0.04, 0.035, 0.0])) - c) * (1.0 - smooth(0.2, 0.26, v))
     band = smooth(0.22, 0.3, v) * (1.0 - smooth(0.5, 0.62, v))
-    sage = (lum + (c - lum) * 0.7) * np.array([1.16, 1.14, 0.98]) + np.array([0.06, 0.06, 0.02])
+    sage = (lum + (c - lum) * 0.6) * np.array([1.02, 1.0, 0.86]) + np.array([0.02, 0.02, 0.0])  # (turf.gdshader's)
     c = c + (sage - c) * band
     top = smooth(0.22, 0.25, v) * (1.0 - smooth(0.31, 0.4, v))
-    c = c + (np.array([0.9, 0.86, 0.56]) * (0.86 + 0.28 * lum) - c) * top * 0.5
+    c = c + (np.array([0.74, 0.7, 0.42]) * (0.8 + 0.3 * lum) - c) * top * 0.42 * 0.7  # (2026-11-13: turf.gdshader's olive-gold)
     lip = smooth(0.235, 0.25, v) * (1.0 - smooth(0.265, 0.285, v))
-    c = c + (np.array([0.98, 0.94, 0.7]) - c) * lip * 0.55
+    c = c + (c * 1.18 + np.array([0.05, 0.04, 0.0]) - c) * lip * 0.7 * 0.6
+    upper = 1.0 - smooth(0.34, 0.44, v)  # (turf.gdshader: the lime-yellow top an olive-gold a value lower)
+    c = c + (c * np.array([0.84, 0.8, 0.6]) * 0.95 - c) * upper
     under = smooth(0.48, 0.66, v)
     c = c + ((lum + (c - lum) * 0.3) * np.array([0.82, 0.8, 0.9]) * 0.72 - c) * under
     out[..., :3] = np.clip(c, 0, 1) * 255.0

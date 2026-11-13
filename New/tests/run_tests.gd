@@ -2269,7 +2269,7 @@ func _test_art() -> void:
 		if rock is TerrainView.SpireArt:
 			painted += 1
 			widths.append(Vector2(-1.0 - (rock as TerrainView.SpireArt).src.position.x, m.get(&"shader_parameter/seed")))
-		else:
+		elif m and m.get(&"shader_parameter/half_w") != null:  # (not the bough under the vine or its leaves: in that layer too)
 			widths.append(Vector2(m.get(&"shader_parameter/half_w"), m.get(&"shader_parameter/seed")))
 	var twins := 0
 	for i in range(1, widths.size()):

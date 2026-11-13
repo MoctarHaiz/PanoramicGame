@@ -44,14 +44,19 @@ void fragment() {
 	// against "soft pale pastel mesas"): its orange a step toward their rose sandstone, its darkest lines lifted
 	// into the dusk's violet air
 	c = mix(c, lum * vec3(1.14, 0.9, 0.86), 0.5);  // (2026-11-13, the judge: "a saturated orange": a step further)
+	// (2026-11-13, the next judge: "saturated orange, hard-inked rock … a cut-out from another palette": graded into the
+	// backdrop's dusk: toward the mesas' rose, its shadows toward their violet, and its ink lines lifted to a warm
+	// violet-brown, lighter than a character's)
+	c = mix(c, lum * vec3(1.1, 0.9, 0.92) + vec3(0.04, 0.02, 0.05), 0.35);
 	// (and "soft-airbrushed": its values gathered into a few painted planes, as the inked mesas' are)
 	float q = (floor(lum * 5.0) + smoothstep(0.35, 0.65, fract(lum * 5.0))) / 5.0;
 	c *= mix(1.0, q / max(lum, 0.02), 0.45);
 	c = mix(c, vec3(0.5, 0.38, 0.56), (1.0 - smoothstep(0.0, 0.42, lum)) * 0.34);
+	c = mix(c, vec3(0.44, 0.32, 0.4), (1.0 - smoothstep(0.06, 0.24, lum)) * 0.6);  // (the ink, lifted)
 	// moss: creeping down from under the grass mat in a few tongues (the painted rock shows through it)
 	float tongue = 13.0 + 16.0 * pow(noise(at.x * 0.13 + seed * 7.0), 2.0) + 30.0 * pow(noise(at.x * 0.21 + seed), 5.0);
 	float moss = 1.0 - smoothstep(tongue - 1.5, tongue + 1.5, y);
-	vec3 moss_c = mix(vec3(0.25, 0.35, 0.12), vec3(0.42, 0.54, 0.18), smoothstep(0.35, 0.75, lum));
+	vec3 moss_c = mix(vec3(0.3, 0.32, 0.15), vec3(0.5, 0.5, 0.24), smoothstep(0.35, 0.75, lum));  // (2026-11-13: the turf's olive, not lime)
 	c = mix(c, moss_c * (0.6 + 0.6 * lum), moss * 0.82);
 	// the mat's shade on the cap rock, under its blades
 	c *= 1.0 - 0.45 * (1.0 - smoothstep(7.0, 15.0, y)) * (1.0 - smoothstep(14.0, 24.0, abs(at.x - mid_x)));
@@ -61,8 +66,9 @@ void fragment() {
 	float side = (at.x - mid_x) / (15.0 + y * 0.2) + (noise(y * 0.06 + seed * 3.0) - 0.5) * 0.5;
 	c *= mix(vec3(1.09, 1.03, 0.94), vec3(0.66, 0.62, 0.86), smoothstep(0.02, 0.5, side));
 	// the light falls off down it, cooler toward its foot
-	c *= mix(1.04, 0.84, smoothstep(0.1, 1.0, down));
-	c = mix(c, c * vec3(0.9, 0.88, 1.0), smoothstep(0.4, 1.0, down) * 0.45);
+	// (2026-11-13, the judge: "its foot dissolves into the fog": the foot keeps its value down to the water)
+	c *= mix(1.04, 0.93, smoothstep(0.1, 1.0, down));
+	c = mix(c, c * vec3(0.94, 0.92, 1.0), smoothstep(0.4, 1.0, down) * 0.25);
 	if (fade > 0.0) {
 		a *= 1.0 - smoothstep(height - fade, height, y);
 	}

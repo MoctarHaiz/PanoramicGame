@@ -46,12 +46,16 @@ const FRONT_H := 24.0  ## front_grass.png: 24 units of blades (48 px)
 const FRONT_UP := 5.0
 const FRONT_DOWN := 9.0
 const FRONT_CLUMP := 46.0
+const FRONT_TONE := Color(0.86, 0.84, 0.7)  ## 2026-11-13 (the judge: "a neon lime turf edge"): the blades an olive-gold, a value lower
 const FOOT_SHADE := Color(0.14, 0.06, 0.14, 0.78)  ## at the foot of a wall (round 23, the judges: "no contact shadow at its base": darker)
 const CAST_SHADE := Color(0.16, 0.1, 0.2, 0.68)  ## a wall's long shadow on the ground (soft-started: no seam)
 const CAST_K := 0.75  ## its length per unit of the wall's height (a low sun)
 ## Round 20: a one- or two-cell-wide stack (the poles in the river, the stacks on the plain) is a carved column
 ## painted by spire.gdshader (round 19's spires.png and spire_feet.png pictures are gone), its slim grass mat on top.
 const SPIRE_SHADER := preload("res://src/game/spire.gdshader")
+const BOUGH := preload("res://src/game/bough.gdshader")  ## 2026-11-13: a one-row wall high up is a bough (_bough())
+const BOUGH_ROW := 5  ## the lowest row a bough is drawn on
+const BOUGH_MIN := 6  ## the fewest cells it is long
 const FOOT_SINK := 24.0  ## units its foot reaches under the waterline / into the ground
 ## Blind round 13 ("plain smooth-gradient posts, identical in profile, far cheaper than the plain behind them"; "the
 ## play plane barely exists: a thin rope at the top, a water strip at the bottom, nothing between"): a stack one cell
@@ -215,8 +219,8 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 	ink.set_shader_parameter(&"width", 2.6)
 	# round 23 (the judges, j19: "he runs over the darkest band of the screen"): the turf he runs on lit a value lighter,
 	# a clean light lip along the walking line, its underside in the cool shade (ink.gdshader's `turf`)
-	var turf := ink.duplicate() as ShaderMaterial
-	turf.set_shader_parameter(&"turf", 1.0)
+	var turf := ShaderMaterial.new()  # (2026-11-13: turf.gdshader: its lip olive-gold and broken, in the home's light)
+	turf.shader = preload("res://src/game/turf.gdshader")
 	_layers[&"caps"].material = turf
 	# (2026-11-13: the ends are bent from the turf with its light baked in (tools/art/grass_ends_cap.py): lit again by
 	# their rows here, their blades turned into a smooth lime band)
@@ -295,6 +299,10 @@ func _build_chunk(c0: int) -> void:
 
 func _cell(c: int, r: int, b: Dictionary) -> void:
 	if not solid(c, r):
+		return
+	if _bough_cell(c, r):  # (2026-11-13: a one-row wall high in the air is a bough of the figs, not a bar of earth)
+		if not _bough_cell(c - 1, r):
+			_bough(c, r)
 		return
 	var open_n := not solid(c, r - 1)
 	var open_e := not solid(c + 1, r)
@@ -389,19 +397,20 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 		var inset := 7.0
 		b[&"caps"].items.append(_lit(Rect2(x + inset, y - CAP_ABOVE, T - inset * 2.0, CAP_H),
 				Rect2(_strip_x(c, x + inset), 0, (T - inset * 2.0) * PX, CAP_H * PX), _grass_base(c)))
-		b[&"ends"].items.append([Rect2(x - END_OUT, y - CAP_ABOVE, END_W, END_H),
-				Rect2(0, 0, END_W * PX, END_H * PX), Color.WHITE])
-		b[&"ends"].items.append([Rect2(x - END_FADE, y - CAP_ABOVE, END_W, END_H),
-				Rect2(END_W * PX, 0, END_W * PX, END_H * PX), Color.WHITE])
+		b[&"ends"].items.append(_lit(Rect2(x - END_OUT, y - CAP_ABOVE, END_W, END_H),
+				Rect2(0, 0, END_W * PX, END_H * PX), Color.WHITE))
+		b[&"ends"].items.append(_lit(Rect2(x - END_FADE, y - CAP_ABOVE, END_W, END_H),
+				Rect2(END_W * PX, 0, END_W * PX, END_H * PX), Color.WHITE))
 	elif open_w:
-		b[&"ends"].items.append([Rect2(x - END_OUT, y - CAP_ABOVE, END_W, END_H),
-				Rect2(0, 0, END_W * PX, END_H * PX), Color.WHITE])
+		b[&"ends"].items.append(_lit(Rect2(x - END_OUT, y - CAP_ABOVE, END_W, END_H),
+				Rect2(0, 0, END_W * PX, END_H * PX), Color.WHITE))
 	if open_e and not pole_top:
-		b[&"ends"].items.append([Rect2(x - END_FADE, y - CAP_ABOVE, END_W, END_H),
-				Rect2(END_W * PX, 0, END_W * PX, END_H * PX), Color.WHITE])
+		b[&"ends"].items.append(_lit(Rect2(x - END_FADE, y - CAP_ABOVE, END_W, END_H),
+				Rect2(END_W * PX, 0, END_W * PX, END_H * PX), Color.WHITE))
 	if not open_w and not open_e:
-		b[&"roots"].items.append([Rect2(x, y, T, ROOTS_H),
-				Rect2(_strip_x(c, x), 0, T * PX, ROOTS_H * PX), Color.WHITE])
+		# (2026-11-13, the judge: "repeated stones and roots below read as tiles": fewer roots, in runs that come and go)
+		b[&"roots"].items.append([Rect2(x, y, T, ROOTS_H), Rect2(_strip_x(c, x), 0, T * PX, ROOTS_H * PX),
+				Color(1, 1, 1, _roots_k(x)), Color(1, 1, 1, _roots_k(x + T))])
 	# (2026-11-13, the owner: "many incoherent grass that are used": no tufted lip hangs over an open side any more:
 	# the rounded end, cut from the turf itself (tools/art/grass_ends_cap.py), wraps the corner; the painted lip was
 	# a third kind of grass with the strip and the old lime curls)
@@ -594,6 +603,71 @@ class SpireArt extends Node2D:
 		draw_texture_rect_region(SPIRES, rect, src)
 
 
+## 2026-11-13 (the director, of the bare bar of earth high under the vine, row 3: "a great bough of the riverside figs
+## the liana hangs from, in the canopy's wood language"): whether (c, r) is part of a wall one cell thick floating high up
+## (open over and under it, at least BOUGH_MIN cells long): drawn as a bough (_bough()); where it is solid is unchanged.
+func _bough_cell(c: int, r: int) -> bool:
+	if r > BOUGH_ROW or not solid(c, r) or solid(c, r - 1) or solid(c, r + 1) or _kind(c, r) == Level.Kind.TOP:
+		return false
+	var n := 1
+	var k := c - 1
+	while n < BOUGH_MIN and solid(k, r) and not solid(k, r - 1) and not solid(k, r + 1):
+		n += 1
+		k -= 1
+	k = c + 1
+	while n < BOUGH_MIN and solid(k, r) and not solid(k, r - 1) and not solid(k, r + 1):
+		n += 1
+		k += 1
+	return n >= BOUGH_MIN
+
+
+## The bough over the run of cells from (c, r): its bark painted by bough.gdshader over one rectangle (a little past
+## the run's ends, where it ends rounded), in the canopy's shade, a few sprays of the liana's leaves hanging from it.
+func _bough(c: int, r: int) -> void:
+	var n := 0
+	while _bough_cell(c + n, r):
+		n += 1
+	var rock := UnderRock.new()
+	rock.white = _white
+	var reach := 14.0
+	rock.rect = Rect2(c * T - reach, r * T - 20.0, n * T + reach * 2.0, T + 40.0)
+	var m := ShaderMaterial.new()
+	m.shader = BOUGH
+	m.set_shader_parameter(&"size", rock.rect.size)
+	m.set_shader_parameter(&"mid", 20.0 + T * 0.5)
+	m.set_shader_parameter(&"half_t", 14.0)
+	m.set_shader_parameter(&"reach", reach + 6.0)
+	m.set_shader_parameter(&"seed", float(_hash(c, r, 997)) + 1.0)
+	m.set_shader_parameter(&"tint", CanopyView.SHADE)
+	rock.material = m
+	_layers[&"spires"].add_child(rock)
+	var sprays := LeafSprays.new()
+	var x := c * T + 40.0 + _hash(c, 7, 60)
+	var i := 0
+	while x < (c + n) * T - 40.0:
+		sprays.items.append([Vector2(x, r * T + T * 0.5 + 10.0), i * 7 + c])
+		x += 110.0 + _hash(c + i, 9, 180)
+		i += 1
+	_layers[&"spires"].add_child(sprays)
+
+
+## Leaf sprays of the liana (VineView's pictures) hanging from points, each its own picture, size and side.
+class LeafSprays extends Node2D:
+	var items := []  # [hanging point, seed]
+
+	func _draw() -> void:
+		for it: Array in items:
+			var seed: int = it[1]
+			var pick := TerrainView._hash(seed, 3, VineView.CLUSTERS.size())
+			var src: Rect2 = VineView.CLUSTERS[pick]
+			var size := src.size * (0.42 + 0.03 * TerrainView._hash(seed, 5, 8))
+			if TerrainView._hash(seed, 11, 2) == 0:
+				size.x = -size.x
+			var at: Vector2 = it[0]
+			draw_texture_rect_region(VineView.LEAF_TEX, Rect2(at.x - size.x * VineView.CLUSTER_AT[pick], at.y - 3.0, size.x, size.y),
+					src, CanopyView.SHADE)
+
+
 ## Round 20: a ledge's underside: one rectangle drawn with underside.gdshader (its own material: its size and seed).
 class UnderRock extends Node2D:
 	var rect: Rect2
@@ -687,7 +761,7 @@ static func _lit(dest: Rect2, src: Rect2, base: Color) -> Array:
 ## 2026-11-13: the blades in front of the runners over cell c (x, y: its top left): squat (FRONT_UP over the walking
 ## line), each end of the cell as thick as the clumps are there (_front_k()), in the home's light (_lit()).
 func _front(c: int, x: float, y: float) -> Array:
-	var it := _lit(Rect2(x, y - FRONT_UP, T, FRONT_UP + FRONT_DOWN), Rect2(fposmod(x * PX, 1024.0), 0, T * PX, FRONT_H * PX), _dry(c))
+	var it := _lit(Rect2(x, y - FRONT_UP, T, FRONT_UP + FRONT_DOWN), Rect2(fposmod(x * PX, 1024.0), 0, T * PX, FRONT_H * PX), _dry(c) * FRONT_TONE)
 	var left: Color = it[2]
 	var right: Color = it[3] if it.size() > 3 else it[2]
 	return [it[0], it[1], Color(left, left.a * _front_k(x)), Color(right, right.a * _front_k(x + T))]
@@ -700,6 +774,15 @@ static func _front_k(x: float) -> float:
 	var f := u - i
 	var n := lerpf(_hash(i, 61, 100), _hash(i + 1, 61, 100), f * f * (3.0 - 2.0 * f)) / 100.0
 	return smoothstep(0.38, 0.62, n)
+
+
+## 2026-11-13: how strongly the roots under the turf show at level x (0: none): runs of them, longer gaps between.
+static func _roots_k(x: float) -> float:
+	var u := x / 150.0
+	var i := floori(u)
+	var f := u - i
+	var n := lerpf(_hash(i, 67, 100), _hash(i + 1, 67, 100), f * f * (3.0 - 2.0 * f)) / 100.0
+	return smoothstep(0.5, 0.75, n)
 
 
 ## Whether column c is a stack's (one or two cells wide: _pole_column()).
