@@ -4,11 +4,15 @@ extends StyleBox
 ## pause, the results and the settings: "C", no box, ink brush; the panels before it: cream cards in a gold bezel).
 ##
 ## The band is brushed, not drawn: several strokes of the one painted stroke (assets/art/ui/ink_band.png:
-## tools/art/kie/panel_ui.py), laid one over the other from its top to its foot, each as long as the band and
-## stretched in its solid middle only, so its two dry-brush ends keep their painted bristle streaks at any size; every
-## other stroke is turned half a turn (no two ends alike), and each stroke starts a little further right than the one
-## under it: the band leans as the red plates do. What it is given to cover (its rect, grown by `pad`) lies in the
-## solid ink: the strokes' rough edges and their ends reach past it.
+## tools/art/kie/panel_ui.py: a warm dark ink with its bristles' streaks, full where the brush lands and dry where it
+## leaves), laid one over the other from its top to its foot, each as long as the band and stretched in its solid
+## middle only, so its two dry-brush ends keep their painted bristle streaks at any size; every other stroke is turned
+## half a turn (no two ends alike, the dry end now on one side, now on the other), no two strokes are as tall (HEIGHTS)
+## or stop at the same place (RAGGED_*), and each starts a little further right than the one under it: the band leans
+## as the red plates do. What it is given to cover (its rect, grown by `pad`) lies in the solid ink: the strokes'
+## rough edges and their ends reach past it.
+## (Blind round 12: "a dead, flat pure-black slab... its ends a regular spiky fringe that reads as procedural, not a
+## brush... size it to its content": it was one flat black, strokes of one height, and ends at their full length.)
 
 const ART := "res://assets/art/ui/ink_band.png"
 ## the painted stroke, in shares of its size: solid ink across its middle from SOLID_X.x to SOLID_X.y, and from
@@ -18,12 +22,14 @@ const SOLID_Y := Vector2(0.115, 0.89)
 const END := Vector2(0.17, 0.775)
 const STEP := 0.6  ## from a stroke down to the next, a share of a stroke's height (they overlap in solid ink)
 const STROKE := 160.0  ## a stroke's height the band aims for, in units
+const HEIGHTS: Array[float] = [1.16, 0.86, 1.08, 0.82, 1.1]  ## each stroke's height, of their mean (a hand's, not a comb's)
+const ENDS := 0.78  ## a stroke's two ends, of their painted length (shorter: the band nearer what it holds)
 ## how much further each stroke runs on its left and on its right, in units, stroke after stroke (no two ends of a
 ## band stop at the same place: a brush, not a comb)
 const RAGGED_LEFT: Array[float] = [0.0, 34.0, 8.0, 42.0, 18.0]
 const RAGGED_RIGHT: Array[float] = [28.0, 0.0, 40.0, 10.0, 32.0]
 
-var pad := Vector4(14.0, 18.0, 14.0, 10.0)  ## the solid ink reaches this far past the rect: left, top, right, bottom
+var pad := Vector4(10.0, 18.0, 10.0, 10.0)  ## the solid ink reaches this far past the rect: left, top, right, bottom
 var lean := 0.1  ## its top starts this far right of its foot, a share of its height
 var tint := Color.WHITE
 
@@ -35,16 +41,22 @@ func strokes(rect: Rect2) -> Array:
 	var solid := Rect2(rect.position - Vector2(pad.x, pad.y), rect.size + Vector2(pad.x + pad.z, pad.y + pad.w))
 	var cover := SOLID_Y.y - SOLID_Y.x  # the solid share of one stroke's height
 	var n := maxi(roundi((solid.size.y / STROKE - cover) / STEP) + 1, 1)
-	var h := solid.size.y / (cover + STEP * (n - 1))
+	var total := 0.0  # the solid's height, in mean stroke heights: each stroke a step down, the last one all its solid
+	for i in n:
+		total += HEIGHTS[i % HEIGHTS.size()] * (cover if i == n - 1 else STEP)
+	var mean := solid.size.y / total
+	var top := solid.position.y  # where this stroke's solid ink starts
 	var out := []
 	for i in n:
+		var h := mean * HEIGHTS[i % HEIGHTS.size()]
 		var turned := i % 2 == 1
 		var above := (1.0 - SOLID_Y.y) if turned else SOLID_Y.x  # the rough edge over its solid ink
-		var y := solid.position.y + h * STEP * i - h * above
+		var y := top - h * above
+		top += h * STEP
 		var middle := y + h * 0.5
 		var shift := (solid.get_center().y - middle) * lean
 		# its solid ink from the solid's left to its right, moved by the lean; its ends past them
-		var w_art := h * _tex().get_width() / _tex().get_height()
+		var w_art := h * _tex().get_width() / _tex().get_height() * ENDS
 		var left := w_art * ((1.0 - SOLID_X.y) if turned else SOLID_X.x)
 		var right := w_art * (SOLID_X.x if turned else (1.0 - SOLID_X.y))
 		var reach := absf(solid.size.y * lean * 0.5)
@@ -76,7 +88,7 @@ func _draw(to: RID, rect: Rect2) -> void:
 		var r: Rect2 = s[0]
 		if s[1]:  # half a turn round its own middle
 			RenderingServer.canvas_item_add_set_transform(to, Transform2D(Vector2(-1.0, 0.0), Vector2(0.0, -1.0), r.get_center() * 2.0))
-		var k := r.size.y / tex.y
+		var k := r.size.y / tex.y * ENDS
 		var a := minf(END.x * tex.x * k, r.size.x * 0.4)  # its left end's length
 		var b := minf((1.0 - END.y) * tex.x * k, r.size.x * 0.4)  # its right end's
 		_piece(to, Rect2(r.position, Vector2(a, r.size.y)), Rect2(0.0, 0.0, END.x * tex.x, tex.y))

@@ -19,6 +19,10 @@ const DOOR_RIGHT := 840.0  ## play x of the doorway's right edge: he stops in it
 ## over him are unchanged): its doorway a little taller than him, the whole dome in the pushed-in shot with sky over
 ## it, so he leads the picture.
 const HUT_K := 0.8
+const FIRE_REACH := 330.0  ## how far the campfire's light carries on the props round it (units)
+const DUSK := Color(0.6, 0.58, 0.82)  ## the shade away from it (form.gdshader's dusk)
+const FIRE_TINT := Color(1.16, 0.98, 0.8)  ## its light (form.gdshader's fire_tint)
+const FIRE_X := 644.0  ## play x of the campfire on the last screen
 
 var back: Node2D
 var yard: Node2D  ## over the ground's grass, under the actors (WorldView adds it after the ground)
@@ -31,7 +35,6 @@ var _fire_light: Sprite2D  # round 19: the campfire's light on the hut, the sign
 var _fire_pool: Sprite2D  # round 19: and on the grass round it
 var _fire_reach: Sprite2D  # round 21: its light running along the grass to his left side
 var _fire_side: Sprite2D  # round 21: and on the hut's thatch by the doorway, at his left
-var _door_lift: Sprite2D  # round 21: the firelight inside the doorway, behind his head
 var _clock := 0.0
 var _welcome := 0.0  # the fire flares when he walks in (1 -> 0)
 
@@ -51,19 +54,26 @@ func build() -> void:
 	var door_x: float = hut_left + float(hut_info["door_x"]) * HUT_K  # the doorway's middle (level x)
 	var hut_size := Vector2(float(hut_info["size"][0]), float(hut_info["size"][1])) * HUT_K
 	# the back of the homestead: huts and a granary behind the palisade
-	_put(back, "home_granary", LEFT + 330.0, 0.95, Color(0.9, 0.88, 0.9)).material = form(1.0)
-	_put(back, "home_hut_small", LEFT + 1120.0, 0.9, Color(0.92, 0.9, 0.93)).material = form(1.0)
-	_put(back, "home_hut_low", LEFT + 1400.0, 0.8, Color(0.86, 0.84, 0.9), true).material = form(1.0)
+	var granary := _put(back, "home_granary", LEFT + 330.0, 0.95, Color(0.9, 0.88, 0.9))
+	granary.material = form(1.0)
+	var small := _put(back, "home_hut_small", LEFT + 1120.0, 0.9, Color(0.92, 0.9, 0.93))
+	small.material = form(1.0)
+	var low := _put(back, "home_hut_low", LEFT + 1400.0, 0.8, Color(0.86, 0.84, 0.9), true)
+	low.material = form(1.0)
 	_fence(back, LEFT + 120.0, LEFT + 680.0)
 	_fence(back, LEFT + 960.0, LEFT + 1900.0)
 	# (round 7: no shadow copy of the sign behind it: it read as a faint duplicate arrow)
 	# (blind round 7: "the HOME signpost as large as the hero, the first thing the eye lands on": 1.35 -> 1.05)
-	_put(back, "home_sign", LEFT + 548.0, 1.05, Color.WHITE).material = form(0.0, 0.6)
-	_put(back, "home_pot", door_x - 58.0, 1.0, Color.WHITE)
+	# (blind round 12: "chunky casual-game letters, a cheaper drawing language than the painted hut": a weathered plank
+	# arrow lashed to a post, HOME cut and burnt in the logo's angular capitals; its picture is 3 px a unit)
+	var sign := _put(back, "home_sign", LEFT + 524.0, 0.67, Color.WHITE)
+	sign.material = form(0.0, 0.0)
+	var pot := _put(back, "home_pot", door_x - 58.0, 1.0, Color.WHITE)
+	pot.material = form(0.0, 0.0)
 	# round 3: the homestead is alive: a cooking fire in the yard, and people at it who greet him
 	_fire = Fire.new()
 	# (round 7: by the hut, in the pushed-in shot; round 21: nearer him, its light reaching his left side)
-	_fire.position = Vector2(LEFT + 644.0, GROUND - 8.0)
+	_fire.position = Vector2(LEFT + FIRE_X, GROUND - 8.0)
 	_fire.scale = Vector2(2.0, 2.0)  # (round 9: a little bigger: it reads at phone size; round 19: bigger still; round 23, the judges, j19: "a glow blob brighter than the hero": smaller, its light lower)
 	back.add_child(_fire)
 	var fire_smoke := _smoke()
@@ -108,25 +118,21 @@ func build() -> void:
 	hut.position = Vector2(hut_left, GROUND + 4.0)
 	hut.material = form(1.0)
 	back.add_child(hut)
-	# round 21 (the judges, j17: "his black hair melts into the dark doorway"): the firelight inside lifts the dark
-	# behind his head a little (warm, soft, inside the doorway's arch), so his hair stands off it
-	_door_lift = _sprite("home_glow", 1.0)
-	_door_lift.centered = true
-	_door_lift.offset = Vector2.ZERO
-	# (round 22, the judges, j18: "his hair and armoured arm still merge into the dark doorway": brighter and wider, up
-	# behind his head and both shoulders: the hut's warm interior, a value above his hair)
-	_door_lift.position = Vector2(door_x - 4.0, GROUND - 112.0)
-	# (blind rounds 5 and 6: "his orange-brown torso is the doorway's hue and value: the victory pose is lost": the
-	# doorway behind him is a deep shadow now, not firelight: the hut's dark inside)
-	_door_lift.scale = Vector2(0.86, 1.25)
-	back.add_child(_door_lift)
+	# (the doorway's inside is the hut's dark in the dusk's violet-brown, painted so: tools/art/kie/world.py door():
+	# over his black hair's value, well under his skin's; it was a glow down to bright orange with a soft dark
+	# sprite laid over its middle: blind rounds 5, 6, 11 and 12: "his warm torso sits on a warm orange doorway")
 	var smoke := _smoke()
 	smoke.position = Vector2(hut_left + hut_size.x / 2.0, GROUND + 4.0 - hut_size.y + 18.0 * HUT_K)
 	back.add_child(smoke)
 	# in front of him: the wall right of the doorway, the shade inside, the firelight on him
 	var wall := _sprite("home_hut_front", HUT_K)
 	wall.position = hut.position + Vector2(float(hut_info.get("front_crop_x", 0.0)) * HUT_K, 0.0)  # (stored cropped)
+	wall.material = form(0.0, 0.0)
 	front.add_child(wall)
+	# One light (blind round 12: "no single light: a campfire burns a metre from him and nothing receives it"): every
+	# prop is in the dusk's cool shade away from the fire and in its warm light near it (form.gdshader)
+	for prop: Sprite2D in [granary, small, low, sign, pot, hut, wall]:
+		_fire_lit(prop)
 	# round 19 (the judges: "the campfire flat triangles casting no glow"): its light reaches the hut's
 	# side, the sign's post and the fence (added over them), and pools warm on the grass round it
 	_fire_light = _sprite("home_glow", 1.0)
@@ -191,15 +197,14 @@ func _process(delta: float) -> void:
 		_fire_pool.modulate = Color(1, 0.66, 0.34, 0.24 + flick * 0.8 + 0.08 * _welcome)
 		_fire_reach.modulate = Color(1, 0.62, 0.3, 0.24 + flick * 0.7 + 0.06 * _welcome)
 		_fire_side.modulate = Color(1, 0.58, 0.28, 0.12 + flick * 0.5 + 0.05 * _welcome)
-		# (a middle value, the dusk's violet-brown: under his skin's, over his black hair's; an earlier round's judges
-		# saw "his black hair melt into the dark doorway", these saw his torso melt into the lit one)
-		_door_lift.modulate = Color(0.33, 0.23, 0.35, 0.94)
 
 
-## He is home: the fire flares up to welcome him.
+## He is home: the fire flares up to welcome him and throws a cloud of embers into the dusk (the home's own
+## celebration; paper confetti flew out of the doorway until blind round 12: "a few stray specks that read as dirt").
 func welcome() -> void:
 	var t := create_tween()
 	t.tween_interval(0.55)
+	t.tween_callback((_fire as Fire).flare_up)
 	t.tween_property(self, "_welcome", 1.0, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
@@ -229,6 +234,20 @@ static func form(dome: float, strength := 1.0) -> ShaderMaterial:
 	return m
 
 
+## The same on something standing at level x on the ground (a stretch of the palisade: one colour each).
+func _fire_colour(x: float) -> Color:
+	var d := (x - (LEFT + FIRE_X)) / FIRE_REACH
+	return DUSK.lerp(FIRE_TINT, exp(-d * d * 1.6))
+
+
+## The fire's light and the dusk's shade on a prop (form.gdshader): where the fire is in the prop's own pixels.
+func _fire_lit(prop: Sprite2D) -> void:
+	var m := prop.material as ShaderMaterial
+	var hearth := _fire.position + Vector2(0.0, -40.0)
+	m.set_shader_parameter(&"fire_at", (hearth - prop.position) / prop.scale)
+	m.set_shader_parameter(&"fire_reach", FIRE_REACH / prop.scale.x)
+
+
 ## A picture standing on the ground, its foot centred at x.
 func _put(layer: Node2D, name: String, x: float, k: float, colour: Color, flip := false) -> Sprite2D:
 	var s := _sprite(name, k)
@@ -254,7 +273,7 @@ func _fence(layer: Node2D, x0: float, x1: float) -> void:
 		var src_x := _rand(i, 4) * (tex.get_width() - w * 2.0 / k)
 		var h := tex.get_height() * 0.5 * k
 		fence.items.append([tex, Rect2(x, GROUND + 6.0 - h, w, h), Rect2(src_x, 0, w * 2.0 / k, tex.get_height()),
-				Color(shade, shade * 0.97, shade)])
+				Color(shade, shade * 0.97, shade) * _fire_colour(x + w * 0.5)])
 		x += w + (14.0 + _rand(i, 5) * 20.0 if _rand(i, 6) < 0.25 else -2.0)
 		i += 1
 	fence.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
@@ -410,6 +429,26 @@ class Fire extends Node2D:
 			draw_circle(a, 2.6, Color(0.24, 0.14, 0.1))  # its cut end, charred, an ember in it
 			draw_circle(a + Vector2(0.4, -0.4), 1.1, Color(1.0, 0.5, 0.16, flick))
 		# (round 20: the flames are painted over these by fire.gdshader, the child sprites)
+
+	## A cloud of embers thrown up at once, drifting off on the evening air as they die.
+	func flare_up() -> void:
+		var p := _sparks()
+		p.one_shot = true
+		p.explosiveness = 0.8
+		p.amount = 46
+		p.lifetime = 2.6
+		p.preprocess = 0.0
+		p.spread = 34.0
+		p.initial_velocity_min = 40.0
+		p.initial_velocity_max = 150.0
+		p.damping_min = 30.0
+		p.damping_max = 60.0
+		p.gravity = Vector2(14, -22)
+		p.scale_amount_min = 0.1
+		p.scale_amount_max = 0.3
+		p.emitting = true
+		add_child(p)
+		p.finished.connect(p.queue_free)
 
 	## Sparks rising from the fire, flickering out.
 	func _sparks() -> CPUParticles2D:

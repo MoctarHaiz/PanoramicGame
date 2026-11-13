@@ -37,6 +37,7 @@ const WIN_BOOTS: Array[Vector3] = [Vector3(0.13, 0.936, 0.2), Vector3(0.735, 0.9
 const STAR_STEP := 0.32  ## seconds between two stars
 const COUNT_TIME := 0.7  ## seconds the Red Bobs take to roll up
 const BADGE := 66.0  ## the NEW BEST! stamp's radius
+const BADGE_CALM := 56.0  ## ... after a defeat (blind round 12: "the loudest object on a game-over screen: it outweighs the title")
 const STAR := 132.0  ## a star of the three
 const GO_H := 100.0  ## PLAY AGAIN's height with its shadow
 
@@ -71,7 +72,8 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 	big.add_child(bobs)
 	var slot := Control.new()  # a new best's stamp lands here, beside the count: its place is kept,
 	# with air between it and the count, and as tall as it
-	slot.custom_minimum_size = Vector2(BADGE * 2.0 + 44.0, BADGE * 2.0 + 6.0)
+	var badge := BADGE if won else BADGE_CALM
+	slot.custom_minimum_size = Vector2(badge * 2.0 + 44.0, badge * 2.0 + 6.0)
 	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	slot.visible = news.get("best_bobs", false)
 	big.add_child(slot)
@@ -83,7 +85,7 @@ static func open(game: Control, world: World, news: Dictionary, home: Callable, 
 		var way := HBoxContainer.new()  # what the bar measures, said beside it (not a second score)
 		way.alignment = BoxContainer.ALIGNMENT_CENTER
 		way.add_theme_constant_override(&"separation", 14)
-		way.add_child(Ui.label(TranslationServer.translate("WAY_HOME"), 32, Ui.BONE, Ui.font_title))
+		way.add_child(Ui.label(TranslationServer.translate("WAY_HOME"), 36, Ui.BONE, Ui.font_title))
 		way.add_child(bar)
 		body.add_child(way)
 	body.add_child(Ui.rule())
@@ -472,7 +474,7 @@ static func _stamp(tree: SceneTree, panel: GamePanel, slot: Control, delay: floa
 	await tree.create_timer(delay).timeout
 	if not is_instance_valid(panel):
 		return
-	var stamp := BurstBadge.new(TranslationServer.translate("NEW_BEST"), BADGE, calm)
+	var stamp := BurstBadge.new(TranslationServer.translate("NEW_BEST"), BADGE_CALM if calm else BADGE, calm)
 	slot.add_child(stamp)  # in the count's row, its place kept from the start
 	stamp.position = (slot.size - stamp.size) / 2
 	if calm:
@@ -518,16 +520,16 @@ static func _shake(c: Control, px: float) -> void:
 ## past its end the goal: a cream house.
 class WayBar extends Control:
 	const SLANT := 0.3  ## its top leans this far right of its foot, a share of its height (the red plate's)
-	const HOUSE := 46.0  ## the house past its end
+	const HOUSE := 54.0  ## the house past its end
 	var progress := 0.0
 	var _shown := 0.0
 	var _label: DisplayText
 
 	func _init(p: float) -> void:
 		progress = clampf(p, 0.0, 1.0)
-		custom_minimum_size = Vector2(400, 64)
+		custom_minimum_size = Vector2(450, 76)  # (blind round 12: "small and thin": it was 400 by 64)
 		var french := TranslationServer.get_locale().begins_with("fr")  # "21 %" in French, "21%" in English
-		_label = Ui.display_text(("%d %%" if french else "%d%%") % roundi(progress * 100.0), 32, Ui.WHITE, Color("140607"))
+		_label = Ui.display_text(("%d %%" if french else "%d%%") % roundi(progress * 100.0), 38, Ui.WHITE, Color("140607"))
 		_label.font = Ui.font_slant
 		_label.outline_width = 2.5
 		_label.depth = 0.0
@@ -552,14 +554,14 @@ class WayBar extends Control:
 		var r := _track()
 		return r.position.x + (r.size.x - r.size.y * SLANT) * _shown
 
-	## The percentage rides the fill: inside its tip when the gold is long enough, else just past it
-	## (never floating over the empty track's middle).
+	## The percentage rides the fill: inside its tip when the gold is long enough, else past it, clear of its leaning
+	## edge (blind round 12: "the percentage straddling the fill's edge"; never floating over the empty track's middle).
 	func _place_label() -> void:
 		var need := _label.get_combined_minimum_size()
 		_label.size = need
 		var r := _track()
 		var tip := _tip() + r.size.y * SLANT * 0.5
-		var x := tip - need.x - 10.0 if tip - r.position.x >= need.x + 24.0 else tip + 10.0
+		var x := tip - need.x - 14.0 if tip - r.position.x >= need.x + 30.0 else tip + r.size.y * SLANT * 0.5 + 14.0
 		_label.position = Vector2(x, (size.y - need.y) / 2)
 
 	## The gold fills up to where he got, after `delay` seconds.

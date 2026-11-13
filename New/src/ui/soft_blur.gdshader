@@ -1,7 +1,7 @@
 shader_type canvas_item;
 // The scrim behind a panel over the game: a small, soft picture of the game (Ui.blurred_snapshot: 1/8 of
-// the screen, grown back 2x; the settings: the menu's key art at 1/4) drawn stretched over the screen
-// through a cubic B-spline (four bilinear taps, Sigg & Hadwiger: a light, smooth blur, no blocks, the
+// the screen; the settings: the menu's key art, small) drawn stretched over the screen through a cubic
+// B-spline (four bilinear taps, Sigg & Hadwiger), five times a texel apart (a smooth blur, no blocks, the
 // scene still recognisable), then graded into one mood (j15: "a muddy dark blurred screenshot, no mood"):
 // - a gradient map of the scene's own values: its shadows mapped to `shadow_tint`, its middle tones
 //   to `mid_tint`, its lights to `light_tint` (`duo`: how much of it over the picture's own
@@ -39,9 +39,9 @@ vec4 cubic(float v) {
 	return vec4(x, y, z, w) * (1.0 / 6.0);
 }
 
-void fragment() {
-	vec2 texel = TEXTURE_PIXEL_SIZE;
-	vec2 p = UV / texel - 0.5;
+// The picture at `uv` through a cubic B-spline (four bilinear taps).
+vec4 spline(sampler2D tex, vec2 uv, vec2 texel) {
+	vec2 p = uv / texel - 0.5;
 	vec2 f = fract(p);
 	p -= f;
 	vec4 xc = cubic(f.x);
@@ -49,13 +49,24 @@ void fragment() {
 	vec4 c = p.xxyy + vec2(-0.5, 1.5).xyxy;
 	vec4 s = vec4(xc.xz + xc.yw, yc.xz + yc.yw);
 	vec4 o = (c + vec4(xc.yw, yc.yw) / s) * texel.xxyy;
-	vec4 s0 = texture(TEXTURE, o.xz);
-	vec4 s1 = texture(TEXTURE, o.yz);
-	vec4 s2 = texture(TEXTURE, o.xw);
-	vec4 s3 = texture(TEXTURE, o.yw);
+	vec4 s0 = texture(tex, o.xz);
+	vec4 s1 = texture(tex, o.yz);
+	vec4 s2 = texture(tex, o.xw);
+	vec4 s3 = texture(tex, o.yw);
 	float sx = s.x / (s.x + s.y);
 	float sy = s.z / (s.z + s.w);
-	vec4 blur = mix(mix(s3, s2, sx), mix(s1, s0, sx), sy);
+	return mix(mix(s3, s2, sx), mix(s1, s0, sx), sy);
+}
+
+void fragment() {
+	// five of them, the four round the middle one a texel away on the diagonals: the small picture's own texels
+	// (each the average of a block of the screen) leave no step along a slanted edge (blind round 12: "the blurred
+	// background shows blocky low-resolution artefacts")
+	vec2 texel = TEXTURE_PIXEL_SIZE;
+	vec2 d = texel * 1.05;
+	vec4 blur = spline(TEXTURE, UV, texel) * 0.28
+			+ (spline(TEXTURE, UV + d, texel) + spline(TEXTURE, UV - d, texel)
+			+ spline(TEXTURE, UV + vec2(d.x, -d.y), texel) + spline(TEXTURE, UV + vec2(-d.x, d.y), texel)) * 0.18;
 	float lum = dot(blur.rgb, vec3(0.3, 0.59, 0.11));
 	blur.rgb = mix(blur.rgb, vec3(lum), grey);
 	blur.rgb *= 1.0 - 0.6 * tame * smoothstep(0.38, 0.9, lum);  // the sun's bloom: no bright smudge

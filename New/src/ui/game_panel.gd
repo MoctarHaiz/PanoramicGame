@@ -100,7 +100,7 @@ func _build(title: String, body: Control, character: Control, tint: Color, glow:
 	_pop = Control.new()  # placed by hand in the safe area (_place): what the entrance animates
 	_pop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_pop)
-	card = Card.ink(Vector4(44, 62, 44, 26))  # (its top: under the title's lower half)
+	card = Card.ink(Vector4(32, 62, 32, 26))  # (its top: under the title's lower half)
 	card.add_child(body)
 	banner = Ui.ink_title(title, 112.0, 760.0)  # (a long title, "Home sweet home!", stands as tall as a short one)
 	_top = banner.size.y * 0.5
@@ -177,7 +177,7 @@ func _snapshot_then_enter(hide: Array) -> void:
 	await RenderingServer.frame_post_draw
 	if not is_inside_tree():
 		return
-	# a light blur (1/8, grown back smooth): the scene recognisable behind the panel, its fine detail
+	# a light blur (1/8, smoothed by its shader): the scene recognisable behind the panel, its fine detail
 	# soft (round 20; 1/32 smeared it into "a dirty screen")
 	_picture.texture = Ui.blurred_snapshot(get_viewport(), 3)
 	for n: CanvasItem in _out_of_picture:  # back at once: only the picture leaves them out
@@ -286,7 +286,9 @@ func _place() -> void:
 	# the band's rough ends are part of the group (most of them: their last bristles may leave a narrow screen): on
 	# its right, and on its left where no one stands
 	var ends := card.band.reach(Rect2(Vector2.ZERO, card_size)) * 0.8 if card.band else Vector2.ZERO
-	var lead := art_w if art else ends.x  # from the group's left to the card
+	# from the group's left to the card: he stands clear of most of the band's rough end (blind round 12: "his chakram
+	# and elbow collide with the band's spiky left edge with no overlap rule")
+	var lead := art_w + ends.x * 0.5 if art else ends.x
 	var whole := Vector2(lead + card_size.x + ends.y, card_size.y + _top + lift + below)
 	var insets := Device.insets()
 	var side_l := maxf(insets.x + 12.0, size.x * 0.06)  # never near an edge (the group would lean)

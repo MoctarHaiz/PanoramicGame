@@ -441,17 +441,17 @@ func _draw_stars(front: bool) -> void:
 		_star(target, p, size, a * 0.6, Color(1, 0.86, 0.3, _stars * (0.75 + 0.25 * depth)))
 
 
-## The "!" over its head as it wakes: it pops up, holds, and fades (a stroke and a dot, gold in dark ink).
+## The "!" over its head as it wakes: it pops up, holds, and fades: a stroke and a dot in the kit's red, a cream line
+## round it, in dark ink (blind round 12: "a yellow ! on tan": it was gold, the plain's own colour).
 func _draw_spot() -> void:
 	var t := 1.0 - _spot / SPOT_TIME
 	var pop := 1.0 + 0.5 * maxf(1.0 - t / 0.18, 0.0)
 	var a := clampf(_spot / 0.15, 0.0, 1.0)
 	var at := _head + Vector2(_jolt + 2.0, -SPOT_RISE - 6.0 * minf(t / 0.18, 1.0))
-	var ink := Color(0.2, 0.06, 0.02, a)
-	var gold := Color(1.0, 0.84, 0.25, a)
-	for pass_i in 2:
-		var grow := 2.2 if pass_i == 0 else 0.0
-		var c := ink if pass_i == 0 else gold
+	var tones: Array[Color] = [Color(0.08, 0.024, 0.027, a), Color(1.0, 0.94, 0.78, a), Color(0.91, 0.15, 0.16, a)]
+	for pass_i in 3:
+		var grow: float = [3.6, 1.5, 0.0][pass_i]
+		var c := tones[pass_i]
 		var w := (4.6 + grow) * pop
 		var h := 15.0 * pop
 		var bar := PackedVector2Array([at + Vector2(-w, -h - grow), at + Vector2(w, -h - grow),

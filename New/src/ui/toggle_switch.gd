@@ -20,7 +20,7 @@ var _words: Array[String] = []  # "OFF", "ON" (translated)
 
 func _init() -> void:
 	_words = [TranslationServer.translate("STATE_OFF").to_upper(), TranslationServer.translate("STATE_ON").to_upper()]
-	custom_minimum_size = Vector2(118, 56)
+	custom_minimum_size = Vector2(140, 66)  # (blind round 12: "the smallest controls on the screen": 118 by 56)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	size_flags_vertical = Control.SIZE_SHRINK_CENTER
 

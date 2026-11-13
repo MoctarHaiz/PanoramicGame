@@ -14,9 +14,13 @@ the frame, then each layer of it alone on a transparent background, with the fra
     tree_*.png           ten trees (+ tree_info.json: the foot of each trunk)
     fg_props.png         six plants and rocks near the camera
     home_fire.png        the cooking fire at home, four frames (HomeView.Fire)
+    home_sign.png        the HOME signpost (sign); home_hut.png's doorway repainted dark, in place (door)
+    fx_impact.png        a blow's burst, three frames (impact: Fx.hit_spark)
+    sky_clouds.png       the sky's cumulus alone, off the finished sky.png (clouds): drawn again higher up
     earth.png            the cut bank of the main ground under the turf (terrain.gdshader), repeating
 
-    python3 tools/art/kie/world.py [sky wall mesas plain rise grass trees front]   (none: all)
+    python3 tools/art/kie/world.py [sky wall mesas plain rise grass trees front fire earth | sign door clouds impact]
+    (none: the first ten)
 
 A strip repeats: its right end is laid over its left end along the path where the two differ least (the plain, the
 grass), or faded across it (the sky, the far wall: smooth things), and that much is cut off its width.
@@ -237,8 +241,8 @@ def earth() -> None:
 
 def fire() -> None:
     """The cooking fire at home: four frames in a row, the stones and logs in the same place in each."""
-    ps = pieces("fire", 4, 1)
-    k = 150.0 / max(p.shape[1] for p in ps)
+    ps = pieces("fire2", 4, 1)  # (blind round 12: "a thick-outlined emoji flame": fire.png; fire2 is painted as the hut is)
+    k = 300.0 / max(p.shape[1] for p in ps)
     ps = [resize(p, (round(p.shape[1] * k), round(p.shape[0] * k))) for p in ps]
     cw, ch = max(p.shape[1] for p in ps) + 8, max(p.shape[0] for p in ps) + 4
     sheet = np.zeros((ch, cw * 4, 4), np.float32)
@@ -248,6 +252,104 @@ def fire() -> None:
         x = min(max(x, i * cw), (i + 1) * cw - p.shape[1])
         sheet[ch - p.shape[0]:, x:x + p.shape[1]] = p
     save(sheet, OUT / "home_fire.png")
+
+
+def sign() -> None:
+    """The HOME signpost (sign2: a weathered plank arrow lashed to a post, its word cut and burnt in the logo's angular
+    capitals, two bands of beadwork, a cowhide shield charm; blind round 12: "chunky casual-game letters"): cut to
+    its figure, 420 px tall (HomeView draws it about 140 units tall)."""
+    a = load("sign2")
+    ys, xs = np.nonzero(a[..., 3] > 0.05)
+    a = a[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+    k = 420.0 / a.shape[0]
+    save(resize(a, (round(a.shape[1] * k), 420)), OUT / "home_sign.png")
+
+
+def door() -> None:
+    """The main hut's doorway (home_hut.png, in place): its inside, a glow from black down to bright orange, was his
+    skin's hue and value behind his legs and chest (blind rounds 5, 6, 11 and 12: "his warm torso sits on a warm
+    orange doorway"); now the hut's dark inside in the dusk's violet-brown, a little lighter low down: over his black
+    hair's value, well under his skin's. Found as the smooth region round the doorway's middle (home.json)."""
+    path = OUT / "home_hut.png"
+    info = json.loads((OUT / "home.json").read_text())["home_hut"]
+    img = np.asarray(Image.open(path).convert("RGBA")).astype(np.float32) / 255.0
+    h, w = img.shape[:2]
+    grey = img[..., :3].mean(axis=2)
+    gy, gx = np.gradient(ndi.gaussian_filter(grey, 1.0))
+    smooth = (np.hypot(gx, gy) < 0.012) & (img[..., 3] > 0.9)
+    lab, _ = ndi.label(smooth)
+    cx = int(info["door_x"] * 2)
+    cy = h - int(info["base"] * 2) - int(info["door_h"])  # the doorway's middle (px)
+    inside = ndi.binary_fill_holes(ndi.binary_dilation(lab == lab[cy, cx], iterations=3))
+    soft = ndi.gaussian_filter(inside.astype(np.float32), 1.2)[..., None]
+    ys = np.nonzero(inside.any(axis=1))[0]
+    t = np.clip((np.arange(h) - ys.min()) / max(ys.max() - ys.min(), 1), 0, 1)[:, None, None]
+    tone = np.array([0.20, 0.135, 0.25]) * (1 - t) + np.array([0.33, 0.21, 0.32]) * t
+    img[..., :3] = img[..., :3] * (1 - soft) + tone * soft
+    Image.fromarray((np.clip(img, 0, 1) * 255 + 0.5).astype(np.uint8), "RGBA").save(path)
+    print("home_hut.png: doorway %d px repainted, rows %d to %d" % (int(inside.sum()), ys.min(), ys.max()))
+
+
+def impact() -> None:
+    """A blow's burst (fx_impact.png: Fx.hit_spark): three painted frames in a row (the contact, the burst, the
+    break-up; the blow goes right), each in a cell of the same size with the point of contact, the middle of its
+    white-hot heart, at the same place (printed: Fx.IMPACT_CELL, IMPACT_AT), at half the painting's size."""
+    a = load("impact")
+    w3 = a.shape[1] // 3
+    frames = []
+    for i in range(3):
+        f = a[:, i * w3:(i + 1) * w3]
+        al = f[..., 3]
+        rgb = f[..., :3] / np.maximum(al[..., None], 1e-4)
+        lab, n = ndi.label((al > 0.9) & (rgb.min(axis=2) > 0.93))
+        heart = 1 + int(np.argmax(ndi.sum(np.ones_like(al), lab, np.arange(1, n + 1))))
+        cy, cx = ndi.center_of_mass(lab == heart)
+        ys, xs = np.nonzero(al > 0.03)
+        frames.append((f, int(round(cx)), int(round(cy)), xs.min(), xs.max() + 1, ys.min(), ys.max() + 1))
+    left = max(cx - x0 for _, cx, cy, x0, x1, y0, y1 in frames) + 4
+    right = max(x1 - cx for _, cx, cy, x0, x1, y0, y1 in frames) + 4
+    up = max(cy - y0 for _, cx, cy, x0, x1, y0, y1 in frames) + 4
+    down = max(y1 - cy for _, cx, cy, x0, x1, y0, y1 in frames) + 4
+    left, right, up, down = [v + v % 2 for v in (left, right, up, down)]
+    cw, ch = left + right, up + down
+    sheet = np.zeros((ch, cw * 3, 4), np.float32)
+    for i, (f, cx, cy, x0, x1, y0, y1) in enumerate(frames):
+        sheet[up - (cy - y0):up + (y1 - cy), i * cw + left - (cx - x0):i * cw + left + (x1 - cx)] = f[y0:y1, x0:x1]
+    sheet = resize(sheet, (cw * 3 // 2, ch // 2))
+    save(sheet, OUT / "fx_impact.png")
+    print("fx_impact.png: %dx%d, cell %dx%d, the contact at (%d, %d)" % (sheet.shape[1], sheet.shape[0], cw // 2, ch // 2, left // 2, up // 2))
+
+
+def clouds() -> None:
+    """The sky's cumulus alone (sky_clouds.png), lifted off the finished sky.png: SavannaView draws them a second time,
+    bigger and higher, where the camera draws back to the vine (blind round 12: "an empty sky band" over the pillars).
+    Each row's clear sky is its bluest tenth (a cloud is warmer and lighter than the sky at its height); what stands
+    off it is cloud, its colour taken back out of the mix."""
+    img = np.asarray(Image.open(OUT / "sky.png").convert("RGB")).astype(np.float32) / 255.0
+    clear = np.stack([np.percentile(img[..., 0], 10, axis=1), np.percentile(img[..., 1], 10, axis=1),
+                      np.median(img[..., 2], axis=1)], axis=1)
+    clear = ndi.gaussian_filter1d(clear, 8.0, axis=0)[:, None, :]
+    off = (img - clear)[..., :2].max(axis=2)
+    al = np.clip((off - 0.035) / 0.075, 0, 1)
+    al = al * al * (3 - 2 * al)
+    rows = np.nonzero((al > 0.5).mean(axis=1) > 0.004)[0]
+    band = rows[rows < int(img.shape[0] * 0.74)]  # the cumulus (the thin warm streaks over the horizon stay in the sky)
+    top, bottom = band.min() - 8, band.max() + 8
+    # a cloud: a body with a sunlit top, standing in the cumulus band; the sky's own blotches are none (one hangs off a
+    # cloud's side by a thin wedge: the bodies are told apart worn down, then grown back)
+    al = al[top:bottom]
+    lit = (off[top:bottom] > 0.22) & (img[top:bottom, :, 0] > 0.8)
+    lab, n = ndi.label(ndi.binary_erosion(al > 0.5, iterations=7))
+    keep = np.zeros(al.shape, bool)
+    for i, box in enumerate(ndi.find_objects(lab)):
+        body = lab[box] == i + 1
+        if box[0].start < 0.6 * al.shape[0] and (lit[box] & body).sum() > 200:
+            keep[box] |= body
+    al *= ndi.gaussian_filter(ndi.binary_dilation(keep, iterations=11).astype(np.float32), 1.5)
+    al = al[..., None]
+    rgb = np.clip((img[top:bottom] - clear[top:bottom] * (1 - al)) / np.maximum(al, 0.05), 0, 1)
+    save(np.dstack([rgb * al, al[..., 0]]), OUT / "sky_clouds.png")
+    print("sky_clouds.png: rows %d to %d of sky.png" % (top, bottom))
 
 
 if __name__ == "__main__":

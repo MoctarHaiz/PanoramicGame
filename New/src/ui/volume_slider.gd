@@ -11,7 +11,7 @@ signal changed(value: float)
 
 const INK := Color("140607")
 const STEPS := 10
-const BAR := 18.0  ## the groove's height
+const BAR := 22.0  ## the groove's height
 const SLANT := 0.3  ## its lean, a share of its height (the HUD's bar's)
 
 var value := 1.0
@@ -84,8 +84,8 @@ func _draw() -> void:
 				Vector2(cx - lean * 0.5, mid + h * 0.5), Vector2(x0 - lean * 0.5, mid + h * 0.5)])
 		draw_colored_polygon(foot, Ui.ON_GOLD_DEEP)
 	# the handle: a leaning cream plate
-	var hh := size.y * 0.74
-	var hw := hh * 0.5
+	var hh := size.y * 0.84  # (blind round 12: "the slider handles are slivers": it was 0.74 tall, half as wide)
+	var hw := hh * 0.7
 	var hl := hh * SLANT
 	_piece(cx - hw * 0.5, cx + hw * 0.5, mid, hh, hl, 4.0, INK)
 	_piece(cx - hw * 0.5, cx + hw * 0.5, mid, hh, hl, 0.0, Ui.BONE)

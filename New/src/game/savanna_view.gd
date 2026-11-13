@@ -30,6 +30,8 @@ const SUN_AT := Vector2(0.02, -70.0)
 ## moves with the run, and its drift with the wind (units a second).
 const SKY_RECT := Vector2(-150.0, 660.0)
 const SKY_SCROLL := 0.02
+const HIGH_CLOUDS := Vector2(-178.0, 300.0)  ## the high row of clouds: its top (play y) and its height (units)
+const HIGH_CLOUDS_SCROLL := 0.032
 const SKY_DRIFT := 2.5
 
 ## Strips that repeat left to right: texture, scroll factor, bottom y, units per texture pixel.
@@ -147,6 +149,11 @@ const MID_FLATTEN := 0.46
 const MID_HAZE := 0.1
 const LANE_FLATTEN := 0.3
 const LANE_HAZE := 0.04
+const MIST := Color(0.98, 0.92, 0.83)  ## the low dust behind the path (_draw_lane_mist)
+const MIST_DUSK := Color(0.8, 0.78, 1.0)  ## ... at dusk
+const MIST_FULL := 0.5  ## how much of it at its thickest
+const MIST_FROM := 446.0  ## play y where it starts (the far plain's foot)
+const MIST_AT := 528.0  ## ... and where it is at its thickest (the rise's top, his head)
 const LANE_AIR := Color(0.93, 0.9, 0.84)  ## what the plain's and the lane's layers are drawn toward: a pale, nearly neutral air
 ## (blind round 6: "acacias, mound, pool and boulders at full strength right at his height; his white loincloth and legs
 ## on pale straw": pale was the wrong step for a hero who is both white cloth and dark skin) a cloud's shadow lies
@@ -199,7 +206,7 @@ class Painter extends Node2D:
 
 
 func _ready() -> void:
-	for name in ["sky", "far_wall", "far_mesa_pieces", "far_hills", "mid_hills", "near_grass", "mote", "bird"]:
+	for name in ["sky", "sky_clouds", "far_wall", "far_mesa_pieces", "far_hills", "mid_hills", "near_grass", "mote", "bird"]:
 		_tex[StringName(name)] = load(DIR + name + ".png")
 	var info: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(DIR + "tree_info.json"))
 	for name: String in info:
@@ -210,6 +217,7 @@ func _ready() -> void:
 	var add := CanvasItemMaterial.new()
 	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	_painter(_draw_sky, true)
+	_painter(_draw_high_clouds, true)
 	# the far escarpment: as painted, its foot behind the plain
 	_wall_mat = _haze([0, 0, 0, 0, 0.3, 0.0, 0, Color(0.8, 0.72, 0.86)], Color.WHITE, 0.0, 0.0, true, {flatten = 0.3})
 	_painter(_draw_strip.bind(&"far_wall"), true).material = _wall_mat
@@ -228,6 +236,7 @@ func _ready() -> void:
 	_mid_mat = _haze([0, 0, 0, 0, MID_HAZE, 0.0, 0, LANE_AIR], MID_TINT, 0.0, 0.0, true, {flatten = MID_FLATTEN, soft = SOFT_MID})
 	_painter(_draw_strip.bind(&"mid_hills"), true).material = _mid_mat
 	_painter(_draw_trees.bind(1)).material = _tree_haze(1)
+	_painter(_draw_lane_mist)
 	_painter(_draw_strip.bind(&"near_grass"), true).material = _haze([0, 0, 0, 0, LANE_HAZE, 0.0, 0, LANE_AIR], LANE_TINT, 0.0, 0.0, true, {flatten = LANE_FLATTEN, soft = SOFT_LANE})
 	var mul := CanvasItemMaterial.new()
 	mul.blend_mode = CanvasItemMaterial.BLEND_MODE_MUL
@@ -346,6 +355,21 @@ func _draw_sky(ci: CanvasItem) -> void:
 	if bottom < World.VIEW_H + 4.0:
 		ci.draw_texture_rect_region(sky, Rect2(x0, bottom - 1.0, w, World.VIEW_H + 5.0 - bottom),
 				Rect2(src.position.x, sky.get_height() - 1, src.size.x, 1), low)
+
+
+## Blind round 12 ("the camera draws back to the vine over an empty sky band"): a second row of cumulus high in the
+## sky, the sky's own clouds (sky_clouds.png, tools/art/kie/world.py clouds) bigger and nearer, sliding a little faster:
+## behind the vine and him where the camera draws back or rises; out of sight over the top of the screen on the run.
+func _draw_high_clouds(ci: CanvasItem) -> void:
+	if view_top > HIGH_CLOUDS.x + HIGH_CLOUDS.y:
+		return
+	var tex: Texture2D = _tex[&"sky_clouds"]
+	var k := HIGH_CLOUDS.y / tex.get_height()
+	var x0 := _x0()
+	var w := _x1() - x0
+	var src_x := fposmod((scroll * HIGH_CLOUDS_SCROLL + _clock * SKY_DRIFT * 1.4 + x0) / k + tex.get_width() * 0.37, tex.get_width())
+	ci.draw_texture_rect_region(tex, Rect2(x0, HIGH_CLOUDS.x, w, HIGH_CLOUDS.y), Rect2(src_x, 0.0, w / k, tex.get_height()),
+			_dusk(DUSK_HIGH))
 
 
 ## Round 20: each row's order of landforms, worked out once. Round 21 (the judges, j17: "stamped, evenly spaced"):
@@ -501,6 +525,21 @@ func _draw_front(ci: CanvasItem) -> void:
 
 
 ## The cloud's shade across the middle ground (LANE_SHADE), multiplied over every layer behind the path.
+## Blind round 12 ("quiet the lane behind the characters: lighter, lower contrast, fewer inked details in the band from
+## knee to head height, so the two fighters are the darkest, most saturated shapes on screen"): the day's dust hangs low
+## over the plain behind the path: a pale warm veil from the far plain's foot down, over the rise and the big trees'
+## trunks (not over the tall grass at his legs, the sky or the landforms: only the band behind the fighters goes quiet).
+func _draw_lane_mist(ci: CanvasItem) -> void:
+	var x0 := _x0()
+	var x1 := _x1()
+	var air := MIST * _dusk(MIST_DUSK)
+	var clear := Color(air, 0.0)
+	var full := Color(air, MIST_FULL)
+	ci.draw_polygon(PackedVector2Array([Vector2(x0, MIST_FROM), Vector2(x1, MIST_FROM), Vector2(x1, MIST_AT), Vector2(x0, MIST_AT)]),
+			PackedColorArray([clear, clear, full, full]))
+	ci.draw_rect(Rect2(x0, MIST_AT, x1 - x0, World.VIEW_H + 12.0 - MIST_AT), full)
+
+
 func _draw_lane_shade(ci: CanvasItem) -> void:
 	var x0 := _x0()
 	var x1 := _x1()

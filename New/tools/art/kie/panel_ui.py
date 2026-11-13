@@ -34,7 +34,9 @@ TITLES = ["paused", "settings", "home_sweet_home", "game_over", "about",
           "pause", "reglages", "enfin_a_la_maison", "perdu", "a_propos"]  # top to bottom in titles_c.png
 TITLE_K = 0.72  # the titles' size in the game, of the painting's (the tallest: 280 px)
 WORDS = ["resume", "play_again", "reprendre", "rejouer"]  # top to bottom in words_c2.png
-INK = (0.075, 0.05, 0.045)  # the band's ink: a warm black
+INK = (0.112, 0.072, 0.058)  # the band's ink: a warm dark brown-black, where the brush was full
+INK_DRY = (0.33, 0.215, 0.15)  # ... and where it ran dry: the same ink thinner (a streak's lightest)
+INK_POOL = (0.062, 0.038, 0.032)  # ... and where it pooled: along the stroke's edge, in a streak's deepest
 BAND_W = 1280  # px
 
 
@@ -67,16 +69,53 @@ def lines(a: np.ndarray, rows: int) -> list:
     return out
 
 
+def material(al: np.ndarray) -> np.ndarray:
+    """The band's ink over its alpha `al`, as a brush leaves it (blind round 12: "a dead, flat pure-black slab... no
+    brush texture, no grain, no tone"): long streaks along the stroke (its bristles: each row of the picture its own
+    load of ink, changing slowly along its length), drier toward its two long edges and its ends, and from where the
+    brush lands (its left, full) to where it leaves (its right, spent: InkStyle turns every other stroke round), a darker line
+    where the ink pooled along its outline, and a fine grain. The streaks run along the stroke, so the middle the
+    game stretches (InkStyle) only makes them longer."""
+    rng = np.random.default_rng(12)
+    h, w = al.shape
+
+    def streaks(sy: float, sx: float) -> np.ndarray:
+        n = ndi.gaussian_filter(rng.standard_normal((h, w)).astype(np.float32), (sy, sx))
+        return n / n.std()
+
+    # the bristles: three widths of streak, the widest the strongest
+    s = 0.5 * streaks(5.0, 420.0) + 0.4 * streaks(1.8, 260.0) + 0.3 * streaks(0.8, 120.0)
+    s = s / (s.std() * 2.6)
+    wash = streaks(46.0, 300.0) * 0.5  # and the brush's load: broad lighter and darker passes
+    inside = ndi.distance_transform_edt(al > 0.5).astype(np.float32)  # px from its outline
+    edge = np.clip(1.0 - inside / (h * 0.16), 0.0, 1.0)  # 1 at the outline, 0 well inside
+    cols = np.nonzero((al > 0.5).any(axis=0))[0]
+    u = (np.arange(w) - cols.min()) / max(cols.max() - cols.min(), 1)
+    ends = np.clip(1.0 - np.minimum(u, 1.0 - u) / 0.2, 0.0, 1.0)[None, :]  # 1 at its two ends
+    spent = (0.22 + 0.78 * np.clip((u - 0.06) / 0.8, 0.0, 1.0) ** 1.4)[None, :]  # the brush lands full on the left, runs dry
+    dry = np.clip(s * (0.7 + 0.6 * edge + 0.6 * ends) + 0.2 * edge + 0.14 * ends + 0.1 * wash - 0.1, 0.0, 1.0) ** 1.15 * spent
+    deep = np.clip(-s * 1.3 - 0.1 * wash - 0.2, 0.0, 1.0) * 0.7
+    pool = np.clip(1.0 - inside / 7.0, 0.0, 1.0) ** 2 * 0.75  # the pooled line along its outline
+    rgb = np.empty((h, w, 3), np.float32)
+    for q in range(3):
+        c = INK[q] + (INK_DRY[q] - INK[q]) * dry
+        c = c + (INK_POOL[q] - c) * np.maximum(deep, pool * (1.0 - dry))
+        rgb[..., q] = c
+    grain = ndi.gaussian_filter(rng.standard_normal((h, w)).astype(np.float32), (0.6, 2.2))
+    rgb *= (1.0 + 0.07 * grain / grain.std())[..., None]
+    return np.clip(rgb, 0.0, 1.0)
+
+
 if __name__ == "__main__":
     for name, part in zip(TITLES, pieces(premult(GEN / "titles_c.png"), len(TITLES))):
         save(part, (round(part.shape[1] * TITLE_K), round(part.shape[0] * TITLE_K)), UI / f"title_{name}.png")
     for name, part in zip(WORDS, lines(premult(GEN / "words_c2.png"), len(WORDS))):
         save(part, (round(part.shape[1] * WORD_H / part.shape[0]), WORD_H), UI / f"word_{name}.png")
     band, stroke = pieces(premult(GEN / "ink_band.png"), 2)
-    # the band: its ink in one colour, solid wherever the brush was full (no pinhole shows what is behind a panel)
+    # the band: solid wherever the brush was full (no pinhole shows what is behind a panel), its ink a material
     al = band[..., 3]
     al = np.where(ndi.binary_fill_holes(al > 0.6), np.maximum(al, np.clip((al - 0.6) / 0.25, 0, 1)), al)
-    band = np.dstack([INK[0] * al, INK[1] * al, INK[2] * al, al]).astype(np.float32)
+    band = np.dstack([material(al) * al[..., None], al]).astype(np.float32)
     save(band, (BAND_W, round(band.shape[0] * BAND_W / band.shape[1])), UI / "ink_band.png")
     cols = np.nonzero((al[al.shape[0] * 2 // 5:al.shape[0] * 3 // 5] > 0.97).all(axis=0))[0]
     print("  (solid through its middle band from %.3f to %.3f of its width: InkStyle.END)" % (cols.min() / al.shape[1], cols.max() / al.shape[1]))

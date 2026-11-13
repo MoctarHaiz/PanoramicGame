@@ -1,12 +1,12 @@
 extends Screen
 ## Settings, on the ink (the user, 2026-11-13, of three panel styles shown: "C", no box, ink brush), over his savanna
 ## (the key art, lightly blurred): a band of brushed ink, its title in gold brush lettering over a red stroke across
-## its top edge, the back and info buttons two quiet leaning plates at its top corners. Inside, laid out as a phone
+## its top edge, the back and info buttons two quiet leaning plates in its top corners. Inside, laid out as a phone
 ## game's settings (UI r23, the judges of j19: r22's "three dense columns and nine rows in one wide, short panel: a
 ## desktop preferences dialog"): two clear columns of three big rows each, a thin gold line standing between them,
 ## Sound and feel (music and sounds volumes, vibration) and Game (language, screen shake, reduced motion), each row a
-## thumb-sized target: a flat cream glyph (no tile), its name big in cream, and its control (a thin cream line with an
-## angular red handle; a small leaning plate, red with ON, an outline with OFF); under them the help as quiet dark
+## thumb-sized target: a flat cream glyph (no tile), its name big in cream, and its control (a leaning groove filled
+## with gold and a cream plate to drag; a leaning plate, gold with ON, dark with OFF; the language on a dark one); under them the help as quiet dark
 ## leaning plates in a gold line along the band's foot (the tutorial again, rate, privacy), and the ad choices and
 ## purchases beside them where they apply. The credits (About, the fonts and icons, the studio, the version) open in
 ## its place from the info button.
@@ -43,7 +43,7 @@ func _build() -> void:
 	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	area.add_child(page)
 	_page = page
-	var card := Card.ink(Vector4(50, 70, 50, 30))  # (its top: under the title's lower half)
+	var card := Card.ink(Vector4(40, 84, 40, 30))  # (its top: under the title's lower half and the two plates)
 	var body := VBoxContainer.new()
 	body.add_theme_constant_override(&"separation", 26)
 	card.add_child(body)
@@ -112,12 +112,13 @@ func _build() -> void:
 		card.position = Vector2(left_x, top + (room.y - top - card.size.y * k) / 2)
 		banner.scale = Vector2.ONE * k
 		banner.position = Vector2(left_x + w / 2 - banner.size.x * k / 2, card.position.y - top * k)
-		# the discs half over the band's top edge, at its corners (the panel's scale: their touch stays 86+)
+		# the two plates in the band's top corners, on its solid ink (blind round 12: "the back and info plates hang
+		# half on, half off the band's corners"; the panel's scale: their touch stays 86+)
 		for b: JuicyButton in [back_button, info]:
 			b.custom_minimum_size = PLATE * k
 			b.size = b.custom_minimum_size
-		back_button.position = card.position + Vector2(4.0, -24.0) * k - back_button.size / 2
-		info.position = card.position + Vector2(card.size.x - 4.0, -24.0) * k - info.size / 2
+		back_button.position = card.position + Vector2(PLATE.x * 0.5 + 6.0, PLATE.y * 0.5 + 2.0) * k - back_button.size / 2
+		info.position = card.position + Vector2(card.size.x - PLATE.x * 0.5 - 6.0, PLATE.y * 0.5 + 2.0) * k - info.size / 2
 	page.resized.connect(place)
 	card.resized.connect(place)
 	place.call_deferred()
@@ -205,7 +206,8 @@ func _slider_row(icon_name: String, text: String, option: StringName, switch_opt
 	return row
 
 
-## A row that opens something or steps through values (the language): its value in cream, a chevron after it.
+## A row that opens something or steps through values (the language): its value and a chevron on a quiet leaning plate
+## as tall as a switch (blind round 12: "ENGLISH > is bare text, the toggles are plates").
 func _button_row(icon_name: String, text: String, value: String, action: Callable) -> Control:
 	var b := Button.new()
 	b.focus_mode = Control.FOCUS_NONE
@@ -219,7 +221,17 @@ func _button_row(icon_name: String, text: String, value: String, action: Callabl
 	var caret := Ui.icon("caret-right-bold", 30, Ui.BONE)
 	caret.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	right.add_child(caret)
-	var row := _row(icon_name, text, right)
+	var plate := PanelContainer.new()
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var st := Ui.plate_style(false, 66.0)
+	st.content_margin_left = 26.0
+	st.content_margin_right = 18.0
+	st.content_margin_top = 4.0
+	st.content_margin_bottom = 4.0
+	plate.add_theme_stylebox_override(&"panel", st)
+	plate.custom_minimum_size.y = 66.0
+	plate.add_child(right)
+	var row := _row(icon_name, text, plate)
 	b.add_child(row)
 	var fit := func() -> void: b.custom_minimum_size = row.get_combined_minimum_size()  # its row's whole width (its
 	fit.call()  # name on one line: known for sure once in the tree)

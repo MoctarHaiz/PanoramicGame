@@ -105,7 +105,6 @@ func setup(w: World) -> void:
 	w.landed.connect(func() -> void: _dust(int(lerpf(6.0, 22.0, clampf(w.land_speed / 50.0, 0.0, 1.0))), Vector2(70, 190)))
 	w.jumped.connect(func() -> void: _dust(8, Vector2(40, 120)))
 	w.hung.connect(_on_hung)
-	w.won.connect(_on_won)
 	refresh()
 
 
@@ -426,12 +425,6 @@ func _ring_contact(b: World.Bandit) -> Vector2:
 			_struck = id
 			at = Vector2(maxf(box.get_center().x, body.position.x + 4.0), clampf(box.get_center().y, body.position.y + 8.0, body.end.y - 8.0))
 	return at
-
-
-## Home: confetti bursting out of the doorway as he goes in.
-func _on_won() -> void:
-	var door := Vector2(HomeView.DOOR_RIGHT - 40.0, HomeView.GROUND - 70.0)
-	create_tween().tween_callback(Fx.confetti_burst.bind(fx, _fx(door))).set_delay(0.55)  # (dies with the view)
 
 
 func _on_hung() -> void:

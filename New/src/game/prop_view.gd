@@ -120,6 +120,7 @@ func _scan(c0: int, c1: int) -> void:
 					tint = Color(v + warm, v, v - warm)
 				_add(pic, foot, height, _hash(c, r, 2) == 0, tint)
 	_bank_reeds(_level, c0, c1)
+	_far_shore(_level, c0, c1)
 	for c in range(maxi(c0, _first_col + 2), mini(c1, mini(_end_col, HOME_COL))):
 		for r in range(1, Level.ROWS):
 			if not _dress_here(_level, _solid, c, r):
@@ -157,6 +158,23 @@ func _bank_reeds(level: Level, first_col: int, end_col: int) -> void:
 					Color(0.82, 0.78, 0.76))
 			_add(&"prop_rock_b", Vector2((c + 0.5) * Level.TILE + 17.0, r * Level.TILE + 11.0), 14.0 + _hash(c, 4, 6), true,
 					Color(0.8, 0.76, 0.74))
+
+
+## Blind round 12 ("a flat water strip with a ruled edge"): the water's far shore is no ruled line: low reeds, bushes
+## and rocks stand along it, behind its inked lip, smaller than the path's (they are across the water), in clumps with
+## open shore between them.
+func _far_shore(level: Level, first_col: int, end_col: int) -> void:
+	var r := Level.ROWS - 2
+	for c in range(maxi(first_col, 0), mini(end_col, Level.COLS)):
+		if level.kind_at(c, r) != Level.Kind.WATER or _hash(c / 3, 41, 10) >= 6:
+			continue
+		for i in 1 + _hash(c, 42, 2):
+			var pick := _hash(c, 43 + i, 10)
+			var pic: StringName = &"prop_reeds" if pick < 5 else (&"prop_bush_b" if pick < 8 else &"prop_rock_b")
+			var height := (24.0 + _hash(c, 45 + i, 18)) * (1.0 if pick < 5 else 0.62)
+			var x := (c + 0.5) * Level.TILE + float(_hash(c, 47 + i, 29)) - 14.0
+			var v := 0.86 + 0.05 * _hash(c, 49 + i, 3)
+			_add(pic, Vector2(x, r * Level.TILE + 6.0), height, _hash(c, 51 + i, 2) == 0, Color(v, v * 0.98, v * 0.95))
 
 
 ## A grass top in the middle of a run of at least 6, not under Red Bobs, about one in eight.

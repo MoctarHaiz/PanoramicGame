@@ -227,6 +227,7 @@ static func ribbon(text: String, font_size: int, width := 0.0) -> Control:
 	style.border_color = Color("160506")
 	style.set_border_width_all(maxi(roundi(h * 0.07), 2))
 	style.set_corner_radius_all(3)
+	style.skew = Vector2(0.3, 0.0)  # (blind round 12: "four unrelated shapes stacked": it leans as PLAY and the plate under it do)
 	style.shadow_color = Color(0.05, 0.02, 0.03, 0.5)
 	style.shadow_size = 0
 	style.shadow_offset = Vector2(3, 5)
@@ -406,7 +407,8 @@ func _layout() -> void:
 		y = top + (bottom - top - h) / 2.0
 		if centre_x + logo_w * 0.5 < _gear.position.x - 28.0:
 			break
-		var clear := gear_foot - (y + logo_h * LETTERS_U)
+		# (blind round 12: "the logo's right spear runs into the gear plate": its tips keep under the plate's foot too)
+		var clear := maxf(gear_foot - (y + logo_h * LETTERS_U), _gear.position.y + GEAR + 12.0 - y)
 		if clear <= 0.0:
 			break
 		if y + clear + h <= bottom:
