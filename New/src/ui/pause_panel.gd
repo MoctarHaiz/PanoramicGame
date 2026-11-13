@@ -2,21 +2,20 @@ class_name PausePanel
 extends RefCounted
 ## The pause panel, on the ink (the user, 2026-11-13, of three panel styles shown: "C", no box, ink brush), tight
 ## round what it holds (UI r22, the judges of j18: r21's "oversized panel with dead beige, a full-width web-banner
-## Resume"), in two groups a thin gold line parts:
-## - what is on: music and sounds, two wide leaning plates side by side, each its glyph and its name on the plate
-##   itself: on, the gold plate, its glyph and name in ink; off, the dark plate, its line dim, the glyph dimmed and
-##   struck through (a speaker with a cross, the notes with a red bar);
-## - where to go: Home and Controls on quiet plates beside the red RESUME (the results' own row: Home, Play again,
-##   Share). Controls (a gamepad: plainly "the controls") opens the five moves in the panel, each with its gesture
-##   played by a hand (the tutorial's pictures), so every control can be found again without crowding the pause.
-## (Blind round 12: "the CONTROLS plate is dark exactly like an off toggle beside two gold on toggles, so a
-## navigation button looks like a disabled setting": it was the third plate of the switches' row, each named under it.)
+## Resume"), the way on first:
+## - RESUME, the red plate, the biggest thing on the band;
+## - under it one row of small plates, in two groups a thin gold line parts: where to go (Home, Controls) and what is
+##   on (music, sounds: a glyph alone on its plate; on, the gold plate, its glyph in ink; off, the dark plate, its
+##   line dim, the glyph dimmed and struck through: a speaker with a cross, the notes with a red bar).
+##   Controls (a gamepad: plainly "the controls") opens the five moves in the panel, each with its gesture played by
+##   a hand (the tutorial's pictures), so every control can be found again without crowding the pause.
+## (Blind round 13: "the hierarchy is inverted: two wide gold MUSIC and SOUNDS plates shout over RESUME": they were
+## two wide named plates in a row of their own over Home, Controls and RESUME. Round 12: "the CONTROLS plate is dark
+## exactly like an off toggle beside two gold on toggles": the gold line now stands between them.)
 
-const SWITCH_H := 92.0  ## a switch's plate
-const SWITCH_GAP := 22.0  ## between the two
-const GO_H := 100.0  ## RESUME's height with its shadow (the plates beside it are as tall as its face)
-const SIDE_W := 112.0  ## the Home plate, and the Controls one
-const OUT_GAP := 20.0  ## between two of that row
+const GO_H := 112.0  ## RESUME's height with its shadow
+const PLATE := Vector2(88.0, 80.0)  ## a small plate: Home, Controls, music, sounds
+const GAP := 14.0  ## between two of them
 const WELL_W := 474.0  ## the five moves' row (controls_well)
 
 
@@ -24,50 +23,47 @@ const WELL_W := 474.0  ## the five moves' row (controls_well)
 ## leave out of the picture behind (the HUD, the effects).
 static func open(host: Control, resume: Callable, home: Callable, hide: Array = []) -> GamePanel:
 	var body := VBoxContainer.new()
-	body.add_theme_constant_override(&"separation", 24)
+	body.add_theme_constant_override(&"separation", 22)
 	body.alignment = BoxContainer.ALIGNMENT_CENTER
 	var help := CenterContainer.new()  # where the moves open (Controls)
 	help.visible = false
 	body.add_child(help)
-	# the way out sets the panel's width: Home, Controls and the red RESUME; the two switches over it share it
-	var go := Ui.cta_button(tr_key("RESUME"), GO_H, 46)
-	var wide := 2.0 * (SIDE_W + OUT_GAP) + go.custom_minimum_size.x
-	var plate := Vector2((wide - SWITCH_GAP) / 2.0, SWITCH_H)
+	var go := Ui.cta_button(tr_key("RESUME"), GO_H, 52)
+	go.custom_minimum_size.x = maxf(go.custom_minimum_size.x, 4.0 * PLATE.x + 4.0 * GAP + 3.0)  # (as wide as the row)
+	go.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	go.pressed.connect(resume)
+	go.idle(0.04)
+	body.add_child(go)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override(&"separation", int(SWITCH_GAP))
-	row.add_child(SoundSwitch.new("music-notes-fill", "", &"music_on", tr_key("MUSIC"), plate))
-	row.add_child(SoundSwitch.new("speaker-high-fill", "speaker-x-fill", &"sounds_on", tr_key("SOUNDS"), plate))
-	body.add_child(row)
-	body.add_child(Ui.rule(wide + 30.0))
-	var out := HBoxContainer.new()
-	out.alignment = BoxContainer.ALIGNMENT_CENTER
-	out.add_theme_constant_override(&"separation", int(OUT_GAP))
-	var face_h := GO_H - roundf(GO_H * 0.09)  # RESUME's face, less its shadow
-	var home_button := Ui.plate_button("house-fill", Vector2(SIDE_W, face_h))
-	home_button.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	row.add_theme_constant_override(&"separation", int(GAP))
+	var home_button := Ui.plate_button("house-fill", PLATE)
 	home_button.pressed.connect(home)
-	out.add_child(home_button)
-	var controls := Ui.plate_button("gamepad-fill", Vector2(SIDE_W, face_h))  # the moves
-	controls.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	row.add_child(home_button)
+	var controls := Ui.plate_button("gamepad-fill", PLATE)  # the moves
 	controls.pressed.connect(func() -> void:
 		if help.get_child_count() == 0:
 			help.add_child(controls_well())
 		help.visible = not help.visible)
-	out.add_child(controls)
-	go.pressed.connect(resume)
-	go.idle(0.04)
-	out.add_child(go)
-	body.add_child(out)
+	row.add_child(controls)
+	row.add_child(Ui.rule(PLATE.y * 0.74, true))
+	row.add_child(SoundSwitch.new("music-notes-fill", "", &"music_on", "", PLATE))
+	row.add_child(SoundSwitch.new("speaker-high-fill", "speaker-x-fill", &"sounds_on", "", PLATE))
+	body.add_child(row)
 	var panel := GamePanel.open(host, tr_key("PAUSED"), body, null, Color(0.05, 0.02, 0.06, 0.35),
 			Color(0, 0, 0, 0), false, hide)
-	panel.leave_out_of_picture(moving_pieces(host))
+	# the frozen scene stays whole behind it, he in it: the band keeps to the side he is not on (blind round 13: "a
+	# still-readable scene with the hero on every screen"; he and the bandits were left out of the picture: at 1/8
+	# they were smears beside the panel)
+	var world_view := host.get(&"view") as WorldView
+	if world_view:
+		var his := world_view.hero_screen_rect()
+		panel.stay_clear_of(his.grow_individual(his.size.x * 0.35, 0.0, his.size.x * 0.35, 0.0))
 	return panel
 
 
-## The frozen scene's moving pieces: Panoramic, the bandits, the Red Bobs. Left out of the picture
-## behind (lightly dimmed and blurred they read as a smear beside the panel, and as red stubs poking
-## out under its ribbon); the still world stays.
+## The frozen scene's moving pieces: Panoramic, the bandits, the Red Bobs. The results leave them out of the picture
+## behind (his still stands for him there: not him twice).
 static func moving_pieces(host: Control) -> Array:
 	var out := []
 	var actors := host.find_child("Actors", true, false)
@@ -122,17 +118,18 @@ static func moves_list() -> Array:
 
 
 ## Music or sounds on and off, read at a glance on the plate itself (UI r23, the judges of j19: r22's lamps "tiny dark
-## pills" under two tiles of three: show it on the button): a wide leaning plate, its glyph (notes, a speaker with its
-## waves) and its name on it. On, the gold plate (Ui.on_style), glyph and name in ink (blind round 11: "no visible on
-## state": it was a cream glyph in a brighter line); off, the dark plate, its line dim, glyph and name dimmed, the glyph
-## struck through (a speaker with a cross, or the notes struck by a red bar). A tap flips it, the plate popping.
+## pills" under two tiles of three: show it on the button): a leaning plate, its glyph (notes, a speaker with its
+## waves) on it, and its name beside it if it is given one. On, the gold plate (Ui.on_style), glyph and name in ink
+## (blind round 11: "no visible on state": it was a cream glyph in a brighter line); off, the dark plate, its line
+## dim, glyph and name dimmed, the glyph struck through (a speaker with a cross, or the notes struck by a red bar).
+## A tap flips it, the plate popping.
 class SoundSwitch extends Control:
 	var _option: StringName
 	var _icon_name := ""
 	var _off_icon := ""
 	var _caption := ""
 
-	func _init(icon_name: String, off_icon: String, option: StringName, caption: String, plate := Vector2(250.0, SWITCH_H)) -> void:
+	func _init(icon_name: String, off_icon: String, option: StringName, caption := "", plate := PLATE) -> void:
 		_option = option
 		_icon_name = icon_name
 		_off_icon = off_icon
@@ -160,17 +157,19 @@ class SoundSwitch extends Control:
 			_fill(true))
 		add_child(b)
 		var glyph := b.content.get_child(0) as Control
-		var word := b.content.get_child(1) as Label
+		var word := b.content.get_child(1) as Label if b.content.get_child_count() > 1 else null
 		if on:  # the gold plate, its glyph and name in ink
 			for state: StringName in [&"normal", &"hover", &"pressed"]:
 				b.add_theme_stylebox_override(state, Ui.on_style(plate.y))
 			glyph.self_modulate = Ui.ON_INK
-			word.add_theme_color_override(&"font_color", Ui.ON_INK)
+			if word:
+				word.add_theme_color_override(&"font_color", Ui.ON_INK)
 		else:
 			for state: StringName in [&"normal", &"hover", &"pressed"]:
 				(b.get_theme_stylebox(state) as SlantStyle).line.a = 0.4
 			glyph.self_modulate = Color(Ui.BONE, 0.42)  # the glyph dimmed (its red bar not)
-			word.add_theme_color_override(&"font_color", Color(Ui.BONE, 0.55))
+			if word:
+				word.add_theme_color_override(&"font_color", Color(Ui.BONE, 0.55))
 			if _off_icon.is_empty():  # no off icon: struck through, a dark-edged red bar
 				var slash := _Slash.new()
 				slash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

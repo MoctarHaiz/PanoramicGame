@@ -220,8 +220,8 @@ func _capture(device: String, shot: String) -> void:
 			await _wait(0.6)
 			if shot == "controls":  # its gamepad plate opens the moves
 				for n in Nav.current.find_children("*", "", true, false):
-					if n is GamePanel:  # (its buttons: music, sounds, home, controls, resume)
-						((n as GamePanel).card.find_children("*", "JuicyButton", true, false)[3] as JuicyButton).pressed.emit()
+					if n is GamePanel:  # (its buttons: resume, home, controls, music, sounds)
+						((n as GamePanel).card.find_children("*", "JuicyButton", true, false)[2] as JuicyButton).pressed.emit()
 				await _wait(0.6)
 		"resume":  # the countdown's first number
 			await _start_game("game")

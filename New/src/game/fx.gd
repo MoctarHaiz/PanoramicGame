@@ -484,7 +484,7 @@ static func impact(parent: Node, at: Vector2, push: float) -> void:
 ## A ring strikes a bandit: the small painted burst, a short light under it.
 static func ring_hit(parent: Node, at: Vector2) -> void:
 	glow(parent, at, Color(1, 1, 1, 0.9), 0.12, 0.4, FLASH_TIME * 1.5)
-	hit_spark(parent, at, Vector2.RIGHT, 64.0)
+	hit_spark(parent, at, Vector2.RIGHT, 46.0)
 
 
 ## A bandit knocked out: one big painted burst where the ring struck, blown open the way it flew (hit_spark), a
@@ -492,8 +492,8 @@ static func ring_hit(parent: Node, at: Vector2) -> void:
 ## carries its own splinters; the added rays, the blue shards of light and the gold stars that flew off are gone.)
 static func knock_out(parent: Node, at: Vector2, feet: Vector2) -> void:
 	glow(parent, at, Color(1, 1, 1, 0.9), 0.25, 0.8, FLASH_TIME * 2.5)
-	hit_spark(parent, at, Vector2(1.0, -0.12).normalized(), 112.0)
-	dust(parent, feet, 10, 260.0, 0.0, 1.3)
+	hit_spark(parent, at, Vector2(1.0, -0.12).normalized(), 70.0)
+	dust(parent, feet, 16, 300.0, 0.0, 1.7)
 
 
 ## A blow's burst, painted (blind round 12: "replace the sticker star with an impact painted in the characters'

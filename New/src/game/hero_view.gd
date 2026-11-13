@@ -52,7 +52,10 @@ const WRIST_BLEND := 10.0  ## atlas px round his wrists over which they bend
 const SOLE_FADE := 14.0
 const STANCE_UP := 7.0  ## units a planted far boot of a three-quarter stance is drawn above the near one's ground
 const SOLE_DARK := 0.6
-const SHADOW_PLAY := 0.4  ## (blind round 5: "no cast shadows or ground contact": 0.22 was lost on the grass)
+const SHADOW_PLAY := 0.58  ## (blind round 5: "no cast shadows or ground contact": 0.22 was lost on the grass; round 13: 0.4, "one small shadow blob under one foot")
+## Blind round 13 ("the characters receive nothing from the sunset: ground both with real cast shadows"): the sun is
+## low: a shadow lies long on the ground, away from it (the characters' shadows this much longer than wide, in play).
+const SHADOW_LONG := 1.55
 const SHADOW_AIR := 0.6
 const WIN_LOOP := 10  ## the cheer at home loops from this frame
 const WIN_POSE := 3  ## the win's frame where the landing crouch springs into the victory pose (hero_atlas_ai.py)
@@ -73,7 +76,7 @@ const AIR_POP := Vector2(0.95, 1.06)  ## the stretch as he changes pose in the a
 const LAND_CROUCH := 4  ## at home: the landing's crouch drawings (the old landing, hero_frames.json "land")
 const FALL_LEAN := 0.06  ## radians he leans forward into the ground at the end of a fall (the poses lean themselves)
 const TOP := 6.0  ## units a tick of vertical speed counted as the top of the jump
-const SHADOW_SHIFT := 10.0  ## units the ground shadow falls right of him (the sun is upper left)
+const SHADOW_SHIFT := 24.0  ## units the ground shadow falls right of him (the sun is upper left)
 const SHADOW_WIDTH := 100.0  ## units across his shadow on the ground, standing on it
 const SHADOW := Color(0.11, 0.04, 0.07)  ## the characters' shadows: the dusk's warm plum shade
 const CONTACT := Color(0.05, 0.02, 0.03)  ## (round 20) the tight contact under the feet: near black
@@ -716,7 +719,7 @@ func _draw_under() -> void:
 	var air := smoothstep(4.0, 30.0, lowest) if lowest < INF else 1.0
 	var broad := lerpf(lerpf(SHADOW_PLAY, SHADOW_AIR, air), SHADOW_HOME.y, _home)
 	contact_shadow(_under, _shadow, SHADOW_WIDTH * lerpf(1.0, SHADOW_HOME.x, _home), _shadow_k,
-			_visible * broad, _shadow_w, CONTACT_HOME * _home)
+			_visible * broad, _shadow_w * lerpf(SHADOW_LONG, 1.0, _home), CONTACT_HOME * _home)
 
 
 var _vine: VineView

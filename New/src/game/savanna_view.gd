@@ -96,7 +96,7 @@ const DUSK_LOW := Color(0.8, 0.74, 0.96)
 ## (2026-11-12, three blind judges on the home picture: "the far mesas are translucent rectangular ghosts: a rendering
 ## fault": at dusk the two far rows stood at the sky's own value; now a clear step under it, solid silhouettes)
 const DUSK_MESAS := [Color(0.5, 0.5, 0.8), Color(0.56, 0.56, 0.84), Color(0.74, 0.66, 0.92)]
-const DUSK_STRIPS := {&"far_wall": Color(0.6, 0.6, 0.9), &"far_hills": Color(0.78, 0.78, 1.0), &"mid_hills": Color(0.9, 0.86, 0.98)}
+const DUSK_STRIPS := {&"far_wall": Color(0.6, 0.6, 0.9), &"far_hills": Color(0.5, 0.5, 0.78), &"mid_hills": Color(0.56, 0.54, 0.8)}
 ## Tree rows: scroll factor, spacing (level units of that layer), size (of the picture's height in
 ## units), ground y, haze, foot haze, share of empty slots, haze colour.
 ## The redesign: two rows, each standing behind a rise so the foot of its trunks is hidden: smaller trees behind the
@@ -144,17 +144,18 @@ const LANE_TINT := Color(0.96, 0.98, 0.92)
 ## graded value layers: a pale far distance, a quiet middle value behind the lane": the far plain stays pale, the rise
 ## and the grass behind the path keep more of their own colour and value: between round 6's and round 8's)
 const PLAIN_FLATTEN := 0.5
-const PLAIN_HAZE := 0.15
+const PLAIN_HAZE := 0.3
 const MID_FLATTEN := 0.46
 const MID_HAZE := 0.1
 const LANE_FLATTEN := 0.3
 const LANE_HAZE := 0.04
-const MIST := Color(0.98, 0.92, 0.83)  ## the low dust behind the path (_draw_lane_mist)
-const MIST_DUSK := Color(0.8, 0.78, 1.0)  ## ... at dusk
+const MIST := Color(0.97, 0.75, 0.53)  ## the low dust behind the path (_draw_lane_mist)
+const MIST_DUSK := Color(0.3, 0.375, 0.86)  ## ... at dusk
 const MIST_FULL := 0.5  ## how much of it at its thickest
 const MIST_FROM := 446.0  ## play y where it starts (the far plain's foot)
 const MIST_AT := 528.0  ## ... and where it is at its thickest (the rise's top, his head)
-const LANE_AIR := Color(0.93, 0.9, 0.84)  ## what the plain's and the lane's layers are drawn toward: a pale, nearly neutral air
+const LANE_AIR := Color(0.96, 0.82, 0.66)  ## what the lane's layers are drawn toward: the golden hour's dust (blind round 13: it was a pale neutral air, "a milky white overlay")
+const PLAIN_AIR := Color(0.96, 0.72, 0.64)  ## the far plain's: the horizon's rose glow lying on it (blind round 13)
 ## (blind round 6: "acacias, mound, pool and boulders at full strength right at his height; his white loincloth and legs
 ## on pale straw": pale was the wrong step for a hero who is both white cloth and dark skin) a cloud's shadow lies
 ## across the middle ground behind the play: from the far plain's near half down, everything behind the path is
@@ -230,7 +231,7 @@ func _ready() -> void:
 		hz.set_shader_parameter(&"cell_px", _mesa_pitch)
 		_painter(_draw_mesas.bind(row)).material = hz
 		_mesa_mats.append(hz)
-	_far_mat = _haze([0, 0, 0, 0, PLAIN_HAZE, 0.0, 0, LANE_AIR], Color.WHITE, 0.0, 0.0, true, {flatten = PLAIN_FLATTEN, soft = SOFT_PLAIN})
+	_far_mat = _haze([0, 0, 0, 0, PLAIN_HAZE, 0.0, 0, PLAIN_AIR], Color.WHITE, 0.0, 0.0, true, {flatten = PLAIN_FLATTEN, soft = SOFT_PLAIN})
 	_painter(_draw_strip.bind(&"far_hills"), true).material = _far_mat
 	_painter(_draw_trees.bind(0)).material = _tree_haze(0)
 	_mid_mat = _haze([0, 0, 0, 0, MID_HAZE, 0.0, 0, LANE_AIR], MID_TINT, 0.0, 0.0, true, {flatten = MID_FLATTEN, soft = SOFT_MID})

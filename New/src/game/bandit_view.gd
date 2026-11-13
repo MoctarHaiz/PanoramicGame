@@ -80,7 +80,7 @@ const ACCENT := {
 	&"bandit_strong_a": [Vector4(6.0, 34.0, 0.58, 0.22), 0.8, Vector4(-80.0, -70.0, 70.0, 8.0), 1.0, 1.0],
 }
 const SHADOW_WIDTH := 84.0  ## units across its shadow on the ground (Panoramic's: 100)
-const SHADOW_SHIFT := 8.0  ## its shadow falls a little right of it, away from the sun (upper left), as his does
+const SHADOW_SHIFT := 20.0  ## its shadow falls right of it, away from the sun (upper left), as his does
 
 const KINDS: Array[StringName] = [&"bandit", &"bandit_strong", &"bandit_a", &"bandit_strong_a"]
 ## Each kind's two looks (the user, 2026-11-12, having seen both: "use the 2 versions of the bandits"): the savanna
@@ -136,6 +136,8 @@ const JUMP_DY := 6.0  ## units a tick: faster up is its rise, faster down its fa
 var _head := Vector2.ZERO  # the middle of its hair in this frame, local units
 # knocked out
 var _ko := false
+var _ko_rise := 0.0  # units it is off the ground as it is thrown (its shadow)
+var _ko_out := 0.0  # 0..1: shrinking into its puff
 var _ko_time := 0.0
 var _pushed := 0.0  # 0..1 of KO_BACK done
 var _poofed := false
@@ -417,10 +419,15 @@ func _draw() -> void:
 ## A soft shadow on the ground under him (only while he stands on it; vaulting over Panoramic, smaller and
 ## lighter the higher he is): the hero's (HeroView.contact_shadow), so all of them stand on the same ground.
 func _draw_shadow() -> void:
-	if _ko or not _grounded:
+	if not _grounded:
 		return
 	var k := 1.0 - clampf(_lift / VAULT_HEIGHT, 0.0, 1.0) * 0.7
-	HeroView.contact_shadow(_ground_shadow, Vector2(_jolt * 0.5 + SHADOW_SHIFT, -1.0), SHADOW_WIDTH * (1.15 if bandit.strong else 1.0), k)
+	var seen := 1.0
+	if _ko:  # (blind round 13: "ground both characters": thrown, its shadow stays on the ground under it, to its puff)
+		k = 1.0 - clampf(_ko_rise / 120.0, 0.0, 1.0) * 0.5
+		seen = 1.0 - _ko_out
+	HeroView.contact_shadow(_ground_shadow, Vector2(_jolt * 0.5 + SHADOW_SHIFT, -1.0), SHADOW_WIDTH * (1.15 if bandit.strong else 1.0), k,
+			seen, HeroView.SHADOW_LONG)
 
 
 ## Dazed stars on a ring above its hair: those behind it drawn under the sprite, the rest over it.
@@ -521,6 +528,9 @@ func _disappear(delta: float) -> void:
 	var stretch := lerpf(1.1, 1.0, minf(t * 3.0, 1.0))
 	# (never see-through: a fading bandit read as a ghost in a still; it shrinks into its puff of dust, solid)
 	var size := _scale * (1.0 - KO_AWAY * t) * (1.0 - 0.8 * out * out)
+	_ko_rise = rise
+	_ko_out = out
+	_ground_shadow.queue_redraw()
 	_sprite.scale = Vector2(size * stretch * side, size * (2.0 - stretch))
 	if out > 0.0 and not _poofed:
 		_poofed = true

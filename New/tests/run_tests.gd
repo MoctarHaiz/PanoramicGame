@@ -2259,16 +2259,23 @@ func _test_art() -> void:
 			stacks += 1
 			river += 1 if span % 100 == Level.ROWS else 0
 	_check(stacks >= 5 and river >= 5, "the poles are drawn as stacks (%d, %d standing in the river)" % [stacks, river])
-	# round 20 ("the two river pillars identical chimneys"): each stack a carved column of its own (spire.gdshader)
+	# round 20 ("the two river pillars identical chimneys"): each stack a carved column of its own (spire.gdshader);
+	# blind round 13: the river's are painted pinnacles (spire_art.gdshader), no two neighbours the same one
 	terrain.ensure(0.0, Level.WIDTH)
-	var widths := []  # (each one's width and seed)
+	var widths := []  # (each one's width, or which pinnacle it is, and its seed)
+	var painted := 0
 	for rock: Node in terrain._layers[&"spires"].get_children():
 		var m := (rock as CanvasItem).material
-		widths.append(Vector2(m.get(&"shader_parameter/half_w"), m.get(&"shader_parameter/seed")))
+		if rock is TerrainView.SpireArt:
+			painted += 1
+			widths.append(Vector2(-1.0 - (rock as TerrainView.SpireArt).src.position.x, m.get(&"shader_parameter/seed")))
+		else:
+			widths.append(Vector2(m.get(&"shader_parameter/half_w"), m.get(&"shader_parameter/seed")))
 	var twins := 0
 	for i in range(1, widths.size()):
 		twins += 1 if widths[i] == widths[i - 1] else 0
-	_check(widths.size() >= 5 and twins == 0, "each stack is its own carved column, no two neighbours alike (%d)" % widths.size())
+	_check(widths.size() >= 5 and twins == 0 and painted >= 5,
+			"each stack is its own column, no two neighbours alike (%d, %d of them painted pinnacles in the river)" % [widths.size(), painted])
 	terrain.free()
 
 

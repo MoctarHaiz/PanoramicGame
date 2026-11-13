@@ -22,8 +22,10 @@ const HAND_U := 0.548
 const RING_U := 0.17
 const DUST := Rect2(0.0, 0.6, 0.24, 0.38)
 const COLUMN_W := 480.0  ## the title column's width (PLAY and the best run)
-const PLAY_W := 440.0  ## PLAY's width: the subtitle's ribbon and the best run's plate exactly as wide (one edge)
-const PLAY_H := 122.0
+## PLAY's size: the subtitle's ribbon and the best run's plate exactly as wide (one edge). (Blind round 13: "PLAY is
+## bigger than the title, so the brand is the weakest element": it was 440 by 122 under a title 340 wide.)
+const PLAY_W := 376.0
+const PLAY_H := 104.0
 const GUTTER := 28.0  ## between his hand and the column, and between the column and the screen's edge
 const GEAR := 84.0  ## the settings button's side
 const LETTERS_U := 0.2  ## where the logo's lettering starts under its spears, a share of its height
@@ -120,7 +122,7 @@ func enter(_data: Dictionary) -> void:
 	_play_pop = Control.new()
 	_play_pop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_play_box.add_child(_play_pop)
-	_play = Ui.cta_button(tr("PLAY"), PLAY_H, 64)
+	_play = Ui.cta_button(tr("PLAY"), PLAY_H, 56)
 	_play.pressed.connect(func() -> void: Nav.go(&"game", {}, _play.get_global_rect().get_center()))
 	_play.idle(0.06)
 	_play_pop.add_child(_play)
@@ -399,7 +401,7 @@ func _layout() -> void:
 		logo_w = logo_h * _logo_tex.get_width() / _logo_tex.get_height()
 		# (the inked title's spears reach its full width: on a phone its right spear's tip ran under the gear; the
 		# title is no wider than keeps that tip clear of it)
-		var w_max := minf(w * 1.02, maxf(2.0 * (_gear.position.x - 30.0 - centre_x), w * 0.7))
+		var w_max := minf(w * 1.02, maxf(2.0 * (_gear.position.x - 30.0 - centre_x), w * 0.94))
 		if logo_w > w_max:
 			logo_w = w_max
 			logo_h = logo_w * _logo_tex.get_height() / _logo_tex.get_width()

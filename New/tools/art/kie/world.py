@@ -17,9 +17,10 @@ the frame, then each layer of it alone on a transparent background, with the fra
     home_sign.png        the HOME signpost (sign); home_hut.png's doorway repainted dark, in place (door)
     fx_impact.png        a blow's burst, three frames (impact: Fx.hit_spark)
     sky_clouds.png       the sky's cumulus alone, off the finished sky.png (clouds): drawn again higher up
+    spires.png           three rock pinnacles, each in a cell (spires: TerrainView's stacks in the river)
     earth.png            the cut bank of the main ground under the turf (terrain.gdshader), repeating
 
-    python3 tools/art/kie/world.py [sky wall mesas plain rise grass trees front fire earth | sign door clouds impact]
+    python3 tools/art/kie/world.py [sky wall mesas plain rise grass trees front fire earth | sign door clouds impact spires]
     (none: the first ten)
 
 A strip repeats: its right end is laid over its left end along the path where the two differ least (the plain, the
@@ -295,6 +296,11 @@ def impact() -> None:
     break-up; the blow goes right), each in a cell of the same size with the point of contact, the middle of its
     white-hot heart, at the same place (printed: Fx.IMPACT_CELL, IMPACT_AT), at half the painting's size."""
     a = load("impact")
+    # blind round 13 ("in cold flat blue/white ... give it a warm white/gold core from the scene's palette"): its blue
+    # turned to the sunset's gold and amber (red and blue exchanged where blue leads: pale blue to pale gold, deep blue
+    # to orange; its white heart, its ink and its gold tips as painted)
+    cold = a[..., 2] > a[..., 0]
+    a[..., 0], a[..., 2] = np.where(cold, a[..., 2], a[..., 0]), np.where(cold, a[..., 0], a[..., 2])
     w3 = a.shape[1] // 3
     frames = []
     for i in range(3):
@@ -350,6 +356,33 @@ def clouds() -> None:
     rgb = np.clip((img[top:bottom] - clear[top:bottom] * (1 - al)) / np.maximum(al, 0.05), 0, 1)
     save(np.dstack([rgb * al, al[..., 0]]), OUT / "sky_clouds.png")
     print("sky_clouds.png: rows %d to %d of sky.png" % (top, bottom))
+
+
+def spires() -> None:
+    """The stacks of rock standing in the river (spires.png: TerrainView.SPIRES): three painted pinnacles, each in a
+    cell of the same size, its small cap rock's middle at the cell's middle and its top at the cell's top (printed: the
+    cell, how wide each cap is in px: TerrainView.SPIRE_CELL, SPIRE_CAPS). Blind rounds 12 and 13: "near-copy pillars",
+    "plain smooth-gradient posts, far cheaper than the plain behind them", "the play plane barely exists: nothing
+    between the rope and the water" (they were slim columns drawn by spire.gdshader)."""
+    a = load("pinnacles")
+    al = a[..., 3]
+    cols = (al > 0.16).sum(axis=0) > 8
+    edges = np.flatnonzero(np.diff(np.concatenate([[0], cols.astype(np.int8), [0]])))
+    cut = []
+    for x0, x1 in zip(edges[::2], edges[1::2]):
+        ys = np.flatnonzero((al[:, x0:x1] > 0.16).sum(axis=1) > 4)
+        y0, y1 = ys.min(), ys.max() + 1
+        xs = np.flatnonzero((al[y0 + 4:y0 + 22, x0:x1] > 0.5).any(axis=0))  # (its cap rock)
+        cut.append((x0, x1, y0, y1, x0 + (xs.min() + xs.max() + 1) / 2.0, xs.max() + 1 - xs.min()))
+    half = int(max(max(cx - x0, x1 - cx) for x0, x1, y0, y1, cx, cap in cut)) + 6
+    high = max(y1 - y0 for x0, x1, y0, y1, cx, cap in cut) + 2
+    sheet = np.zeros((high, half * 2 * len(cut), 4), np.float32)
+    for i, (x0, x1, y0, y1, cx, cap) in enumerate(cut):
+        at = i * half * 2 + half - int(round(cx - x0))
+        sheet[0:y1 - y0, at:at + x1 - x0] = a[y0:y1, x0:x1]
+    save(sheet, OUT / "spires.png")
+    print("spires.png: %d cells of %dx%d, caps %s px wide, feet %s px wide" % (len(cut), half * 2, high,
+            [int(c[5]) for c in cut], [int(c[1] - c[0]) for c in cut]))
 
 
 if __name__ == "__main__":

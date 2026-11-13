@@ -3,68 +3,40 @@ extends StyleBox
 ## A band of dark ink behind a panel's interface, no box (the user, 2026-11-13, of three panel styles shown for the
 ## pause, the results and the settings: "C", no box, ink brush; the panels before it: cream cards in a gold bezel).
 ##
-## The band is brushed, not drawn: several strokes of the one painted stroke (assets/art/ui/ink_band.png:
-## tools/art/kie/panel_ui.py: a warm dark ink with its bristles' streaks, full where the brush lands and dry where it
-## leaves), laid one over the other from its top to its foot, each as long as the band and stretched in its solid
-## middle only, so its two dry-brush ends keep their painted bristle streaks at any size; every other stroke is turned
-## half a turn (no two ends alike, the dry end now on one side, now on the other), no two strokes are as tall (HEIGHTS)
-## or stop at the same place (RAGGED_*), and each starts a little further right than the one under it: the band leans
-## as the red plates do. What it is given to cover (its rect, grown by `pad`) lies in the solid ink: the strokes'
-## rough edges and their ends reach past it.
+## The band is one brush stroke (assets/art/ui/ink_band.png: tools/art/kie/panel_ui.py: a warm dark ink laid as a
+## wash, full where the brush lands and dry where it leaves, a pooled line along its outline), as tall as what it
+## covers and stretched in its solid middle only, so its two rough ends keep their painted bristles at any size; they
+## lean as the red plates do. What it is given to cover (its rect, grown by `pad`) lies in the solid ink: the stroke's
+## rough edges and its ends reach past it.
 ## (Blind round 12: "a dead, flat pure-black slab... its ends a regular spiky fringe that reads as procedural, not a
-## brush... size it to its content": it was one flat black, strokes of one height, and ends at their full length.)
+## brush... size it to its content". Round 13: "uniform horizontal streaks: scanlines or wood veneer... cut the band
+## to a compact, genuinely painted stroke that hugs its content": it was five strokes laid one over the other, every
+## other one turned round, their ten ends a comb down each side of the panel.)
 
 const ART := "res://assets/art/ui/ink_band.png"
 ## the painted stroke, in shares of its size: solid ink across its middle from SOLID_X.x to SOLID_X.y, and from
 ## SOLID_Y.x down to SOLID_Y.y; its two ends are cut at END (a little inside the solid: nothing of them is stretched)
-const SOLID_X := Vector2(0.105, 0.835)
-const SOLID_Y := Vector2(0.115, 0.89)
-const END := Vector2(0.17, 0.775)
-const STEP := 0.6  ## from a stroke down to the next, a share of a stroke's height (they overlap in solid ink)
-const STROKE := 160.0  ## a stroke's height the band aims for, in units
-const HEIGHTS: Array[float] = [1.16, 0.86, 1.08, 0.82, 1.1]  ## each stroke's height, of their mean (a hand's, not a comb's)
-const ENDS := 0.78  ## a stroke's two ends, of their painted length (shorter: the band nearer what it holds)
-## how much further each stroke runs on its left and on its right, in units, stroke after stroke (no two ends of a
-## band stop at the same place: a brush, not a comb)
-const RAGGED_LEFT: Array[float] = [0.0, 34.0, 8.0, 42.0, 18.0]
-const RAGGED_RIGHT: Array[float] = [28.0, 0.0, 40.0, 10.0, 32.0]
+const SOLID_X := Vector2(0.095, 0.85)
+const SOLID_Y := Vector2(0.125, 0.915)
+const END := Vector2(0.16, 0.79)
+const LEAN := 0.12  ## its ends lean this much (panel_ui.py LEAN): its solid starts that further right at its top
+const ENDS := 0.8  ## its two ends, of their painted length (shorter: the band nearer what it holds)
 
-var pad := Vector4(10.0, 18.0, 10.0, 10.0)  ## the solid ink reaches this far past the rect: left, top, right, bottom
-var lean := 0.1  ## its top starts this far right of its foot, a share of its height
+var pad := Vector4(8.0, 14.0, 8.0, 8.0)  ## the solid ink reaches this far past the rect: left, top, right, bottom
 var tint := Color.WHITE
 
 var _art: Texture2D
 
 
-## The strokes that cover `rect`: each [its rect, whether it is turned half a turn].
+## The strokes that cover `rect`: each [its rect, whether it is turned half a turn] (one stroke, as painted).
 func strokes(rect: Rect2) -> Array:
 	var solid := Rect2(rect.position - Vector2(pad.x, pad.y), rect.size + Vector2(pad.x + pad.z, pad.y + pad.w))
-	var cover := SOLID_Y.y - SOLID_Y.x  # the solid share of one stroke's height
-	var n := maxi(roundi((solid.size.y / STROKE - cover) / STEP) + 1, 1)
-	var total := 0.0  # the solid's height, in mean stroke heights: each stroke a step down, the last one all its solid
-	for i in n:
-		total += HEIGHTS[i % HEIGHTS.size()] * (cover if i == n - 1 else STEP)
-	var mean := solid.size.y / total
-	var top := solid.position.y  # where this stroke's solid ink starts
-	var out := []
-	for i in n:
-		var h := mean * HEIGHTS[i % HEIGHTS.size()]
-		var turned := i % 2 == 1
-		var above := (1.0 - SOLID_Y.y) if turned else SOLID_Y.x  # the rough edge over its solid ink
-		var y := top - h * above
-		top += h * STEP
-		var middle := y + h * 0.5
-		var shift := (solid.get_center().y - middle) * lean
-		# its solid ink from the solid's left to its right, moved by the lean; its ends past them
-		var w_art := h * _tex().get_width() / _tex().get_height() * ENDS
-		var left := w_art * ((1.0 - SOLID_X.y) if turned else SOLID_X.x)
-		var right := w_art * (SOLID_X.x if turned else (1.0 - SOLID_X.y))
-		var reach := absf(solid.size.y * lean * 0.5)
-		var more_l := RAGGED_LEFT[i % RAGGED_LEFT.size()]
-		var more_r := RAGGED_RIGHT[i % RAGGED_RIGHT.size()]
-		out.append([Rect2(solid.position.x - left - reach + shift - more_l, y,
-				solid.size.x + left + right + reach * 2.0 + more_l + more_r, h), turned])
-	return out
+	var h := solid.size.y / (SOLID_Y.y - SOLID_Y.x)
+	var w_art := h * _tex().get_width() / _tex().get_height() * ENDS
+	var lean := solid.size.y * LEAN * 0.5  # (the solid's top left corner, and its bottom right one, in the ink too)
+	var left := w_art * SOLID_X.x + lean
+	var right := w_art * (1.0 - SOLID_X.y) + lean
+	return [[Rect2(solid.position.x - left, solid.position.y - h * SOLID_Y.x, solid.size.x + left + right, h), false]]
 
 
 ## How far its strokes' rough ends reach past `rect`: on its left, on its right.

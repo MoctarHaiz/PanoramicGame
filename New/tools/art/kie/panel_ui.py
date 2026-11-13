@@ -8,9 +8,9 @@ then, from the chosen one's crops, the pieces that are pictures in the game, eac
 
     ink_band.png   one thick stroke of black ink, its ends leaning right and breaking into bristle streaks, and a thin
                    red stroke under it
-                   -> assets/art/ui/ink_band.png (InkStyle lays several of them one over the other, each stretched
-                      in its solid middle only: a band of any size with painted ends), ink_stroke.png (the red one:
-                      under a title set in the display font)
+                   -> assets/art/ui/ink_band.png (InkStyle: the one stroke behind a panel, stretched in its solid
+                      middle only: a band of any size with painted ends), ink_stroke.png (the red one: under a
+                      title set in the display font)
     titles_c.png   the panels' titles in the game's two languages, each over its own red stroke
                    -> assets/art/ui/title_<slug>.png (Ui.ink_title; another language's title is set in the display
                       font over ink_stroke.png)
@@ -37,7 +37,8 @@ WORDS = ["resume", "play_again", "reprendre", "rejouer"]  # top to bottom in wor
 INK = (0.112, 0.072, 0.058)  # the band's ink: a warm dark brown-black, where the brush was full
 INK_DRY = (0.33, 0.215, 0.15)  # ... and where it ran dry: the same ink thinner (a streak's lightest)
 INK_POOL = (0.062, 0.038, 0.032)  # ... and where it pooled: along the stroke's edge, in a streak's deepest
-BAND_W = 1280  # px
+BAND_W = 1600  # px
+LEAN = 0.12  # the band's two ends lean this much, px a px of its height (the red plates': SlantStyle)
 
 
 def pieces(a: np.ndarray, rows: int) -> list:
@@ -69,40 +70,56 @@ def lines(a: np.ndarray, rows: int) -> list:
     return out
 
 
+def upright(a: np.ndarray, lean: float) -> np.ndarray:
+    """The band sheared so its two ends lean as the red plates do, `lean` px a px of height (it was painted leaning
+    four times as much: a panel's corners then needed a band far wider than what it holds; blind round 13: "cut the
+    band to a compact stroke that hugs its content")."""
+    al = a[..., 3] > 0.5
+    rows = np.arange(a.shape[0] * 3 // 10, a.shape[0] * 7 // 10)
+    left = np.array([np.nonzero(al[y])[0].min() for y in rows])
+    right = np.array([np.nonzero(al[y])[0].max() for y in rows])
+    painted = -(np.polyfit(rows, left, 1)[0] + np.polyfit(rows, right, 1)[0]) / 2.0  # its top further right
+    k = painted - lean  # each row moved left by k px for each row above the middle one
+    mid = a.shape[0] / 2.0
+    out = np.empty_like(a)
+    for q in range(a.shape[2]):
+        out[..., q] = ndi.affine_transform(a[..., q], [[1.0, 0.0], [-k, 1.0]], offset=[0.0, k * mid], order=1)
+    y0, y1, x0, x1 = box(out, 4, 0.05)
+    print("  (the band leaned %.2f, now %.2f)" % (painted, lean))
+    return out[y0:y1, x0:x1]
+
+
 def material(al: np.ndarray) -> np.ndarray:
-    """The band's ink over its alpha `al`, as a brush leaves it (blind round 12: "a dead, flat pure-black slab... no
-    brush texture, no grain, no tone"): long streaks along the stroke (its bristles: each row of the picture its own
-    load of ink, changing slowly along its length), drier toward its two long edges and its ends, and from where the
-    brush lands (its left, full) to where it leaves (its right, spent: InkStyle turns every other stroke round), a darker line
-    where the ink pooled along its outline, and a fine grain. The streaks run along the stroke, so the middle the
-    game stretches (InkStyle) only makes them longer."""
+    """The band's ink over its alpha `al`, as a broad wet brush leaves it: a wash, fuller here and thinner there in
+    wide soft passes with no line in them, a darker line where the ink pooled along its outline, the bristles parting
+    in a few long dry drags only where the brush leaves (its right end) and along its rough edges, and a fine paper
+    grain. (Blind round 12: "a dead, flat pure-black slab"; round 13, of the bristles' streaks drawn all through it:
+    "uniform horizontal streaks: scanlines or wood veneer, not a brush".)"""
     rng = np.random.default_rng(12)
     h, w = al.shape
 
-    def streaks(sy: float, sx: float) -> np.ndarray:
+    def cloud(sy: float, sx: float) -> np.ndarray:
         n = ndi.gaussian_filter(rng.standard_normal((h, w)).astype(np.float32), (sy, sx))
         return n / n.std()
 
-    # the bristles: three widths of streak, the widest the strongest
-    s = 0.5 * streaks(5.0, 420.0) + 0.4 * streaks(1.8, 260.0) + 0.3 * streaks(0.8, 120.0)
-    s = s / (s.std() * 2.6)
-    wash = streaks(46.0, 300.0) * 0.5  # and the brush's load: broad lighter and darker passes
     inside = ndi.distance_transform_edt(al > 0.5).astype(np.float32)  # px from its outline
-    edge = np.clip(1.0 - inside / (h * 0.16), 0.0, 1.0)  # 1 at the outline, 0 well inside
     cols = np.nonzero((al > 0.5).any(axis=0))[0]
     u = (np.arange(w) - cols.min()) / max(cols.max() - cols.min(), 1)
-    ends = np.clip(1.0 - np.minimum(u, 1.0 - u) / 0.2, 0.0, 1.0)[None, :]  # 1 at its two ends
-    spent = (0.22 + 0.78 * np.clip((u - 0.06) / 0.8, 0.0, 1.0) ** 1.4)[None, :]  # the brush lands full on the left, runs dry
-    dry = np.clip(s * (0.7 + 0.6 * edge + 0.6 * ends) + 0.2 * edge + 0.14 * ends + 0.1 * wash - 0.1, 0.0, 1.0) ** 1.15 * spent
-    deep = np.clip(-s * 1.3 - 0.1 * wash - 0.2, 0.0, 1.0) * 0.7
-    pool = np.clip(1.0 - inside / 7.0, 0.0, 1.0) ** 2 * 0.75  # the pooled line along its outline
+    wash = 0.65 * cloud(h * 0.17, h * 0.5) + 0.35 * cloud(h * 0.06, h * 0.16)  # the brush's load, pass by pass
+    thin = np.clip(wash * 0.55 + 0.08, 0.0, 1.0) * 0.3
+    leaves = (np.clip((u - 0.6) / 0.32, 0.0, 1.0) ** 1.6)[None, :]  # where the brush leaves, spent
+    edge = np.clip(1.0 - inside / (h * 0.07), 0.0, 1.0)  # 1 at the outline, 0 a little inside
+    drag = np.clip(cloud(h * 0.011, h * 1.1) - 0.55, 0.0, 1.0)  # a bristle's dry drag: a few, long, far apart
+    light = np.clip(thin + drag * (0.75 * leaves + 0.5 * edge) + 0.12 * leaves, 0.0, 1.0)
+    deep = np.clip(-wash * 0.5 - 0.15, 0.0, 1.0) * 0.6
+    pool = np.clip(1.0 - inside / (h * 0.018), 0.0, 1.0) ** 2 * 0.7  # the pooled line along its outline
     rgb = np.empty((h, w, 3), np.float32)
     for q in range(3):
-        c = INK[q] + (INK_DRY[q] - INK[q]) * dry
-        c = c + (INK_POOL[q] - c) * np.maximum(deep, pool * (1.0 - dry))
+        c = INK[q] + (INK_DRY[q] - INK[q]) * light
+        c = c + (INK_POOL[q] - c) * np.maximum(deep, pool * (1.0 - light))
         rgb[..., q] = c
-    grain = ndi.gaussian_filter(rng.standard_normal((h, w)).astype(np.float32), (0.6, 2.2))
-    rgb *= (1.0 + 0.07 * grain / grain.std())[..., None]
+    grain = ndi.gaussian_filter(rng.standard_normal((h, w)).astype(np.float32), 0.9)
+    rgb *= (1.0 + 0.05 * grain / grain.std())[..., None]
     return np.clip(rgb, 0.0, 1.0)
 
 
@@ -112,6 +129,7 @@ if __name__ == "__main__":
     for name, part in zip(WORDS, lines(premult(GEN / "words_c2.png"), len(WORDS))):
         save(part, (round(part.shape[1] * WORD_H / part.shape[0]), WORD_H), UI / f"word_{name}.png")
     band, stroke = pieces(premult(GEN / "ink_band.png"), 2)
+    band = upright(band, LEAN)
     # the band: solid wherever the brush was full (no pinhole shows what is behind a panel), its ink a material
     al = band[..., 3]
     al = np.where(ndi.binary_fill_holes(al > 0.6), np.maximum(al, np.clip((al - 0.6) / 0.25, 0, 1)), al)

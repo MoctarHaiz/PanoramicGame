@@ -52,6 +52,17 @@ const DRAPE_TOP := 12.0  ## units of a drape above the grass surface
 ## painted by spire.gdshader (round 19's spires.png and spire_feet.png pictures are gone), its slim grass mat on top.
 const SPIRE_SHADER := preload("res://src/game/spire.gdshader")
 const FOOT_SINK := 24.0  ## units its foot reaches under the waterline / into the ground
+## Blind round 13 ("plain smooth-gradient posts, identical in profile, far cheaper than the plain behind them"; "the
+## play plane barely exists: a thin rope at the top, a water strip at the bottom, nothing between"): a stack one cell
+## wide standing in the river is a painted pinnacle (spires.png: three of them, each in a cell with its small cap rock
+## at the top middle; tools/art/kie/world.py spires prints the sizes), drawn by spire_art.gdshader: a steep craggy
+## rock that only its small flat top can be stood on, broad at the waterline; no two alike side by side.
+const SPIRES := preload("res://assets/art/world/spires.png")
+const SPIRE_ART := preload("res://src/game/spire_art.gdshader")
+const SPIRE_CELL := Vector2(738.0, 1079.0)  ## px: a pinnacle's cell
+const SPIRE_CAPS: Array[float] = [130.0, 113.0, 91.0]  ## px: how wide each one's cap rock is
+const SPIRE_CAP_UNITS: Array[float] = [40.0, 38.0, 34.0]  ## ... and drawn (its cell is 32: the cap a little wider)
+const SPIRE_WET := 16.0  ## units of its foot under the waterline
 const MASS := Vector2(256, 128)  ## (round 19's hanging.png masses: their size still sets how deep an underside hangs)
 const UNDERSIDE := preload("res://src/game/underside.gdshader")
 const HERO_DRAWN := 158.0  ## units from the ground to the top of his hair as drawn, a little room over it
@@ -265,6 +276,12 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 		var footed := river or end < Level.ROWS
 		var top := y - 3.0
 		var h := (base - top) + (FOOT_SINK + 10.0 if river else (8.0 if footed else 40.0))
+		# (blind round 13) one cell wide and standing in the river (the bank's too: its column runs on down into the
+		# water beside the ledge it meets): a painted pinnacle
+		var water_row := Level.ROWS - 2
+		if w < 1.5 and (river or (_to_the_bottom(c, end) and (_kind(c + 1, water_row) == Level.Kind.WATER or _kind(c - 1, water_row) == Level.Kind.WATER))):
+			_pinnacle(c, top)
+			h = 0.0
 		var room := base_w * 2.0 + 120.0  # (its flared foot, its lean, its ledges and boulders reach out past its shaft)
 		var rock := UnderRock.new()
 		rock.white = _white
@@ -281,7 +298,10 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 		m.set_shader_parameter(&"level_x", rock.rect.position.x)
 		m.set_shader_parameter(&"seed", float(_hash(c, 31, 997)) + 1.0)
 		rock.material = m
-		_layers[&"spires"].add_child(rock)
+		if h > 0.0:
+			_layers[&"spires"].add_child(rock)
+		else:
+			rock.free()
 	if not pole:
 		b[&"soil"].items.append([Rect2(x, y, T, T),
 				Rect2(mask * SHAPE_STRIDE + 4.0, variant * SHAPE_STRIDE + 4.0, 64, 64), Color.WHITE])
@@ -454,6 +474,51 @@ func _run_under_limit(c: int, n: int, r: int) -> float:
 		if r + 1 + f < Level.ROWS:
 			limit = minf(limit, (r + 1 + f) * T - HERO_DRAWN)
 	return limit
+
+
+## Blind round 13: the stack one cell wide standing in the river whose top is at column c: a painted pinnacle (SPIRES),
+## its cap rock a little wider than its cell, from its top (level y) down to the waterline, its foot in the water.
+func _pinnacle(c: int, top: float) -> void:
+	var kind := _pole_nth(c) % SPIRE_CAPS.size()
+	var k := SPIRE_CAP_UNITS[kind] / SPIRE_CAPS[kind]  # units a px
+	var water := (Level.ROWS - 2) * T + 7.0
+	var art := SpireArt.new()
+	art.src = Rect2(SPIRE_CELL.x * kind, 0.0, SPIRE_CELL.x, SPIRE_CELL.y)
+	art.rect = Rect2((c + 0.5) * T - SPIRE_CELL.x * k * 0.5, top, SPIRE_CELL.x * k, water + SPIRE_WET - top)
+	var m := ShaderMaterial.new()
+	m.shader = SPIRE_ART
+	m.set_shader_parameter(&"top", top)
+	m.set_shader_parameter(&"height", art.rect.size.y)
+	m.set_shader_parameter(&"mid_x", (c + 0.5) * T)
+	m.set_shader_parameter(&"water_y", water - top)
+	m.set_shader_parameter(&"seed", float(_hash(c, 31, 997)) + 1.0)
+	art.material = m
+	_layers[&"spires"].add_child(art)
+
+
+## Whether column c is solid from row r down to the bottom of the map.
+func _to_the_bottom(c: int, r: int) -> bool:
+	for row in range(r, Level.ROWS):
+		if not solid(c, row):
+			return false
+	return true
+
+
+## How many stacks one cell wide stand left of column c's (so two side by side are never the same needle).
+func _pole_nth(c: int) -> int:
+	var n := 0
+	for i in range(0, c - _first_col + 1):
+		if _poles[i] >= 10000 and _poles[i] < 20000:
+			n += 1
+	return n
+
+
+class SpireArt extends Node2D:
+	var rect: Rect2
+	var src: Rect2
+
+	func _draw() -> void:
+		draw_texture_rect_region(SPIRES, rect, src)
 
 
 ## Round 20: a ledge's underside: one rectangle drawn with underside.gdshader (its own material: its size and seed).

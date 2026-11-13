@@ -70,6 +70,7 @@ FAMILIES = [
     ("world/home_fire", "the home's fire, painted: its frames in a row (HomeView)", SUNBURST, True, "bottom-centre at the ground", ["palette", "light-direction"]),
     ("world/home_sign", "the home's carved HOME signpost, painted", SUNBURST, True, "bottom-centre at the ground", ["palette", "light-direction"]),
     ("world/fx_impact", "a blow's burst in the characters' ink, three frames in a row (Fx.hit_spark)", SUNBURST, True, "the contact point (Fx.IMPACT_AT in each cell)", ["palette"]),
+    ("world/spires", "three rock pinnacles, each in a cell: the stacks standing in the river (TerrainView)", SUNBURST, True, "top-centre of each cell: the cap rock", ["palette", "light-direction"]),
     ("world/sky_clouds", "the sky's own clouds cut out of it: a second, higher row behind the vine, repeats in x", SUNBURST, True, "top-left, repeats in x", ["palette", "light-direction"]),
     ("world/home_", "HOME homestead piece (hut, fence, granary, sign, pot, glow)", authored("tools/art/home.py"), True, "bottom-centre at the ground", ["palette", "light-direction"]),
     ("world/prop_", "savanna decoration prop", authored("tools/art/props.py"), True, "bottom-centre at the ground", ["palette", "light-direction"]),

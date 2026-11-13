@@ -38,6 +38,7 @@ var _top := 0.0
 var _min_w := 560.0
 var _k := 1.0  # shrink to fit a small screen
 var _u := 0.7  # the entrance's pop
+var _clear := Rect2()  # the part of the screen the group stays beside (stay_clear_of)
 
 
 ## Opens a panel over `host` (the game screen). `veil`: the colour the game behind is washed with
@@ -104,7 +105,7 @@ func _build(title: String, body: Control, character: Control, tint: Color, glow:
 	card.add_child(body)
 	banner = Ui.ink_title(title, 112.0, 760.0)  # (a long title, "Home sweet home!", stands as tall as a short one)
 	_top = banner.size.y * 0.5
-	_min_w = maxf(banner.size.x * 0.84, 520.0)
+	_min_w = maxf(banner.size.x * 0.84, 440.0)
 	art = character
 	if art:
 		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -148,16 +149,17 @@ func _grade(m: ShaderMaterial) -> void:
 	match _mood:
 		&"loss":
 			g = {"grey": 0.05, "tame": 0.25, "shadow_tint": Color("0a1230"), "mid_tint": Color("3c5490"), "light_tint": Color("b8ccf2"),
-					"duo": 0.5, "exposure": 0.84, "glow_colour": Color(0.5, 0.66, 1.0, 0.2), "glow_size": 0.95,
-					"vignette_colour": Color("02030c"), "vignette": 0.9}
+					"duo": 0.36, "exposure": 0.9, "glow_colour": Color(0.5, 0.66, 1.0, 0.2), "glow_size": 0.95,
+					"vignette_colour": Color("02030c"), "vignette": 0.8}
 		&"win":
 			g = {"tame": 0.2, "shadow_tint": Color("4a2010"), "mid_tint": Color("c47838"), "light_tint": Color("ffe8b4"),
 					"duo": 0.62, "exposure": 1.0, "glow_colour": Color(1.0, 0.82, 0.5, 0.5), "glow_size": 1.1,
 					"vignette_colour": Color("3a1406"), "vignette": 0.45}
 		_:  # (UI r21, the judges of j17: "a murky dark background"; j19: "still bright and muddy") a deep warm dusk
-			g = {"tame": 0.4, "shadow_tint": Color("140a1a"), "mid_tint": Color("5a3442"), "light_tint": Color("d8a888"),
-					"duo": 0.4, "exposure": 0.62, "glow_colour": Color(1.0, 0.74, 0.46, 0.05), "glow_size": 1.0,
-					"vignette_colour": Color("08040c"), "vignette": 0.62}
+			# (blind round 13: "the backdrop blurred and dimmed to mud": the scene stays readable, a stop down)
+			g = {"tame": 0.25, "shadow_tint": Color("140a1a"), "mid_tint": Color("5a3442"), "light_tint": Color("d8a888"),
+					"duo": 0.2, "exposure": 0.74, "glow_colour": Color(1.0, 0.74, 0.46, 0.05), "glow_size": 1.0,
+					"vignette_colour": Color("08040c"), "vignette": 0.66}
 	for key: String in g:
 		m.set_shader_parameter(StringName(key), g[key])
 
@@ -177,15 +179,23 @@ func _snapshot_then_enter(hide: Array) -> void:
 	await RenderingServer.frame_post_draw
 	if not is_inside_tree():
 		return
-	# a light blur (1/8, smoothed by its shader): the scene recognisable behind the panel, its fine detail
-	# soft (round 20; 1/32 smeared it into "a dirty screen")
-	_picture.texture = Ui.blurred_snapshot(get_viewport(), 3)
+	# a light blur (1/4, smoothed by its shader; the pause's 1/2: he is seen in it): the scene readable behind the
+	# panel, a little out of focus (round 20: 1/32 smeared it into "a dirty screen"; blind round 13, of 1/8: "blurred
+	# to mud")
+	_picture.texture = Ui.blurred_snapshot(get_viewport(), 1 if _mood == &"" else 2)
 	for n: CanvasItem in _out_of_picture:  # back at once: only the picture leaves them out
 		if is_instance_valid(n):
 			n.visible = true
 	_out_of_picture.clear()
 	visible = true
 	_enter()
+
+
+## Keeps the group to the side of `rect` (a part of the screen: who stands in the frozen scene), as far as the
+## screen lets it: the pause, where he is seen in the scene beside the band.
+func stay_clear_of(rect: Rect2) -> void:
+	_clear = rect
+	_place()
 
 
 ## Leaves `nodes` out of the picture behind (shown again as soon as it is taken): the frozen scene's
@@ -298,6 +308,24 @@ func _place() -> void:
 	if free.size.x > 0.0:
 		_k = minf(1.0, minf(free.size.x / whole.x, free.size.y / whole.y))
 	var centre := free.get_center()
+	if _clear.size.x > 0.0 and not art and free.size.x > 0.0:
+		# beside what it stays clear of, as far as the card stays on the screen (the band's far end may run off it: a
+		# stroke leaving the frame); where the screen is too narrow for that (a tablet), over or under it instead
+		var half := whole * _k / 2.0
+		var beside := centre
+		if _clear.get_center().x > size.x / 2.0:
+			beside.x = clampf(_clear.position.x - half.x, minf(free.position.x + half.x - ends.x * _k, centre.x), centre.x)
+		else:
+			beside.x = clampf(_clear.end.x + half.x, centre.x, maxf(free.end.x - half.x + ends.y * _k, centre.x))
+		var foot := 48.0 * _k  # the band's rough foot under the card
+		var apart := centre
+		if _clear.get_center().y > size.y / 2.0:
+			apart.y = clampf(_clear.position.y - half.y - foot, minf(free.position.y + half.y, centre.y), centre.y)
+		else:
+			apart.y = clampf(_clear.end.y + half.y, centre.y, maxf(free.end.y - half.y, centre.y))
+		var covered := func(at: Vector2) -> float:  # how much of it the group at `at` covers, a share of its area
+			return Rect2(at - half, half * 2.0 + Vector2(0.0, foot)).intersection(_clear).get_area() / _clear.get_area()
+		centre = beside if covered.call(beside) < 0.25 or covered.call(beside) <= covered.call(apart) else apart
 	_pop.size = whole
 	_pop.pivot_offset = whole / 2
 	_pop.position = centre - whole / 2
