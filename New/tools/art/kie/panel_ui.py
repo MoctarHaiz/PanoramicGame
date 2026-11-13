@@ -34,9 +34,11 @@ TITLES = ["paused", "settings", "home_sweet_home", "game_over", "about",
           "pause", "reglages", "enfin_a_la_maison", "perdu", "a_propos"]  # top to bottom in titles_c.png
 TITLE_K = 0.72  # the titles' size in the game, of the painting's (the tallest: 280 px)
 WORDS = ["resume", "play_again", "reprendre", "rejouer"]  # top to bottom in words_c2.png
-INK = (0.112, 0.072, 0.058)  # the band's ink: a warm dark brown-black, where the brush was full
-INK_DRY = (0.33, 0.215, 0.15)  # ... and where it ran dry: the same ink thinner (a streak's lightest)
-INK_POOL = (0.062, 0.038, 0.032)  # ... and where it pooled: along the stroke's edge, in a streak's deepest
+# (blind round 18: "horizontal smear banding and a muddy brown-on-black fill": the ink deeper and less brown, the
+# game's own line ink; its dry drags only along its rough edges and faint at its right end, its wash quieter)
+INK = (0.088, 0.052, 0.058)  # the band's ink: a warm black, where the brush was full
+INK_DRY = (0.25, 0.155, 0.14)  # ... and where it ran dry: the same ink thinner (a streak's lightest)
+INK_POOL = (0.05, 0.028, 0.032)  # ... and where it pooled: along the stroke's edge, in a streak's deepest
 BAND_W = 1600  # px
 LEAN = 0.12  # the band's two ends lean this much, px a px of its height (the red plates': SlantStyle)
 
@@ -106,11 +108,11 @@ def material(al: np.ndarray) -> np.ndarray:
     cols = np.nonzero((al > 0.5).any(axis=0))[0]
     u = (np.arange(w) - cols.min()) / max(cols.max() - cols.min(), 1)
     wash = 0.65 * cloud(h * 0.17, h * 0.5) + 0.35 * cloud(h * 0.06, h * 0.16)  # the brush's load, pass by pass
-    thin = np.clip(wash * 0.55 + 0.08, 0.0, 1.0) * 0.3
+    thin = np.clip(wash * 0.55 + 0.08, 0.0, 1.0) * 0.2
     leaves = (np.clip((u - 0.6) / 0.32, 0.0, 1.0) ** 1.6)[None, :]  # where the brush leaves, spent
     edge = np.clip(1.0 - inside / (h * 0.07), 0.0, 1.0)  # 1 at the outline, 0 a little inside
     drag = np.clip(cloud(h * 0.011, h * 1.1) - 0.55, 0.0, 1.0)  # a bristle's dry drag: a few, long, far apart
-    light = np.clip(thin + drag * (0.75 * leaves + 0.5 * edge) + 0.12 * leaves, 0.0, 1.0)
+    light = np.clip(thin + drag * (0.2 * leaves + 0.4 * edge) + 0.03 * leaves, 0.0, 1.0)
     deep = np.clip(-wash * 0.5 - 0.15, 0.0, 1.0) * 0.6
     pool = np.clip(1.0 - inside / (h * 0.018), 0.0, 1.0) ** 2 * 0.7  # the pooled line along its outline
     rgb = np.empty((h, w, 3), np.float32)

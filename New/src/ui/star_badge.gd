@@ -4,15 +4,16 @@ extends Control
 ## box, ink brush): a fat five-point star in one flat gold with an ink line round it and one cel step (its lower right
 ## in a deeper gold, its upper left edge lit by a thin pale line): no gloss, no glow, no sparkle. A star not yet
 ## earned is a dark socket of the same shape: the dark plates' face in an ink line, a thin gold line inside it
-## (blind round 11: "the unlit star is a hairline": it was a thin outline alone).
+## (blind round 11: "the unlit star is a hairline": it was a thin outline alone; blind round 18, on the menu's dark
+## plate: "the empty star a thin wireframe": its face a dull bronze, a star's own body with its light out).
 ## (Before: a glossy bevelled star in a warm glow, sparkles twinkling round it.)
 
 const INK := Color("140607")
 const GOLD := Color("ffc928")
 const GOLD_DEEP := Color("f0940e")
 const GOLD_PALE := Color("fff0a0")
-const SOCKET := Color("35251c")  ## a star not yet earned: the dark plates' face
-const SOCKET_DEEP := Color("261a14")
+const SOCKET := Color("6a4a26")  ## a star not yet earned: a dull bronze
+const SOCKET_DEEP := Color("4c331a")
 
 var lit := true:
 	set(value):
@@ -54,7 +55,7 @@ func _draw() -> void:
 				draw_colored_polygon(part, SOCKET_DEEP)
 		var line := points(c, r - o * 1.2, 0.5)
 		line.append(line[0])
-		draw_polyline(line, Color(GOLD, 0.85), maxf(o * 0.55, 2.0), true)
+		draw_polyline(line, Color(GOLD, 0.5), maxf(o * 0.5, 1.5), true)
 		return
 	var outer := points(c, r + o * 0.6, 0.53)
 	draw_colored_polygon(outer, INK)

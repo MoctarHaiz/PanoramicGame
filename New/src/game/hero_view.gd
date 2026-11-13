@@ -52,10 +52,10 @@ const WRIST_BLEND := 10.0  ## atlas px round his wrists over which they bend
 const SOLE_FADE := 14.0
 const STANCE_UP := 7.0  ## units a planted far boot of a three-quarter stance is drawn above the near one's ground
 const SOLE_DARK := 0.6
-const SHADOW_PLAY := 0.58  ## (blind round 5: "no cast shadows or ground contact": 0.22 was lost on the grass; round 13: 0.4, "one small shadow blob under one foot")
+const SHADOW_PLAY := 0.95  ## (blind round 18, in four pictures: "no contact shadows", "throws no shadow on the turf": 0.58 was lost on the turf's dark front; blind round 5: "no cast shadows or ground contact": 0.22 was lost on the grass; round 13: 0.4, "one small shadow blob under one foot")
 ## Blind round 13 ("the characters receive nothing from the sunset: ground both with real cast shadows"): the sun is
 ## low: a shadow lies long on the ground, away from it (the characters' shadows this much longer than wide, in play).
-const SHADOW_LONG := 1.55
+const SHADOW_LONG := 1.9
 const SHADOW_AIR := 0.6
 const WIN_LOOP := 10  ## the cheer at home loops from this frame
 const WIN_POSE := 3  ## the win's frame where the landing crouch springs into the victory pose (hero_atlas_ai.py)
@@ -76,7 +76,7 @@ const AIR_POP := Vector2(0.95, 1.06)  ## the stretch as he changes pose in the a
 const LAND_CROUCH := 4  ## at home: the landing's crouch drawings (the old landing, hero_frames.json "land")
 const FALL_LEAN := 0.06  ## radians he leans forward into the ground at the end of a fall (the poses lean themselves)
 const TOP := 6.0  ## units a tick of vertical speed counted as the top of the jump
-const SHADOW_SHIFT := 24.0  ## units the ground shadow falls right of him (the sun is upper left)
+const SHADOW_SHIFT := 34.0  ## units the ground shadow falls right of him (the sun is upper left)
 const SHADOW_WIDTH := 100.0  ## units across his shadow on the ground, standing on it
 const SHADOW := Color(0.11, 0.04, 0.07)  ## the characters' shadows: the dusk's warm plum shade
 const CONTACT := Color(0.05, 0.02, 0.03)  ## (round 20) the tight contact under the feet: near black
@@ -94,6 +94,13 @@ const HOME_FAR := 0.9
 ## (blind round 15: "his loincloth stays day-white, his armour clean blue") his whites and his metal take the light's
 ## own hue: the fire's orange on its side, the dusk's violet on the other (actor.gdshader bounce_take)
 const HOME_TAKE := 1.0
+## Blind round 18 ("he throws no shadow on the turf or into the doorway ... a long cast shadow away from the fire"):
+## at home the fire throws his shadow on the hut behind him: his own shape, dark, a little larger and to his right
+## (the fire is low on his left), under him in the picture; lost in the dark doorway, plain on the thatch beside it.
+const HOME_CAST := Color(0.07, 0.035, 0.13)
+const HOME_CAST_ALPHA := 0.4
+const HOME_CAST_SHIFT := Vector2(46.0, -4.0)  ## units right of him and up
+const HOME_CAST_SCALE := Vector2(1.16, 1.03)
 const HOME_COOL := Color(0.5, 0.47, 0.86)
 const HOME_DUSK := Color(0.74, 0.69, 0.87)  ## (blind round 17: "keeps near-daylight local colours": it was 0.84, 0.8, 0.9)
 const HOME_FIRE := Color(1.42, 1.0, 0.62)  ## the fire's side of him (actor.gdshader bounce_colour)
@@ -172,6 +179,7 @@ static var _units := 1.0  # units per atlas pixel
 static var _hips_dy := 0.0  # standing: his hips this far above the centre of his box (units, < 0: above)
 
 var _sprite: Sprite2D
+var _cast: Sprite2D  # his shadow on the hut at home (HOME_CAST)
 var _material: ShaderMaterial
 var _anim := &""
 var _index := 0
@@ -233,6 +241,12 @@ static func frames(anim: StringName) -> Array:
 
 func _init() -> void:
 	frames_data()
+	_cast = Sprite2D.new()  # (first: drawn under his own picture)
+	_cast.centered = false
+	_cast.region_enabled = true
+	_cast.visible = false
+	_cast.scale = HOME_CAST_SCALE
+	_cast.position = HOME_CAST_SHIFT
 	_sprite = Sprite2D.new()
 	_sprite.centered = false
 	_sprite.region_enabled = true
@@ -272,6 +286,7 @@ func _init() -> void:
 	_material.set_shader_parameter(&"bounce_dusk", HOME_DUSK)
 	_material.set_shader_parameter(&"bounce_colour", HOME_FIRE)
 	_sprite.material = _material
+	add_child(_cast)
 	add_child(_sprite)
 
 
@@ -649,6 +664,13 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 	_material.set_shader_parameter(&"key_amount", lerpf(KEY, KEY_HOME, home_k))
 	_material.set_shader_parameter(&"hair_lift", HAIR_LIFT * home_k)
 	_home = home_k
+	_cast.visible = home_k > 0.01
+	if _cast.visible:
+		_cast.texture = _sprite.texture
+		_cast.region_rect = _sprite.region_rect
+		_cast.offset = _sprite.offset
+		_cast.flip_h = _sprite.flip_h
+		_cast.modulate = Color(HOME_CAST, HOME_CAST_ALPHA * home_k * _sprite.modulate.a)
 	_lift = maxf(home_k, stand_lift)
 	# (round 19, the user: no rim light on him; the judges: "backlit by the door into a halo") no back rim at home
 	_material.set_shader_parameter(&"back_rim", 0.0)
@@ -757,8 +779,8 @@ func _find_vine() -> VineView:
 static func contact_shadow(target: CanvasItem, at: Vector2, width: float, k: float, opacity := 1.0, stretch := 1.0, core := 1.0) -> void:
 	var w := width * 0.5 * (0.45 + 0.55 * k)
 	var a := (1.0 - pow(1.0 - (0.2 * k + 0.05), 6.0)) * opacity
-	target.draw_set_transform(at, 0.0, Vector2(stretch, 0.24))
-	target.draw_texture_rect(_blob(), Rect2(-w, -w, w * 2.0, w * 2.0), false, Color(SHADOW, a * 0.85))
+	target.draw_set_transform(at, 0.0, Vector2(stretch, 0.3))
+	target.draw_texture_rect(_blob(), Rect2(-w, -w, w * 2.0, w * 2.0), false, Color(SHADOW, minf(a, 0.9)))
 	# (round 20, the judges: "no visible contact shadow in play") the contact: where the boots meet the ground, near black
 	var c := w * 0.6
 	target.draw_set_transform(at, 0.0, Vector2(stretch, 0.15))

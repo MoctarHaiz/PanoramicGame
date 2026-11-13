@@ -20,7 +20,10 @@ const SOLID_X := Vector2(0.095, 0.85)
 const SOLID_Y := Vector2(0.125, 0.915)
 const END := Vector2(0.16, 0.79)
 const LEAN := 0.12  ## its ends lean this much (panel_ui.py LEAN): its solid starts that further right at its top
-const ENDS := 0.8  ## its two ends, of their painted length (shorter: the band nearer what it holds)
+## its two ends, left and right, of their painted length (shorter: the band nearer what it holds; blind round 18, of
+## the settings: "content left-shifted with ~250 px empty at right": its right end, painted the longer, reaches as
+## far past the solid as its left one)
+const ENDS := Vector2(0.8, 0.54)
 
 var pad := Vector4(8.0, 14.0, 8.0, 8.0)  ## the solid ink reaches this far past the rect: left, top, right, bottom
 var tint := Color.WHITE
@@ -32,10 +35,10 @@ var _art: Texture2D
 func strokes(rect: Rect2) -> Array:
 	var solid := Rect2(rect.position - Vector2(pad.x, pad.y), rect.size + Vector2(pad.x + pad.z, pad.y + pad.w))
 	var h := solid.size.y / (SOLID_Y.y - SOLID_Y.x)
-	var w_art := h * _tex().get_width() / _tex().get_height() * ENDS
+	var w_art := h * _tex().get_width() / _tex().get_height()
 	var lean := solid.size.y * LEAN * 0.5  # (the solid's top left corner, and its bottom right one, in the ink too)
-	var left := w_art * SOLID_X.x + lean
-	var right := w_art * (1.0 - SOLID_X.y) + lean
+	var left := w_art * ENDS.x * SOLID_X.x + lean
+	var right := w_art * ENDS.y * (1.0 - SOLID_X.y) + lean
 	return [[Rect2(solid.position.x - left, solid.position.y - h * SOLID_Y.x, solid.size.x + left + right, h), false]]
 
 
@@ -60,9 +63,9 @@ func _draw(to: RID, rect: Rect2) -> void:
 		var r: Rect2 = s[0]
 		if s[1]:  # half a turn round its own middle
 			RenderingServer.canvas_item_add_set_transform(to, Transform2D(Vector2(-1.0, 0.0), Vector2(0.0, -1.0), r.get_center() * 2.0))
-		var k := r.size.y / tex.y * ENDS
-		var a := minf(END.x * tex.x * k, r.size.x * 0.4)  # its left end's length
-		var b := minf((1.0 - END.y) * tex.x * k, r.size.x * 0.4)  # its right end's
+		var k := r.size.y / tex.y
+		var a := minf(END.x * tex.x * k * ENDS.x, r.size.x * 0.4)  # its left end's length
+		var b := minf((1.0 - END.y) * tex.x * k * ENDS.y, r.size.x * 0.4)  # its right end's
 		_piece(to, Rect2(r.position, Vector2(a, r.size.y)), Rect2(0.0, 0.0, END.x * tex.x, tex.y))
 		_piece(to, Rect2(r.position + Vector2(a, 0.0), Vector2(r.size.x - a - b, r.size.y)),
 				Rect2(END.x * tex.x, 0.0, (END.y - END.x) * tex.x, tex.y))

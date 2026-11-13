@@ -218,7 +218,7 @@ func _best_row(k: float) -> HBoxContainer:
 	bob.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(bob)
 	row.add_child(Ui.label(str(Save.best_bobs), roundi(46 * k), Ui.BONE))
-	var best := Ui.label(tr("BEST"), roundi(26 * k), Ui.INK_GOLD)
+	var best := Ui.label(tr("BEST"), roundi(30 * k), Ui.INK_GOLD)
 	best.size_flags_vertical = Control.SIZE_SHRINK_END
 	row.add_child(best)
 	var gap := Control.new()  # the stars at the strip's right end

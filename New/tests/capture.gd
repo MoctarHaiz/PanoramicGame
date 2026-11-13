@@ -220,7 +220,9 @@ func _capture(device: String, shot: String) -> void:
 			await _wait(0.12)
 			game.view._bandits[jumper.id]._spot = 0.0  # (its "!" is for the moment it wakes: long past, for one this near)
 			game.world.throw()
-			await _wait_for(func() -> bool: return jumper.leaping and jumper.vy > -World.BANDIT_JUMP * 0.45, 1.0)
+			# (blind round 18: "its wake a short soft orange puff": the ring well out from his hand, its whole wake behind it)
+			var out := func() -> bool: return not game.world.rings.is_empty() and game.world.rings[0].x - game.world.x > 190.0
+			await _wait_for(func() -> bool: return jumper.leaping and jumper.vy > -World.BANDIT_JUMP * 0.45 and out.call(), 1.0)
 		"hurt":  # a bandit runs into him: the instant after the blow
 			await _start_game("game")
 			await _wait(0.3)
@@ -245,6 +247,9 @@ func _capture(device: String, shot: String) -> void:
 				await _wait(0.6)
 		"pause", "controls":
 			await _start_game("game")
+			await _wait(0.5)
+			# (not with a ring on its way out or back: at half a second the returning ring was over his face)
+			await _wait_for(func() -> bool: return Nav.current.world.rings.is_empty(), 2.0)
 			await _wait(0.5)
 			Nav.current.pause_game()
 			await _wait(0.6)

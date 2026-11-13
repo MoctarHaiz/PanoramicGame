@@ -50,6 +50,16 @@ uniform float far : hint_range(0.0, 1.0) = 0.0;
 // shade still catches the low sun
 uniform float crest = 0.0;
 uniform float crest_to = 0.2;
+// Blind round 19 (of that rise: "a flat hatched violet slab ... a curtain behind a stage", "four horizontal bands with
+// no diagonal and no overlap": "give the slope form: a value gradient from crest to lane and two or three overlapping
+// diagonal swells"): a strip that is a ridge. `swell`: its picture slides up and down along its length, three waves'
+// heights in the picture's px (1, 2 and 3 of them to its width: it still repeats), `swell_at` where along them it
+// starts; `valley`: more air toward its foot, from `valley_at.x` to `valley_at.y` of its height (the mist lying in
+// the fold before the next ridge: each ridge darkest along its crest, paler down to the next one's)
+uniform vec3 swell = vec3(0.0);
+uniform float swell_at = 0.0;
+uniform float valley = 0.0;
+uniform vec2 valley_at = vec2(0.1, 0.3);
 
 varying vec4 drawn;  // round 20: the colour each sprite is drawn with (COLOR in fragment() has the texture in it)
 varying vec2 at;  // round 21: where it is drawn (the layer's units)
@@ -76,15 +86,25 @@ float lit_plane(vec3 c) {
 }
 
 void fragment() {
-	vec4 t = soft > 0.0 ? textureLod(TEXTURE, UV, soft) : texture(TEXTURE, UV);
+	vec2 uv = UV;
+	float above = 1.0;  // 0 over a risen ridge's picture (nothing is painted there)
+	if (swell != vec3(0.0)) {
+		float w = 6.2832 * (UV.x + swell_at);
+		float up = swell.x * sin(w) + swell.y * sin(2.0 * w + 1.9) + swell.z * sin(3.0 * w + 4.1);
+		uv.y = UV.y + up * TEXTURE_PIXEL_SIZE.y;
+		// (its first rows too: out of focus, the picture's top would take in its last rows, a hairline across the sky)
+		above = smoothstep(4.0, 8.0, uv.y / TEXTURE_PIXEL_SIZE.y);
+		uv.y = clamp(uv.y, 0.0, 1.0 - TEXTURE_PIXEL_SIZE.y);  // (under its picture: its last row, solid)
+	}
+	vec4 t = soft > 0.0 ? textureLod(TEXTURE, uv, soft) : texture(TEXTURE, uv);
 	// (round 22: in an atlas of cells, how far down its own cell: the foot's haze was read from the atlas's UV)
-	float v = UV.y;
+	float v = uv.y;
 	float py = UV.y / TEXTURE_PIXEL_SIZE.y;
 	if (cell_px > 0.0) {
 		v = clamp(mod(py, cell_px) / (cell_px - 6.0), 0.0, 1.0);
 	}
 	float k = clamp(amount + foot * smoothstep(0.6, 1.0, v) + far * (1.0 - smoothstep(0.0, 0.75, v))
-			- crest * (1.0 - smoothstep(0.0, crest_to, v)), 0.0, 1.0);
+			- crest * (1.0 - smoothstep(0.0, crest_to, v)) + valley * smoothstep(valley_at.x, valley_at.y, v), 0.0, 1.0);
 	// (round 20: and each sprite's own colour, as drawn: the trees' shades, the landforms' rows; it was dropped)
 	vec3 c = t.rgb * tint.rgb * drawn.rgb;
 	if (ink_units > 0.0 && t.a > 0.01) {
@@ -140,5 +160,5 @@ void fragment() {
 		c = mix(c, c * vec3(0.66, 0.64, 0.84), smoothstep(0.5, 0.7, n) * 0.6 * cloud);
 	}
 	float a = solid ? smoothstep(0.2, 0.8, t.a) : t.a;
-	COLOR = vec4(mix(c, haze_colour.rgb * air_tint.rgb, k), a * drawn.a);
+	COLOR = vec4(mix(c, haze_colour.rgb * air_tint.rgb, k), a * drawn.a * above);
 }

@@ -27,7 +27,7 @@ var view_bottom := World.VIEW_H
 ## Round 17 (blind rounds 12 to 16, the vine: "a wide empty blue band between vine and horizon"): the share of the
 ## camera's rise the backdrop follows. Far things barely move as the eye rises: the horizon, the landforms and the
 ## plain stay in the picture behind him up there, the play's own plane (the stacks, the vine) sliding over them.
-const BACKDROP_FOLLOW := 0.5
+const BACKDROP_FOLLOW := 0.68
 ## Round 10 (QA ENV-1): while the start card holds the world (GameScreen), a waiting bandit whose
 ## picture is not wholly inside the screen's safe area is not drawn (the level's first one stood
 ## cut by the right edge, in the phone's rounded corner); it fades in once the run starts.
@@ -373,6 +373,7 @@ func refresh(delta := 0.0) -> void:
 	_canopy.dusk = _background.dusk
 	var lift := maxf(World.VIEW_H - view_bottom, 0.0) * BACKDROP_FOLLOW
 	_background.position.y = -lift
+	_background.rise = maxf(World.VIEW_H - view_bottom, 0.0)
 	_background.view_top = view_top + lift
 	_background.hero_x = world.draw_hero().x
 	_level_root.position.x = -scroll

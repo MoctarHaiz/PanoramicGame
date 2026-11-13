@@ -32,6 +32,8 @@ const TRAIL := 9  ## positions kept for its streak on its way back
 ## Blind round 17 ("a thick, flat orange wedge with a hard red underside"): the red under-stroke is gone (the hillside
 ## behind the path is in the dusk's shade now: the smear has its value against it by itself) and every band is soft
 ## across (_band): a smear of light, hot at its heart.
+## Blind round 18 ("its wake a short soft orange puff"): the smear holds its strength longer toward his hand (it was
+## nearly gone over its first half) on a fuller wash, its strands starting sooner.
 const FLIGHT_GROW := 1.4
 const WAKE_LEN := 250.0
 const WAKE_SHORT := 130.0
@@ -44,8 +46,8 @@ const WAKE_BODY := Color("ff9a36")
 const WAKE_TONES: Array[Color] = [Color("e9582a"), Color("ffb23e"), Color("fff0cf")]  # its strands: hot orange outside, cream at its heart
 ## Its strands, as a dry brush leaves them: where each lies across it at the ring (-1 to 1), its half width (a share
 ## of WAKE_HALF), how far along the wake it starts (0 at his hand), how solid it is, its tone (WAKE_TONES).
-const WAKE_STRANDS := [[-0.8, 0.16, 0.4, 0.8, 0], [-0.46, 0.22, 0.2, 0.86, 1], [-0.12, 0.26, 0.05, 0.95, 2],
-		[0.24, 0.24, 0.12, 0.92, 2], [0.56, 0.2, 0.28, 0.84, 1], [0.82, 0.15, 0.46, 0.74, 0]]
+const WAKE_STRANDS := [[-0.8, 0.16, 0.28, 0.84, 0], [-0.46, 0.22, 0.12, 0.9, 1], [-0.12, 0.26, 0.02, 0.97, 2],
+		[0.24, 0.24, 0.06, 0.95, 2], [0.56, 0.2, 0.18, 0.88, 1], [0.82, 0.15, 0.32, 0.8, 0]]
 const WIND_UP := 0.04  ## seconds hidden while his hand swings back (HeroView.THROW_TIME)
 const HOT := Color("e6f6ff")
 ## It leaves from his hand (the rules start it at his middle, ahead of him): drawn from this offset
@@ -230,7 +232,7 @@ func _band(on: Node2D, path: PackedVector2Array, half: float, from: float, colou
 		right.append(p - across * w)
 		mid.append(p)
 		# gone to nothing at his hand, full only near the ring
-		cols.append(Color(colour, colour.a * smoothstep(0.0, 0.3, v) * pow(u, 1.15)))
+		cols.append(Color(colour, colour.a * smoothstep(0.0, 0.3, v) * pow(u, 0.75)))
 	var uv := PackedVector2Array([Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO])
 	for i in n - 1:
 		if cols[i + 1].a <= 0.0:
@@ -255,7 +257,7 @@ func _draw_wake() -> void:
 		return
 	var fade := 1.0 if _back < 0.0 else 0.85
 	var half := WAKE_HALF * _grow()
-	_band(_wake, path, half * 1.1, 0.04, Color(WAKE_BODY, 0.36 * fade))  # a soft wash under its strands
+	_band(_wake, path, half * 1.1, 0.04, Color(WAKE_BODY, 0.5 * fade))  # a soft wash under its strands
 	for strand: Array in WAKE_STRANDS:
 		_band(_wake, path, half * float(strand[1]), strand[2], Color(WAKE_TONES[int(strand[4])], float(strand[3]) * fade),
 				half * float(strand[0]))

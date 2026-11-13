@@ -43,7 +43,9 @@ const GROUND_REACH := 170.0
 const TREE_X := 366.0  ## the great acacia behind the palisade: its foot (from LEFT), left of the pushed-in shot
 const TREE_K := 1.25  ## its size: its crown leaves the picture by the top left corner
 const TREE_FOOT := 230.5  ## its trunk's foot in its picture (px: tree_info.json's anchor_x)
-const TREE_DUSK := Color(0.92, 0.86, 1.04)
+const TREE_AIR := Color(0.3, 0.28, 0.56)
+const TREE_AIR_K := 0.36
+const TREE_DUSK := Color(1.0, 0.96, 1.12)  ## (blind round 18: "a heavy dark trunk slices the left edge": deeper in the dusk's air, TREE_AIR)
 
 var back: Node2D
 var yard: Node2D  ## over the ground's grass, under the actors (WorldView adds it after the ground)
@@ -77,7 +79,12 @@ func build() -> void:
 	# shade; the small hut a little further back and whole in the pushed-in shot)
 	var tree := _put(back, "tree_acacia_2", LEFT + TREE_X, TREE_K, TREE_DUSK)
 	tree.offset.x = -TREE_FOOT
-	tree.material = form(0.0, 0.0)
+	var air := ShaderMaterial.new()  # (it stands back in the dusk's air: its darks toward the night sky's violet)
+	air.shader = preload("res://src/game/haze.gdshader")
+	air.set_shader_parameter(&"haze_colour", TREE_AIR)
+	air.set_shader_parameter(&"amount", TREE_AIR_K)
+	air.set_shader_parameter(&"foot", 0.0)
+	tree.material = air
 	var granary := _put(back, "home_granary", LEFT + 330.0, 0.95, Color(0.9, 0.88, 0.9))
 	granary.material = form(1.0)
 	var small := _put(back, "home_hut_small", LEFT + 1078.0, 0.8, Color(0.88, 0.86, 0.92))

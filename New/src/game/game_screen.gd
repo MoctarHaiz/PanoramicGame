@@ -50,6 +50,21 @@ const HIGH_AHEAD := 4.0  ## ... or, gently, when only what comes further ahead (
 const HIGH_LOOKAHEAD := 330.0  ## units further than the rules look for a drop ahead (~1.4 s of run)
 const HOME_PUSH := 1.78  ## at home the camera pushes in to the doorway, to this zoom (1: 640 units tall; round 6: closer; round 19: 1.6 -> 1.78, "the hero small at home")
 const DEATH_PUSH := 1.2  ## caught: the camera closes in on him while he falls (World.DYING_TIME)
+## Blind round 18 (of the blow and the throw: "three stripes and two small figures", "push the camera in about 25 to
+## 30% on a hit so the fighters fill a third of the height and the empty sky and soil strips fall out of frame"): a
+## fight is framed. While a ring flies at a bandit, while one is nearly on him, and for a beat after a blow, the
+## camera closes in by FIGHT_PUSH about the two of them (a point between them at his chest's height: the sky above
+## and the earth below leave the frame), and draws back as soon as it is over. What must be seen (_keep_fair) is
+## framed first and the push is laid over it: for that beat the screen's far right shows a little later, where
+## nothing can reach him yet. Not up on a ledge or on the vine (the camera frames those its own way).
+const FIGHT_PUSH := 1.2
+const FIGHT_REACH := 300.0  ## a bandit this near ahead of him (units), on his level
+const FIGHT_RING := 520.0  ## ... or this near while a ring is in the air
+const FIGHT_LEVEL := 150.0  ## "on his level": its centre this near his, up or down
+const FIGHT_HOLD := 0.5  ## seconds the push stays after a blow
+const FIGHT_IN := 9.0  ## 1/s: how fast it closes in, and draws back
+const FIGHT_OUT := 2.6
+const FIGHT_CHEST := 86.0  ## units over the ground he stands on: the height the push closes in about
 const START_PUSH := 1.3  ## (round 19) on the start card the camera opens pushed in this much on him, about his feet,
 const START_HOLD := 1.6  ## ... holds it this many seconds,
 const START_REVEAL := 1.0  ## ... then draws back to the run's framing over this many (the first touch: at once)
@@ -103,6 +118,9 @@ var _support := 0.0  # play y of the feet he last stood on (in the air only a fa
 var _high := 0.0  # 0..1: how far the camera has risen with him on a high ledge
 var _push := 1.0  # the camera pushed in at home (HOME_PUSH), or on him when caught (DEATH_PUSH)
 var _start_push := 1.0  # the camera pushed in on him on the start card (START_PUSH .. 1)
+var _fight := 0.0  # 0..1: how far the camera has closed in on a fight (FIGHT_PUSH)
+var _fight_x := 0.0  # the play x it closes in about (between him and the bandit)
+var _fight_hold := 0.0  # seconds left of the push after a blow
 var _zoom_placed_ready := false  # the camera was first placed on the start card
 var _start_clock := 0.0  # seconds the start card has shown
 var _pit_scroll := -1.0  # the scroll the camera holds at while he drops into a pit (_gameplay_camera)
@@ -334,6 +352,12 @@ func _place_camera(delta: float) -> void:
 		var mark := Vector2(at.x + p.x * zoom_k, _clip.size.y)
 		at = mark + (at - mark) * _start_push
 		zoom_k *= _start_push
+	var fought := _fight_at(p, delta)
+	if _fight > 0.0005:
+		var f := 1.0 + (FIGHT_PUSH - 1.0) * _fight
+		var about := at + Vector2(fought, _support - FIGHT_CHEST) * zoom_k
+		at = about + (at - about) * f
+		zoom_k *= f
 	var z := 1.0 + 2.0 * shake / (World.VIEW_H * _k)
 	zoom_k *= z
 	at = at * z + _clip.size / 2.0 * (1.0 - z)
@@ -346,6 +370,32 @@ func _place_camera(delta: float) -> void:
 	# (round 10, QA ENV-1) the start card's frame: no bandit cut by the right edge of the safe area
 	view.start_hold = _ready_to_start
 	view.safe_right = (_clip.size.x - Device.insets().z - _stage.position.x) / _stage.scale.x
+
+
+## The fight's framing (FIGHT_PUSH): eases _fight in or out and returns the play x the push closes in about.
+func _fight_at(p: Vector2, delta: float) -> float:
+	var on := 0.0
+	var goal := p.x + FIGHT_REACH * 0.4
+	if world.state == World.State.RUNNING and not world.hanging and _high < 0.2 and not _ready_to_start:
+		var reach := FIGHT_RING if not world.rings.is_empty() else FIGHT_REACH
+		for b in world.bandits:
+			var dx := b.x - world.draw_scroll() - p.x
+			if b.gone or not b.active or dx < -30.0 or dx > reach or absf(b.y - p.y) > FIGHT_LEVEL:
+				continue
+			on = 1.0
+			goal = p.x + clampf(dx, 0.0, FIGHT_REACH) * 0.5
+			break
+		_fight_hold = maxf(_fight_hold - delta, 0.0)
+		if _fight_hold > 0.0:
+			on = 1.0
+	else:
+		_fight_hold = 0.0
+	if _fight < 0.01 and on > 0.0:
+		_fight_x = goal  # (it starts where the fight is: no slide in from the last one)
+	elif on > 0.0 and _fight_hold <= 0.0:
+		_fight_x = lerpf(_fight_x, goal, 1.0 - exp(-delta * 6.0))
+	_fight = lerpf(_fight, on, 1.0 - exp(-delta * (FIGHT_IN if on > _fight else FIGHT_OUT)))
+	return _fight_x
 
 
 ## (gameplay) The rules' say over the camera, after its framing: it holds still while he drops into
@@ -691,6 +741,7 @@ func _on_bob_popped(at: Vector2) -> void:
 ## A ring on a bandit: the small impact (3 frames held, a light shake, the bandit knocked back the
 ## way the ring flew and springing back); a knock-out is the medium one (it tumbles away: BanditView).
 func _on_bandit_hit(b: World.Bandit, knocked_out: bool) -> void:
+	_fight_hold = FIGHT_HOLD
 	Audio.play_sfx(&"knock_out" if knocked_out else &"ring_hit")
 	if knocked_out:
 		Haptics.knock()

@@ -106,6 +106,9 @@ const DUSK_LOW := Color(0.8, 0.74, 0.96)
 const DUSK_MESAS := [Color(0.5, 0.5, 0.8), Color(0.56, 0.56, 0.84), Color(0.74, 0.66, 0.92)]
 ## (blind round 15, of the home: "a pale wedge-shaped streak from the fire's base toward the hut like a rendering
 ## glitch": the tall grass behind the path kept the day's pale gold, its plumes the one bright thing in the dusk)
+## (blind round 18, of the home: "the baobab keeps daylight yellow-green foliage ... so the night stops at the fence":
+## the trees had no dusk of their own) the two tree rows at dusk, and their air's
+const DUSK_TREES := [Color(0.5, 0.5, 0.82), Color(0.48, 0.47, 0.8)]
 const DUSK_STRIPS := {&"far_wall": Color(0.6, 0.6, 0.9), &"far_hills": Color(0.5, 0.5, 0.78), &"mid_hills": Color(0.56, 0.54, 0.8),
 		&"near_grass": Color(0.46, 0.44, 0.7)}
 ## Tree rows: scroll factor, spacing (level units of that layer), size (of the picture's height in
@@ -144,7 +147,6 @@ const TREE_AMBIENT := [0.0, 0.0]
 const SOFT_MESAS := 2.2
 const SOFT_PLAIN := 1.9
 const SOFT_TREES := [1.6, 1.2]
-const SOFT_MID := 1.1  ## (round 18: the painted hillside a little out of focus: its crest's brush ticks melt into a line)
 const SOFT_LANE := 0.8
 const LIFT_TREES := [0.15, 0.1]
 const LIFT_MID := 0.0
@@ -157,7 +159,6 @@ const LIFT_LANE := 0.0
 ## against it, not against a dark olive band.
 ## The redesign: the plain as painted; the rise and the tall grass behind his body a little paler and cooler than
 ## painted (a straw gold), so his darker, redder skin and his ink stand off them.
-const MID_TINT := Color(1.0, 1.0, 1.0)
 const LANE_TINT := Color(0.52, 0.44, 0.64)
 ## and each a little flatter than painted (less contrast, less colour: the shader's `flatten`), the plain most: the
 ## characters in front are the picture's strongest darks and colours
@@ -175,7 +176,6 @@ const PLAIN_FLATTEN := 0.22
 const PLAIN_HAZE := 0.14
 const PLAIN_FAR := 0.3
 const MID_FLATTEN := 0.0  ## (round 17: the quiet rise needs no flattening: it has no small darks to quieten)
-const MID_HAZE := 0.38
 const LANE_FLATTEN := 0.2
 const LANE_HAZE := 0.45
 ## Blind round 18 ("two lights in one picture: a saturated violet dusk sky with sunset-lit peach clouds above, and a
@@ -184,14 +184,47 @@ const LANE_HAZE := 0.45
 ## "put the plain under the same low sun as the sky and clear the band directly behind them"): the picture is staged in
 ## bands of light and shade, as the low sun lays them. The rise behind the path stands as tall as the fighters (its
 ## crest just over their heads) and lies in the dusk's shade, the sky's violet in it (RISE_SHADE): one quiet plane,
-## cooler and a value under his sunlit skin, over his darks, with the last light along its crest (RISE_CREST); the
+## cooler and a value under his sunlit skin, over his darks, with the last light along its crest (RIDGES' crest); the
 ## tall grass before it in the same shade; beyond the crest the far plain glows in the last sun, its painted gold and
 ## long violet shadows back (PLAIN_HAZE, PLAIN_FLATTEN), and every tree stands behind the crest, its crown over the
 ## fighters' heads, in that light (TREE_ROWS). The path and the fighters are in the sun in front.
 const RISE_SHADE := Color(0.62, 0.5, 0.72)  ## the air over the painted hillside (rise3 is painted a value deeper than his darks need)
+## Blind round 19 (of that rise, in three pictures: "a flat hatched violet slab ... a curtain behind a stage", "four
+## horizontal bands with no diagonal and no overlap"; under the vine "a featureless mauve fog slab"; "give the slope
+## form: a value gradient from crest to lane and two or three overlapping diagonal swells"): the rise is three ridges,
+## one behind the other, each the painted hillside sliding up and down along its length on its own long swell
+## (haze.gdshader's `swell`), so their crests cross: the far one the skyline, over the fighters' heads, the last sun
+## gold along its crest and the palest; the middle one behind their shoulders; the near one, the deepest, behind
+## their hips. Each is darkest under its crest and paler down to the next one's (`valley`: the dusk's mist in the
+## fold), and each moves a little faster than the one behind it. Per ridge: scroll factor, its picture's bottom (play
+## y), units a px, where along the picture it starts (of its width), its swell (px), where along the swell it starts,
+## the air over it and how much, how much less (or, below 0, more) of it along the crest, the mist in its fold, its
+## tint, how far out of focus.
+const RIDGES := [
+	{scroll = 0.15, foot = 619.0, k = 0.44, shift = 0.31, swell = Vector3(30.0, 15.0, 8.0), at = 0.0, air = Color(0.8, 0.64, 0.74),
+			amount = 0.42, crest = 0.42, valley = 0.22, tint = Color.WHITE, soft = 1.3},
+	{scroll = 0.2, foot = 688.0, k = 0.5, shift = 0.64, swell = Vector3(32.0, 17.0, 8.0), at = 0.37, air = RISE_SHADE,
+			amount = 0.22, crest = -0.14, valley = 0.3, tint = Color(0.9, 0.86, 0.96), soft = 1.1},
+	{scroll = 0.26, foot = 754.0, k = 0.56, shift = 0.07, swell = Vector3(28.0, 14.0, 9.0), at = 0.71, air = Color(0.5, 0.4, 0.62),
+			amount = 0.12, crest = -0.16, valley = 0.14, tint = Color(0.74, 0.7, 0.86), soft = 0.9},
+]
+## Blind round 18 (under the vine: "a featureless mauve fog slab: no river, no gorge, no floor, so the swing has no
+## height and no stakes ... a painted drop: a river with real depth and reflections, the pinnacle rooted in it"): a
+## river lies in the fold beyond the first ridge (river.gdshader), its far waterline at RIVER_TOP. From the ground the
+## middle ridge hides it, but for a glimpse where its crest dips; as the camera rises with him the nearer ridges sink
+## away faster than the far one (`drop`, units a unit of the camera's rise: what is nearer moves more), and the whole
+## water opens under him: the pinnacles of the play stand before it.
+const RIVER_TOP := 478.0
+const RIVER_SCROLL := 0.17
+const RIVER_DUSK := Color(0.62, 0.62, 0.9)
+const RIDGE_DROP := [0.0, 0.48, 0.62]
+const LANE_DROP := 0.8  ## the tall grass at the path's back, its shade and its dust: nearest, they sink away soonest
+## The landforms stand mirrored in it (mirror.gdshader): their two nearer rows drawn again upside down under its
+## waterline, MIRROR of their height (the water is seen from above), sliced by its ripples.
+const MIRROR := 0.42
+const RIDGE_HEAD := 40.0  ## units over its picture's top a ridge's swell may rise into
 const GRASS_SHADE := Color(0.34, 0.27, 0.44)  ## ... and what the tall grass before it is drawn toward: nearer, deeper
 const RISE_FOOT := 0.0
-const RISE_CREST := 0.3  ## less of that air along its crest: the last sun on it stays gold
 const RISE_CREST_TO := 0.2
 const MIST := Color(0.96, 0.74, 0.64)  ## the low dust behind the path (_draw_lane_mist)
 const MIST_DUSK := Color(0.3, 0.375, 0.86)  ## ... at dusk
@@ -245,7 +278,10 @@ var _mesa_span: Array[float] = []  # per row: units before its order repeats
 var _mesa_mats: Array[ShaderMaterial] = []  # round 21: per row (the clouds' shadows slide over them)
 var _tree_mats: Array[ShaderMaterial] = []  # round 17: the two tree rows' (their haze thins at dusk)
 var _far_mat: ShaderMaterial  # round 23: the far plain's and the mid hills' (the dusk's colour over their haze)
-var _mid_mat: ShaderMaterial
+var _ridge_mats: Array[ShaderMaterial] = []  # blind round 19: the rise's three ridges (RIDGES)
+var _river_mat: ShaderMaterial
+var _mirror_mat: ShaderMaterial
+var rise := 0.0  ## units the camera has risen over the ground's framing (WorldView): the nearer ridges sink away (RIDGE_DROP)
 var _lane_mat: ShaderMaterial  # round 18: the tall grass behind the path (in the rise's shade)
 var _wall_mat: ShaderMaterial
 var _mesa_pitch := 0.0  # px between two rows of landforms in far_mesa_pieces.png
@@ -288,9 +324,22 @@ func _ready() -> void:
 	_tree_mats = [_tree_haze(0), _tree_haze(1)]
 	_painter(_draw_trees.bind(0)).material = _tree_mats[0]
 	_painter(_draw_trees.bind(1)).material = _tree_mats[1]
-	_mid_mat = _haze([0, 0, 0, 0, MID_HAZE, RISE_FOOT, 0, RISE_SHADE], MID_TINT, 0.0, 0.0, true, {flatten = MID_FLATTEN, soft = SOFT_MID, lift = LIFT_MID,
-			crest = RISE_CREST, crest_to = RISE_CREST_TO})
-	_painter(_draw_strip.bind(&"mid_hills"), true).material = _mid_mat
+	for i in RIDGES.size():
+		var r: Dictionary = RIDGES[i]
+		var m := _haze([0, 0, 0, 0, r.amount, RISE_FOOT, 0, r.air], r.tint, 0.0, 0.0, true, {flatten = MID_FLATTEN, soft = r.soft, lift = LIFT_MID,
+				crest = r.crest, crest_to = RISE_CREST_TO, swell = r.swell, swell_at = r.at, valley = r.valley})
+		_painter(_draw_ridge.bind(i), true).material = m
+		_ridge_mats.append(m)
+		if i == 0:  # the river beyond the first ridge
+			_river_mat = ShaderMaterial.new()
+			_river_mat.shader = preload("res://src/game/river.gdshader")
+			_river_mat.set_shader_parameter(&"top", RIVER_TOP)
+			_painter(_draw_river).material = _river_mat
+			_mirror_mat = ShaderMaterial.new()
+			_mirror_mat.shader = preload("res://src/game/mirror.gdshader")
+			_mirror_mat.set_shader_parameter(&"top", RIVER_TOP)
+			_mirror_mat.set_shader_parameter(&"squash", MIRROR)
+			_painter(_draw_mirror).material = _mirror_mat
 	_painter(_draw_lane_mist)
 	_lane_mat = _haze([0, 0, 0, 0, LANE_HAZE, 0.0, 0, GRASS_SHADE], LANE_TINT, 0.0, 0.0, true, {flatten = LANE_FLATTEN, soft = SOFT_LANE, lift = LIFT_LANE})
 	_painter(_draw_strip.bind(&"near_grass"), true).material = _lane_mat
@@ -359,7 +408,10 @@ func _process(delta: float) -> void:
 		_mesa_mats[row].set_shader_parameter(&"air_tint", _dusk(DUSK_MESAS[row]))  # (round 23: the air dusks with them)
 	_wall_mat.set_shader_parameter(&"air_tint", _dusk(DUSK_STRIPS[&"far_wall"]))
 	_far_mat.set_shader_parameter(&"air_tint", _dusk(DUSK_STRIPS[&"far_hills"]))
-	_mid_mat.set_shader_parameter(&"air_tint", _dusk(DUSK_STRIPS[&"mid_hills"]))
+	for m in _ridge_mats:
+		m.set_shader_parameter(&"air_tint", _dusk(DUSK_STRIPS[&"mid_hills"]))
+	_river_mat.set_shader_parameter(&"slide", scroll * RIVER_SCROLL)
+	_mirror_mat.set_shader_parameter(&"slide", scroll * RIVER_SCROLL)
 	_lane_mat.set_shader_parameter(&"air_tint", _dusk(DUSK_STRIPS[&"near_grass"]))
 	var clear := 1.0 - DUSK_CLEAR * dusk
 	_far_mat.set_shader_parameter(&"amount", PLAIN_HAZE * clear)
@@ -368,6 +420,7 @@ func _process(delta: float) -> void:
 		_tree_mats[row].set_shader_parameter(&"amount", float(TREE_ROWS[row][4]) * clear)
 		_tree_mats[row].set_shader_parameter(&"flatten", TREE_FLATTEN[row] * clear)
 		_tree_mats[row].set_shader_parameter(&"lift", LIFT_TREES[row] * clear)
+		_tree_mats[row].set_shader_parameter(&"air_tint", _dusk(DUSK_TREES[row]))
 	for p in _painters:
 		p.queue_redraw()
 
@@ -589,8 +642,39 @@ func _draw_strip(ci: CanvasItem, name: StringName) -> void:
 	var x1 := _x1()
 	var h := tex.get_height() * k
 	var src_x := fposmod((scroll * s[0] + x0) / k, tex.get_width())
-	ci.draw_texture_rect_region(tex, Rect2(x0, s[1] - h, x1 - x0, h),
+	var sunk := rise * LANE_DROP if name == &"near_grass" else 0.0
+	ci.draw_texture_rect_region(tex, Rect2(x0, s[1] + sunk - h, x1 - x0, h),
 			Rect2(src_x, 0, (x1 - x0) / k, tex.get_height()), _dusk(DUSK_STRIPS.get(name, Color.WHITE)))
+
+
+## The river beyond the first ridge (RIVER_TOP), down past the bottom of the picture.
+func _draw_river(ci: CanvasItem) -> void:
+	var x0 := _x0()
+	ci.draw_rect(Rect2(x0, RIVER_TOP - 8.0, _x1() - x0, World.VIEW_H + 420.0 - RIVER_TOP), _dusk(RIVER_DUSK))
+
+
+## The landforms mirrored in the river (MIRROR). From the ground the middle ridge stands before all of it.
+func _draw_mirror(ci: CanvasItem) -> void:
+	if rise < 1.0:
+		return
+	ci.draw_set_transform(Vector2(0.0, RIVER_TOP * (1.0 + MIRROR)), 0.0, Vector2(1.0, -MIRROR))
+	for row in [1, 2]:
+		_draw_mesas(ci, row)
+	ci.draw_set_transform(Vector2.ZERO)
+
+
+## One ridge of the rise behind the path (RIDGES): the painted hillside, its swell in its material.
+func _draw_ridge(ci: CanvasItem, i: int) -> void:
+	var r: Dictionary = RIDGES[i]
+	var tex: Texture2D = _tex[&"mid_hills"]
+	var k: float = r.k
+	var x0 := _x0()
+	var x1 := _x1()
+	var h := tex.get_height() * k
+	var src_x := fposmod((scroll * float(r.scroll) + x0) / k + float(r.shift) * tex.get_width(), tex.get_width())
+	var sunk: float = rise * RIDGE_DROP[i]
+	ci.draw_texture_rect_region(tex, Rect2(x0, float(r.foot) + sunk - h - RIDGE_HEAD, x1 - x0, h + RIDGE_HEAD),
+			Rect2(src_x, -RIDGE_HEAD / k, (x1 - x0) / k, tex.get_height() + RIDGE_HEAD / k), _dusk(DUSK_STRIPS[&"mid_hills"]))
 
 
 ## The foreground grass along the bottom edge (round 20: taller, denser, its top rising and falling, never
@@ -635,18 +719,20 @@ func _draw_lane_mist(ci: CanvasItem) -> void:
 	var air := MIST * _dusk(MIST_DUSK)
 	var clear := Color(air, 0.0)
 	var full := Color(air, lerpf(MIST_DAY, MIST_FULL, dusk))
-	ci.draw_polygon(PackedVector2Array([Vector2(x0, MIST_FROM), Vector2(x1, MIST_FROM), Vector2(x1, MIST_AT), Vector2(x0, MIST_AT)]),
+	var sunk := rise * LANE_DROP  # (the lane's dust is at the lane: from above, it is not over the river)
+	ci.draw_polygon(PackedVector2Array([Vector2(x0, MIST_FROM + sunk), Vector2(x1, MIST_FROM + sunk), Vector2(x1, MIST_AT + sunk), Vector2(x0, MIST_AT + sunk)]),
 			PackedColorArray([clear, clear, full, full]))
-	ci.draw_rect(Rect2(x0, MIST_AT, x1 - x0, World.VIEW_H + 12.0 - MIST_AT), full)
+	ci.draw_rect(Rect2(x0, MIST_AT + sunk, x1 - x0, World.VIEW_H + 12.0 - MIST_AT), full)
 
 
 func _draw_lane_shade(ci: CanvasItem) -> void:
 	var x0 := _x0()
 	var x1 := _x1()
 	var shade := Color.WHITE.lerp(LANE_SHADE, 1.0 - 0.5 * dusk)  # (at dusk the whole scene is in shade: half of it)
-	ci.draw_polygon(PackedVector2Array([Vector2(x0, LANE_SHADE_FROM), Vector2(x1, LANE_SHADE_FROM), Vector2(x1, LANE_SHADE_FULL), Vector2(x0, LANE_SHADE_FULL)]),
+	var sunk := rise * LANE_DROP
+	ci.draw_polygon(PackedVector2Array([Vector2(x0, LANE_SHADE_FROM + sunk), Vector2(x1, LANE_SHADE_FROM + sunk), Vector2(x1, LANE_SHADE_FULL + sunk), Vector2(x0, LANE_SHADE_FULL + sunk)]),
 			PackedColorArray([Color.WHITE, Color.WHITE, shade, shade]))
-	ci.draw_rect(Rect2(x0, LANE_SHADE_FULL, x1 - x0, World.VIEW_H + 12.0 - LANE_SHADE_FULL), shade)
+	ci.draw_rect(Rect2(x0, LANE_SHADE_FULL + sunk, x1 - x0, World.VIEW_H + 12.0 - LANE_SHADE_FULL), shade)
 
 
 ## Round 10 ("a flat olive band"): the shadows of the clouds lying across the plain, long and soft,
@@ -725,7 +811,7 @@ func _draw_tree(ci: CanvasItem, row_index: int, tex: Texture2D, anchor: float, f
 	if flip:  # a negative width mirrors the picture in place
 		rect.size.x = -size.x
 	ci.draw_set_transform_matrix(Transform2D(0.0, Vector2.ONE, lean, foot))
-	ci.draw_texture_rect(tex, Rect2(rect.position - foot, rect.size), false, Color(v + warm, v, v - warm, alpha))
+	ci.draw_texture_rect(tex, Rect2(rect.position - foot, rect.size), false, Color(v + warm, v, v - warm, alpha) * _dusk(DUSK_TREES[row_index]))
 	ci.draw_set_transform_matrix(Transform2D.IDENTITY)
 
 

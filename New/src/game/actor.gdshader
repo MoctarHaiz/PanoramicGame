@@ -195,8 +195,11 @@ void fragment() {
 		float x = dot(local_pos * bounce_scale, normalize(bounce_dir));
 		// (blind round 16: "any fire or dusk grading on him is too weak to see at phone size: light him from the fire
 		// decisively": the turn from the fire's side to the far side is short, about his middle: two clear halves)
-		float side = smoothstep(-0.1, 0.5, x);
-		float far = bounce_far < 0.0 ? smoothstep(0.1, -0.7, x) : smoothstep(0.12, -0.4, x);
+		// (blind round 18: "he keeps even near-neutral skin ... light him as the hut is lit: a decisive warm side and
+		// violet side by value across the whole body": his body stands in the frame's middle third, where the turn was
+		// only beginning: now it is done across his chest, the fire's half and the dusk's half)
+		float side = smoothstep(-0.16, 0.14, x);
+		float far = bounce_far < 0.0 ? smoothstep(0.1, -0.7, x) : smoothstep(0.04, -0.24, x);
 		// (blind round 15: "his loincloth stays day-white, his armour clean blue") what has little colour of its own
 		// shows the light's: his whites (pale, unsaturated) and his metal (blue) take the fire's orange on its side
 		// and the dusk's violet on the other, by value and hue only (`bounce_take`; no rim, no glow)
@@ -211,7 +214,7 @@ void fragment() {
 		if (take > 0.0) {
 			// (split about his middle, not across his whole frame: his cloth hangs at its middle, between the two)
 			float l3 = dot(c.rgb, vec3(0.3, 0.59, 0.11));
-			float lit = smoothstep(-0.3, -0.08, x);
+			float lit = smoothstep(-0.16, 0.06, x);
 			c.rgb = mix(c.rgb, l3 * mix(bounce_dusk_hue.rgb, bounce_fire_hue.rgb, lit), take * min(bounce * 1.3, 1.0));
 		}
 	}
