@@ -34,20 +34,27 @@ const TRAIL := 9  ## positions kept for its streak on its way back
 ## across (_band): a smear of light, hot at its heart.
 ## Blind round 18 ("its wake a short soft orange puff"): the smear holds its strength longer toward his hand (it was
 ## nearly gone over its first half) on a fuller wash, its strands starting sooner.
-const FLIGHT_GROW := 1.4
+## Blind round 21 (of the throw: "the ring is small and down in the grass tufts at ankle height", its wake "a straight
+## airbrushed orange-to-cream beam from fingertip to ring, a laser in a soft language foreign to the ink": "the ring
+## about 1.5 times larger at chest height on a curved, ink-drawn tapering wake"): it flies bigger (FLIGHT_GROW 1.4 ->
+## 1.85) and LIFT units over its lane in the rules (his chest's height, not his hip's: drawn only), and its wake is
+## drawn as the characters are: a slim blade of two flat tones, a point at his hand, an ink line along both its edges,
+## curving down from his hand to its flight, two short ink strokes of speed beside it. No soft light.
+const FLIGHT_GROW := 1.85
+const LIFT := 15.0
 const WAKE_LEN := 250.0
 const WAKE_SHORT := 130.0
 const WAKE_HOLD := 0.34  ## seconds of flight it keeps its full length
 const WAKE_STEPS := 16
 const WAKE_TUCK := 14.5  ## units short of the ring's middle it ends: under its rim (its hole stays open)
-const WAKE_HALF := RADIUS * 0.56  ## half its width at the ring (grown: FLIGHT_GROW): inside the ring's own height, lying flat (FLAT)
+const WAKE_HALF := 8.0  ## half its width at the ring: a blade well inside the ring's own height
 const WAKE_TAPER := 0.9  ## how its width closes toward his hand (1: a straight wedge)
-const WAKE_BODY := Color("ff9a36")
-const WAKE_TONES: Array[Color] = [Color("e9582a"), Color("ffb23e"), Color("fff0cf")]  # its strands: hot orange outside, cream at its heart
-## Its strands, as a dry brush leaves them: where each lies across it at the ring (-1 to 1), its half width (a share
-## of WAKE_HALF), how far along the wake it starts (0 at his hand), how solid it is, its tone (WAKE_TONES).
-const WAKE_STRANDS := [[-0.8, 0.16, 0.28, 0.84, 0], [-0.46, 0.22, 0.12, 0.9, 1], [-0.12, 0.26, 0.02, 0.97, 2],
-		[0.24, 0.24, 0.06, 0.95, 2], [0.56, 0.2, 0.18, 0.88, 1], [0.82, 0.15, 0.32, 0.8, 0]]
+const WAKE_BODY := Color("ff9a36")  ## its blade's outer tone
+const WAKE_CORE := Color("fff1d2")  ## ... and its heart
+const WAKE_INK := Color(0.33, 0.1, 0.07)  ## its line: the blow's burst's (tools/art/kie/world.py IMPACT_INK)
+const WAKE_LINE := 1.7  ## units wide
+## Its strokes of speed: [units off the blade's middle at the ring, from, to (along the wake, 0 at his hand)].
+const WAKE_SPEED := [[-17.0, 0.34, 0.74], [15.0, 0.5, 0.92]]
 const WIND_UP := 0.04  ## seconds hidden while his hand swings back (HeroView.THROW_TIME)
 const HOT := Color("e6f6ff")
 ## It leaves from his hand (the rules start it at his middle, ahead of him): drawn from this offset
@@ -65,7 +72,7 @@ const SPIN := 15.0  ## radians a second it turns in its own plane
 ## first drawing, the one in his hand) flattened to FLAT of its height (rocking between the two), tipped TIP radians
 ## into its way, turning in its own plane, its blades smeared behind their turn (SMEAR: fainter copies, each a step of
 ## the turn back). It leaves his hand face-on and lies down into its flight as it grows.
-const FLAT := Vector2(0.5, 0.64)
+const FLAT := Vector2(0.56, 0.7)
 const FLAT_ROCK := 9.0  ## radians a second it rocks between them
 const TIP := -0.2
 const SMEAR := [[0.34, 0.2], [0.17, 0.42]]  ## [radians back, opacity], the faintest first
@@ -91,6 +98,7 @@ var _trail: Array[Vector2] = []  # recent positions, in the parent's units
 var _sparks: Array[Vector4] = []  # x, y (parent units), age, life
 var _back := -1.0  # seconds since it struck a bandit (-1: flying out)
 var _back_from := Vector2.ZERO
+var _lifted := 1.0  # how much of LIFT it keeps (it comes down to his hand on its way back)
 var _catch: Callable  # where his hand is now (the parent's units)
 
 
@@ -114,6 +122,7 @@ func _process(delta: float) -> void:
 		_back += delta
 		var t := clampf((_back - BACK_HOLD) / BACK_TIME, 0.0, 1.0)
 		var e := t * t * (3.0 - 2.0 * t)
+		_lifted = 1.0 - e
 		var to: Vector2 = _catch.call()
 		var top := (_back_from + to) * 0.5 + Vector2(0.0, -BACK_UP)
 		position = _back_from.lerp(top, e).lerp(top.lerp(to, e), e)
@@ -127,8 +136,7 @@ func _process(delta: float) -> void:
 	_trail.push_front(at)
 	if _trail.size() > TRAIL:
 		_trail.pop_back()
-	if randf() < delta * 14.0:
-		_sparks.append(Vector4(at.x + randf_range(-6, 6), at.y + randf_range(-10, 10), 0.0, randf_range(0.18, 0.32)))
+	# (blind round 21: no soft sparks off it: a white dot in its open hole; its wake is ink now)
 	for i in range(_sparks.size() - 1, -1, -1):
 		var s := _sparks[i]
 		s.z += delta
@@ -170,7 +178,8 @@ func _grow() -> float:
 ## Where it is drawn from its place in the rules: still on its way out of his hand.
 func _hand() -> Vector2:
 	var t := clampf((_clock - WIND_UP) / hand_time, 0.0, 1.0)
-	return from_hand * (1.0 - t) * (1.0 - t)
+	var held := (1.0 - t) * (1.0 - t)
+	return from_hand * held + Vector2(0.0, -LIFT * _lifted) * (1.0 - held)
 
 
 func _draw() -> void:
@@ -198,10 +207,12 @@ func _wake_path() -> PackedVector2Array:
 	var path := PackedVector2Array()
 	var head := position + _hand()
 	if _back >= 0.0 or not hand.is_valid():  # on its way back (or thrown by no hand): where it has just been
-		if _trail.size() < 3:
+		# (held on what it struck, it has no wake; flying back, its wake ends under its rim: its hole stays open)
+		if _trail.size() < 3 or (_back >= 0.0 and _back < BACK_HOLD + 0.04):
 			return path
 		for i in range(_trail.size() - 1, -1, -1):
-			path.append(_trail[i])
+			if _trail[i].distance_to(_trail[0]) > WAKE_TUCK * FLIGHT_GROW * scale.x:
+				path.append(_trail[i])
 		return path
 	head.x -= WAKE_TUCK * _grow()  # (it ends under the ring's rim, the hole open on what is behind it)
 	var gap: Vector2 = head - hand.call()
@@ -219,41 +230,54 @@ func _wake_path() -> PackedVector2Array:
 	return path
 
 
-## One band of its wake along `path` on `on`: `half` units to each side at the ring, a point where it starts (`from`:
-## how far along the path that is, 0 to 1), `shift` units off the path's line at the ring.
-func _band(on: Node2D, path: PackedVector2Array, half: float, from: float, colour: Color, shift := 0.0) -> void:
+## One flat blade of its wake along `path` on `on`: `half` units to each side at the ring, a point where it starts
+## (`from`: how far along the path that is, 0 to 1), hard-edged; `line`: an ink line this wide along both its edges.
+func _blade(on: Node2D, path: PackedVector2Array, half: float, from: float, colour: Color, line := 0.0) -> void:
 	var n := path.size()
 	var left := PackedVector2Array()
 	var right := PackedVector2Array()
-	var mid := PackedVector2Array()
+	for i in n:
+		var u := float(i) / (n - 1)
+		if u < from:
+			continue
+		var v := (u - from) / (1.0 - from)
+		var way := path[mini(i + 1, n - 1)] - path[maxi(i - 1, 0)]
+		var across := way.orthogonal().normalized() if way.length_squared() > 0.01 else Vector2.UP
+		var p := on.to_local(get_parent().to_global(path[i]))
+		# (a blade: it swells from its point and closes a little under the ring's rim)
+		var w := half * pow(v, WAKE_TAPER) * (0.6 if i == n - 1 and _back < 0.0 else 1.0)
+		left.append(p + across * w)
+		right.append(p - across * w)
+	if left.size() < 2:
+		return
+	var uv := PackedVector2Array([Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO])
+	var cols := PackedColorArray([colour, colour, colour, colour])
+	for i in left.size() - 1:
+		# (a primitive, not a polygon: nothing to triangulate, so a piece of no length, held on what it struck, or
+		# one twisted at the turn of its arc draws as nothing instead of failing)
+		on.draw_primitive(PackedVector2Array([left[i], left[i + 1], right[i + 1], right[i]]), cols, uv)
+	if line > 0.0:
+		var ink := Color(WAKE_INK, colour.a)
+		on.draw_polyline(left, ink, line, true)
+		on.draw_polyline(right, ink, line, true)
+
+
+## A stroke of speed beside its wake: an ink line `off` units off the path's line, from `from` to `to` along it,
+## thin at both its ends.
+func _stroke(on: Node2D, path: PackedVector2Array, off: float, from: float, to: float, alpha: float) -> void:
+	var n := path.size()
+	var points := PackedVector2Array()
 	var cols := PackedColorArray()
 	for i in n:
 		var u := float(i) / (n - 1)
-		var v := clampf((u - from) / (1.0 - from), 0.0, 1.0)
+		if u < from or u > to:
+			continue
 		var way := path[mini(i + 1, n - 1)] - path[maxi(i - 1, 0)]
 		var across := way.orthogonal().normalized() if way.length_squared() > 0.01 else Vector2.UP
-		# (its strands close on one another toward his hand: `shift` is where this one lies at the ring)
-		var p := on.to_local(get_parent().to_global(path[i])) + across * shift * pow(u, 0.8)
-		var w := half * pow(v, WAKE_TAPER) * (0.5 if i == n - 1 and _back < 0.0 else 1.0)
-		left.append(p + across * w)
-		right.append(p - across * w)
-		mid.append(p)
-		# gone to nothing at his hand, full only near the ring
-		cols.append(Color(colour, colour.a * smoothstep(0.0, 0.3, v) * pow(u, 0.75)))
-	var uv := PackedVector2Array([Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO])
-	for i in n - 1:
-		if cols[i + 1].a <= 0.0:
-			continue
-		# (a primitive, not a polygon: nothing to triangulate, so a piece of no length, held on what it struck, or
-		# one twisted at the turn of its arc draws as nothing instead of failing)
-		# (blind round 17: "a thick, flat orange wedge with a hard red underside": each band is soft across, full along
-		# its middle and gone at its two edges, as a brush's smear is)
-		var clear_a := Color(cols[i], 0.0)
-		var clear_b := Color(cols[i + 1], 0.0)
-		on.draw_primitive(PackedVector2Array([left[i], left[i + 1], mid[i + 1], mid[i]]),
-				PackedColorArray([clear_a, clear_b, cols[i + 1], cols[i]]), uv)
-		on.draw_primitive(PackedVector2Array([mid[i], mid[i + 1], right[i + 1], right[i]]),
-				PackedColorArray([cols[i], cols[i + 1], clear_b, clear_a]), uv)
+		points.append(on.to_local(get_parent().to_global(path[i])) + across * off * pow(u, 0.8))
+		cols.append(Color(WAKE_INK, alpha * sin(PI * (u - from) / (to - from))))
+	if points.size() > 1:
+		on.draw_polyline_colors(points, cols, WAKE_LINE * 0.8, true)
 
 
 func _draw_wake() -> void:
@@ -263,20 +287,15 @@ func _draw_wake() -> void:
 	if path.size() < 3:
 		return
 	var fade := 1.0 if _back < 0.0 else 0.85
-	var half := WAKE_HALF * _grow()
-	_band(_wake, path, half * 1.1, 0.04, Color(WAKE_BODY, 0.5 * fade))  # a soft wash under its strands
-	for strand: Array in WAKE_STRANDS:
-		_band(_wake, path, half * float(strand[1]), strand[2], Color(WAKE_TONES[int(strand[4])], float(strand[3]) * fade),
-				half * float(strand[0]))
+	_blade(_wake, path, WAKE_HALF, 0.0, Color(WAKE_BODY, fade), WAKE_LINE)
+	_blade(_wake, path, WAKE_HALF * 0.46, 0.22, Color(WAKE_CORE, fade))
+	for speed: Array in WAKE_SPEED:
+		_stroke(_wake, path, speed[0], speed[1], speed[2], 0.75 * fade)
 
 
 func _draw_glow() -> void:
 	if _clock < WIND_UP:
 		return
-	# its wake's heart, hot
-	var path := _wake_path()
-	if path.size() > 2:
-		_band(_glow, path, WAKE_HALF * _grow() * 0.4, 0.3, Color(1.0, 0.8, 0.5, 0.2))
 	# (round 4: no pale halo round it, no launch disc: it read as a pool float; a steel ring)
 	# sparks shed into the air
 	for s in _sparks:

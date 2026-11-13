@@ -1875,6 +1875,39 @@
    }
   },
   {
+   "id": "world-croc",
+   "role": "level world layer or terrain texture",
+   "path": "assets/art/world/croc.png",
+   "status": "approved",
+   "technical": {
+    "dimensions": "640x382",
+    "alpha": true,
+    "anchor": "per view",
+    "frames": null,
+    "filtering": "linear"
+   },
+   "visual_locks": [
+    "palette",
+    "light-direction"
+   ],
+   "source": {
+    "kind": "authored-procedural",
+    "url_or_tool": "tools/art/savanna.py / terrain.py",
+    "creator": "Claude for Haiz Studio",
+    "license": "owned by Haiz Studio (made with free local tools: numpy, Pillow, scipy, Chrome, Godot)",
+    "prompt_or_source_record": "tools/art/savanna.py / terrain.py",
+    "created_at": "2026-10-30",
+    "attribution": ""
+   },
+   "verification": {
+    "native_scale_reviewed": true,
+    "in_engine_reviewed": true,
+    "technical_checks_passed": true,
+    "approved_by": "",
+    "notes": ""
+   }
+  },
+  {
    "id": "world-earth",
    "role": "level world layer or terrain texture",
    "path": "assets/art/world/earth.png",
@@ -2078,7 +2111,7 @@
    "path": "assets/art/world/fx_impact.png",
    "status": "approved",
    "technical": {
-    "dimensions": "1374x382",
+    "dimensions": "1473x381",
     "alpha": true,
     "anchor": "the contact point (Fx.IMPACT_AT in each cell)",
     "frames": null,

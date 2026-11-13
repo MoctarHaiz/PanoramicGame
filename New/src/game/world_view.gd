@@ -377,6 +377,8 @@ func refresh(delta := 0.0) -> void:
 	_background.rise = maxf(World.VIEW_H - view_bottom, 0.0)
 	_background.view_top = view_top + lift
 	_background.hero_x = world.draw_hero().x
+	# (blind round 21: the river's crocodile lunges at him as he swings back on the vine)
+	_background.snap = _hero.swung_back() if world.hanging and world.state == World.State.RUNNING else 0.0
 	_level_root.position.x = -scroll
 	_keep_bobs_whole(scroll)
 	_ground.front.position.x = -scroll
@@ -447,10 +449,11 @@ func _on_bandit_hit(b: World.Bandit, knocked_out: bool) -> void:
 		_hero.cheer()
 	var at := _ring_contact(b)
 	_ring_back(at)
+	var struck := _fx(at - Vector2(0.0, RingView.LIFT))  # (where the ring is drawn: over its lane)
 	if knocked_out:
-		Fx.knock_out(fx, _fx(at), _fx(Vector2(b.x - world.scroll, b.y + World.BANDIT_SIZE.y / 2 + GameArt.FEET_SINK)))
+		Fx.knock_out(fx, struck, _fx(Vector2(b.x - world.scroll, b.y + World.BANDIT_SIZE.y / 2 + GameArt.FEET_SINK)))
 	else:
-		Fx.ring_hit(fx, _fx(at))
+		Fx.ring_hit(fx, struck)
 
 
 ## The chakram comes back (RingView.rebound): the ring that just struck a bandit at `at` flies back to his hand; a

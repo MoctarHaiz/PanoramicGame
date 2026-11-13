@@ -192,7 +192,7 @@ void fragment() {
 		// (2026-11-13, the blind judge: "repeated stones and roots below read as tiles"): the picture is read in stretches
 		// of uneven length, each from its own place in it and some mirrored, melting into the next over a short run; and
 		// along some stretches its stones and roots are softened into the earth (a wide blur of it): fewer of them
-		float ev = clamp(depth / earth_size.y, 0.0, 0.99);
+		float ev = clamp((depth + 12.0) / earth_size.y, 0.0, 0.99);  // (blind round 21: its dark top band is under the turf: its first roots and stones show in the strip the screen keeps)
 		float ex = (lp.x + 120.0 * sin(lp.x * 0.0021)) / 380.0;  // (stretches of uneven length)
 		float ei = floor(ex);
 		float ef = ex - ei;
@@ -211,7 +211,7 @@ void fragment() {
 		painted *= mix(vec3(1.0), vec3(0.86, 0.82, 0.92), smoothstep(8.0, 100.0, depth));
 		// (blind round 15: "the dark, saturated earth strip is a third exposure": the lane's dusty air on it too, a
 		// value up: one exposure from the plain down to the bank)
-		painted = mix(painted, vec3(0.8, 0.6, 0.54), 0.2);
+		painted = mix(painted, vec3(0.8, 0.6, 0.54), 0.3);  // (blind round 21, "a dead dark soil strip": a value up, 0.2 -> 0.3)
 		earth = mix(earth, painted, earth_k);
 		wide_ink *= 1.0 - earth_k;
 		bed_ink *= 1.0 - earth_k;

@@ -53,6 +53,7 @@ void fragment() {
 	c *= mix(1.0, q / max(lum, 0.02), 0.45);
 	c = mix(c, vec3(0.5, 0.38, 0.56), (1.0 - smoothstep(0.0, 0.42, lum)) * 0.34);
 	c = mix(c, vec3(0.44, 0.32, 0.4), (1.0 - smoothstep(0.06, 0.24, lum)) * 0.6);  // (the ink, lifted)
+	c *= vec3(0.85, 0.83, 0.92);  // (blind round 21: "pinker and paler than the rest of the palette": a value down, toward the mesas' lilac)
 	// moss: creeping down from under the grass mat in a few tongues (the painted rock shows through it)
 	float tongue = 13.0 + 16.0 * pow(noise(at.x * 0.13 + seed * 7.0), 2.0) + 30.0 * pow(noise(at.x * 0.21 + seed), 5.0);
 	float moss = 1.0 - smoothstep(tongue - 1.5, tongue + 1.5, y);

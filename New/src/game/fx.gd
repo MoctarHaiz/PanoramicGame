@@ -43,12 +43,13 @@ const FIREWORK_HUES: Array[Color] = [Color("ffc93a"), Color("ff5a32"), Color("ff
 ## it (px: tools/art/kie/world.py impact prints them), how far past the contact the burst reaches for a blow of
 ## radius 1, and how long each frame shows (s).
 const IMPACT_TEX := preload("res://assets/art/world/fx_impact.png")
-const IMPACT_CELL := Vector2(458.0, 382.0)
-const IMPACT_AT := Vector2(30.0, 213.0)
-const IMPACT_REACH := 2.7
+const IMPACT_CELL := Vector2(491.0, 381.0)
+const IMPACT_AT := Vector2(27.0, 212.0)
+const IMPACT_REACH := 2.6
 const IMPACT_TIMES: Array[float] = [0.045, 0.11, 0.11]
 const PLUS_SIZE := 118  ## font size of the "+1" and the "×N" (design px): one size, scaled per use
-const PLUS_SCALE := 0.7  ## the "+1" under its glyphs' size: a small clean pop that reads at phone size (round 13: 0.85 -> 0.7)
+const PLUS_SCALE := 0.56  ## (blind round 21: "the '+1' in flat yellow with a hard black drop is casual-arcade": smaller, in the HUD's own cream figures, no drop; it was 0.7)
+## the "+1" under its glyphs' size: a small clean pop that reads at phone size (round 13: 0.85 -> 0.7)
 const PLUS_LEAN := 0.2  ## its lean (a skew: the HUD's figures lean the same way)
 ## The "+1"'s clock (s): it pops in, settles, holds, then shrinks away and fades; its burst keeps the
 ## same clock, so the number is never seen without it.
@@ -138,9 +139,8 @@ static func plus_one(parent: Node, at: Vector2) -> void:
 	var w := font.get_string_size("+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE).x
 	var base := Vector2(-w / 2, PLUS_SIZE * 0.36)  # the baseline that centres the figures on the node
 	node.draw.connect(func() -> void:
-		node.draw_string_outline(font, base + Vector2(5, 9), "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, BADGE_OUTLINES[1], Color("140607"))
 		node.draw_string_outline(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, BADGE_OUTLINES[1], Color("140607"))
-		node.draw_string(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, Color("ffd23e")))
+		node.draw_string(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, Color("fff3d6")))
 	parent.add_child(node)
 	var big := PLUS_SCALE
 	node.scale = Vector2.ZERO
@@ -466,7 +466,7 @@ static func ring_hit(parent: Node, at: Vector2) -> void:
 ## carries its own splinters; the added rays, the blue shards of light and the gold stars that flew off are gone.)
 static func knock_out(parent: Node, at: Vector2, feet: Vector2) -> void:
 	glow(parent, at, Color(1, 1, 1, 0.9), 0.25, 0.8, FLASH_TIME * 2.5)
-	hit_spark(parent, at, Vector2(1.0, -0.12).normalized(), 58.0)  # (blind round 15: "hides the bandit's midriff and half the ring": 70)
+	hit_spark(parent, at, Vector2(1.0, -0.12).normalized(), 52.0)  # (blind round 15: "hides the bandit's midriff and half the ring": 70; round 21, the same: 58)
 	dust(parent, feet, 16, 300.0, 0.0, 1.7)
 
 

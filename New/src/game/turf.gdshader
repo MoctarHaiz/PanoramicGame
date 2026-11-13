@@ -39,7 +39,10 @@ void fragment() {
 	float lum = dot(c, vec3(0.3, 0.59, 0.11));
 	// the fringe above the walking line: its tips trimmed (a cleaner edge), lit
 	a *= smoothstep(0.05, 0.13, UV.y);
-	c = mix(c, c * vec3(1.08, 1.06, 0.94) + vec3(0.03, 0.025, 0.0), 1.0 - smoothstep(0.2, 0.26, v));
+	// (blind round 21: "a dark earth strip under a serrated turf fringe"; with the plain behind it in the evening's shade
+	// its lemon-yellow tips were the brightest row of the picture: the blades over the walking line are an olive, a value
+	// under the path's top; it was c * (1.08, 1.06, 0.94) + (0.03, 0.025, 0.0))
+	c = mix(c, mix(vec3(lum), c, 0.72) * vec3(0.72, 0.82, 0.66), 1.0 - smoothstep(0.2, 0.26, v));
 	// the band under it: a sunlit sage, a little less saturated
 	float band = smoothstep(0.22, 0.3, v) * (1.0 - smoothstep(0.5, 0.62, v));
 	vec3 sage = mix(vec3(lum), c, 0.6) * vec3(1.02, 1.0, 0.86) + vec3(0.02, 0.02, 0.0);  // (2026-11-13: a value lower, olive)
@@ -55,7 +58,7 @@ void fragment() {
 	c = mix(c, c * 1.18 + vec3(0.05, 0.04, 0.0), lip * 0.7 * patchy);
 	// toward its underside the sky's cool shade; the drips over the soil a cool dark, not teal
 	float under = smoothstep(0.48, 0.66, v);
-	c = mix(c, mix(vec3(lum), c, 0.3) * vec3(0.82, 0.8, 0.9) * 0.72, under);
+	c = mix(c, mix(vec3(lum), c, 0.5) * vec3(0.84, 0.88, 0.82) * 0.86, under);  // (blind round 21: a mossy olive, a value up: it was a near-black teal saw)
 	c = mix(c, ink_colour.rgb, edge * 0.85);
 	COLOR = vec4(c * drawn.rgb, a * drawn.a);
 }

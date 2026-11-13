@@ -122,7 +122,7 @@ const DUSK_HIGH := Color(0.56, 0.6, 1.0)
 const DUSK_LOW := Color(0.8, 0.74, 0.96)
 ## (2026-11-12, three blind judges on the home picture: "the far mesas are translucent rectangular ghosts: a rendering
 ## fault": at dusk the two far rows stood at the sky's own value; now a clear step under it, solid silhouettes)
-const DUSK_MESAS := [Color(0.5, 0.5, 0.8), Color(0.56, 0.56, 0.84), Color(0.74, 0.66, 0.92)]
+const DUSK_MESAS := [Color(0.44, 0.44, 0.76), Color(0.48, 0.48, 0.8), Color(0.6, 0.55, 0.86)]  # (blind round 21: a step deeper: the night plain under them is dark)
 ## (blind round 15, of the home: "a pale wedge-shaped streak from the fire's base toward the hut like a rendering
 ## glitch": the tall grass behind the path kept the day's pale gold, its plumes the one bright thing in the dusk)
 const DUSK_STRIPS := {&"far_wall": Color(0.6, 0.6, 0.9), &"far_hills": Color(0.5, 0.5, 0.78), &"near_grass": Color(0.46, 0.44, 0.7)}
@@ -186,8 +186,13 @@ const PLAIN_FAR_TO := 0.42  ## ... gone by this far down its picture
 ## `shade`): greyer, its values drawn together, in the sky's cool light: a sage a value under his lit skin and over the
 ## bandits' darks; only its far band under the horizon keeps the last sun. Each: [colour, from, full (down its picture),
 ## how grey, how flat, the value its values close on]; at home the whole of it is in the night.
-const PLAIN_SHADE := [Color(0.8, 0.87, 0.86), 0.15, 0.29, 0.45, 0.42, 0.44]
+const PLAIN_SHADE := [Color(0.82, 0.87, 0.87), 0.15, 0.29, 0.38, 0.42, 0.44]
+const PLAIN_SHADE_RISEN := 0.2  ## under the vine all of it is in the shade ("saturated midday yellow-green under a violet dusk sky"): its shade starts this much higher up its picture, the camera risen
 const PLAIN_NIGHT := [Color(0.5, 0.52, 1.0), -0.3, -0.2, 0.7, 0.5, 0.36]
+## ... "only tiny warm points far off": the cooking fires of the painted kraal and of the village under the horizon
+## glow at night: [px across the plain's picture, px down it, units across its glow].
+const PLAIN_FIRES: Array[Vector3] = [Vector3(2806.0, 206.0, 13.0), Vector3(2168.0, 99.0, 6.0), Vector3(2262.0, 101.0, 5.0), Vector3(2214.0, 97.0, 4.0)]
+const PLAIN_FIRE := Color(1.0, 0.56, 0.24)
 const LANE_FLATTEN := 0.2
 const LANE_HAZE := 0.45
 ## Blind round 18 ("two lights in one picture: a saturated violet dusk sky with sunset-lit peach clouds above, and a
@@ -214,6 +219,17 @@ const RIVER_LOW := 730.0  ## ... and from the ground: its bank's tallest papyrus
 const RIVER_UP := 1.05
 const RIVER_SCROLL := 0.17
 const RIVER_DUSK := Color(0.62, 0.62, 0.9)
+## Blind round 21 (under the vine: "a postcard, not an action beat: nothing threatens him and no goal is in view":
+## "make the vine an event: a drawn threat breaking the water under him"): a crocodile of the river keeps under him
+## while he hangs over it. Each time he swings back, his legs trailing, it lunges out of the water at them, jaws open
+## (`snap`: 0..1, how far back he has swung, from WorldView), and sinks as he swings away. Drawn in the river, behind
+## the path (croc.png: tools/art/kie/world.py croc(); its foot is the waterline, with its own splash and ripples).
+const CROC_W := 228.0  ## units wide
+const CROC_BEHIND := 224.0  ## units behind him its middle keeps: its jaws open up at his trailing legs
+const CROC_LINE := 92.0  ## units under the river's far waterline it breaks the water
+const CROC_RISE := 9.0  ## how fast it comes up (/s) ...
+const CROC_SINK := 4.5  ## ... and sinks
+const CROC_RIPPLE := Color(0.93, 0.86, 1.0)
 const LANE_DROP := 0.8  ## the tall grass at the path's back, its shade and its dust: nearest, they sink away soonest as the camera rises
 const GRASS_SHADE := Color(0.27, 0.31, 0.25)  ## what the tall grass at the path's back is drawn toward: the evening's shade, as the near plain behind it
 const MIST := Color(0.96, 0.74, 0.64)  ## the low dust behind the path (_draw_lane_mist)
@@ -266,6 +282,9 @@ var _clock := 0.0
 var _tex := {}
 var _painters: Array[Node2D] = []
 var front: Node2D  ## the foreground grass (WorldView adds it above the actors)
+var snap := 0.0  ## 0..1: hanging over the river, how far back he has swung (WorldView): the crocodile lunges at him
+var _croc := 0.0  # 0..1: how far out of the water it is
+var _croc_x := 0.0  # play x of its middle
 var hero_x := -999.0  ## his play x (WorldView): the big things in front rise only in the corner behind him (FRONT_ZONE)
 var dusk := 0.0  ## round 20: 0..1, how far dusk has fallen (the last stretch to home)
 var _mesa_src: Array[Rect2] = []  # round 20: each landform in far_mesa_pieces.png
@@ -289,7 +308,7 @@ class Painter extends Node2D:
 
 
 func _ready() -> void:
-	for name in ["sky", "sky_clouds", "far_wall", "far_mesa_pieces", "far_hills", "river", "near_grass", "mote", "bird"]:
+	for name in ["sky", "sky_clouds", "far_wall", "far_mesa_pieces", "far_hills", "river", "croc", "near_grass", "mote", "bird"]:
 		_tex[StringName(name)] = load(DIR + name + ".png")
 	var add := CanvasItemMaterial.new()
 	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
@@ -309,6 +328,9 @@ func _ready() -> void:
 		_mesa_mats.append(hz)
 	_far_mat = _haze([0, 0, 0, 0, PLAIN_HAZE, 0.0, 0, PLAIN_AIR], Color.WHITE, 0.0, 0.0, true, {flatten = PLAIN_FLATTEN, soft = SOFT_PLAIN, far = PLAIN_FAR, far_to = PLAIN_FAR_TO})
 	_painter(_draw_strip.bind(&"far_hills"), true).material = _far_mat
+	var glow := CanvasItemMaterial.new()
+	glow.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	_painter(_draw_plain_fires).material = glow
 	_river_mat = _haze([0, 0, 0, 0, 0.0, 0.0, 0, PLAIN_AIR], Color.WHITE, 0.0, 0.0, true, {soft = SOFT_RIVER})
 	_painter(_draw_river, true).material = _river_mat
 	_painter(_draw_lane_mist)
@@ -379,7 +401,15 @@ func _process(delta: float) -> void:
 	_far_mat.set_shader_parameter(&"flatten", PLAIN_FLATTEN * clear)
 	var keys: Array[StringName] = [&"shade", &"shade_from", &"shade_full", &"shade_grey", &"shade_flat", &"shade_value"]
 	for i in keys.size():  # (blind round 21: the evening's shade over it, the night's at home)
-		_far_mat.set_shader_parameter(keys[i], lerp(PLAIN_SHADE[i], PLAIN_NIGHT[i], dusk))
+		var play: Variant = PLAIN_SHADE[i]
+		if i == 1 or i == 2:
+			play = float(play) - PLAIN_SHADE_RISEN * smoothstep(60.0, 200.0, rise)
+		_far_mat.set_shader_parameter(keys[i], lerp(play, PLAIN_NIGHT[i], dusk))
+	# the river's crocodile: up at him as he swings back, under as he swings away; where he is while it is under
+	var up := smoothstep(0.3, 0.75, snap) if rise > BANK_FROM else 0.0
+	_croc = move_toward(_croc, up, delta * (CROC_RISE if up > _croc else CROC_SINK))
+	if _croc < 0.02:
+		_croc_x = hero_x - CROC_BEHIND
 	for p in _painters:
 		p.queue_redraw()
 
@@ -606,6 +636,26 @@ func _draw_strip(ci: CanvasItem, name: StringName) -> void:
 			Rect2(src_x, 0, (x1 - x0) / k, tex.get_height()), _dusk(DUSK_STRIPS.get(name, Color.WHITE)))
 
 
+## The far cooking fires on the night plain (PLAIN_FIRES): each a small warm glow and a hot point, where it is painted.
+func _draw_plain_fires(ci: CanvasItem) -> void:
+	var a := smoothstep(0.5, 1.0, dusk)
+	if a <= 0.0:
+		return
+	var tex: Texture2D = _tex[&"far_hills"]
+	var s: Array = STRIPS[&"far_hills"]
+	var k: float = s[2]
+	var x0 := _x0()
+	var top: float = s[1] - tex.get_height() * k
+	var src_x: float = (scroll * float(s[0]) + x0 + PLAIN_SHIFT) / k
+	for i in PLAIN_FIRES.size():
+		var f := PLAIN_FIRES[i]
+		var at := Vector2(x0 + (fposmod(f.x - src_x + 200.0, tex.get_width()) - 200.0) * k, top + f.y * k)
+		var flicker := 0.82 + 0.18 * sin(_clock * (7.0 + i * 1.7) + i * 2.3)
+		var r := f.z * (0.9 + 0.1 * flicker)
+		ci.draw_texture_rect(Fx.puff_texture(), Rect2(at - Vector2(r, r * 0.8), Vector2(r, r * 0.8) * 2.0), false, Color(PLAIN_FIRE, 0.55 * a * flicker))
+		ci.draw_circle(at, maxf(f.z * 0.11, 0.6), Color(1.0, 0.86, 0.56, a * flicker))
+
+
 ## The river under the plain (RIVER_AT): its bank as painted, its water squashed under its waterline.
 func _draw_river(ci: CanvasItem) -> void:
 	var line := maxf(RIVER_LOW - rise * RIVER_UP, RIVER_AT)  # its far waterline
@@ -620,6 +670,24 @@ func _draw_river(ci: CanvasItem) -> void:
 	ci.draw_texture_rect_region(tex, Rect2(x0, line - RIVER_WATER * RIVER_K, x1 - x0, RIVER_WATER * RIVER_K), Rect2(src_x, 0, src_w, RIVER_WATER), tone)
 	var rows := tex.get_height() - RIVER_WATER
 	ci.draw_texture_rect_region(tex, Rect2(x0, line, x1 - x0, rows * RIVER_K * RIVER_SQUASH), Rect2(src_x, RIVER_WATER, src_w, rows), tone)
+	if _croc > 0.02:
+		_draw_croc(ci, line + CROC_LINE, tone)
+
+
+## The river's crocodile, `_croc` of the way out of the water at `water` (the backdrop's y): the top of its picture
+## shown down to the waterline, rings spreading on the water round it.
+func _draw_croc(ci: CanvasItem, water: float, tone: Color) -> void:
+	var tex: Texture2D = _tex[&"croc"]
+	var size := Vector2(CROC_W, CROC_W * tex.get_height() / tex.get_width())
+	var out := 1.0 - (1.0 - _croc) * (1.0 - _croc)  # (it bursts out fast and slows at its top)
+	for i in 3:  # rings on the water, each wider and fainter
+		var age := fposmod(_clock * 0.9 + i / 3.0, 1.0)
+		var r := size.x * (0.3 + 0.42 * age)
+		ci.draw_set_transform(Vector2(_croc_x - size.x * 0.12, water), 0.0, Vector2(1.0, 0.16))
+		ci.draw_arc(Vector2.ZERO, r, 0.0, TAU, 40, Color(CROC_RIPPLE * tone, 0.6 * (1.0 - age) * _croc), 3.0, true)
+	ci.draw_set_transform(Vector2.ZERO)
+	ci.draw_texture_rect_region(tex, Rect2(_croc_x - size.x / 2.0, water - size.y * out, size.x, size.y * out),
+			Rect2(0.0, 0.0, tex.get_width(), tex.get_height() * out), tone)
 
 
 ## The foreground grass along the bottom edge (round 20: taller, denser, its top rising and falling, never

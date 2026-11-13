@@ -184,10 +184,12 @@ func _capture(device: String, shot: String) -> void:
 				var g: Node = Nav.current
 				var close: float = g.base_zoom((g._clip.size.x - Device.insets().x) / g._k)
 				return g.world.hanging and _open_under(g.world) and g._zoom > close * 0.97, 8.0)
-			# (blind round 17: "a passive frontal dangle": at the front end of his swing, his legs thrown forward)
+			# (blind round 17: "a passive frontal dangle": at an end of his swing; round 21: "a tucked, seated pose: a
+			# full-stretch swing pose on a strong diagonal (legs trailing, scarf streaming)": the back end, his body
+			# stretched out behind his hands; it was the front end, his knees drawn up)
 			await _wait_for(func() -> bool:
 				var g: Node = Nav.current
-				return g.world.hanging and _open_under(g.world) and g.view._hero._swing < HeroView.SWING_WIND - 0.88 * HeroView.SWING_AMP, 6.0)
+				return g.world.hanging and _open_under(g.world) and g.view._hero._swing > HeroView.SWING_WIND + 0.88 * HeroView.SWING_AMP, 6.0)
 		"game":  # the blow: a ring knocks a bandit out, the frame after its freeze
 			await _start_game("game")
 			await _wait(0.3)
@@ -211,18 +213,21 @@ func _capture(device: String, shot: String) -> void:
 			await _wait(0.3)
 			var game: Node = Nav.current
 			await _clear_stage(game)
-			# (blind round 16: "stage the throw as an event: bandit closer and lunging") a jumper, in its leap at him over
-			# the ring
-			_bandit_ahead(game.world, 440.0)
-			var jumper: World.Bandit = game.world.bandits[-1]
-			jumper.jumper = true
-			jumper.dodges = 1
+			# (blind round 21: "the throw goes low right while its target is high right": "stage the throw as one line": a
+			# bandit charging him along the ground, the ring half way to it: thrower, ring and target on one line; it
+			# was a jumper in its leap over the ring)
+			_bandit_ahead(game.world, 520.0)
+			var target: World.Bandit = game.world.bandits[-1]
+			target.jumper = false
+			target.dodges = 0
 			await _wait(0.12)
-			game.view._bandits[jumper.id]._spot = 0.0  # (its "!" is for the moment it wakes: long past, for one this near)
+			game.view._bandits[target.id]._spot = 0.0  # (its "!" is for the moment it wakes: long past, for one this near)
 			game.world.throw()
-			# (blind round 18: "its wake a short soft orange puff": the ring well out from his hand, its whole wake behind it)
-			var out := func() -> bool: return not game.world.rings.is_empty() and game.world.rings[0].x - game.world.x > 190.0
-			await _wait_for(func() -> bool: return jumper.leaping and jumper.vy > -World.BANDIT_JUMP * 0.45 and out.call(), 1.0)
+			await _wait_for(func() -> bool:
+				if game.world.rings.is_empty():
+					return false
+				var ring_x: float = game.world.rings[0].x
+				return ring_x - game.world.x > 150.0 and target.x - game.world.scroll - ring_x < 175.0, 1.0)
 		"hurt":  # a bandit runs into him: the instant after the blow
 			await _start_game("game")
 			await _wait(0.3)

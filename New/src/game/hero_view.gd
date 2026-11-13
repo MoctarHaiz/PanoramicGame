@@ -101,8 +101,9 @@ const HOME_CAST := Color(0.07, 0.035, 0.13)
 const HOME_CAST_ALPHA := 0.4
 const HOME_CAST_SHIFT := Vector2(46.0, -4.0)  ## units right of him and up
 const HOME_CAST_SCALE := Vector2(1.16, 1.03)
-const HOME_COOL := Color(0.5, 0.47, 0.86)
-const HOME_DUSK := Color(0.74, 0.69, 0.87)  ## (blind round 17: "keeps near-daylight local colours": it was 0.84, 0.8, 0.9)
+const HOME_COOL := Color(0.42, 0.42, 0.88)  ## (blind round 21: "the fire at his left does not model him into a warm side and a dusk side": it was (0.5, 0.47, 0.86))
+const HOME_DUSK := Color(0.64, 0.6, 0.83)  ## (blind round 21: "saturated orange skin, pure white loincloth at near-daylight local colour": it was (0.74, 0.69, 0.87))
+## (blind round 17: "keeps near-daylight local colours": it was 0.84, 0.8, 0.9)
 const HOME_FIRE := Color(1.42, 1.0, 0.62)  ## the fire's side of him (actor.gdshader bounce_colour)
 const HOME_BOUNCE := 0.82  ## how much of it all (blind round 16: 0.6 was "too weak to see at phone size")
 const CONTACT_HOME := 0.5
@@ -162,7 +163,7 @@ const BEND_BLEND := 48.0  ## atlas px round his hips over which the bend blends
 ## towards SWING_AMP once the catch's momentum is spent), his legs trailing the swing (bent back about his hips against
 ## its speed, actor.gdshader's bend) and leading it at its ends, a little tuck there; his hands stay on the grip
 const SWING_K := 16.0  ## the pendulum's stiffness (/s^2: a swing of ~1.6 s)
-const SWING_AMP := 0.27  ## radians the swing settles to (blind round 17: "a passive frontal dangle": it was 0.17)
+const SWING_AMP := 0.36  ## radians the swing settles to (blind round 17: "a passive frontal dangle": 0.17 -> 0.27; round 21: "a tucked, seated pose: a full-stretch swing pose on a strong diagonal, legs trailing": 0.36)
 const SWING_PUMP := 1.6  ## how fast it settles there (/s)
 const SWING_CATCH := -1.5  ## rad/s the catch starts it with (-: legs forward, the jump's momentum)
 const SWING_WIND := 0.05  ## radians the wind of the run pushes the swing's middle back
@@ -682,6 +683,11 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 	_update_shadow(w, p)
 	if is_instance_valid(_under):
 		_under.queue_redraw()
+
+
+## Hanging: 0..1, how far back from its middle his swing is (1: at its back end, his legs trailing behind him).
+func swung_back() -> float:
+	return clampf((_swing - SWING_WIND) / SWING_AMP, 0.0, 1.0)
 
 
 ## Hanging: the swing's middle, pushed back by the wind of the run (none while a wall holds him).

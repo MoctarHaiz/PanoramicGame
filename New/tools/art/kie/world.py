@@ -385,6 +385,37 @@ def door() -> None:
 IMPACT_NOSE = 44  # px from the crescent's nose to the point of contact
 
 
+IMPACT_TONES = [(0.0, (0.84, 0.3, 0.1)), (0.5, (0.99, 0.58, 0.15)), (0.72, (1.0, 0.84, 0.36)), (0.9, (1.0, 0.97, 0.88))]
+IMPACT_INK = (0.33, 0.1, 0.07)
+IMPACT_LINE = 5  # px of the painting (half that in the game's picture)
+
+
+def cel(f: np.ndarray) -> np.ndarray:
+    """A painted effect in the sprites' language (blind round 21, of the blow's burst: "a smooth airbrushed
+    white-yellow-orange gradient, a vector effect in another language from the inked sprites"): its fire in four flat
+    tones with hard edges between them (IMPACT_TONES: from this value up, this colour), its silhouette hard, an ink
+    line round it (IMPACT_INK, a warm dark under a character's black: IMPACT_LINE px). Its chips and its dust keep
+    their paint. `f`: premultiplied RGBA; the same back."""
+    al = f[..., 3]
+    rgb = f[..., :3] / np.maximum(al[..., None], 1e-4)
+    shape = ndi.gaussian_filter(al, 1.0) > 0.42
+    lum = ndi.gaussian_filter((rgb * np.array([0.3, 0.59, 0.11], np.float32)).sum(axis=2) * shape, 1.4) \
+        / np.maximum(ndi.gaussian_filter(shape.astype(np.float32), 1.4), 1e-3)
+    # its dust (pale, little colour, not white-hot) keeps its paint: where most of what is drawn round a place is dust
+    pale = shape & (rgb.max(axis=2) - rgb.min(axis=2) < 0.42) & (rgb.min(axis=2) < 0.8) & (lum > 0.3)
+    dust = ndi.gaussian_filter(pale.astype(np.float32), 9.0) / np.maximum(ndi.gaussian_filter(shape.astype(np.float32), 9.0), 1e-3) > 0.45
+    fire = shape & ~dust & ((rgb[..., 0] > rgb[..., 2] + 0.18) | (rgb.min(axis=2) > 0.85))
+    fire = ndi.binary_opening(fire, iterations=1)
+    out = rgb.copy()
+    for edge, colour in IMPACT_TONES:
+        out[fire & (lum >= edge)] = colour
+    line = ndi.binary_dilation(shape, iterations=IMPACT_LINE) & ~shape
+    out[line] = IMPACT_INK
+    alpha = ndi.gaussian_filter((shape | line).astype(np.float32), 0.8)
+    # (the fill's colours run out under the line and the soft edge: no pale fringe)
+    return np.dstack([out * alpha[..., None], alpha]).astype(np.float32)
+
+
 def impact() -> None:
     """A blow's burst (fx_impact.png: Fx.hit_spark): three painted frames in a row (the contact, the burst, the
     break-up; the blow goes right), each in a cell of the same size with the point of contact, the middle of its
@@ -394,18 +425,37 @@ def impact() -> None:
     # impact2: a white-hot crescent whose nose is the contact, opening the blow's way, sparks and chips flying on,
     # a puff of the path's dust in the dusk's cream and lilac. The contact: a little inside its nose.
     a = load("impact2")
-    w3 = a.shape[1] // 3
+    # (each frame is cut where nothing is drawn between it and the next: cut at the thirds, the burst's nose was left in
+    # the contact's cell and its heart cut square)
+    empty = a[..., 3].max(axis=0) < 0.03
+    runs, x = [], 0
+    while x < empty.size:
+        if empty[x]:
+            x1 = x
+            while x1 < empty.size and empty[x1]:
+                x1 += 1
+            runs.append((x, x1))
+            x = x1
+        else:
+            x += 1
+    cuts = [0]
+    for third in (a.shape[1] / 3.0, a.shape[1] * 2.0 / 3.0):
+        near = min(runs, key=lambda r: abs((r[0] + r[1]) / 2.0 - third))
+        cuts.append((near[0] + near[1]) // 2)
+    cuts.append(a.shape[1])
+    print("impact2 cut at", cuts)
     frames = []
     for i in range(3):
-        f = a[:, i * w3:(i + 1) * w3]
-        al = f[..., 3]
-        rgb = f[..., :3] / np.maximum(al[..., None], 1e-4)
+        part = a[:, cuts[i]:cuts[i + 1]]
+        f = cel(part)
+        al = part[..., 3]
+        rgb = part[..., :3] / np.maximum(al[..., None], 1e-4)
         lab, n = ndi.label((al > 0.9) & (rgb.min(axis=2) > 0.93))
         heart = 1 + int(np.argmax(ndi.sum(np.ones_like(al), lab, np.arange(1, n + 1))))
         cy = ndi.center_of_mass(lab == heart)[0]
         band = al[int(cy) - 12:int(cy) + 12].max(axis=0)
         cx = int(np.nonzero(band > 0.5)[0].min()) + IMPACT_NOSE
-        ys, xs = np.nonzero(al > 0.03)
+        ys, xs = np.nonzero(f[..., 3] > 0.03)
         frames.append((f, int(round(cx)), int(round(cy)), xs.min(), xs.max() + 1, ys.min(), ys.max() + 1))
     left = max(cx - x0 for _, cx, cy, x0, x1, y0, y1 in frames) + 4
     right = max(x1 - cx for _, cx, cy, x0, x1, y0, y1 in frames) + 4
@@ -497,6 +547,20 @@ def canopy() -> None:
     al = a[..., 3]
     print("canopy.png: %dx%d, solid to row %d, leaves to row %d" % (a.shape[1], a.shape[0],
             int(np.flatnonzero((al > 0.5).mean(axis=1) > 0.97).max()), int(np.flatnonzero((al > 0.5).mean(axis=1) > 0.3).max())))
+
+
+CROC_W = 640  # px wide in the game (its picture: 2048)
+
+
+def croc() -> None:
+    """The river's crocodile lunging out of the water (croc.png: SavannaView._draw_croc), from croc: cropped to what is
+    drawn, its foot the waterline (the lowest row its splash and ripples reach), CROC_W px wide."""
+    a = load("croc")
+    ys, xs = np.nonzero(a[..., 3] > 0.03)
+    a = a[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+    a = resize(a, (CROC_W, round(a.shape[0] * CROC_W / a.shape[1])))
+    save(a, OUT / "croc.png")
+    print("croc.png: %dx%d" % (a.shape[1], a.shape[0]))
 
 
 if __name__ == "__main__":

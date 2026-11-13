@@ -45,7 +45,8 @@ const TREE_K := 1.25  ## its size: its crown leaves the picture by the top left 
 const TREE_FOOT := 230.5  ## its trunk's foot in its picture (px: tree_info.json's anchor_x)
 const TREE_AIR := Color(0.3, 0.28, 0.56)
 const TREE_AIR_K := 0.2  ## (blind round 21: "washed to a flat grey-lilac and looks like a half-transparent layer": 0.36 -> 0.2, a solid tree in the dusk)
-const TREE_DUSK := Color(1.0, 0.96, 1.12)  ## (blind round 18: "a heavy dark trunk slices the left edge": deeper in the dusk's air, TREE_AIR)
+const TREE_DUSK := Color(0.47, 0.46, 0.8)  ## (blind round 21: "a washed grey-lilac acacia trunk": "drop the acacia to the sky's night value and hue"; it was (1.0, 0.96, 1.12))
+## (blind round 18: "a heavy dark trunk slices the left edge": deeper in the dusk's air, TREE_AIR)
 
 ## Blind round 21 ("Dead middle ground: between the horizon village and the fence lies a wide dark band with nothing
 ## drawn in it": "stage that empty dark band as a real middle distance (lit huts, a second fire, figures or cattle, a
@@ -54,7 +55,11 @@ const TREE_DUSK := Color(1.0, 0.96, 1.12)  ## (blind round 18: "a heavy dark tru
 ## what that fire lights.
 const NEIGHBOUR_K := 0.25
 const NEIGHBOUR_AT := Vector2(566.0, 134.0)  ## its fire: from LEFT, and how far over the home's ground it stands on the plain
-const NEIGHBOUR_DUSK := Color(0.8, 0.8, 0.96)  ## (a step into the dusk's air)
+const NEIGHBOUR_DUSK := Color(0.6, 0.6, 0.9)  ## (in the night's air)
+## Blind round 21 (of its fire, the home's own flames at a quarter: "a miniature copy of the same flame on one vertical,
+## reading as a scaled duplicate sprite"; "only tiny warm points far off"): their fire burns low behind their palisade:
+## a warm glow and a hot point (Ember), its light on their huts' sides.
+const EMBER := Color(1.0, 0.54, 0.22)
 
 var back: Node2D
 var yard: Node2D  ## over the ground's grass, under the actors (WorldView adds it after the ground)
@@ -277,9 +282,9 @@ func _neighbour() -> Node2D:
 	far.name = &"Neighbour"
 	far.scale = Vector2(NEIGHBOUR_K, NEIGHBOUR_K)
 	far.position = Vector2(LEFT + NEIGHBOUR_AT.x, GROUND - NEIGHBOUR_AT.y - GROUND * NEIGHBOUR_K)
-	var fire := Fire.new()
-	fire.position = Vector2(0.0, GROUND - 8.0)
-	fire.scale = Vector2(2.0, 2.0)
+	var fire := Ember.new()
+	fire.position = Vector2(170.0, GROUND - 24.0)
+	far.add_child(fire)  # (behind their palisade: its posts stand before it)
 	var props: Array[Sprite2D] = [
 		_put(far, "home_hut_small", -250.0, 0.8, NEIGHBOUR_DUSK),
 		_put(far, "home_granary", 240.0, 0.9, NEIGHBOUR_DUSK),
@@ -291,7 +296,6 @@ func _neighbour() -> Node2D:
 		_fire_lit(prop, fire.position)
 	_fence(far, -620.0, -60.0)
 	_fence(far, 110.0, 980.0)
-	far.add_child(fire)
 	return far
 
 
@@ -381,6 +385,28 @@ func _smoke() -> CPUParticles2D:
 ## triangles"): flame tongues in three layers that curl and sway, each shading from a hot root to a
 ## transparent tip, a bed of glowing embers, the logs' bark and the stones lit by the fire from
 ## above, sparks rising.
+## A far fire burning low (the neighbour's): a warm glow and a hot point, flickering.
+class Ember extends Node2D:
+	var _clock := 0.0
+
+	func _init() -> void:
+		var add := CanvasItemMaterial.new()
+		add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		material = add
+
+	func _process(delta: float) -> void:
+		_clock += delta
+		queue_redraw()
+
+	func _draw() -> void:
+		var flicker := 0.84 + 0.16 * sin(_clock * 8.0) * sin(_clock * 3.1 + 1.0)
+		var glow: Texture2D = load(DIR + "home_glow.png")
+		for ring: Array in [[120.0, 0.45], [44.0, 0.8]]:
+			var r: float = ring[0] * (0.92 + 0.08 * flicker)
+			draw_texture_rect(glow, Rect2(-r, -r * 0.8, r * 2.0, r * 1.6), false, Color(EMBER, float(ring[1]) * flicker))
+		draw_circle(Vector2.ZERO, 7.0, Color(1.0, 0.9, 0.6, flicker))
+
+
 class Fire extends Node2D:
 	const FIRE_SHADER := preload("res://src/game/fire.gdshader")
 	var _clock := 0.0
