@@ -22,10 +22,16 @@ const HAND_U := 0.548
 const RING_U := 0.17
 const DUST := Rect2(0.0, 0.6, 0.24, 0.38)
 const COLUMN_W := 480.0  ## the title column's width (PLAY and the best run)
-## PLAY's size: the subtitle's ribbon and the best run's plate exactly as wide (one edge). (Blind round 13: "PLAY is
+## The column's three leaning plates (the subtitle's band, PLAY, the best run) are one width across at any height,
+## on one axis: their slanted ends are then parallel strokes of one edge. (Blind round 14: "ragged right edges": the
+## three were as wide as one another in their boxes, but a leaning plate loses its lean and its shadow from its box,
+## the taller the more, and the best run's own content pushed it wider: 372, 379 and 396 across.)
+const PLATE_W := 352.0
+## PLAY's box: its plate, its lean (SlantStyle.slant of its height) and its shadow's reach. (Blind round 13: "PLAY is
 ## bigger than the title, so the brand is the weakest element": it was 440 by 122 under a title 340 wide.)
-const PLAY_W := 376.0
 const PLAY_H := 104.0
+const PLAY_W := PLATE_W + 0.3 * (PLAY_H - 9.0) + 0.6 * 9.0
+const BEST_DEPTH := 7.0  ## the best run's plate's shadow
 const GUTTER := 28.0  ## between his hand and the column, and between the column and the screen's edge
 const GEAR := 84.0  ## the settings button's side
 const LETTERS_U := 0.2  ## where the logo's lettering starts under its spears, a share of its height
@@ -100,7 +106,7 @@ func enter(_data: Dictionary) -> void:
 		shine.set_shader_parameter(&"offset", 1.2)
 		_logo.material = shine
 	_logo_box.add_child(_logo)
-	_ribbon = ribbon(tr("MENU_SUBTITLE"), 29, PLAY_W)
+	_ribbon = ribbon(tr("MENU_SUBTITLE"), 34, PLATE_W)  # (blind round 14: "subtitle text too small": it was 29)
 	_ribbon_fit = Control.new()
 	_ribbon_fit.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ribbon_fit.add_child(_ribbon)
@@ -124,12 +130,13 @@ func enter(_data: Dictionary) -> void:
 	_play_box.add_child(_play_pop)
 	_play = Ui.cta_button(tr("PLAY"), PLAY_H, 56)
 	_play.pressed.connect(func() -> void: Nav.go(&"game", {}, _play.get_global_rect().get_center()))
-	_play.idle(0.06)
+	_play.idle(0.03)  # (it breathed 0.06: at its widest, PLAY's ends stood out of the column's edge)
 	_play_pop.add_child(_play)
 	if Save.games_played > 0:
 		_best = _best_strip()
 		_best.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		_board.add_child(_best)
+		_fit_best()
 
 	_gear = _gear_button()
 	_gear.pressed.connect(func() -> void: Nav.go(&"settings", {}, _gear.get_global_rect().get_center()))
@@ -169,44 +176,72 @@ func _best_strip() -> Control:
 	st.line = Color(Ui.INK_GOLD, 0.9)
 	st.line_inset = 5.0
 	st.line_width = 2.0
-	st.depth = 7.0
-	st.content_margin_left = 40.0
-	st.content_margin_right = 34.0
-	st.content_margin_top = 9.0
-	st.content_margin_bottom = 9.0 + st.depth
+	st.depth = BEST_DEPTH
+	st.content_margin_left = 34.0
+	st.content_margin_right = 32.0
+	st.content_margin_top = 7.0
+	st.content_margin_bottom = 7.0 + st.depth
 	strip.add_theme_stylebox_override(&"panel", st)
-	strip.custom_minimum_size.x = PLAY_W
 	strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	strip.add_child(_best_row(1.0))
+	return strip
+
+
+## The best run's plate as wide across as PLAY's: its box is its plate, its lean and its shadow's reach, and its row
+## as big as fits it (French's "RECORD" is longer than "BEST": at full size its plate stood out of the column's
+## edge). Measured once it is in the tree: a label outside it has no measure yet.
+func _fit_best() -> void:
+	var st := _best.get_theme_stylebox(&"panel") as SlantStyle
+	var row := _best.get_child(0) as Control
+	var box := _best_box(row, st)
+	var room := box - st.content_margin_left - st.content_margin_right
+	var need := row.get_combined_minimum_size().x
+	if need > room:
+		_best.remove_child(row)
+		row.free()
+		row = _best_row(room / need * 0.98)
+		_best.add_child(row)
+		box = _best_box(row, st)
+	_best.custom_minimum_size.x = box
+
+
+## The best run's row, `k` of its full size: the Red Bob, the count, "BEST", and the three stars at its right end.
+func _best_row(k: float) -> HBoxContainer:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override(&"separation", 12)
+	row.add_theme_constant_override(&"separation", roundi(10 * k))
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var bob := TextureRect.new()
 	bob.texture = BobView.texture()
 	bob.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	bob.custom_minimum_size = Vector2(50, 50)
+	bob.custom_minimum_size = Vector2(46, 46) * k
 	bob.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	bob.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(bob)
-	row.add_child(Ui.label(str(Save.best_bobs), 46, Ui.BONE))
-	var best := Ui.label(tr("BEST"), 26, Ui.INK_GOLD)
+	row.add_child(Ui.label(str(Save.best_bobs), roundi(46 * k), Ui.BONE))
+	var best := Ui.label(tr("BEST"), roundi(26 * k), Ui.INK_GOLD)
 	best.size_flags_vertical = Control.SIZE_SHRINK_END
 	row.add_child(best)
 	var gap := Control.new()  # the stars at the strip's right end
 	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(gap)
-	var stars := StarRow.new(Save.best_stars, 44)
+	var stars := StarRow.new(Save.best_stars, roundi(38 * k))
 	stars.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	stars.add_theme_constant_override(&"separation", 4)
 	row.add_child(stars)
-	strip.add_child(row)
-	return strip
+	return row
+
+
+## The width of the best run's box round `row`: PLATE_W across its plate at any height.
+func _best_box(row: Control, st: SlantStyle) -> float:
+	var h := row.get_combined_minimum_size().y + st.content_margin_top + st.content_margin_bottom
+	return PLATE_W + st.slant * (h - st.depth) + 0.6 * st.depth
 
 
 ## The subtitle on the beadwork ribbon (its folded ends stay their size: 9-sliced; trimmed a little:
 ## round 11's tails were oversized). `width` (UI r23, the judges of j19: "the subtitle ribbon, Play and the
-## BEST panel are three different widths"): the ribbon exactly that wide, tail tip to tail tip, its words a
-## little smaller if they need to be to fit between its tails.
+## BEST panel are three different widths"): the band exactly that wide, its words as big as fit between its
+## leaning ends (`font_size` at most).
 static func ribbon(text: String, font_size: int, width := 0.0) -> Control:
 	var holder := Control.new()
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -218,11 +253,15 @@ static func ribbon(text: String, font_size: int, width := 0.0) -> Control:
 	label.highlight = 0.0
 	label.shadow = Color(0, 0, 0, 0)
 	label.refresh()
-	while width > 0.0 and label.get_combined_minimum_size().x + font_size * 1.6 > width and font_size > 18:
+	# its words as big as fit between its leaning ends. (Blind round 14: "subtitle text too small": this loop read
+	# the label's combined minimum size, which a control outside the tree never measures again, so it always ran
+	# down to its floor, 18; and it gave the label the size asked, not the display face's share of it.)
+	while width > 0.0 and label.custom_minimum_size.x + font_size > width and font_size > 18:
 		font_size -= 1
-		label.font_size = font_size
+		label.tracking = roundf(font_size * 0.03)
+		label.font_size = roundi(font_size * Ui.DISPLAY_SCALE)
 	var h := roundf(font_size * 1.9)
-	var w := width if width > 0.0 else label.get_combined_minimum_size().x + h * 1.6
+	var w := width if width > 0.0 else label.custom_minimum_size.x + h * 1.6
 	var band := Panel.new()
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color("7c1410")
@@ -378,6 +417,8 @@ func _layout() -> void:
 	_play.size = _play_pop.size
 	_board.size = Vector2.ZERO
 	_board.size = Vector2(PLAY_W, _board.get_combined_minimum_size().y)
+	# PLAY and the best run on one axis: each plate's middle is its box's less its lean's and its shadow's reach
+	_play_pop.position.x = (_board.size.x - PLAY_W) / 2.0
 	_board.scale = Vector2(_fit, _fit)
 	_board_fit.custom_minimum_size = _board.size * _fit
 	# the settings anchored in the top right corner of the screen (UI r23, the judges of j19: in the top left one
@@ -390,7 +431,7 @@ func _layout() -> void:
 	var top := insets.y + 18.0
 	var bottom := v.y - Device.bottom_with_banner() - Device.ad_gap() - 18.0
 	var rest := _board.size.y * _fit + 18.0
-	var rk := minf(1.0, PLAY_W * _fit / _ribbon.size.x)  # the ribbon exactly as wide as PLAY
+	var rk := minf(1.0, PLATE_W * _fit / _ribbon.size.x)  # the band exactly as wide across as PLAY's plate
 	_ribbon_fit.scale = Vector2(rk, rk)
 	var ribbon_size := _ribbon.size * rk
 	var centre_x := col_left + col_w / 2.0
@@ -422,7 +463,8 @@ func _layout() -> void:
 	_logo.size = Vector2(logo_w, logo_h)
 	_logo.position = Vector2((box_w - logo_w) / 2, 0)
 	_logo.pivot_offset = _logo.size / 2
-	_ribbon_fit.position = Vector2((box_w - ribbon_size.x) / 2, logo_h - ribbon_size.y * 0.55)  # across the shield's foot
+	# across the shield's foot, on the plates' axis (a leaning plate's middle is left of its box's by 0.3 of its shadow)
+	_ribbon_fit.position = Vector2((box_w - ribbon_size.x) / 2 - 2.6 * _fit, logo_h - ribbon_size.y * 0.55)
 	_column.size = Vector2(box_w, 0)
 	_column.reset_size()
 	var col_h := _column.get_combined_minimum_size().y

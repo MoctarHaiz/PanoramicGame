@@ -25,6 +25,14 @@ uniform float earth_k = 0.0;  // 1: the painted earth (TerrainView sets it when 
 uniform vec2 earth_size = vec2(956.0, 128.0);  // units of one repeat of it across, and of its height down from the turf
 uniform vec3 earth_tint : source_color = vec3(1.0, 0.98, 0.94);
 uniform int first_col = 0;
+// Blind round 14 (at home: "a bright yellow line along the top of the earth strip"): at home the earth is in the home's
+// one light, as the huts and the turf over it are: from `home_from` (level x) on, the fire's warmth round `home_fire`
+// (level x; `home_reach` units: 0, no home) and the dusk's shade away from it.
+uniform float home_from = 0.0;
+uniform float home_fire = 0.0;
+uniform float home_reach = 0.0;
+uniform vec3 home_dusk : source_color = vec3(0.6, 0.58, 0.82);
+uniform vec3 home_warm : source_color = vec3(1.16, 0.98, 0.8);
 
 varying vec2 level_pos;
 
@@ -182,7 +190,10 @@ void fragment() {
 	earth *= 1.0 - 0.1 * smoothstep(34.0, 80.0, depth);  // darker down the bank (round 20: less: the dark foreground passing in front is the dark now)
 	if (earth_k > 0.0) {
 		vec3 painted = texture(earth_tex, vec2(lp.x / earth_size.x, clamp(depth / earth_size.y, 0.0, 0.99))).rgb * earth_tint;
-		painted = mix(vec3(dot(painted, vec3(0.3, 0.59, 0.11))), painted, 0.86) * 1.06;  // (a little less red, a little lighter)
+		// (a little less red; blind round 14: "the saturated red-brown earth cross-section is the heaviest band and
+		// pulls the eye down": quieter still, and falling into a cool shade with its depth, under the play's value)
+		painted = mix(vec3(dot(painted, vec3(0.3, 0.59, 0.11))), painted, 0.7);
+		painted *= mix(vec3(1.0), vec3(0.8, 0.77, 0.9), smoothstep(8.0, 100.0, depth));
 		earth = mix(earth, painted, earth_k);
 		wide_ink *= 1.0 - earth_k;
 		bed_ink *= 1.0 - earth_k;
@@ -462,5 +473,9 @@ void fragment() {
 	float bump = 4.0 + 8.0 * noise(level_pos.x * 0.045 + float(cell.y) * 3.1);
 	float under_cut = ledge * (1.0 - smoothstep(bump - 0.7, bump + 0.7, to_bottom));
 	c = mix(c, outline_colour, ledge * (1.0 - smoothstep(bump + 1.5, bump + 3.0, to_bottom)) * 0.9);
+	if (home_reach > 0.0) {
+		float d = (level_pos.x - home_fire) / home_reach;
+		c *= mix(vec3(1.0), mix(home_dusk, home_warm, exp(-d * d * 1.6)), smoothstep(home_from - 512.0, home_from, level_pos.x));
+	}
 	COLOR = vec4(c, shape.a * (1.0 - erode) * (1.0 - taper) * (1.0 - under_cut));
 }

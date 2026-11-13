@@ -83,8 +83,16 @@ const CONTACT := Color(0.05, 0.02, 0.03)  ## (round 20) the tight contact under 
 ## (round 21, the judges: "at home his shadow a hard black ellipse offset to the left, a hole") at home a soft occlusion
 ## right under his stride: this much wider (x) and darker (y) than in play, its near-black contact softened (CONTACT_HOME),
 ## its middle under his frame's middle a little right of it, away from the fire on his left (SHADOW_HOME_SHIFT units)
+## (blind round 14: "a cast shadow away from the fire") and it lies long to his right, thrown by the fire (SHADOW_HOME_LONG)
 const SHADOW_HOME := Vector2(1.15, 1.15)
-const SHADOW_HOME_SHIFT := 5.0
+const SHADOW_HOME_SHIFT := 30.0
+const SHADOW_HOME_LONG := 1.7
+## Blind round 14 ("he does not sit in the dusk: grade the hero into the scene, warm on the fire side, the shadow side
+## falling to the dusk's blue-violet; only values and hue"): at home his side away from the fire takes this much of
+## HOME_COOL, and all of him HOME_DUSK under the fire's light (actor.gdshader bounce_far, bounce_dusk); no rim, no glow.
+const HOME_FAR := 0.9
+const HOME_COOL := Color(0.6, 0.58, 0.9)
+const HOME_DUSK := Color(0.86, 0.82, 0.9)
 const CONTACT_HOME := 0.5
 ## (round 21) at home, where the dark front grass clears to show the ground line, his feet stand this share of
 ## GameArt.FEET_SINK higher (in play the grass hides the sink; at home his back boot's toe showed under the ground)
@@ -255,6 +263,8 @@ func _init() -> void:
 	_material.set_shader_parameter(&"shade_colour", SHADE_COLOUR)
 	# (round 12, "top runners light the hero brightest on screen") his lit side raised in the level's light
 	_material.set_shader_parameter(&"light_gain", LIGHT_GAIN)
+	_material.set_shader_parameter(&"bounce_cool", HOME_COOL)
+	_material.set_shader_parameter(&"bounce_dusk", HOME_DUSK)
 	_sprite.material = _material
 	add_child(_sprite)
 
@@ -627,6 +637,7 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 	# (hero pass 3) at home the campfire, on his left, warms that side of him
 	var home_k := clampf(_end_time / 0.5, 0.0, 1.0) if phase == &"home" else 0.0
 	_material.set_shader_parameter(&"bounce", 0.6 * home_k)
+	_material.set_shader_parameter(&"bounce_far", HOME_FAR * home_k)
 	_material.set_shader_parameter(&"form_amount", lerpf(FORM, FORM_HOME, home_k))
 	_material.set_shader_parameter(&"key_amount", lerpf(KEY, KEY_HOME, home_k))
 	_material.set_shader_parameter(&"hair_lift", HAIR_LIFT * home_k)
@@ -719,7 +730,7 @@ func _draw_under() -> void:
 	var air := smoothstep(4.0, 30.0, lowest) if lowest < INF else 1.0
 	var broad := lerpf(lerpf(SHADOW_PLAY, SHADOW_AIR, air), SHADOW_HOME.y, _home)
 	contact_shadow(_under, _shadow, SHADOW_WIDTH * lerpf(1.0, SHADOW_HOME.x, _home), _shadow_k,
-			_visible * broad, _shadow_w * lerpf(SHADOW_LONG, 1.0, _home), CONTACT_HOME * _home)
+			_visible * broad, _shadow_w * lerpf(SHADOW_LONG, SHADOW_HOME_LONG, _home), CONTACT_HOME * _home)
 
 
 var _vine: VineView

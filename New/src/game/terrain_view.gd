@@ -183,6 +183,11 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 	soil.set_shader_parameter(&"depth_tex", ImageTexture.create_from_image(
 			Image.create_from_data(end_col - first_col, Level.ROWS, false, Image.FORMAT_RGBA8, _depth_px)))
 	soil.set_shader_parameter(&"first_col", first_col)
+	soil.set_shader_parameter(&"home_from", HomeView.LEFT - 6.0 * T)  # (as _home_light() on the turf over it)
+	soil.set_shader_parameter(&"home_fire", HomeView.LEFT + HomeView.FIRE_X)
+	soil.set_shader_parameter(&"home_reach", HomeView.FIRE_REACH)
+	soil.set_shader_parameter(&"home_dusk", HomeView.DUSK)
+	soil.set_shader_parameter(&"home_warm", HomeView.FIRE_TINT)
 	if ResourceLoader.exists(DIR + "earth.png"):  # the painted bank of the main ground
 		var earth: Texture2D = load(DIR + "earth.png")
 		soil.set_shader_parameter(&"earth_tex", earth)
@@ -484,7 +489,9 @@ func _pinnacle(c: int, top: float) -> void:
 	var water := (Level.ROWS - 2) * T + 7.0
 	var art := SpireArt.new()
 	art.src = Rect2(SPIRE_CELL.x * kind, 0.0, SPIRE_CELL.x, SPIRE_CELL.y)
-	art.rect = Rect2((c + 0.5) * T - SPIRE_CELL.x * k * 0.5, top, SPIRE_CELL.x * k, water + SPIRE_WET - top)
+	# (blind round 14: "the three pinnacles the same cone": each its own build, a slim one beside a broad one)
+	var build := 0.84 + 0.36 * _hash(c, 41, 100) / 100.0
+	art.rect = Rect2((c + 0.5) * T - SPIRE_CELL.x * k * build * 0.5, top, SPIRE_CELL.x * k * build, water + SPIRE_WET - top)
 	var m := ShaderMaterial.new()
 	m.shader = SPIRE_ART
 	m.set_shader_parameter(&"top", top)
@@ -588,8 +595,16 @@ static func _grass_tone(c: int) -> Color:
 
 ## Round 22 (the judges, j18: "home: a bright green lawn strip clashing with the dry savanna"): over the last stretch to
 ## home the turf dries to the savanna's straw (multiplied; white elsewhere).
+## Blind round 14 ("a bright yellow line along the top of the earth strip; the grass as bright far right as at the
+## fire"): and at home the ground is in the home's one light, as its huts are (HomeView.fire_colour): warm round the
+## fire, in the dusk's shade away from it (_home_light: the turf and its blades; the earth under it: terrain.gdshader).
 static func _home_dry(c: int) -> Color:
-	return Color.WHITE.lerp(Color(1.0, 0.84, 0.6), smoothstep(PropView.HOME_COL - 40.0, PropView.HOME_COL - 4.0, float(c)))
+	return Color.WHITE.lerp(Color(1.0, 0.84, 0.6), smoothstep(PropView.HOME_COL - 40.0, PropView.HOME_COL - 4.0, float(c))) * _home_light(c)
+
+
+static func _home_light(c: int) -> Color:
+	var near := smoothstep(HomeView.LEFT / T - 22.0, HomeView.LEFT / T - 6.0, float(c))
+	return Color.WHITE.lerp(HomeView.fire_colour((c + 0.5) * T), near) if near > 0.0 else Color.WHITE
 
 
 func _in_pole(c: int, r: int) -> bool:

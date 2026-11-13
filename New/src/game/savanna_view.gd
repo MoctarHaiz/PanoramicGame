@@ -30,7 +30,7 @@ const SUN_AT := Vector2(0.02, -70.0)
 ## moves with the run, and its drift with the wind (units a second).
 const SKY_RECT := Vector2(-150.0, 660.0)
 const SKY_SCROLL := 0.02
-const HIGH_CLOUDS := Vector2(-178.0, 300.0)  ## the high row of clouds: its top (play y) and its height (units)
+const HIGH_CLOUDS := Vector2(-236.0, 400.0)  ## the high row of clouds: its top (play y) and its height (units)
 const HIGH_CLOUDS_SCROLL := 0.032
 const SKY_DRIFT := 2.5
 
@@ -103,8 +103,8 @@ const DUSK_STRIPS := {&"far_wall": Color(0.6, 0.6, 0.9), &"far_hills": Color(0.5
 ## middle-ground rise (they move between the plain's speed and the rise's), big ones behind the tall grass, their trunks
 ## passing behind him and their crowns over the landforms. (The plain has its own far groves painted in.)
 const TREE_ROWS := [
-	[0.14, 330.0, 96.0, 540.0, 0.28, 0.0, 0.42, LANE_AIR],
-	[0.31, 760.0, 232.0, 594.0, 0.2, 0.0, 0.7, LANE_AIR],  # (few: "the baobab behind the action out-contrasts him")
+	[0.14, 330.0, 96.0, 540.0, 0.34, 0.0, 0.42, LANE_AIR],
+	[0.31, 760.0, 232.0, 594.0, 0.28, 0.0, 0.8, LANE_AIR],  # (few: "the baobab behind the action out-contrasts him")
 ]
 ## The big near row: only trees with a tall trunk, their crowns over his head: behind his body there is a trunk at
 ## most (a wide low crown behind him hid him and the bandits).
@@ -119,11 +119,19 @@ const TREE_AMBIENT := [0.0, 0.0]
 ## play out of focus, more with each layer back (haze.gdshader's soft: mipmap levels down), as a lens set on the
 ## runners draws it: the landforms and the far plain soft, the rise and the big trees less, the tall grass right behind
 ## his legs hardly. The ground he runs on, its props and the plants in front stay sharp.
+## Blind round 14 ("the hero's dark hair on an acacia canopy, the bandit brown on tan in front of a baobab trunk and
+## boulders; background trees and mounds carry the fighters' outline weight; the mid-ground as detailed as the lane":
+## "quieten the band directly behind the fighters, one value step lighter, less line"): the rise, the trees and the
+## grass behind the path further out of focus, and their ink and deep shade lifted toward the air (LIFT_*, the
+## shader's `lift`): their colour stays (a pale veil over them read as "milky"), their line goes.
 const SOFT_MESAS := 1.3
 const SOFT_PLAIN := 1.7
-const SOFT_TREES := [1.6, 1.1]
-const SOFT_MID := 1.4
-const SOFT_LANE := 0.6
+const SOFT_TREES := [2.1, 1.9]
+const SOFT_MID := 2.0
+const SOFT_LANE := 1.0
+const LIFT_TREES := [0.7, 0.75]
+const LIFT_MID := 0.7
+const LIFT_LANE := 0.45
 ## Round 22 (the judges, j18: "the hero's lane has no value separation: a mid-orange hero on mid-gold grass"): the tall
 ## grass behind his legs and the savanna behind his body a value darker and greener (an olive band), so his warm skin,
 ## white loincloth and red scarf read against it (the warm add of round 3's lane light is gone).
@@ -143,8 +151,12 @@ const LANE_TINT := Color(0.96, 0.98, 0.92)
 ## (blind round 9, the fifth judge: "a uniformly milky, washed-out backdrop under a saturated sky: faded wallpaper;
 ## graded value layers: a pale far distance, a quiet middle value behind the lane": the far plain stays pale, the rise
 ## and the grass behind the path keep more of their own colour and value: between round 6's and round 8's)
-const PLAIN_FLATTEN := 0.5
-const PLAIN_HAZE := 0.3
+## (blind round 14, the plain seen from the vine: "a pale soft wash while the pinnacles are crisp: graded atmospheric
+## planes"): its near side keeps its colour and its darks (PLAIN_HAZE, PLAIN_FLATTEN lower), its far side goes into
+## the horizon's air (PLAIN_FAR more haze at its top)
+const PLAIN_FLATTEN := 0.38
+const PLAIN_HAZE := 0.14
+const PLAIN_FAR := 0.3
 const MID_FLATTEN := 0.46
 const MID_HAZE := 0.1
 const LANE_FLATTEN := 0.3
@@ -231,14 +243,14 @@ func _ready() -> void:
 		hz.set_shader_parameter(&"cell_px", _mesa_pitch)
 		_painter(_draw_mesas.bind(row)).material = hz
 		_mesa_mats.append(hz)
-	_far_mat = _haze([0, 0, 0, 0, PLAIN_HAZE, 0.0, 0, PLAIN_AIR], Color.WHITE, 0.0, 0.0, true, {flatten = PLAIN_FLATTEN, soft = SOFT_PLAIN})
+	_far_mat = _haze([0, 0, 0, 0, PLAIN_HAZE, 0.0, 0, PLAIN_AIR], Color.WHITE, 0.0, 0.0, true, {flatten = PLAIN_FLATTEN, soft = SOFT_PLAIN, far = PLAIN_FAR})
 	_painter(_draw_strip.bind(&"far_hills"), true).material = _far_mat
 	_painter(_draw_trees.bind(0)).material = _tree_haze(0)
-	_mid_mat = _haze([0, 0, 0, 0, MID_HAZE, 0.0, 0, LANE_AIR], MID_TINT, 0.0, 0.0, true, {flatten = MID_FLATTEN, soft = SOFT_MID})
+	_mid_mat = _haze([0, 0, 0, 0, MID_HAZE, 0.0, 0, LANE_AIR], MID_TINT, 0.0, 0.0, true, {flatten = MID_FLATTEN, soft = SOFT_MID, lift = LIFT_MID})
 	_painter(_draw_strip.bind(&"mid_hills"), true).material = _mid_mat
 	_painter(_draw_trees.bind(1)).material = _tree_haze(1)
 	_painter(_draw_lane_mist)
-	_painter(_draw_strip.bind(&"near_grass"), true).material = _haze([0, 0, 0, 0, LANE_HAZE, 0.0, 0, LANE_AIR], LANE_TINT, 0.0, 0.0, true, {flatten = LANE_FLATTEN, soft = SOFT_LANE})
+	_painter(_draw_strip.bind(&"near_grass"), true).material = _haze([0, 0, 0, 0, LANE_HAZE, 0.0, 0, LANE_AIR], LANE_TINT, 0.0, 0.0, true, {flatten = LANE_FLATTEN, soft = SOFT_LANE, lift = LIFT_LANE})
 	var mul := CanvasItemMaterial.new()
 	mul.blend_mode = CanvasItemMaterial.BLEND_MODE_MUL
 	_painter(_draw_lane_shade).material = mul
@@ -291,7 +303,7 @@ func _haze(row: Array, tint := Color.WHITE, ink := 0.0, planes := 0.0, strip := 
 ## Round 23: a tree row's material: its haze, its ink fainter and toward the air or its shade further back, the sky's light.
 func _tree_haze(row: int) -> ShaderMaterial:
 	return _haze(TREE_ROWS[row], TREE_TINT[row], TREE_INK[row], 0.0, false, {ink_amount = TREE_INK_AMOUNT[row],
-			ink_colour = TREE_INK_COLOUR[row], flatten = TREE_FLATTEN[row], ambient_k = TREE_AMBIENT[row], soft = SOFT_TREES[row]})
+			ink_colour = TREE_INK_COLOUR[row], flatten = TREE_FLATTEN[row], ambient_k = TREE_AMBIENT[row], soft = SOFT_TREES[row], lift = LIFT_TREES[row]})
 
 
 func _process(delta: float) -> void:
@@ -369,7 +381,9 @@ func _draw_high_clouds(ci: CanvasItem) -> void:
 	var x0 := _x0()
 	var w := _x1() - x0
 	var src_x := fposmod((scroll * HIGH_CLOUDS_SCROLL + _clock * SKY_DRIFT * 1.4 + x0) / k + tex.get_width() * 0.37, tex.get_width())
-	ci.draw_texture_rect_region(tex, Rect2(x0, HIGH_CLOUDS.x, w, HIGH_CLOUDS.y), Rect2(src_x, 0.0, w / k, tex.get_height()),
+	# (blind round 14: "the same cumulus stamped about ten times": this row mirrored and a third bigger than the sky's
+	# own: no cloud of it is the twin of one under it)
+	ci.draw_texture_rect_region(tex, Rect2(x0 + w, HIGH_CLOUDS.x, -w, HIGH_CLOUDS.y), Rect2(src_x, 0.0, w / k, tex.get_height()),
 			_dusk(DUSK_HIGH))
 
 

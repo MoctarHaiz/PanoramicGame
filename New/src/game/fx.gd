@@ -185,11 +185,8 @@ static func rescue_burst(parent: Node, at: Vector2) -> void:
 	lines(parent, at, Color(1, 1, 1, 0.85), 9, 70.0, 230.0, 0.24)
 	ring(parent, at, 30.0, 150.0, 0.4, Color(1, 1, 1, 0.95), 16.0)
 	ring(parent, at, 18.0, 100.0, 0.5, Color(1, 0.84, 0.4, 0.8), 9.0)
-	# (blind round 12, at home: "the confetti is a few stray specks that read as dirt": no paper in the level; its
-	# gold sparks stay, and the fire throws its embers: HomeView.welcome)
-	var c := Confetti.make(parent, at)
-	_behind_hero(c, parent)
-	c.sparkle(18, GOLD, Vector2(140, 460))
+	# (blind round 12, at home: "the confetti is a few stray specks that read as dirt": no paper in the level; blind
+	# round 14: "bokeh orbs across the hut": no gold sparks either; the fire throws its embers: HomeView.welcome)
 
 
 ## The light behind a badge popping in (NEW BEST): a glow and a ring, smaller and softer
@@ -829,9 +826,8 @@ static func bob_pop(parent: Node, at: Vector2, combo: int) -> void:
 
 
 ## Home: the doorway's warm light (`at`: the middle of the doorway, effects units) as soft light
-## that keeps him readable: a long flat pool of it on the ground at the threshold, breathing, and
-## long rays fanning from the top of the doorway (over his head, not through him); embers rising from
-## the hearth. (The doorway's own firelight is the hut's; nothing is added over his body.)
+## that keeps him readable: a long flat pool of it on the ground at the threshold, breathing.
+## (The doorway's own firelight is the hut's; nothing is added over his body.)
 static func home_glow(parent: Node, at: Vector2) -> void:
 	var g := Sprite2D.new()
 	g.texture = glow_texture()
@@ -850,34 +846,8 @@ static func home_glow(parent: Node, at: Vector2) -> void:
 	t.tween_callback(g.queue_free)
 	# (env, round 10: no rays from the doorway: "flat orange stripe rays: a cheap starburst"; the
 	# hut's light spills out on the ground instead, HomeView)
-	var p := CPUParticles2D.new()
-	p.position = at + Vector2(0, 40)
-	p.material = additive()
-	p.texture = glow_texture()
-	p.amount = 46
-	p.lifetime = 1.6
-	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
-	p.emission_rect_extents = Vector2(70, 30)
-	p.direction = Vector2.UP
-	p.spread = 35.0
-	p.initial_velocity_min = 60.0
-	p.initial_velocity_max = 190.0
-	p.gravity = Vector2(25, -90)
-	p.damping_min = 10.0
-	p.damping_max = 40.0
-	p.scale_amount_min = 0.06
-	p.scale_amount_max = 0.16
-	var fade := Gradient.new()
-	fade.offsets = PackedFloat32Array([0.0, 0.15, 0.7, 1.0])
-	fade.colors = PackedColorArray([Color(EMBERS[0], 0.0), Color(EMBERS[0], 1.0), Color(EMBERS[1], 0.8), Color(EMBERS[2], 0.0)])
-	p.color_ramp = fade
-	parent.add_child(p)
-	p.emitting = true
-	var stop := p.create_tween()  # owned by the embers: it goes with them if the screen is left
-	stop.tween_interval(2.6)
-	stop.tween_property(p, "emitting", false, 0.0)
-	stop.tween_interval(p.lifetime + 0.1)
-	stop.tween_callback(p.queue_free)
+	# (blind round 14: "bokeh orbs across the hut": no soft orbs rising at the doorway, where nothing burns: the
+	# campfire throws its own embers, HomeView.welcome)
 
 
 ## The win's party (UI r21, the judges of j17: "confetti chaotic" after r20's cannons and rain): a few

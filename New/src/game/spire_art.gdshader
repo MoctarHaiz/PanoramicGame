@@ -47,6 +47,11 @@ void fragment() {
 	c = mix(c, moss_c * (0.6 + 0.6 * lum), moss * 0.82);
 	// the mat's shade on the cap rock, under its blades
 	c *= 1.0 - 0.45 * (1.0 - smoothstep(7.0, 15.0, y)) * (1.0 - smoothstep(14.0, 24.0, abs(at.x - mid_x)));
+	// one key (blind round 14: "one directional sunset key across the whole frame: lit and shadow sides on the
+	// pinnacles"): its side toward the low sun (left) a step warmer and lighter, its side away from it in the dusk's
+	// violet shade, the turn between them a painter's soft edge wandering down it
+	float side = (at.x - mid_x) / (15.0 + y * 0.2) + (noise(y * 0.06 + seed * 3.0) - 0.5) * 0.5;
+	c *= mix(vec3(1.09, 1.03, 0.94), vec3(0.66, 0.62, 0.86), smoothstep(0.02, 0.5, side));
 	// the light falls off down it, cooler toward its foot
 	c *= mix(1.04, 0.84, smoothstep(0.1, 1.0, down));
 	c = mix(c, c * vec3(0.9, 0.88, 1.0), smoothstep(0.4, 1.0, down) * 0.45);
@@ -54,15 +59,19 @@ void fragment() {
 		a *= 1.0 - smoothstep(height - fade, height, y);
 	}
 	if (water_y > 0.0) {
-		float surface = water_y + sin(at.x * 0.045 + TIME * 1.7) * 1.6 + sin(at.x * 0.13 - TIME * 2.6) * 0.8;
+		float surface = water_y + sin(at.x * 0.045 + TIME * 1.7) * 2.2 + sin(at.x * 0.13 - TIME * 2.6) * 1.1;
 		float d = y - surface;
 		c *= mix(1.0, 0.66, smoothstep(-9.0, -1.0, d));  // (wet at the waterline)
 		// (the water's own colours, as water_front.gdshader tints the cell it stands in: the two agree)
 		vec3 murk = mix(vec3(0.1, 0.36, 0.4), vec3(0.02, 0.1, 0.24), clamp((d - 3.0) / 46.0, 0.0, 1.0));
 		c = mix(c, murk, smoothstep(0.0, 5.0, d) * 0.92);
 		a *= 1.0 - smoothstep(3.0, 20.0, d);
-		float lap = (1.0 - smoothstep(0.0, 2.6, abs(d - 0.6))) * (0.65 + 0.35 * sin(at.x * 0.9 + TIME * 3.1));
-		c = mix(c, vec3(0.97, 1.0, 1.0), lap * 0.9);
+		// foam where the water breaks on it: clumps of unlike thickness, gaps between them (it was a row of dots on a
+		// ruled line: blind round 14)
+		float clump = smoothstep(0.3, 0.7, noise(at.x * 0.11 + seed * 9.0 + TIME * 0.35));
+		float thick = 1.4 + 3.4 * noise(at.x * 0.29 + seed * 4.0 - TIME * 0.5);
+		float lap = (1.0 - smoothstep(thick * 0.35, thick, abs(d - 0.4 - thick * 0.3))) * clump;
+		c = mix(c, vec3(0.95, 0.99, 1.0), lap * 0.88);
 	}
 	COLOR = vec4(c * drawn.rgb, a * drawn.a);
 }

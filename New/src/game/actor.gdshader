@@ -39,6 +39,12 @@ uniform vec4 bounce_colour : source_color = vec4(1.35, 1.0, 0.7, 1.0);
 uniform vec2 bounce_dir = vec2(-1.0, 0.0);
 uniform vec4 bounce_cool : source_color = vec4(0.72, 0.76, 0.98, 1.0);  // the side away from the fire (round 15)
 uniform float bounce_scale = 0.01;  // 1 / (half the frame's width, in local px): the sprite is an atlas region
+// Blind round 14 ("he does not sit in the dusk: full-saturation skin, pure white cloth, bright blue boots, evenly lit:
+// warm on the fire side, the shadow side falling to the dusk's blue-violet; no rim is needed, only values and hue"):
+// `bounce_far`: how much of `bounce_cool` his side away from the fire takes (it reaches from just past his middle),
+// and `bounce_dusk`: the evening over all of him, under the fire's light (multiplied; white: none).
+uniform float bounce_far = -1.0;  // (< 0: as `bounce`)
+uniform vec4 bounce_dusk : source_color = vec4(1.0);
 // A warm back rim (round 10, home: the lit hut behind him): a band just inside the ink on the edges that face
 // up and to the sides, the light from behind wrapping his silhouette; the ink line itself stays dark.
 // (round 12) the level's light on him: his lit colours raised by up to `light_gain` (the shade less, the ink not at
@@ -184,9 +190,10 @@ void fragment() {
 		// the other") the fire on its side only, the far side in a cool shade
 		float x = dot(local_pos * bounce_scale, normalize(bounce_dir));
 		float side = smoothstep(-0.15, 0.85, x);
-		float far = smoothstep(0.1, -0.7, x);
+		float far = bounce_far < 0.0 ? smoothstep(0.1, -0.7, x) : smoothstep(0.3, -0.6, x);
+		c.rgb *= mix(vec3(1.0), bounce_dusk.rgb, bounce);
 		c.rgb *= mix(vec3(1.0), bounce_colour.rgb, bounce * side);
-		c.rgb *= mix(vec3(1.0), bounce_cool.rgb, bounce * far);
+		c.rgb *= mix(vec3(1.0), bounce_cool.rgb, (bounce_far < 0.0 ? bounce : bounce_far) * far);
 	}
 	if (spill > 0.0) {
 		float side = smoothstep(-0.3, 0.45, dot(UV - vec2(0.5), normalize(spill_dir)));

@@ -206,7 +206,9 @@ func _add_water() -> void:
 				c += 1
 				continue
 			var start := c
-			while c < Level.COLS and world.level.kind_at(c, r) == Level.Kind.WATER:
+			# (blind round 14: a pinnacle is painted over the water it stands in: the pool runs on behind it; it
+			# stopped at its column, and the plain showed through the water under its foot)
+			while c < Level.COLS and (world.level.kind_at(c, r) == Level.Kind.WATER or (r == Level.ROWS - 2 and _stands_in_water(c))):
 				c += 1
 			var rect := ColorRect.new()
 			rect.name = "Water%d" % start
@@ -229,6 +231,14 @@ func _add_water() -> void:
 			_level_root.add_child(rect)
 
 
+## A stack one cell wide standing in a pool, water on both its sides (TerrainView paints it as a pinnacle).
+func _stands_in_water(c: int) -> bool:
+	var r := Level.ROWS - 2
+	var k := world.level.kind_at(c, r)
+	return (k == Level.Kind.TOP or k == Level.Kind.SIDE) and world.level.kind_at(c - 1, r) == Level.Kind.WATER \
+			and world.level.kind_at(c + 1, r) == Level.Kind.WATER
+
+
 ## Round 9: a strip of the savanna as the water shader reads it: scroll factor, bottom y, units a
 ## texture pixel, height in units.
 func _strip(name: StringName) -> Vector4:
@@ -247,7 +257,7 @@ func _add_water_front() -> void:
 			continue
 		var water_w := world.level.kind_at(c - 1, r) == Level.Kind.WATER
 		var water_e := world.level.kind_at(c + 1, r) == Level.Kind.WATER
-		if not water_w and not water_e:
+		if (not water_w and not water_e) or _stands_in_water(c):  # (a pinnacle wets its own foot: spire_art.gdshader)
 			continue
 		var x0 := c * Level.TILE - 2.0 if water_w else c * Level.TILE + Level.TILE - 18.0
 		var x1 := (c + 1) * Level.TILE + 2.0 if water_e else c * Level.TILE + 18.0
@@ -404,6 +414,14 @@ func _ring_back(at: Vector2) -> void:
 	s.caught.connect(func(p: Vector2) -> void: Fx.glint(fx, _fx(p), 44.0, 0.16))
 
 
+## Where his throwing hand is now (the actors' units): the ring's wake starts there (RingView.hand).
+func _throw_point() -> Vector2:
+	var p := world.draw_hero()
+	if world.on_ground and not world.hanging:
+		return p + Vector2(HeroView.THROW_FIST.x - 6.0, World.HERO_SIZE.y / 2 + HeroView.THROW_FIST.y + 12.0)
+	return p + Vector2(22.0, -12.0)
+
+
 ## Where his hand takes the chakram back (the actors' units): his thrown fist's height on the run, his chest else.
 func _catch_point() -> Vector2:
 	var p := world.draw_hero()
@@ -525,6 +543,7 @@ func _place_rings() -> void:
 				var feet := world.draw_hero() + Vector2(0.0, World.HERO_SIZE.y / 2)
 				s.from_hand = feet + HeroView.THROW_FIST - (Vector2(r.x, r.y) + World.RING_CENTRE)
 				s.hand_time = RingView.HAND_ARC
+			s.hand = _throw_point
 		s.position = Vector2(lerpf(r.prev_x, r.x, world.alpha), r.y) + World.RING_CENTRE
 		if world.state == World.State.WON:  # home: rings still flying fade away (none lies about the yard)
 			s.modulate.a = move_toward(s.modulate.a, 0.0, 0.08)

@@ -236,6 +236,11 @@ static func form(dome: float, strength := 1.0) -> ShaderMaterial:
 
 ## The same on something standing at level x on the ground (a stretch of the palisade: one colour each).
 func _fire_colour(x: float) -> Color:
+	return fire_colour(x)
+
+
+## The home's one light on what stands or lies at level x: the fire's warmth near it, the dusk's shade away from it.
+static func fire_colour(x: float) -> Color:
 	var d := (x - (LEFT + FIRE_X)) / FIRE_REACH
 	return DUSK.lerp(FIRE_TINT, exp(-d * d * 1.6))
 

@@ -39,6 +39,13 @@ uniform vec4 air_tint : source_color = vec4(1.0);
 // lens set on the play draws what is behind it: read from a smaller copy of its picture (this many mipmap levels
 // down; 0: sharp). The play's own layer and what is in front of it stay sharp.
 uniform float soft = 0.0;
+// Blind round 14 ("background trees and mounds carry the fighters' outline weight: the band behind them one value
+// step lighter, less line"): `lift`: the layer's darks (its ink lines, its deep shade) drawn up toward the air, its
+// lights as they are: no line behind the play as heavy as a character's.
+uniform float lift : hint_range(0.0, 1.0) = 0.0;
+// (blind round 14, of the plain: "a pale soft wash: graded atmospheric planes") `far`: more haze toward the picture's
+// top (a plain seen from above its near edge: its far side at the horizon deep in the air, its near side clear)
+uniform float far : hint_range(0.0, 1.0) = 0.0;
 
 varying vec4 drawn;  // round 20: the colour each sprite is drawn with (COLOR in fragment() has the texture in it)
 varying vec2 at;  // round 21: where it is drawn (the layer's units)
@@ -72,7 +79,7 @@ void fragment() {
 	if (cell_px > 0.0) {
 		v = clamp(mod(py, cell_px) / (cell_px - 6.0), 0.0, 1.0);
 	}
-	float k = clamp(amount + foot * smoothstep(0.6, 1.0, v), 0.0, 1.0);
+	float k = clamp(amount + foot * smoothstep(0.6, 1.0, v) + far * (1.0 - smoothstep(0.0, 0.75, v)), 0.0, 1.0);
 	// (round 20: and each sprite's own colour, as drawn: the trees' shades, the landforms' rows; it was dropped)
 	vec3 c = t.rgb * tint.rgb * drawn.rgb;
 	if (ink_units > 0.0 && t.a > 0.01) {
@@ -116,6 +123,11 @@ void fragment() {
 		float pivot = dot(air, vec3(0.3, 0.59, 0.11));
 		c = mix(vec3(lum), c, 1.0 - 0.55 * flatten);
 		c = pivot + (c - pivot) * (1.0 - 0.5 * flatten);
+	}
+	if (lift > 0.0) {
+		vec3 air = haze_colour.rgb * air_tint.rgb;
+		float l2 = dot(c, vec3(0.3, 0.59, 0.11));
+		c = mix(c, mix(c, air, 0.62), lift * (1.0 - smoothstep(0.16, 0.6, l2)));
 	}
 	if (cloud > 0.0) {
 		vec2 q = vec2((at.x + cloud_x) * 0.0042, at.y * 0.0065);

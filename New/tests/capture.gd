@@ -45,7 +45,7 @@ const MOMENTS := {
 	# camera is drawn back to show it)
 	"game": "ticks >= 250 and on_ground and not hanging and y > 440 and flat",
 	"climb": "scroll > 5200 and y < 260",
-	"hang": "hanging and scroll > 18000",
+	"hang": "hanging and scroll > 18000 and open",
 	"home": "at_end and x > 330",
 }
 
@@ -110,10 +110,22 @@ func _flat_ahead(w: World, reach: float) -> bool:
 
 func _check(w: World, condition: String) -> bool:
 	var e := Expression.new()
-	e.parse(condition, ["ticks", "scroll", "x", "y", "hanging", "at_end", "on_ground", "flat"])
+	e.parse(condition, ["ticks", "scroll", "x", "y", "hanging", "at_end", "on_ground", "flat", "open"])
 	# flat: no pool or drop in the next 900 units (the staged shots let him run on with no pilot)
 	var flat := _flat_ahead(w, 900.0)
-	return e.execute([w.ticks, w.scroll, w.x, w.y, w.hanging, w.at_end, w.on_ground, flat])
+	# open: nothing stands under him or beside his legs (hanging between two stacks, not over one's top: blind
+	# round 14, "his boots touch the pinnacle's tuft: does he hang or stand?")
+	return e.execute([w.ticks, w.scroll, w.x, w.y, w.hanging, w.at_end, w.on_ground, flat, _open_under(w)])
+
+
+func _open_under(w: World) -> bool:
+	var col := floori((w.scroll + w.x) / Level.TILE)
+	for c in range(col - 3, col + 4):
+		for r in range(floori(w.y / Level.TILE), Level.ROWS - 2):
+			var kind := w.level.kind_at(c, r)
+			if kind == Level.Kind.TOP or kind == Level.Kind.SIDE:
+				return false
+	return true
 
 
 func _capture(device: String, shot: String) -> void:
@@ -161,9 +173,14 @@ func _capture(device: String, shot: String) -> void:
 			Save.tutorial_seen = false
 			Nav.go(&"game", {})
 			await _wait(1.0)
-		"climb", "hang":
+		"climb":
 			await _start_game(shot)
 			await _wait(1.0)
+		"hang":  # on the vine between two stacks (not over one's top: "does he hang or stand?")
+			await _start_game(shot)
+			await _wait(0.8)
+			await _wait_for(func() -> bool: return Nav.current.world.hanging and _open_under(Nav.current.world), 3.0)
+			await _wait(0.12)
 		"game":  # the blow: a ring knocks a bandit out, the frame after its freeze
 			await _start_game("game")
 			await _wait(0.3)
@@ -187,10 +204,10 @@ func _capture(device: String, shot: String) -> void:
 			await _wait(0.3)
 			var game: Node = Nav.current
 			await _clear_stage(game)
-			_bandit_ahead(game.world, 400.0)
+			_bandit_ahead(game.world, 520.0)
 			await _wait(0.12)
 			game.world.throw()
-			await _wait(0.2)
+			await _wait(0.25)
 		"hurt":  # a bandit runs into him: the instant after the blow
 			await _start_game("game")
 			await _wait(0.3)
@@ -287,6 +304,8 @@ func _clear_stage(game: Node) -> void:
 		if absf(b.x - game.world.scroll - game.world.x) < 1500.0:
 			b.gone = true
 	await _wait(0.7)
+	game.world.rings.clear()  # (a ring still flying met the bandit staged next: a second ring on its way back)
+	await _wait(0.1)
 
 
 ## Brings the last bandit (far away) `ahead` units in front of Panoramic, on his ground (closer if a
