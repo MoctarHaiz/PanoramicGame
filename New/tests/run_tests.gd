@@ -14,6 +14,9 @@ extends Node
 ## run is the release gate).
 ## About 100 checks (the user's call, 2026-11-07: the 100 most important): the rules, saves and release
 ## checks one by one; the bigger groups (FOLDED, the gameplay groups) as one check each.
+## -- --level=FILE plays that file as the level (LevelPack): the gate for a change made while the level is being edited.
+
+const LevelPack := preload("res://tests/level_pack.gd")
 
 var _failures := 0
 var _checks := 0
@@ -36,6 +39,9 @@ const FOLDED := {
 
 func _ready() -> void:
 	Save.persist = false
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--level="):
+			LevelPack.use(a.trim_prefix("--level="))
 	var tests := [_test_scripts_compile, _test_speeds, _test_level, _test_landing, _test_jump_height, _test_jump_buffer, _test_climb_wall,
 			_test_hang, _test_fall, _test_landing_weight, _test_bandits, _test_club_reach, _test_mercy, _test_calm_start, _test_swipes, _test_rings, _test_home_door, _test_run_home, _test_step_cap, _test_frame_rates, _test_idle,
 			_test_stars, _test_save, _test_translations, _test_config, _test_preload, _test_debug_silent,

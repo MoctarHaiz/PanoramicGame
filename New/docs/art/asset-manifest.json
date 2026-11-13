@@ -2275,7 +2275,7 @@
    "path": "assets/art/world/home_door_light.png",
    "status": "approved",
    "technical": {
-    "dimensions": "256x128",
+    "dimensions": "246x241",
     "alpha": true,
     "anchor": "bottom-centre at the ground",
     "frames": null,

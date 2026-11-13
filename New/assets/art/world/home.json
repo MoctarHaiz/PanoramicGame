@@ -9,7 +9,9 @@
   "door_w": 102.0,
   "door_h": 184.55,
   "front_x": 174.0,
-  "front_crop_x": 152.5
+  "front_crop_x": 152.5,
+  "light_x": 61.5,
+  "light_base": 75.5
  },
  "home_hut_small": {
   "size": [

@@ -207,11 +207,13 @@ void fragment() {
 		painted *= earth_tint;
 		// (a little less red; blind round 14: "the saturated red-brown earth cross-section is the heaviest band and
 		// pulls the eye down": quieter still, and falling into a cool shade with its depth, under the play's value)
-		painted = mix(vec3(dot(painted, vec3(0.3, 0.59, 0.11))), painted, 0.62);
+		painted = mix(vec3(dot(painted, vec3(0.3, 0.59, 0.11))), painted, 0.55);
 		painted *= mix(vec3(1.0), vec3(0.86, 0.82, 0.92), smoothstep(8.0, 100.0, depth));
 		// (blind round 15: "the dark, saturated earth strip is a third exposure": the lane's dusty air on it too, a
 		// value up: one exposure from the plain down to the bank)
-		painted = mix(painted, vec3(0.8, 0.6, 0.54), 0.3);  // (blind round 21, "a dead dark soil strip": a value up, 0.2 -> 0.3)
+		// (blind round 21, "a dead dark soil strip": a value up; blind round 22, "brown soil … a brighter palette than the
+		// muted painting behind": toward the dusk's mauve, the plain's rocks' colour, it was (0.8, 0.6, 0.54) by 0.3)
+		painted = mix(painted, vec3(0.6, 0.46, 0.54), 0.42);
 		earth = mix(earth, painted, earth_k);
 		wide_ink *= 1.0 - earth_k;
 		bed_ink *= 1.0 - earth_k;

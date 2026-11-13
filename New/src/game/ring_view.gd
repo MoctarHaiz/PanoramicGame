@@ -40,15 +40,23 @@ const TRAIL := 9  ## positions kept for its streak on its way back
 ## 1.85) and LIFT units over its lane in the rules (his chest's height, not his hip's: drawn only), and its wake is
 ## drawn as the characters are: a slim blade of two flat tones, a point at his hand, an ink line along both its edges,
 ## curving down from his hand to its flight, two short ink strokes of speed beside it. No soft light.
-const FLIGHT_GROW := 1.85
+## Blind round 22 ("a face-on disc as big as the hero's torso, tied to his fingertip by a flat orange-cream blade: an
+## icon on a ribbon"): 1.5 times its size, lying flatter (FLAT), its wake a thrown arc that starts clear of his hand
+## (WAKE_FREE of the way from it) and bows over the straight line (WAKE_BOW of its length).
+## Round 23's check, of that: "too small and thin, so there is no impact weight", "the straight flat beam … a curved
+## inked arc that does not touch the fingertip": 1.7 times, a little less flat, its wake the last six tenths of the way,
+## bowed a quarter of its length (FLIGHT_GROW 1.5, FLAT 0.4 to 0.52, WAKE_FREE 0.2, WAKE_BOW 0.11, WAKE_HALF 8 before).
+const FLIGHT_GROW := 1.7
 const LIFT := 15.0
 const WAKE_LEN := 250.0
 const WAKE_SHORT := 130.0
 const WAKE_HOLD := 0.34  ## seconds of flight it keeps its full length
 const WAKE_STEPS := 16
 const WAKE_TUCK := 14.5  ## units short of the ring's middle it ends: under its rim (its hole stays open)
-const WAKE_HALF := 8.0  ## half its width at the ring: a blade well inside the ring's own height
+const WAKE_HALF := 10.0  ## half its width at the ring: a blade well inside the ring's own height
 const WAKE_TAPER := 0.9  ## how its width closes toward his hand (1: a straight wedge)
+const WAKE_FREE := 0.4  ## of the way from his hand to the ring: where its point is at the nearest
+const WAKE_BOW := 0.27  ## of its length: how high its middle bows over the straight line
 const WAKE_BODY := Color("ff9a36")  ## its blade's outer tone
 const WAKE_CORE := Color("fff1d2")  ## ... and its heart
 const WAKE_INK := Color(0.33, 0.1, 0.07)  ## its line: the blow's burst's (tools/art/kie/world.py IMPACT_INK)
@@ -72,7 +80,7 @@ const SPIN := 15.0  ## radians a second it turns in its own plane
 ## first drawing, the one in his hand) flattened to FLAT of its height (rocking between the two), tipped TIP radians
 ## into its way, turning in its own plane, its blades smeared behind their turn (SMEAR: fainter copies, each a step of
 ## the turn back). It leaves his hand face-on and lies down into its flight as it grows.
-const FLAT := Vector2(0.56, 0.7)
+const FLAT := Vector2(0.46, 0.58)
 const FLAT_ROCK := 9.0  ## radians a second it rocks between them
 const TIP := -0.2
 const SMEAR := [[0.34, 0.2], [0.17, 0.42]]  ## [radians back, opacity], the faintest first
@@ -220,10 +228,11 @@ func _wake_path() -> PackedVector2Array:
 		return path
 	var flight := _clock - WIND_UP
 	var keep := lerpf(WAKE_LEN, WAKE_SHORT, smoothstep(WAKE_HOLD, WAKE_HOLD + 0.25, flight))
-	var k := minf(1.0, keep / gap.length())
-	# (it leaves his hand downward and levels on its lane: far from him, what is left of it is level)
+	var k := minf(1.0 - WAKE_FREE, keep / gap.length())
+	# (it leaves his hand downward and levels on its lane: far from him, what is left of it is level; a thrown arc,
+	# its middle bowed over the straight line)
 	var tail := Vector2(head.x - gap.x * k, head.y - gap.y * k * k)
-	var turn := Vector2(lerpf(tail.x, head.x, 0.45), head.y)
+	var turn := Vector2(lerpf(tail.x, head.x, 0.45), head.y - WAKE_BOW * gap.length() * k)
 	for i in WAKE_STEPS + 1:
 		var u := float(i) / WAKE_STEPS
 		path.append(tail.lerp(turn, u).lerp(turn.lerp(head, u), u))

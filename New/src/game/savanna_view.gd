@@ -40,6 +40,12 @@ const SKY_RECT := Vector2(-150.0, 660.0)
 const SKY_SCROLL := 0.02
 const HIGH_CLOUDS := Vector2(-236.0, 400.0)  ## the high row of clouds: its top (play y) and its height (units)
 const HIGH_CLOUDS_SCROLL := 0.032
+## (round 23's check, under the vine: "the pale cloth still sits on the cream cumulus": the high row is past the low
+## sun's light, a rose-mauve a value under his loincloth and his skin)
+const HIGH_CLOUDS_TONE := Color(0.63, 0.59, 0.86)
+## (the same check: the cumulus behind him under the vine is the sky's own: the evening deepens overhead, the sky and
+## its clouds a value down toward its top, the clouds over the horizon alone in the last light)
+const SKY_TOP := Color(0.58, 0.55, 0.86)
 const SKY_DRIFT := 2.5
 
 ## Strips that repeat left to right: texture, scroll factor, bottom y, units per texture pixel.
@@ -98,12 +104,14 @@ const HORIZON := 416.0  ## play y of the plain's far edge: the landforms stand b
 ## play is drawn toward a pale air and flattened (haze.gdshader's flatten: less colour, less contrast, its ink with it),
 ## more the farther it is; the characters and the pickups are the only full-contrast layer)
 const AIR := Color(0.76, 0.66, 0.84)  ## the far air, a pale blue-violet: what distance draws the landforms toward
+## (round 23's check, under the vine: "the same pink shapes still repeat at the same size": the two far rows' gaps and the
+## far row's sizes range wider: 30 to 190 and 60 to 300 units between two, 0.2 to 0.28 of its size, before)
 const MESA_ROWS := [
-	{scroll = 0.014, bottom = 422.0, scale = Vector2(0.2, 0.28), haze = 0.7, foot = 0.14, haze_colour = AIR,
-		tint = Color(1, 1, 1), mirror = 0.0, gap = Vector2(30.0, 190.0), kinds = [3.0, 1.5, 1.2, 1.0], cloud = 0.0, ink = 0.0, planes = 0.0,
+	{scroll = 0.014, bottom = 422.0, scale = Vector2(0.15, 0.3), haze = 0.7, foot = 0.14, haze_colour = AIR,
+		tint = Color(1, 1, 1), mirror = 0.0, gap = Vector2(40.0, 460.0), kinds = [3.0, 1.5, 1.2, 1.0], cloud = 0.0, ink = 0.0, planes = 0.0,
 		flatten = 0.58, ink_amount = 0.0, ink_colour = Color(0.5, 0.53, 0.68)},
 	{scroll = 0.024, bottom = 428.0, scale = Vector2(0.3, 0.4), haze = 0.58, foot = 0.14, haze_colour = AIR,
-		tint = Color(1, 1, 1), mirror = 0.0, gap = Vector2(60.0, 300.0), kinds = [2.0, 2.0, 1.0, 1.4], cloud = 0.5, ink = 0.0, planes = 0.0,
+		tint = Color(1, 1, 1), mirror = 0.0, gap = Vector2(70.0, 480.0), kinds = [2.0, 2.0, 1.0, 1.4], cloud = 0.5, ink = 0.0, planes = 0.0,
 		flatten = 0.48, ink_amount = 0.0, ink_colour = Color(0.42, 0.36, 0.55)},
 	{scroll = 0.04, bottom = 436.0, scale = Vector2(0.44, 0.6), haze = 0.44, foot = 0.12, haze_colour = AIR,
 		tint = Color(1, 1, 1), mirror = 0.0, gap = Vector2(160.0, 560.0), kinds = [2.0, 1.6, 1.6, 1.4], cloud = 1.0, ink = 0.0, planes = 0.0,
@@ -186,9 +194,12 @@ const PLAIN_FAR_TO := 0.42  ## ... gone by this far down its picture
 ## `shade`): greyer, its values drawn together, in the sky's cool light: a sage a value under his lit skin and over the
 ## bandits' darks; only its far band under the horizon keeps the last sun. Each: [colour, from, full (down its picture),
 ## how grey, how flat, the value its values close on]; at home the whole of it is in the night.
-const PLAIN_SHADE := [Color(0.82, 0.87, 0.87), 0.15, 0.29, 0.38, 0.42, 0.44]
-const PLAIN_SHADE_RISEN := 0.2  ## under the vine all of it is in the shade ("saturated midday yellow-green under a violet dusk sky"): its shade starts this much higher up its picture, the camera risen
-const PLAIN_NIGHT := [Color(0.5, 0.52, 1.0), -0.3, -0.2, 0.7, 0.5, 0.36]
+## Blind round 22 (of that shade: "a grey-olive veil ... a desaturating overlay, not painted shade, and meets the sunlit
+## yellow band on a ruled horizontal line"): the shade is in the painting now (plain4: blue-green and slate under a
+## violet sky, the acacias' long shadows breaking its edge), so in play the shader lays none (PLAIN_SHADE: from = full);
+## the night at home is still the shader's, over all of it, its drawn forms kept (less grey, less flat).
+const PLAIN_SHADE := [Color(1.0, 1.0, 1.0), 0.0, 0.0, 0.0, 0.0, 0.44]
+const PLAIN_NIGHT := [Color(0.5, 0.52, 0.98), -0.3, -0.2, 0.35, 0.22, 0.34]
 ## ... "only tiny warm points far off": the cooking fires of the painted kraal and of the village under the horizon
 ## glow at night: [px across the plain's picture, px down it, units across its glow].
 const PLAIN_FIRES: Array[Vector3] = [Vector3(2806.0, 206.0, 13.0), Vector3(2168.0, 99.0, 6.0), Vector3(2262.0, 101.0, 5.0), Vector3(2214.0, 97.0, 4.0)]
@@ -218,15 +229,16 @@ const RIVER_AT := 500.0  ## play y of its far waterline, the camera risen (the b
 const RIVER_LOW := 730.0  ## ... and from the ground: its bank's tallest papyrus under the screen
 const RIVER_UP := 1.05
 const RIVER_SCROLL := 0.17
+const RIVER_SHIFT := 260.0  ## units its picture is slid along: open bank behind the crocodile's jaws at the first vine (its fallen log was in them)
 const RIVER_DUSK := Color(0.62, 0.62, 0.9)
 ## Blind round 21 (under the vine: "a postcard, not an action beat: nothing threatens him and no goal is in view":
 ## "make the vine an event: a drawn threat breaking the water under him"): a crocodile of the river keeps under him
 ## while he hangs over it. Each time he swings back, his legs trailing, it lunges out of the water at them, jaws open
 ## (`snap`: 0..1, how far back he has swung, from WorldView), and sinks as he swings away. Drawn in the river, behind
 ## the path (croc.png: tools/art/kie/world.py croc(); its foot is the waterline, with its own splash and ripples).
-const CROC_W := 228.0  ## units wide
-const CROC_BEHIND := 224.0  ## units behind him its middle keeps: its jaws open up at his trailing legs
-const CROC_LINE := 92.0  ## units under the river's far waterline it breaks the water
+const CROC_W := 290.0  ## units wide (blind round 22: "at lower-left … while he hangs at centre a third of the frame higher … two vignettes, not one beat": bigger and right under him, 228 -> 290)
+const CROC_BEHIND := 185.0  ## units behind him its middle keeps: its jaws open up at his trailing legs
+const CROC_LINE := 86.0  ## units under the river's far waterline it breaks the water
 const CROC_RISE := 9.0  ## how fast it comes up (/s) ...
 const CROC_SINK := 4.5  ## ... and sinks
 const CROC_RIPPLE := Color(0.93, 0.86, 1.0)
@@ -401,10 +413,7 @@ func _process(delta: float) -> void:
 	_far_mat.set_shader_parameter(&"flatten", PLAIN_FLATTEN * clear)
 	var keys: Array[StringName] = [&"shade", &"shade_from", &"shade_full", &"shade_grey", &"shade_flat", &"shade_value"]
 	for i in keys.size():  # (blind round 21: the evening's shade over it, the night's at home)
-		var play: Variant = PLAIN_SHADE[i]
-		if i == 1 or i == 2:
-			play = float(play) - PLAIN_SHADE_RISEN * smoothstep(60.0, 200.0, rise)
-		_far_mat.set_shader_parameter(keys[i], lerp(play, PLAIN_NIGHT[i], dusk))
+		_far_mat.set_shader_parameter(keys[i], lerp(PLAIN_SHADE[i], PLAIN_NIGHT[i], dusk))
 	# the river's crocodile: up at him as he swings back, under as he swings away; where he is while it is under
 	var up := smoothstep(0.3, 0.75, snap) if rise > BANK_FROM else 0.0
 	_croc = move_toward(_croc, up, delta * (CROC_RISE if up > _croc else CROC_SINK))
@@ -447,7 +456,7 @@ func _draw_sky(ci: CanvasItem) -> void:
 	# (its top two rows left out: the picture repeats, so its top edge is filtered with its bottom row, the warm horizon)
 	var src := Rect2(fposmod((scroll * SKY_SCROLL + _clock * SKY_DRIFT + x0) / k, sky.get_width()), 2.0, w / k, sky.get_height() - 2.0)
 	# (at dusk, near home, the sky cools from the top: a blue-violet over the warm horizon)
-	var top := _dusk(DUSK_HIGH)
+	var top := SKY_TOP.lerp(DUSK_HIGH, dusk)
 	var low := _dusk(DUSK_LOW)
 	if view_top - 2.0 < SKY_RECT.x:
 		ci.draw_texture_rect_region(sky, Rect2(x0, view_top - 4.0, w, SKY_RECT.x - view_top + 5.0), Rect2(src.position.x, 3.0, src.size.x, 1.0), top)
@@ -511,7 +520,7 @@ func _draw_high_clouds(ci: CanvasItem) -> void:
 	# (blind round 14: "the same cumulus stamped about ten times": this row mirrored and a third bigger than the sky's
 	# own: no cloud of it is the twin of one under it)
 	ci.draw_texture_rect_region(tex, Rect2(x0 + w, HIGH_CLOUDS.x, -w, HIGH_CLOUDS.y), Rect2(src_x, 0.0, w / k, tex.get_height()),
-			_dusk(DUSK_HIGH))
+			_dusk(DUSK_HIGH) * HIGH_CLOUDS_TONE)
 
 
 ## Round 20: each row's order of landforms, worked out once. Round 21 (the judges, j17: "stamped, evenly spaced"):
@@ -664,7 +673,7 @@ func _draw_river(ci: CanvasItem) -> void:
 	var tex: Texture2D = _tex[&"river"]
 	var x0 := _x0()
 	var x1 := _x1()
-	var src_x := fposmod((scroll * RIVER_SCROLL + x0) / RIVER_K, tex.get_width())
+	var src_x := fposmod((scroll * RIVER_SCROLL + x0 + RIVER_SHIFT) / RIVER_K, tex.get_width())
 	var src_w := (x1 - x0) / RIVER_K
 	var tone := _dusk(RIVER_DUSK)
 	ci.draw_texture_rect_region(tex, Rect2(x0, line - RIVER_WATER * RIVER_K, x1 - x0, RIVER_WATER * RIVER_K), Rect2(src_x, 0, src_w, RIVER_WATER), tone)

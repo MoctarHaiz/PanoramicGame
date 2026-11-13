@@ -3,19 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://2j2g4lejxa1e"
-path="res://.godot/imported/fx_impact.png-dd3bd6c7c26db2fc1c6d870cbc1a7973.ctex"
+path.s3tc="res://.godot/imported/fx_impact.png-dd3bd6c7c26db2fc1c6d870cbc1a7973.s3tc.ctex"
+path.etc2="res://.godot/imported/fx_impact.png-dd3bd6c7c26db2fc1c6d870cbc1a7973.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/art/world/fx_impact.png"
-dest_files=["res://.godot/imported/fx_impact.png-dd3bd6c7c26db2fc1c6d870cbc1a7973.ctex"]
+dest_files=["res://.godot/imported/fx_impact.png-dd3bd6c7c26db2fc1c6d870cbc1a7973.s3tc.ctex", "res://.godot/imported/fx_impact.png-dd3bd6c7c26db2fc1c6d870cbc1a7973.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

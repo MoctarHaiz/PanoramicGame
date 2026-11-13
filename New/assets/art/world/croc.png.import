@@ -3,19 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://drt8pkdplarto"
-path="res://.godot/imported/croc.png-784a1e2c04066e5fc2ca1755a591c548.ctex"
+path.s3tc="res://.godot/imported/croc.png-784a1e2c04066e5fc2ca1755a591c548.s3tc.ctex"
+path.etc2="res://.godot/imported/croc.png-784a1e2c04066e5fc2ca1755a591c548.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/art/world/croc.png"
-dest_files=["res://.godot/imported/croc.png-784a1e2c04066e5fc2ca1755a591c548.ctex"]
+dest_files=["res://.godot/imported/croc.png-784a1e2c04066e5fc2ca1755a591c548.s3tc.ctex", "res://.godot/imported/croc.png-784a1e2c04066e5fc2ca1755a591c548.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

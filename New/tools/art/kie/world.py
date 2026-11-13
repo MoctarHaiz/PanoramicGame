@@ -53,6 +53,9 @@ PLAIN_ENDS = 70  # px cut off each end of a wide painting (plain, river: the pai
 PLAIN_ROWS = 545  # px of the plain kept under its horizon (SavannaView: the rest is under the screen)
 PLAIN_JOIN = 600  # px of each end its join may wander in (a drawn bush or rock is one end's or the other's, whole)
 PLAIN_SLIPS = [((975, 1095), (3250, 3500), 235), ((905, 960), (3350, 3460), 100)]  # (rows, columns, columns to its left the grass is taken from)
+PLAIN_QUIET = [((120, 350), (2340, 3100), 0.62)]  # (rows, columns of far_hills.png, how far to the ground round it): the kraal
+PLAIN_BREAK = (23, (20.0, 58.0), 0.46, 118)  # (seed, px a cloud shadow is across (down, along), the share of the shafts they take, the first row they may: under the far band)
+PLAIN_INK = ((0.13, 0.17, 0.25), 0.75)  # the plain's ink line: this deep blue-green and no darker, by this much (the fighters' line alone is black)
 RIVER_ROWS = 760  # px of the river kept under its far waterline
 RIVER_JOIN = 640
 FRONT_CELL = (440, 390)  # px: SavannaView.FRONT_PROP at 1.7 px a unit (dark shapes passing fast: no finer)
@@ -173,7 +176,13 @@ def plain() -> None:
     # language (crisp contours, hard-edged shadow shapes, no soft smudges)": plain3, the same one ground drawn in the
     # approved frame's ink and cel planes: bushes, rocks, termite mounds, small acacias, herds, a cattle kraal, its trail,
     # all shrinking to the far sunlit band)
-    a = load("plain3")[:, PLAIN_ENDS:-PLAIN_ENDS]
+    # (blind round 22, of the shader's shade over plain3: "a grey-olive veil ... a desaturating overlay, not painted
+    # shade, and meets the sunlit yellow band on a ruled horizontal line": "real shade with a clear hue from the dusk
+    # sky, crisp drawn forms at readable contrast, and broken cast-shadow edges into the sun band": plain4, plain3
+    # repainted at dusk, every drawn thing where it was: the near plain in blue-green and slate shade with lavender
+    # lights, its rocks mauve, its trail lilac; the far band alone in the last gold, the acacias' long slanted shadows
+    # breaking the shade's edge)
+    a = load("plain4")[:, PLAIN_ENDS:-PLAIN_ENDS]
     # (two of the painter's slips near its right end, a rock and a red smudge half painted over the grass: the open
     # grass beside each laid over it)
     for rows, cols, dx in PLAIN_SLIPS:
@@ -185,6 +194,34 @@ def plain() -> None:
     line = top_edge(a, 0.97)  # the horizon
     # (low down the join keeps to the right: the right end's bushes whole, the left end's aloe, which they would cut, out)
     out = seam(a[first - 8:line + PLAIN_ROWS], PLAIN_JOIN, feather=2.5, reach=3, lean=(line - first + 8 + 320, PLAIN_JOIN - 34), match=300)
+    # (blind round 22, of the throw: the bandit "the least readable figure", the kraal's fence and cattle right behind him:
+    # the kraal's lines and its pink go part of the way to the ground round it, drawn as it was, quieter)
+    for rows, cols, k in PLAIN_QUIET:
+        mask = np.zeros(out.shape[:2], np.float32)
+        mask[rows[0]:rows[1], cols[0]:cols[1]] = 1.0
+        mask = ndi.gaussian_filter(mask, 30.0, mode=("nearest", "wrap"))[..., None] * k
+        low = ndi.gaussian_filter(out[..., :3], (22.0, 22.0, 0.0), mode=("nearest", "wrap", "nearest"))
+        ground = out[rows[1] + 20:rows[1] + 60, cols[0]:cols[1], :3].mean(axis=(0, 1))
+        out[..., :3] = out[..., :3] * (1 - mask) + (0.5 * low + 0.5 * ground) * mask
+    # (round 23's check, of the throw: "evenly spaced parallel yellow bands … look ruled", "vary their widths, angles and
+    # spacing … break them with tree shadows": cloud shadows lie across the sun's shafts on the shaded ground, hard-edged
+    # cel shapes in the ground's own shade beside them (PLAIN_BREAK); the far band keeps all its gold)
+    rgb = out[..., :3]
+    warm = rgb[..., 0] - rgb[..., 2]  # (the shafts' gold; the shade, the rocks and the trail are cool)
+    # (a shaft with its pale rim: whatever is warm within a few px of its gold; the rim alone was left as a thin line)
+    lit = ndi.maximum_filter((warm > 0.3).astype(np.float32), size=11, mode=("nearest", "wrap")) * np.clip((warm - 0.02) / 0.05, 0.0, 1.0)
+    shade = (warm < 0.04).astype(np.float32)
+    share = ndi.gaussian_filter(shade, (16.0, 44.0), mode=("nearest", "wrap"))
+    near = ndi.gaussian_filter(rgb * shade[..., None], (16.0, 44.0, 0.0), mode=("nearest", "wrap", "nearest")) / np.maximum(share, 1e-3)[..., None]
+    field = ndi.gaussian_filter(np.random.default_rng(PLAIN_BREAK[0]).random(out.shape[:2]).astype(np.float32), PLAIN_BREAK[1], mode=("nearest", "wrap"))
+    cut = ndi.gaussian_filter((field > np.quantile(field, 1.0 - PLAIN_BREAK[2])).astype(np.float32), 1.3, mode=("nearest", "wrap"))
+    cut *= np.clip((np.arange(out.shape[0], dtype=np.float32)[:, None] - PLAIN_BREAK[3]) / 16.0, 0.0, 1.0)
+    cut = (cut * lit)[..., None]
+    out[..., :3] = rgb * (1 - cut) + near * cut
+    # (the same check: the bandit against the fence, the rocks and the smoke "at the same value": the plain's line is a
+    # deep blue-green, not the fighters' black: PLAIN_INK)
+    dark = np.clip((0.24 - out[..., :3] @ np.array([0.3, 0.59, 0.11])) / 0.16, 0.0, 1.0)[..., None] * PLAIN_INK[1]
+    out[..., :3] = out[..., :3] * (1 - dark) + np.maximum(out[..., :3], np.array(PLAIN_INK[0])) * dark
     save(out, OUT / "far_hills.png")
     print("  horizon at row %d of it" % (line - first + 8))
 
@@ -356,6 +393,9 @@ def sign() -> None:
     save(resize(a, (round(a.shape[1] * k), 420)), OUT / "home_sign.png")
 
 
+DOOR_LAMP = 0.62  # of the doorway's height: how far down the lamp's light inside reaches (to his shoulders)
+
+
 def door() -> None:
     """The main hut's doorway (home_hut.png, in place): its inside, a glow from black down to bright orange, was his
     skin's hue and value behind his legs and chest (blind rounds 5, 6, 11 and 12: "his warm torso sits on a warm
@@ -376,10 +416,28 @@ def door() -> None:
     soft = ndi.gaussian_filter(inside.astype(np.float32), 1.2)[..., None]
     ys = np.nonzero(inside.any(axis=1))[0]
     t = np.clip((np.arange(h) - ys.min()) / max(ys.max() - ys.min(), 1), 0, 1)[:, None, None]
-    tone = np.array([0.42, 0.33, 0.56]) * (1 - t) ** 1.5 + np.array([0.26, 0.18, 0.33]) * (1 - (1 - t) ** 1.5)
+    # (blind round 22, again: "his black hair sits on the dark doorway": a lamp's light high inside, a dusty rose-lilac
+    # behind his head, falling fast to the dusk's deep violet behind his chest and legs; it was (0.42, 0.33, 0.56) by 1.5)
+    tone = np.array([0.92, 0.72, 0.8]) * (1 - t) ** 2.0 + np.array([0.26, 0.18, 0.33]) * (1 - (1 - t) ** 2.0)
     img[..., :3] = img[..., :3] * (1 - soft) + tone * soft
     Image.fromarray((np.clip(img, 0, 1) * 255 + 0.5).astype(np.uint8), "RGBA").save(path)
     print("home_hut.png: doorway %d px repainted, rows %d to %d" % (int(inside.sum()), ys.min(), ys.max()))
+    # (round 23's check, a third time: "his black hair sits on the dark doorway": the hut is drawn in the dusk's shade,
+    # which keeps any painted light under a middle value: the lamp's light is its own picture, the doorway's shape from
+    # its top down to his shoulders (DOOR_LAMP of its height), which HomeView adds over the hut: home_door_light.png,
+    # its place in the hut's picture in home.json (light_x, light_base: units from the hut's left and from its foot))
+    light = soft[..., 0] * np.clip(1.0 - t[..., 0] / DOOR_LAMP, 0.0, 1.0) ** 1.25
+    rows = np.nonzero(light.max(axis=1) > 0.004)[0]
+    cols = np.nonzero(light.max(axis=0) > 0.004)[0]
+    box = (cols.min(), rows.min(), cols.max() + 1, rows.max() + 1)
+    lamp = np.ones((box[3] - box[1], box[2] - box[0], 4), np.float32)
+    lamp[..., 3] = light[box[1]:box[3], box[0]:box[2]]
+    Image.fromarray((lamp * 255 + 0.5).astype(np.uint8), "RGBA").save(OUT / "home_door_light.png")
+    whole = json.loads((OUT / "home.json").read_text())
+    whole["home_hut"]["light_x"] = box[0] / 2.0
+    whole["home_hut"]["light_base"] = (h - box[3]) / 2.0
+    (OUT / "home.json").write_text(json.dumps(whole, indent=1))
+    print("home_door_light.png: %d x %d px at %d, %d of the hut" % (lamp.shape[1], lamp.shape[0], box[0], box[1]))
 
 
 IMPACT_NOSE = 44  # px from the crescent's nose to the point of contact

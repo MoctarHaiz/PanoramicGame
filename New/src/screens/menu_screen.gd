@@ -15,6 +15,7 @@ extends Screen
 
 const LOGO := "res://assets/art/ui/logo.png"  ## loaded with the menu (a preload held it all run long)
 const KEYART := "res://assets/art/ui/menu_keyart.png"  ## the painted title key art (hero + scene in one picture)
+const KEYART_FOCUS := 0.8  ## how far the picture falls back away from his chest and the ring (grade.gdshader's focus)
 ## Where things are in the key art, as shares of its size: the tip of his gauntleted hand (the title
 ## column keeps clear of it), the left edge of his ring (never pushed off the screen: a tablet shifts the
 ## picture left), and the dust cloud of his launch (the embers come out of it).
@@ -68,6 +69,7 @@ func enter(_data: Dictionary) -> void:
 		_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var grade := ShaderMaterial.new()
 		grade.shader = preload("res://src/ui/grade.gdshader")
+		grade.set_shader_parameter(&"focus", KEYART_FOCUS)
 		_art.material = grade
 		add_child(_art)
 		if Prefs.motion():

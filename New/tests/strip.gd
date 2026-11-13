@@ -7,6 +7,7 @@ extends Node
 ##     [--moment="ticks >= 250"] [--bot] [--warm=30] [--act=throw@0,jump@10]
 ##     [--bandit=220] [--hurt=1] [--bobs=90] [--hang=1] [--scale=0.5] [--size=1280x720]
 ##     [--at=2440] [--keep=1] [--y=380] [--lives=1] [--falls=1] [--film=DIR] [--layers=1] [--hide=cast,FrontGrass]
+##     [--level=FILE]
 ## Each picture is drawn on demand (_draw_now): macOS skips drawing covered windows.
 ##
 ## Film mode (--film=DIR): every kept frame is saved whole (DIR/0001.png, ...) instead of a sheet,
@@ -31,6 +32,8 @@ func _ready() -> void:
 	Save.persist = false
 	Save.tutorial_seen = true
 	var a := _args()
+	if a.has("level"):  # (--level=FILE: that file as the level, as tests/capture.gd)
+		preload("res://tests/level_pack.gd").use(a.level)
 	var px := Vector2i(1280, 720)
 	if a.has("size"):
 		var parts: PackedStringArray = a.size.split("x")

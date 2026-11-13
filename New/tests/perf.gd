@@ -100,6 +100,8 @@ func _ready() -> void:
 	var k := design.y / px.y
 	Device.debug_insets = insets * k
 	Device.banner_height = 50.0 * px.y / 411.0 * k if a.get("ads", "off") == "on" else 0.0
+	if a.has("level"):  # (--level=FILE: measured on that level, not the one being edited)
+		preload("res://tests/level_pack.gd").use(a.level)
 	var replay := BotReplay.recorded(1)  # before measuring: the first time it takes minutes
 	_jump_mb = float(a.get("jump-mb", "4"))
 	_list_textures = int(a.get("textures", "0"))

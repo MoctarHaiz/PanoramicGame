@@ -53,9 +53,27 @@ const TREE_DUSK := Color(0.47, 0.46, 0.8)  ## (blind round 21: "a washed grey-li
 ## receding fence line)"): a neighbour's homestead out on the plain behind the palisade: huts, a granary and a
 ## stretch of palisade at NEIGHBOUR_K of the home's size, their own cooking fire among them, all in the dusk but for
 ## what that fire lights.
-const NEIGHBOUR_K := 0.25
-const NEIGHBOUR_AT := Vector2(566.0, 134.0)  ## its fire: from LEFT, and how far over the home's ground it stands on the plain
+## Blind round 22 (of that one homestead: "toy props on a ledge", "on a ruled horizontal line"; "stage the yard in
+## perspective (fire-lit ground receding on a diagonal toward the neighbour's fires, something large overlapping in the
+## foreground)"): three homesteads, one behind the other up the plain to the right, each smaller, higher and deeper in
+## the night's air than the one before it, each round its own fire; no long palisade along one line.
+## Each: [from LEFT, over the home's ground, size, how deep in the night's air, [[picture, x, size, mirrored] ...],
+## its fire's x, its stretch of palisade ([] none)], the furthest first.
+const NEIGHBOURS := [
+	[700.0, 168.0, 0.1, 0.5, [["home_hut_small", -150.0, 0.8, false], ["home_granary", 70.0, 0.9, false], ["home_hut_small", 260.0, 0.72, true]], -40.0, []],
+	[612.0, 152.0, 0.165, 0.25, [["home_hut_small", -160.0, 0.8, true], ["home_hut_low", 170.0, 0.8, false]], 0.0, []],
+	[474.0, 131.0, 0.26, 0.0, [["home_hut_small", -170.0, 0.8, false], ["home_granary", 60.0, 0.9, false], ["home_hut_low", 290.0, 0.8, true]], 140.0, [-400.0, -90.0]],
+]
 const NEIGHBOUR_DUSK := Color(0.6, 0.6, 0.9)  ## (in the night's air)
+const NEIGHBOUR_FAR := Color(0.36, 0.38, 0.78)  ## ... and the furthest toward the night plain's own colour
+## The big things near the camera at the yard's two ends (the same round: "shelf staging … in a row on one straight
+## ground line"): a boulder and tall grass before the small hut, an aloe before the palisade's left end, in the
+## night's shade, their feet under the screen. Each: [piece of fg_props.png, from LEFT, size].
+const FOREGROUND := [[2, 1166.0, 0.74], [0, 1030.0, 0.5], [1, 404.0, 0.62]]
+const FOREGROUND_PIECE := Vector2(260, 230)  ## units of one piece (SavannaView.FRONT_PROP), in 3 columns
+const FOREGROUND_DROP := 42.0  ## their feet under the ground's top
+const FOREGROUND_NIGHT := Color(0.25, 0.25, 0.46)  ## (round 23's check: "a big flat brown mass with no night lighting": near silhouettes in the night's blue)
+const DOOR_LAMP := Color(1.0, 0.82, 0.86, 0.5)  ## the lamp's light inside the hut, added over its doorway
 ## Blind round 21 (of its fire, the home's own flames at a quarter: "a miniature copy of the same flame on one vertical,
 ## reading as a scaled duplicate sprite"; "only tiny warm points far off"): their fire burns low behind their palisade:
 ## a warm glow and a hot point (Ember), its light on their huts' sides.
@@ -64,6 +82,7 @@ const EMBER := Color(1.0, 0.54, 0.22)
 var back: Node2D
 var yard: Node2D  ## over the ground's grass, under the actors (WorldView adds it after the ground)
 var front: Node2D
+var near: Node2D  ## the big things near the camera (FOREGROUND): before everything, always shown
 var _glow: Sprite2D
 var _fire: Node2D
 var _fire_light: Sprite2D  # round 19: the campfire's light on the hut, the sign and the fence
@@ -80,6 +99,8 @@ func build() -> void:
 	back.name = &"HomeBack"
 	front = Node2D.new()
 	front.name = &"HomeFront"
+	near = Node2D.new()
+	near.name = &"HomeNear"
 
 	yard = Node2D.new()
 	yard.name = &"HomeYard"
@@ -91,7 +112,7 @@ func build() -> void:
 	# (blind round 16: "bottom-heavy, cropped composition: the right hut sliced by the frame, the upper-left 40% empty
 	# violet sky": a great acacia behind the palisade, its crown the picture's upper left corner, in the dusk's
 	# shade; the small hut a little further back and whole in the pushed-in shot)
-	back.add_child(_neighbour())
+	back.add_child(_neighbours())
 	var tree := _put(back, "tree_acacia_2", LEFT + TREE_X, TREE_K, TREE_DUSK)
 	tree.offset.x = -TREE_FOOT
 	var air := ShaderMaterial.new()  # (it stands back in the dusk's air: its darks toward the night sky's violet)
@@ -154,6 +175,14 @@ func build() -> void:
 	# (the doorway's inside is the hut's dark in the dusk's violet-brown, painted so: tools/art/kie/world.py door():
 	# over his black hair's value, well under his skin's; it was a glow down to bright orange with a soft dark
 	# sprite laid over its middle: blind rounds 5, 6, 11 and 12: "his warm torso sits on a warm orange doorway")
+	# (round 23's check, a third time: "his black hair sits on the dark doorway": a lamp burns high inside the hut: its
+	# pale light added over the doorway's own shape, from its top down to his shoulders (home_door_light.png: world.py
+	# door()); painted into the hut it stayed under a middle value, in the dusk's shade with the hut)
+	var lamp := _sprite("home_door_light", HUT_K)
+	lamp.position = hut.position + Vector2(float(hut_info["light_x"]), -float(hut_info["light_base"])) * HUT_K
+	lamp.modulate = DOOR_LAMP
+	lamp.material = _add_material()
+	back.add_child(lamp)
 	var smoke := _smoke()
 	smoke.position = Vector2(hut_left + hut_size.x / 2.0, GROUND + 4.0 - hut_size.y + 18.0 * HUT_K)
 	back.add_child(smoke)
@@ -162,6 +191,8 @@ func build() -> void:
 	wall.position = hut.position + Vector2(float(hut_info.get("front_crop_x", 0.0)) * HUT_K, 0.0)  # (stored cropped)
 	wall.material = form(0.0, 0.0)
 	front.add_child(wall)
+	for f: Array in FOREGROUND:
+		near.add_child(_near(f[0], LEFT + float(f[1]), f[2]))
 	# One light (blind round 12: "no single light: a campfire burns a metre from him and nothing receives it"): every
 	# prop is in the dusk's cool shade away from the fire and in its warm light near it (form.gdshader)
 	for prop: Sprite2D in [tree, granary, small, low, sign, pot, hut, wall]:
@@ -276,27 +307,44 @@ static func ground_colour(x: float) -> Color:
 	return GROUND_DUSK.lerp(GROUND_FIRE, exp(-d * d * 2.2))
 
 
-## The neighbour's homestead (NEIGHBOUR_K): the home's own pictures, small, round a fire of their own.
-func _neighbour() -> Node2D:
-	var far := Node2D.new()
-	far.name = &"Neighbour"
-	far.scale = Vector2(NEIGHBOUR_K, NEIGHBOUR_K)
-	far.position = Vector2(LEFT + NEIGHBOUR_AT.x, GROUND - NEIGHBOUR_AT.y - GROUND * NEIGHBOUR_K)
-	var fire := Ember.new()
-	fire.position = Vector2(170.0, GROUND - 24.0)
-	far.add_child(fire)  # (behind their palisade: its posts stand before it)
-	var props: Array[Sprite2D] = [
-		_put(far, "home_hut_small", -250.0, 0.8, NEIGHBOUR_DUSK),
-		_put(far, "home_granary", 240.0, 0.9, NEIGHBOUR_DUSK),
-		_put(far, "home_hut_small", 500.0, 0.72, NEIGHBOUR_DUSK, true),
-		_put(far, "home_hut_low", 790.0, 0.8, NEIGHBOUR_DUSK),
-	]
-	for prop in props:
-		prop.material = form(1.0)
-		_fire_lit(prop, fire.position)
-	_fence(far, -620.0, -60.0)
-	_fence(far, 110.0, 980.0)
-	return far
+## The neighbours' homesteads out on the plain (NEIGHBOURS): the home's own pictures, small, each round a fire of its
+## own; the furthest first, so a nearer one stands before it.
+func _neighbours() -> Node2D:
+	var all := Node2D.new()
+	all.name = &"Neighbours"
+	for n: Array in NEIGHBOURS:
+		var k: float = n[2]
+		var far := Node2D.new()
+		far.scale = Vector2(k, k)
+		far.position = Vector2(LEFT + float(n[0]), GROUND - float(n[1]) - GROUND * k)
+		var fire := Ember.new()
+		fire.position = Vector2(float(n[5]), GROUND - 24.0)
+		far.add_child(fire)  # (behind their huts and their palisade)
+		var tone := NEIGHBOUR_DUSK.lerp(NEIGHBOUR_FAR, float(n[3]))
+		for p: Array in n[4]:
+			var prop := _put(far, p[0], p[1], p[2], tone, p[3])
+			prop.material = form(1.0)
+			_fire_lit(prop, fire.position)
+		var fence: Array = n[6]
+		if not fence.is_empty():
+			_fence(far, fence[0], fence[1])
+		all.add_child(far)
+	return all
+
+
+## One of the big things near the camera (FOREGROUND), its foot centred at x, under the ground's top.
+func _near(piece: int, x: float, k: float) -> Sprite2D:
+	var s := Sprite2D.new()
+	s.texture = load(DIR + "fg_props.png")
+	var cell := s.texture.get_size() / Vector2(3, 2)
+	s.region_enabled = true
+	s.region_rect = Rect2(Vector2(piece % 3, piece / 3) * cell, cell)
+	s.centered = false
+	s.offset = Vector2(-cell.x / 2.0, -cell.y)
+	s.scale = FOREGROUND_PIECE / cell * k
+	s.position = Vector2(x, GROUND + FOREGROUND_DROP)
+	s.modulate = FOREGROUND_NIGHT.lerp(FOREGROUND_NIGHT * Color(1.5, 1.2, 0.9), exp(-pow((x - (LEFT + FIRE_X)) / FIRE_REACH, 2.0)))
+	return s
 
 
 ## The fire's light and the dusk's shade on a prop (form.gdshader): where the fire is in the prop's own pixels.

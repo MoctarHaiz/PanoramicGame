@@ -46,19 +46,13 @@ const IMPACT_TEX := preload("res://assets/art/world/fx_impact.png")
 const IMPACT_CELL := Vector2(491.0, 381.0)
 const IMPACT_AT := Vector2(27.0, 212.0)
 const IMPACT_REACH := 2.6
+const IMPACT_LEAD := 0.55  ## of the blow's radius: how far past the contact its nose is drawn
 const IMPACT_TIMES: Array[float] = [0.045, 0.11, 0.11]
-const PLUS_SIZE := 118  ## font size of the "+1" and the "×N" (design px): one size, scaled per use
-const PLUS_SCALE := 0.56  ## (blind round 21: "the '+1' in flat yellow with a hard black drop is casual-arcade": smaller, in the HUD's own cream figures, no drop; it was 0.7)
-## the "+1" under its glyphs' size: a small clean pop that reads at phone size (round 13: 0.85 -> 0.7)
-const PLUS_LEAN := 0.2  ## its lean (a skew: the HUD's figures lean the same way)
-## The "+1"'s clock (s): it pops in, settles, holds, then shrinks away and fades; its burst keeps the
-## same clock, so the number is never seen without it.
-const PLUS_POP := 0.06
-const PLUS_SETTLE := 0.1
-const PLUS_HOLD := 0.55
-const PLUS_OUT := 0.16
-## The badges' outlines (px): the dark stroke and the warm rim. The "+1" and the "×N" share them and
-## the font size, so their glyphs are rasterised once (each size and outline is megabytes of pages).
+const PLUS_SIZE := 118  ## font size of the "×N" (design px)
+## The badges' outlines (px): the dark stroke and the warm rim of the "×N" (each size and outline is megabytes of
+## glyph pages: one of each). (The "+1" of a knock-out is gone, blind rounds 12, 16, 21 and 22: "floats like a UI
+## badge", "attached to nothing", "casual-arcade", "an arcade pop-up": it counted nothing the player sees; the blow's
+## burst, its knock, its sound and the camera's punch say it.)
 const BADGE_OUTLINES: Array[int] = [34, 16]
 ## A Red Bob's streak: hot gold to its red.
 const BOB_LIGHT: Array[Color] = [Color("fff1c4"), Color("ffc65a"), Color("ff7a3a"), Color("e82808")]
@@ -123,40 +117,6 @@ static func knock_offset(key: Variant) -> Vector2:
 ## The knocks' clock: advanced by the game while the world runs (a hit-stop holds the knock too).
 static func advance_knocks(delta: float) -> void:
 	_knock_clock += delta
-
-
-## The "+1" of a knock-out, in the HUD's ink (blind round 12: "it floats like a UI badge": it was filled white to
-## gold in a cream rim, over a burst of light rays): the count's own figures, leaning, in a thick dark ink line
-## on a hard ink drop: it reads on the sky and on brown earth; in the kit's gold (blind round 16: cream, "white on
-## pale" over a far mesa). It pops in (0 to 1.5 to 1), rises 14 units easing out,
-## holds and shrinks away (PLUS_POP .. PLUS_OUT: 0.87 s). (Drawn at PLUS_SIZE with BADGE_OUTLINES[1] like the
-## streak's "×N": one set of glyphs for both.)
-static func plus_one(parent: Node, at: Vector2) -> void:
-	var node := Node2D.new()
-	node.position = at
-	node.skew = PLUS_LEAN
-	var font := plus_font()
-	var w := font.get_string_size("+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE).x
-	var base := Vector2(-w / 2, PLUS_SIZE * 0.36)  # the baseline that centres the figures on the node
-	node.draw.connect(func() -> void:
-		node.draw_string_outline(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, BADGE_OUTLINES[1], Color("140607"))
-		node.draw_string(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, Color("fff3d6")))
-	parent.add_child(node)
-	var big := PLUS_SCALE
-	node.scale = Vector2.ZERO
-	node.rotation = -0.2
-	var t := node.create_tween()
-	t.tween_property(node, "scale", Vector2.ONE * 1.5 * big, PLUS_POP).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	t.tween_property(node, "scale", Vector2.ONE * big, PLUS_SETTLE).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	t.tween_interval(PLUS_HOLD)
-	t.tween_property(node, "scale", Vector2.ONE * 0.7 * big, PLUS_OUT).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
-	t.parallel().tween_property(node, "modulate:a", 0.0, PLUS_OUT).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	t.tween_callback(node.queue_free)
-	var turn := node.create_tween()  # its own clock: the wobble never stretches the number's life
-	turn.tween_property(node, "rotation", 0.06, PLUS_POP)
-	turn.tween_property(node, "rotation", 0.0, 0.3).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
-	node.create_tween().tween_property(node, "position:y", at.y - 14.0, 0.5) \
-			.set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
 
 
 ## A big reward: a warm flash, a burst of rays and speed lines, two rings of light and twinkling gold sparks.
@@ -486,7 +446,11 @@ static func hit_spark(parent: Node, at: Vector2, along: Vector2, radius: float) 
 	node.rotation = (-along if left else along).angle() + randf_range(-0.1, 0.1)
 	parent.add_child(node)
 	var k := radius * IMPACT_REACH / (IMPACT_CELL.x - IMPACT_AT.x)
-	var base := Vector2(-k if left else k, k)
+	# (blind round 22: "the crescent's point faces back toward the hero with its tails streaking right, so it reads
+	# as an arrow pointing against the blow": its nose leads the blow, IMPACT_LEAD of its radius past the contact,
+	# into what was struck; its horns and its sparks sweep back along the ring's way, round the ring)
+	node.position = at + along.normalized() * radius * IMPACT_LEAD
+	var base := Vector2(k if left else -k, k)
 	var frame := [0]
 	node.draw.connect(func() -> void:
 		node.draw_texture_rect_region(IMPACT_TEX, Rect2(-IMPACT_AT, IMPACT_CELL), Rect2(Vector2(IMPACT_CELL.x * frame[0], 0.0), IMPACT_CELL)))

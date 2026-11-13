@@ -103,6 +103,7 @@ func setup(w: World) -> void:
 	w.thrown.connect(func(_r: World.Ring) -> void: _hero.threw())
 	w.hurt.connect(func(_b: World.Bandit, _l: int) -> void: _hero.hurt())
 	add_child(_home.front)
+	add_child(_home.near)
 	add_child(_background.front)
 	_add_grade()
 	fx = Node2D.new()
@@ -387,6 +388,7 @@ func refresh(delta := 0.0) -> void:
 	_props.ensure(scroll - view_left - 96.0, scroll - view_left + view_width + 96.0)
 	_props.build_ahead(scroll - view_left + view_width)
 	_home.front.position.x = -scroll
+	_home.near.position.x = -scroll
 	# (round 3) the jamb and the wall right of the doorway go over him from his walk in
 	_home.front.visible = world.state == World.State.WON and world.end_time >= World.HOME_CHEER
 	# (round 5) home: the dark grass along the bottom edge clears, his feet on a clear ground line

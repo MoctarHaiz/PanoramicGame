@@ -10,6 +10,7 @@ extends Node
 ## --boxes=on draws the collision boxes over the level (CollisionOverlay: what the rules test).
 ## Each picture is drawn on demand (_draw_now): macOS skips drawing covered windows.
 ## --lang=en,fr takes every picture in each language, into DIR/en/ and DIR/fr/.
+## --level=FILE plays that file as the level (LevelPack): the stills stay the same while the level is being edited.
 ##
 ## Shots in the level start from worlds the bot reached first (before any picture), so every device
 ## shows the same moment. The bot's run is recorded once (BotReplay, build/qa/: about 5 minutes the
@@ -25,6 +26,7 @@ extends Node
 ## Not in the default list: share (the 1200 x 630 picture a player shares, ShareCard: the same on
 ## every device), controls (the pause with its Controls open: the five moves), credits (the settings' About).
 
+const LevelPack := preload("res://tests/level_pack.gd")
 ## Screen size (landscape) and safe-area margins (left, top, right, bottom) in device pixels.
 const DEVICES := {
 	"phone_1280x720": {"size": Vector2i(1280, 720), "insets": Vector4(0, 0, 0, 0)},
@@ -63,6 +65,8 @@ func _ready() -> void:
 	CollisionOverlay.shown = args.get("boxes", "off") == "on"  # (QA) the rules' boxes over the level shots
 	var devices: Array = args.get("devices", ",".join(DEVICES.keys())).split(",")
 	var shots: Array = args.get("shots", ",".join(SHOTS)).split(",")
+	if args.has("level"):  # (--level=FILE: the stills play that level, not the one being edited)
+		LevelPack.use(args.level)
 	var needed := {}
 	for shot: String in shots:
 		var m: String = MOMENT_OF.get(shot, shot)
@@ -426,3 +430,11 @@ func _args() -> Dictionary:
 ## game keeps running: waiting for the next drawn frame could skip moments or wait forever.
 func _draw_now() -> void:
 	RenderingServer.force_draw(false)
+
+
+## ... and what the game itself waits a drawn frame for would wait forever there (a panel's picture of the scene behind
+## it, GamePanel._snapshot_then_enter: the pause, level won and game over stills came out with the HUD hidden and no
+## panel, two runs in three): every frame the window is not drawn is drawn here.
+func _process(_delta: float) -> void:
+	if not DisplayServer.window_can_draw():
+		RenderingServer.force_draw(false)

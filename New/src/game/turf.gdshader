@@ -42,23 +42,30 @@ void fragment() {
 	// (blind round 21: "a dark earth strip under a serrated turf fringe"; with the plain behind it in the evening's shade
 	// its lemon-yellow tips were the brightest row of the picture: the blades over the walking line are an olive, a value
 	// under the path's top; it was c * (1.08, 1.06, 0.94) + (0.03, 0.025, 0.0))
-	c = mix(c, mix(vec3(lum), c, 0.72) * vec3(0.72, 0.82, 0.66), 1.0 - smoothstep(0.2, 0.26, v));
+	// (blind round 22: "neon-lime top edge, dark scalloped fringe, brown soil … a platformer tile in a brighter palette than
+	// the muted painting behind": the whole strip lies in the plain's evening shade now, a moss green toward the dusk's
+	// teal, its top a value over the fringe and no brighter than the plain's lights)
+	c = mix(c, mix(vec3(lum), c, 0.72) * vec3(0.56, 0.74, 0.66), 1.0 - smoothstep(0.2, 0.26, v));
 	// the band under it: a sunlit sage, a little less saturated
 	float band = smoothstep(0.22, 0.3, v) * (1.0 - smoothstep(0.5, 0.62, v));
-	vec3 sage = mix(vec3(lum), c, 0.6) * vec3(1.02, 1.0, 0.86) + vec3(0.02, 0.02, 0.0);  // (2026-11-13: a value lower, olive)
+	vec3 sage = mix(vec3(lum), c, 0.6) * vec3(0.8, 0.92, 0.82);  // (round 23: in the shade, it was (1.02, 1.0, 0.86) + (0.02, 0.02, 0.0))
 	c = mix(c, sage, band);
 	// the surface he runs on: an olive-gold top, in patches; a broken lip along the walking line
 	float patchy = smoothstep(0.25, 0.75, noise(at.x * 0.06 + 3.0)) * (0.55 + 0.45 * noise(at.x * 0.23));
 	float top = smoothstep(0.22, 0.25, v) * (1.0 - smoothstep(0.31, 0.4, v));
 	// (the picture's own lime-yellow band along the top and its blade tips: an olive-gold a value lower, lighter in patches)
 	float upper = 1.0 - smoothstep(0.34, 0.44, v);
-	c = mix(c, c * vec3(0.84, 0.8, 0.6) * mix(0.86, 1.04, patchy), upper);
-	c = mix(c, vec3(0.74, 0.7, 0.42) * (0.8 + 0.3 * lum), top * 0.42 * (0.4 + 0.6 * patchy));
+	c = mix(c, c * vec3(0.62, 0.74, 0.6) * mix(0.9, 1.04, patchy), upper);
+	c = mix(c, vec3(0.5, 0.6, 0.42) * (0.8 + 0.3 * lum), top * 0.42 * (0.4 + 0.6 * patchy));
 	float lip = smoothstep(0.235, 0.25, v) * (1.0 - smoothstep(0.262, 0.28, v));
-	c = mix(c, c * 1.18 + vec3(0.05, 0.04, 0.0), lip * 0.7 * patchy);
+	c = mix(c, c * 1.12 + vec3(0.02, 0.03, 0.02), lip * 0.5 * patchy);
 	// toward its underside the sky's cool shade; the drips over the soil a cool dark, not teal
 	float under = smoothstep(0.48, 0.66, v);
-	c = mix(c, mix(vec3(lum), c, 0.5) * vec3(0.84, 0.88, 0.82) * 0.86, under);  // (blind round 21: a mossy olive, a value up: it was a near-black teal saw)
+	c = mix(c, mix(vec3(lum), c, 0.5) * vec3(0.74, 0.84, 0.86) * 0.82, under);  // (blind round 21: a mossy olive, a value up: it was a near-black teal saw)
+	// (round 23's checks, of the fight and the throw: "still a bright saturated green tile", "about 40% more saturated than
+	// anything behind": the strip measured 0.50 saturated against the plain's 0.28: all of it a step greyer and cooler, the
+	// value and the hue of the plain's shade; the lane is read from its ink line and its dark underside)
+	c = mix(vec3(dot(c, vec3(0.3, 0.59, 0.11))), c, 0.58) * vec3(0.83, 0.91, 1.04);
 	c = mix(c, ink_colour.rgb, edge * 0.85);
 	COLOR = vec4(c * drawn.rgb, a * drawn.a);
 }
