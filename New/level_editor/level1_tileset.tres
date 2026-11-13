@@ -1,7 +1,7 @@
-[gd_resource type="TileSet" format=3]
+[gd_resource type="TileSet" format=3 uid="uid://bttrrvl57d3j8"]
 
-[ext_resource type="Texture2D" path="res://level_editor/level1_tileset.png" id="1_67b1b"]
-[ext_resource type="Texture2D" path="res://level_editor/brushes.png" id="2_6152o"]
+[ext_resource type="Texture2D" uid="uid://bdfy2syyuvnv" path="res://level_editor/level1_tileset.png" id="1_67b1b"]
+[ext_resource type="Texture2D" uid="uid://dqdj42njoglnj" path="res://level_editor/brushes.png" id="2_6152o"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_6152o"]
 resource_name = "2017 tiles"

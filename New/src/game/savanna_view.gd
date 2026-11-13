@@ -156,7 +156,10 @@ const LIFT_LANE := 0.0
 ## against it, not against a dark olive band.
 ## The redesign: the plain as painted; the rise and the tall grass behind his body a little paler and cooler than
 ## painted (a straw gold), so his darker, redder skin and his ink stand off them.
-const LANE_TINT := Color(0.52, 0.44, 0.64)
+## Blind round 21 ("unexplained violet wedges among the foreground grass look like stray shapes"): the tall grass's
+## plumes behind the path are grass in the plain's own shade, a dark olive straw (they were violet: LANE_TINT
+## (0.52, 0.44, 0.64), GRASS_SHADE (0.34, 0.27, 0.44)).
+const LANE_TINT := Color(0.44, 0.56, 0.5)
 ## and each a little flatter than painted (less contrast, less colour: the shader's `flatten`), the plain most: the
 ## characters in front are the picture's strongest darks and colours
 ## (blind rounds 5 to 7, three judges: two asked for the band behind the characters lighter and quieter, one for it
@@ -173,6 +176,18 @@ const PLAIN_FLATTEN := 0.0
 const PLAIN_HAZE := 0.02
 const PLAIN_FAR := 0.34  ## the air over its far band: its groves and its village deep in the horizon's rose, a step back from the fighters
 const PLAIN_FAR_TO := 0.42  ## ... gone by this far down its picture
+## Blind round 21 (of the fight: "the plain fills about 60% of the frame at a mid olive-yellow value close to the
+## fighters' skin and loincloth, peppered with low-contrast brown scribbles: no value step between lane and backdrop",
+## "push the plain behind the lane back one clear value and saturation step into two or three broad planes with detail
+## only near the horizon, so the two fighters are the only high-contrast inked things in the frame"; under the vine
+## "saturated midday yellow-green under a violet dusk sky"; at home "the sky is full night but the plain from the horizon
+## down to the fence is a mid-value olive-yellow like an overcast afternoon": "drop the whole plain to the sky's night
+## value and hue (deep blue-violet)"): the plain under its far band lies in the evening's shade (haze.gdshader's
+## `shade`): greyer, its values drawn together, in the sky's cool light: a sage a value under his lit skin and over the
+## bandits' darks; only its far band under the horizon keeps the last sun. Each: [colour, from, full (down its picture),
+## how grey, how flat, the value its values close on]; at home the whole of it is in the night.
+const PLAIN_SHADE := [Color(0.8, 0.87, 0.86), 0.15, 0.29, 0.45, 0.42, 0.44]
+const PLAIN_NIGHT := [Color(0.5, 0.52, 1.0), -0.3, -0.2, 0.7, 0.5, 0.36]
 const LANE_FLATTEN := 0.2
 const LANE_HAZE := 0.45
 ## Blind round 18 ("two lights in one picture: a saturated violet dusk sky with sunset-lit peach clouds above, and a
@@ -200,7 +215,7 @@ const RIVER_UP := 1.05
 const RIVER_SCROLL := 0.17
 const RIVER_DUSK := Color(0.62, 0.62, 0.9)
 const LANE_DROP := 0.8  ## the tall grass at the path's back, its shade and its dust: nearest, they sink away soonest as the camera rises
-const GRASS_SHADE := Color(0.34, 0.27, 0.44)  ## what the tall grass at the path's back is drawn toward: the evening's shade, as the near plain behind it
+const GRASS_SHADE := Color(0.27, 0.31, 0.25)  ## what the tall grass at the path's back is drawn toward: the evening's shade, as the near plain behind it
 const MIST := Color(0.96, 0.74, 0.64)  ## the low dust behind the path (_draw_lane_mist)
 const MIST_DUSK := Color(0.3, 0.375, 0.86)  ## ... at dusk
 const MIST_FULL := 0.07  ## how much of it at its thickest, at dusk (round 17: it was 0.2, see DUSK_CLEAR)
@@ -362,6 +377,9 @@ func _process(delta: float) -> void:
 	var clear := 1.0 - DUSK_CLEAR * dusk
 	_far_mat.set_shader_parameter(&"amount", PLAIN_HAZE * clear)
 	_far_mat.set_shader_parameter(&"flatten", PLAIN_FLATTEN * clear)
+	var keys: Array[StringName] = [&"shade", &"shade_from", &"shade_full", &"shade_grey", &"shade_flat", &"shade_value"]
+	for i in keys.size():  # (blind round 21: the evening's shade over it, the night's at home)
+		_far_mat.set_shader_parameter(keys[i], lerp(PLAIN_SHADE[i], PLAIN_NIGHT[i], dusk))
 	for p in _painters:
 		p.queue_redraw()
 

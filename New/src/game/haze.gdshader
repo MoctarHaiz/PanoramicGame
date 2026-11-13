@@ -47,6 +47,19 @@ uniform float lift : hint_range(0.0, 1.0) = 0.0;
 // top (a plain seen from above its near edge: its far side at the horizon deep in the air, its near side clear)
 uniform float far : hint_range(0.0, 1.0) = 0.0;
 uniform float far_to = 0.75;  // (blind round 20: the plain is one ground from the path to the horizon: only its far band is in the air)
+// Blind round 21 (of the fight: "the plain fills about 60% of the frame at a mid olive-yellow value close to the
+// fighters' skin and loincloth: no value step between lane and backdrop"; "saturated midday yellow-green under a violet
+// dusk sky"; at home "the sky is full night but the plain is a mid-value olive-yellow like an overcast afternoon"):
+// `shade`: the ground from `shade_from` down its picture (full by `shade_full`; equal: none) lies in the evening's
+// shade: its colours `shade_grey` of the way to grey, its values `shade_flat` of the way to `shade_value` (broad quiet
+// planes: the fighters are the picture's contrast), the whole times `shade` (the sky's light in it). Its far band, over
+// `shade_from`, stays in the last sun. At home the whole of it is in the night (SavannaView).
+uniform vec4 shade : source_color = vec4(1.0);
+uniform float shade_from = 0.0;
+uniform float shade_full = 0.0;
+uniform float shade_grey = 0.0;
+uniform float shade_flat = 0.0;
+uniform float shade_value = 0.45;
 
 varying vec4 drawn;  // round 20: the colour each sprite is drawn with (COLOR in fragment() has the texture in it)
 varying vec2 at;  // round 21: where it is drawn (the layer's units)
@@ -125,6 +138,12 @@ void fragment() {
 		float pivot = dot(air, vec3(0.3, 0.59, 0.11));
 		c = mix(vec3(lum), c, 1.0 - 0.55 * flatten);
 		c = pivot + (c - pivot) * (1.0 - 0.5 * flatten);
+	}
+	if (shade_full > shade_from) {
+		float l3 = dot(c, vec3(0.3, 0.59, 0.11));
+		vec3 g = mix(c, vec3(l3), shade_grey);
+		g = shade_value + (g - shade_value) * (1.0 - shade_flat);
+		c = mix(c, g * shade.rgb, smoothstep(shade_from, shade_full, v));
 	}
 	if (lift > 0.0) {
 		vec3 air = haze_colour.rgb * air_tint.rgb;
