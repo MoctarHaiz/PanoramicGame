@@ -107,6 +107,17 @@ const HOME_DUSK := Color(0.64, 0.6, 0.83)  ## (blind round 21: "saturated orange
 const HOME_FIRE := Color(1.42, 1.0, 0.62)  ## the fire's side of him (actor.gdshader bounce_colour)
 const HOME_BOUNCE := 0.82  ## how much of it all (blind round 16: 0.6 was "too weak to see at phone size")
 const CONTACT_HOME := 0.5
+## Blind round 23 (of the fight: "the hero's foot dissolves into the blur with no crisp contact shadow, so both figures
+## float on a thin tile": "a real lit ground of about 15% of the frame with crisp cast shadows"): on the painted ground each fighter throws a shadow of its own shape, laid over to
+## its right, away from the low sun: flat, hard-edged, the dusk's violet (shadow.gdshader). CAST_LAY: a point one unit
+## over the ground falls this far to its right and this far up the picture (the ground is seen a little from above:
+## its far grass is 29 units deep); it shortens where the ground ends (cast_room). No light on him: a shadow only.
+const CAST_SHADE := Color(0.13, 0.1, 0.24)
+const CAST_ALPHA := 0.5
+const CAST_LAY := Vector2(0.52, 0.22)
+const HOME_LAY := Vector2(1.05, 0.13)  ## at home: long and low, away from the fire at his left (round 24's check: "there is no readable cast shadow or fire-lit contact on the turf"; the hut stands right behind him, and CAST_LAY laid his shadow up its wall's foot)
+const HOME_LAY_ALPHA := 0.62
+const CAST_PLAY := 0.4  ## the soft shadow under him keeps this share of itself on the ground (the cast shadow is his shadow now)
 ## (round 21) at home, where the dark front grass clears to show the ground line, his feet stand this share of
 ## GameArt.FEET_SINK higher (in play the grass hides the sink; at home his back boot's toe showed under the ground)
 const HOME_LIFT := 0.6
@@ -182,6 +193,8 @@ static var _hips_dy := 0.0  # standing: his hips this far above the centre of hi
 
 var _sprite: Sprite2D
 var _cast: Sprite2D  # his shadow on the hut at home (HOME_CAST)
+var _ground_cast: Sprite2D  # his shadow cast on the ground (CAST_LAY), under every runner (his parent's first child)
+var _cast_room := 0.0  # units of ground to his right (cast_room)
 var _material: ShaderMaterial
 var _anim := &""
 var _index := 0
@@ -302,11 +315,16 @@ func _ready() -> void:
 	_under.draw.connect(_draw_under)
 	get_parent().add_child.call_deferred(_under)
 	get_parent().move_child.call_deferred(_under, get_index())
+	_ground_cast = cast_sprite()
+	get_parent().add_child.call_deferred(_ground_cast)
+	get_parent().move_child.call_deferred(_ground_cast, 0)
 
 
 func _exit_tree() -> void:
 	if is_instance_valid(_under):
 		_under.queue_free()
+	if is_instance_valid(_ground_cast):
+		_ground_cast.queue_free()
 
 
 func landed() -> void:
@@ -683,6 +701,7 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 	_update_shadow(w, p)
 	if is_instance_valid(_under):
 		_under.queue_redraw()
+	_lay_cast()
 
 
 ## Hanging: 0..1, how far back from its middle his swing is (1: at its back end, his legs trailing behind him).
@@ -729,7 +748,65 @@ func _update_shadow(w: World, p: Vector2) -> void:
 			_shadow.x = p.x + _wall_shift + lerpf(SHADOW_SHIFT, _mid + SHADOW_HOME_SHIFT, _home) \
 					+ (_death.x if w.state == World.State.DEAD else 0.0)
 			_shadow_k = clampf(1.0 - (ground - feet) / 360.0, 0.0, 1.0)
+			_cast_room = cast_room(w.level, w.draw_scroll() + p.x, r)
 			return
+
+
+## (round 24) His shadow cast on the ground under him (CAST_LAY): his picture as drawn, laid over to his right from
+## the line his lowest sole is on.
+func _lay_cast() -> void:
+	if not is_instance_valid(_ground_cast) or not _ground_cast.is_inside_tree():
+		return
+	_ground_cast.visible = _shadow.x >= 0.0 and _visible > 0.01
+	if not _ground_cast.visible:
+		return
+	if _ground_cast.get_parent() == get_parent() and _ground_cast.get_index() != 0:  # (a bandit entering goes under the runners: his shadow stays under it)
+		get_parent().move_child(_ground_cast, 0)
+	var ground := _shadow.y + 3.0
+	var lift := INF
+	for s in _sole_px:
+		lift = minf(lift, ground - maxf((transform * Vector2(s.x, s.z)).y, (transform * Vector2(s.y, s.z)).y))
+	if lift == INF:
+		lift = ground - position.y
+	lay_cast(_ground_cast, _sprite, transform * _sprite.transform, ground, maxf(lift, 0.0), _cast_room,
+			_visible * lerpf(0.35, 1.0, _shadow_k), CAST_LAY.lerp(HOME_LAY, _home), lerpf(CAST_ALPHA, HOME_LAY_ALPHA, _home))
+
+
+## A sprite to carry a fighter's cast shadow (lay_cast).
+static func cast_sprite() -> Sprite2D:
+	var s := Sprite2D.new()
+	s.centered = false
+	s.region_enabled = true
+	s.visible = false
+	s.material = ShaderMaterial.new()
+	s.material.shader = preload("res://src/game/shadow.gdshader")
+	return s
+
+
+## Lays `cast` as the shadow of the picture `of` (drawn through `to`, into the place `cast` is drawn in) on the ground
+## line `ground`, its soles `lift` units over it, `room` units of ground to its right: each point falls CAST_LAY to
+## its right and up the picture from the soles' line, the whole of it on the ground under it (never over the plain
+## behind a leap), shorter where the ground ends. `fall`: CAST_LAY, or the fall of another light's shadow.
+static func lay_cast(cast: Sprite2D, of: Sprite2D, to: Transform2D, ground: float, lift: float, room: float, seen: float,
+		fall := CAST_LAY, alpha := CAST_ALPHA) -> void:
+	cast.texture = of.texture
+	cast.region_rect = of.region_rect
+	cast.offset = of.offset
+	cast.flip_h = of.flip_h
+	var tall := of.region_rect.size.y * to.y.length() + lift
+	var lay := Vector2(minf(fall.x, maxf(room, 0.0) / maxf(tall, 1.0)), fall.y)
+	var line := ground - lift
+	cast.transform = Transform2D(Vector2.RIGHT, Vector2(-lay.x, lay.y), Vector2(ground * lay.x, line * (1.0 - lay.y) + lift)) * to
+	cast.modulate = Color(CAST_SHADE, alpha * seen)
+
+
+## Units of open ground right of level x on the top of row r (to where it ends, or a wall stands on it), four cells at most.
+static func cast_room(level: Level, x: float, r: int) -> float:
+	var c := floori(x / Level.TILE)
+	var n := 0
+	while n < 4 and level.kind_at(c + n + 1, r) == Level.Kind.TOP:
+		n += 1
+	return (c + 1 + n) * Level.TILE - x
 
 
 func _draw_under() -> void:
@@ -766,7 +843,7 @@ func _draw_under() -> void:
 	# of a dark contact shadow") at home, in the fire's light on the ground, his shadow under his stride; (round 21: "a hard
 	# black hole") soft, its core no longer black
 	var air := smoothstep(4.0, 30.0, lowest) if lowest < INF else 1.0
-	var broad := lerpf(lerpf(SHADOW_PLAY, SHADOW_AIR, air), SHADOW_HOME.y, _home)
+	var broad := lerpf(lerpf(SHADOW_PLAY * CAST_PLAY, SHADOW_AIR, air), SHADOW_HOME.y * CAST_PLAY, _home)  # (round 24: CAST_PLAY)
 	contact_shadow(_under, _shadow, SHADOW_WIDTH * lerpf(1.0, SHADOW_HOME.x, _home), _shadow_k,
 			_visible * broad, _shadow_w * lerpf(SHADOW_LONG, SHADOW_HOME_LONG, _home), CONTACT_HOME * _home)
 

@@ -57,11 +57,16 @@ const DEATH_PUSH := 1.2  ## caught: the camera closes in on him while he falls (
 ## and the earth below leave the frame), and draws back as soon as it is over. What must be seen (_keep_fair) is
 ## framed first and the push is laid over it: for that beat the screen's far right shows a little later, where
 ## nothing can reach him yet. Not up on a ledge or on the vine (the camera frames those its own way).
-const FIGHT_PUSH := 1.2
+## Blind round 23 (of the throw: "three small things strung along one horizontal line", "push the camera in until the
+## hero is about 45% of the frame height with the ring large between the two"; of the fight: "both figures float on a
+## thin tile ... a real lit ground of about 15% of the frame"): closer (1.2 -> 1.32: he is two fifths of the frame's
+## height while the ring flies) and about a lower point (FIGHT_CHEST 86 -> 52), so the sky leaves the frame and the
+## ground they stand on stays in it.
+const FIGHT_PUSH := 1.32
 ## Blind round 20 (of the blow: "two figures of about 25% of the frame height ... make the hit an event: push the camera
 ## in until the pair fills about 45% of the height"): a blow punches the camera in over the fight's push, at once, holds
 ## a beat and eases back (not with reduced motion or the shake off: Prefs.shake)
-const HIT_PUNCH := 0.24  ## this much closer (the pair about 42% of the frame's height on a phone)
+const HIT_PUNCH := 0.17  ## this much closer (the pair about 46% of the frame's height on a phone; round 23: 0.24 over a push of 1.2)
 const HIT_PUNCH_FEET := 6.0  ## units over the ground they stand on: the height it closes in about
 const HIT_PUNCH_IN := 0.05  ## seconds in,
 const HIT_PUNCH_HOLD := 0.2  ## ... held,
@@ -73,7 +78,7 @@ const FIGHT_LEVEL := 150.0  ## "on his level": its centre this near his, up or d
 const FIGHT_HOLD := 0.5  ## seconds the push stays after a blow
 const FIGHT_IN := 9.0  ## 1/s: how fast it closes in, and draws back
 const FIGHT_OUT := 2.6
-const FIGHT_CHEST := 86.0  ## units over the ground he stands on: the height the push closes in about
+const FIGHT_CHEST := 52.0  ## units over the ground he stands on: the height the push closes in about
 const START_PUSH := 1.3  ## (round 19) on the start card the camera opens pushed in this much on him, about his feet,
 const START_HOLD := 1.6  ## ... holds it this many seconds,
 const START_REVEAL := 1.0  ## ... then draws back to the run's framing over this many (the first touch: at once)

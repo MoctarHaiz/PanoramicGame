@@ -70,11 +70,10 @@ const SKY_DRIFT := 2.5
 const PLAIN_K := 0.44  ## units a px of it (1360 units before it repeats: wider than the camera ever sees)
 const PLAIN_HORIZON := 78.0  ## px from its picture's top to its horizon (its acacias stand over it)
 const PLAIN_ROWS := 623.0  ## px tall
-const PLAIN_SHIFT := 1241.0  ## units along it the level starts at (open plain behind a leaping bandit, the kraal beside the hut at home)
+const PLAIN_SHIFT := 1241.0  ## units along it the level starts at (open plain and its trail behind the first fights)
 const STRIPS := {
 	&"far_wall": [0.008, 508.0, 1.0],
 	&"far_hills": [0.07, HORIZON + (PLAIN_ROWS - PLAIN_HORIZON) * PLAIN_K, PLAIN_K],
-	&"near_grass": [0.42, 655.0, 0.5],
 }
 const HORIZON := 416.0  ## play y of the plain's far edge: the landforms stand behind it
 ## Round 20 (the judges, j16: "the same mesa shape x4, no atmospheric layering"): the escarpments placed one
@@ -133,7 +132,7 @@ const DUSK_LOW := Color(0.8, 0.74, 0.96)
 const DUSK_MESAS := [Color(0.44, 0.44, 0.76), Color(0.48, 0.48, 0.8), Color(0.6, 0.55, 0.86)]  # (blind round 21: a step deeper: the night plain under them is dark)
 ## (blind round 15, of the home: "a pale wedge-shaped streak from the fire's base toward the hut like a rendering
 ## glitch": the tall grass behind the path kept the day's pale gold, its plumes the one bright thing in the dusk)
-const DUSK_STRIPS := {&"far_wall": Color(0.6, 0.6, 0.9), &"far_hills": Color(0.5, 0.5, 0.78), &"near_grass": Color(0.46, 0.44, 0.7)}
+const DUSK_STRIPS := {&"far_wall": Color(0.6, 0.6, 0.9), &"far_hills": Color(0.5, 0.5, 0.78)}
 ## (blind round 20: the two rows of trees that stood behind the ridges are gone with them: the plain carries its own
 ## groves, far off under its horizon, every tree whole and on its own ground)
 ## Blind round 11 ("the mid-ground is as sharp and saturated as the fighters: push it back"): the world behind the
@@ -153,21 +152,11 @@ const DUSK_STRIPS := {&"far_wall": Color(0.6, 0.6, 0.9), &"far_hills": Color(0.5
 ## the lift and the dust veil over them (MIST_FULL) are a third of what they were.
 const SOFT_MESAS := 2.2
 const SOFT_PLAIN := 0.0  ## (blind round 21: drawn in the fighters' line, it is in their focus)
-const SOFT_LANE := 0.8
 const SOFT_RIVER := 0.0
-const LIFT_LANE := 0.0
-## Round 22 (the judges, j18: "the hero's lane has no value separation: a mid-orange hero on mid-gold grass"): the tall
-## grass behind his legs and the savanna behind his body a value darker and greener (an olive band), so his warm skin,
-## white loincloth and red scarf read against it (the warm add of round 3's lane light is gone).
-## Round 23 (the judges, j19: "he runs over the darkest band of the screen: his dark skin and black ink a smudge"): a
-## sunlit mid value, cooler (a sage straw, its shade in the sky's cool light): he reads by his darker warm skin and ink
-## against it, not against a dark olive band.
-## The redesign: the plain as painted; the rise and the tall grass behind his body a little paler and cooler than
-## painted (a straw gold), so his darker, redder skin and his ink stand off them.
-## Blind round 21 ("unexplained violet wedges among the foreground grass look like stray shapes"): the tall grass's
-## plumes behind the path are grass in the plain's own shade, a dark olive straw (they were violet: LANE_TINT
-## (0.52, 0.44, 0.64), GRASS_SHADE (0.34, 0.27, 0.44)).
-const LANE_TINT := Color(0.44, 0.56, 0.5)
+## Blind round 23 (of the throw: "broad grey-green blades (left of the hero and between him and the ring) look like
+## half-transparent ghosts"): the strip of tall grass that stood behind the
+## path (near_grass.png under a lens, in the evening's shade) is gone: the painted ground's own far fringe is the path's
+## back now (TerrainView's lane), the plain right behind it; the pools mirror the plain (WorldView.WATER_MIRRORS).
 ## and each a little flatter than painted (less contrast, less colour: the shader's `flatten`), the plain most: the
 ## characters in front are the picture's strongest darks and colours
 ## (blind rounds 5 to 7, three judges: two asked for the band behind the characters lighter and quieter, one for it
@@ -199,17 +188,21 @@ const PLAIN_FAR_TO := 0.42  ## ... gone by this far down its picture
 ## violet sky, the acacias' long shadows breaking its edge), so in play the shader lays none (PLAIN_SHADE: from = full);
 ## the night at home is still the shader's, over all of it, its drawn forms kept (less grey, less flat).
 const PLAIN_SHADE := [Color(1.0, 1.0, 1.0), 0.0, 0.0, 0.0, 0.0, 0.44]
-const PLAIN_NIGHT := [Color(0.5, 0.52, 0.98), -0.3, -0.2, 0.35, 0.22, 0.34]
+const PLAIN_NIGHT := [Color(0.6, 0.6, 1.0), -0.3, -0.2, 0.3, 0.12, 0.38]  # (round 24's check: "a flat, nearly black navy mass with almost no drawn form": a step up, its drawn swells kept; it was (0.5, 0.52, 0.98), 0.35 grey, 0.22 flat)
+## Blind round 23 (under the vine: "No single light: the sky is violet dusk, the plain is in full yellow daylight, the
+## river mirrors a hot orange sunset"): once the camera has risen to the vine the whole plain, its far band too, is in the dusk: greyer, a
+## value down, in the sky's violet (PLAIN_RISEN, as PLAIN_SHADE), and so are the river and what is in it (RIVER_SHADE:
+## the mirrored band, the crocodile's belly, its splash).
+const PLAIN_RISEN := [Color(0.84, 0.76, 0.94), -0.3, -0.2, 0.3, 0.12, 0.5]
+const RIVER_SHADE := {shade = Color(0.86, 0.8, 0.98), shade_from = -0.3, shade_full = -0.2, shade_grey = 0.28, shade_flat = 0.08, shade_value = 0.5}
 ## ... "only tiny warm points far off": the cooking fires of the painted kraal and of the village under the horizon
 ## glow at night: [px across the plain's picture, px down it, units across its glow].
 const PLAIN_FIRES: Array[Vector3] = [Vector3(2806.0, 206.0, 13.0), Vector3(2168.0, 99.0, 6.0), Vector3(2262.0, 101.0, 5.0), Vector3(2214.0, 97.0, 4.0)]
 const PLAIN_FIRE := Color(1.0, 0.56, 0.24)
-const LANE_FLATTEN := 0.2
-const LANE_HAZE := 0.45
 ## Blind round 18 ("two lights in one picture: a saturated violet dusk sky with sunset-lit peach clouds above, and a
 ## bleached, shadowless, midday-pale plain below"; the fighters "stickers on a pastel backdrop"): the picture is staged
 ## in bands of light and shade, as the low sun lays them: the far plain under the horizon glows in the last sun, the
-## nearer plain and the tall grass at the path's back lie in the evening's shade (painted so: plain2; GRASS_SHADE), a
+## nearer plain and the tall grass at the path's back lie in the evening's shade (painted so: plain2), a
 ## value under his sunlit skin and over his darks. The path and the fighters are in the light in front.
 ## Blind round 20 (under the vine: "the river is the cheapest element: reflections as regular white horizontal dashes
 ## and banded blocks, which read as a procedural shader rather than paint": "repaint the water as a painted river with
@@ -243,7 +236,6 @@ const CROC_RISE := 9.0  ## how fast it comes up (/s) ...
 const CROC_SINK := 4.5  ## ... and sinks
 const CROC_RIPPLE := Color(0.93, 0.86, 1.0)
 const LANE_DROP := 0.8  ## the tall grass at the path's back, its shade and its dust: nearest, they sink away soonest as the camera rises
-const GRASS_SHADE := Color(0.27, 0.31, 0.25)  ## what the tall grass at the path's back is drawn toward: the evening's shade, as the near plain behind it
 const MIST := Color(0.96, 0.74, 0.64)  ## the low dust behind the path (_draw_lane_mist)
 const MIST_DUSK := Color(0.3, 0.375, 0.86)  ## ... at dusk
 const MIST_FULL := 0.07  ## how much of it at its thickest, at dusk (round 17: it was 0.2, see DUSK_CLEAR)
@@ -307,7 +299,6 @@ var _mesa_mats: Array[ShaderMaterial] = []  # round 21: per row (the clouds' sha
 var _far_mat: ShaderMaterial  # round 23: the plain's (the dusk's colour over its haze)
 var _river_mat: ShaderMaterial
 var rise := 0.0  ## units the camera has risen over the ground's framing (WorldView): the river comes up (RIVER_UP)
-var _lane_mat: ShaderMaterial  # round 18: the tall grass behind the path (in the evening's shade)
 var _wall_mat: ShaderMaterial
 var _mesa_pitch := 0.0  # px between two rows of landforms in far_mesa_pieces.png
 
@@ -320,7 +311,7 @@ class Painter extends Node2D:
 
 
 func _ready() -> void:
-	for name in ["sky", "sky_clouds", "far_wall", "far_mesa_pieces", "far_hills", "river", "croc", "near_grass", "mote", "bird"]:
+	for name in ["sky", "sky_clouds", "far_wall", "far_mesa_pieces", "far_hills", "river", "croc", "mote", "bird"]:
 		_tex[StringName(name)] = load(DIR + name + ".png")
 	var add := CanvasItemMaterial.new()
 	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
@@ -343,11 +334,9 @@ func _ready() -> void:
 	var glow := CanvasItemMaterial.new()
 	glow.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	_painter(_draw_plain_fires).material = glow
-	_river_mat = _haze([0, 0, 0, 0, 0.0, 0.0, 0, PLAIN_AIR], Color.WHITE, 0.0, 0.0, true, {soft = SOFT_RIVER})
+	_river_mat = _haze([0, 0, 0, 0, 0.0, 0.0, 0, PLAIN_AIR], Color.WHITE, 0.0, 0.0, true, RIVER_SHADE.merged({soft = SOFT_RIVER}))
 	_painter(_draw_river, true).material = _river_mat
 	_painter(_draw_lane_mist)
-	_lane_mat = _haze([0, 0, 0, 0, LANE_HAZE, 0.0, 0, GRASS_SHADE], LANE_TINT, 0.0, 0.0, true, {flatten = LANE_FLATTEN, soft = SOFT_LANE, lift = LIFT_LANE})
-	_painter(_draw_strip.bind(&"near_grass"), true).material = _lane_mat
 	var mul := CanvasItemMaterial.new()
 	mul.blend_mode = CanvasItemMaterial.BLEND_MODE_MUL
 	_painter(_draw_lane_shade).material = mul
@@ -407,13 +396,13 @@ func _process(delta: float) -> void:
 		_mesa_mats[row].set_shader_parameter(&"air_tint", _dusk(DUSK_MESAS[row]))  # (round 23: the air dusks with them)
 	_wall_mat.set_shader_parameter(&"air_tint", _dusk(DUSK_STRIPS[&"far_wall"]))
 	_far_mat.set_shader_parameter(&"air_tint", _dusk(DUSK_STRIPS[&"far_hills"]))
-	_lane_mat.set_shader_parameter(&"air_tint", _dusk(DUSK_STRIPS[&"near_grass"]))
 	var clear := 1.0 - DUSK_CLEAR * dusk
 	_far_mat.set_shader_parameter(&"amount", PLAIN_HAZE * clear)
 	_far_mat.set_shader_parameter(&"flatten", PLAIN_FLATTEN * clear)
 	var keys: Array[StringName] = [&"shade", &"shade_from", &"shade_full", &"shade_grey", &"shade_flat", &"shade_value"]
-	for i in keys.size():  # (blind round 21: the evening's shade over it, the night's at home)
-		_far_mat.set_shader_parameter(keys[i], lerp(PLAIN_SHADE[i], PLAIN_NIGHT[i], dusk))
+	var risen := smoothstep(BANK_FROM, BANK_FULL, rise)
+	for i in keys.size():  # (blind round 21: the evening's shade over it, the night's at home; round 24: the dusk's from the vine)
+		_far_mat.set_shader_parameter(keys[i], lerp(lerp(PLAIN_SHADE[i], PLAIN_RISEN[i], risen), PLAIN_NIGHT[i], dusk))
 	# the river's crocodile: up at him as he swings back, under as he swings away; where he is while it is under
 	var up := smoothstep(0.3, 0.75, snap) if rise > BANK_FROM else 0.0
 	_croc = move_toward(_croc, up, delta * (CROC_RISE if up > _croc else CROC_SINK))
@@ -640,8 +629,7 @@ func _draw_strip(ci: CanvasItem, name: StringName) -> void:
 	var x1 := _x1()
 	var h := tex.get_height() * k
 	var src_x := fposmod((scroll * s[0] + x0 + (PLAIN_SHIFT if name == &"far_hills" else 0.0)) / k, tex.get_width())
-	var sunk := rise * LANE_DROP if name == &"near_grass" else 0.0
-	ci.draw_texture_rect_region(tex, Rect2(x0, s[1] + sunk - h, x1 - x0, h),
+	ci.draw_texture_rect_region(tex, Rect2(x0, s[1] - h, x1 - x0, h),
 			Rect2(src_x, 0, (x1 - x0) / k, tex.get_height()), _dusk(DUSK_STRIPS.get(name, Color.WHITE)))
 
 

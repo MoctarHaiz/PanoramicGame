@@ -77,10 +77,30 @@ const HERO_DRAWN := 158.0  ## units from the ground to the top of his hair as dr
 const MASS_INSET := 40.0  ## a ledge shorter than twice this (and 24 units) has no underside
 const MASS_TOP := 7.0  ## units under the grass surface where a mass's straight top joins the ledge (under the mat)
 const NARROW_CELLS := 6  ## a wall at most this many cells wide is a pillar (shaded as a column to its foot)
+## Blind round 23 (of the fight and the throw: "the ground the fighters stand on is the bottom 9% of the frame: a moss
+## strip with a soft blurred top edge ... both figures float on a thin tile", "give them a real lit ground of about 15%
+## of the frame with crisp cast shadows"): every top in a run of LANE_RUN cells or more (not a stack's) is the painted ground
+## (lane.png, tools/art/kie/world.py lane(): a ribbon of trodden grass with a worn track along it, seen a little from
+## above; _lane()): its far half lies behind the line they walk on, LANE_FAR units deep under its tussocks, its near
+## half in front of it, over the top of its cut bank. It takes the place of the turf's strip, its ends, its roots, its
+## clumps and the blades in front there (a stack keeps its turf).
+const LANE := preload("res://src/game/lane.gdshader")
+const LANE_PX := 4.0  ## px of lane.png a unit
+const LANE_ABOVE := 40.0  ## units of it over the walking line (its far edge 29.5 units up, its tussocks over that)
+const LANE_BELOW := 40.0  ## ... and under it (its near edge 17 units down, then its bank, fading out)
+const LANE_LEDGE := 34.0  ## ... on a ledge one cell thick: squeezed into its cell (the rock it carries hangs under it)
+const LANE_RUN := 5  ## cells: a shorter top keeps its turf (on a floating block two cells long the painted ground was a striped tile)
+const LANE_FLOAT := 8  ## ... and a ledge in the air shorter than this (five cells with no room for rock under them: a striped slab on a smear of earth)
+const LANE_FAR := 29.0  ## units over the walking line: its far edge
+const WEDGE_IN := 5.0  ## units a wall's shadow starts inside its cell (its rock is narrower than its cells)
+const WEDGE := Rect2(0, 0, 128, 128)  ## flat_shade(): a wall's shadow on the painted ground,
+const POOL := Rect2(128, 0, 128, 128)  ## ... and a floating ledge's
+const LANE_END := 6.0  ## units its end stands out past a cell's open side (lane.gdshader's end_out)
 const DIR := "res://assets/art/world/"
 
 var level: Level  ## set by build(): the layers exist
 var front: Node2D  ## blades in front of the runners: added by WorldView above them
+var back: Node2D  ## the painted ground's far half (_lane()): added by WorldView under the props and the home, which stand on it
 
 var _layers := {}  # name -> Node2D holding that layer's chunks
 var _textures := {}  # layer name -> its texture
@@ -96,6 +116,7 @@ var _map: Level  # the map prepare() reads (on a worker thread: level is set onl
 var _prepared := false
 var _depth_px := PackedByteArray()
 var _white: Texture2D  # round 20: the undersides' and columns' rectangles (their shaders paint them)
+var _no_turf := NoTurf.new()  # what the turf's layers are for a cell of the painted ground (_lane())
 
 
 class Batch extends Node2D:
@@ -118,7 +139,14 @@ class Batch extends Node2D:
 							Vector2(s.position.x, s.end.y) / size]), texture)
 
 
+class NoTurf:
+	## Takes a cell's turf, and draws none of it.
+	var items := []
+
+
 func _init() -> void:
+	back = Node2D.new()
+	back.name = &"GroundFar"
 	front = Node2D.new()  # (made here: WorldView places it before the ground is built)
 	front.name = &"FrontGrass"
 	var front_cast := Node2D.new()  # the walls' shadows over the blades too (above every chunk's)
@@ -230,6 +258,25 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 	_layers[&"ends"].material = ink
 	_layers[&"front"] = front
 	_layers[&"front_cast"] = front.get_child(0)
+	# (round 24) the painted ground: its near half over the earth and the stacks' rock, under the turf's layers
+	var lane := Node2D.new()
+	lane.name = &"lane"
+	add_child(lane)
+	move_child(lane, _layers[&"caps"].get_index())
+	_layers[&"lane"] = lane
+	_layers[&"lane_far"] = back
+	var flat := Node2D.new()  # the flat shapes of shade lying on it (flat_shade())
+	flat.name = &"flat"
+	add_child(flat)
+	move_child(flat, lane.get_index() + 1)
+	_layers[&"flat"] = flat
+	var painted := ShaderMaterial.new()
+	painted.shader = LANE
+	painted.set_shader_parameter(&"end_w", T + LANE_END)
+	painted.set_shader_parameter(&"end_out", LANE_END)
+	for layer: Node2D in [lane, back]:
+		layer.material = painted
+		layer.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED  # (an end's piece reads past the strip's ends)
 
 	soil.set_shader_parameter(&"depth_tex", ImageTexture.create_from_image(
 			Image.create_from_data(end_col - first_col, Level.ROWS, false, Image.FORMAT_RGBA8, _depth_px)))
@@ -251,6 +298,9 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 		&"front": load(DIR + "front_grass.png"), &"foot": soft_disc(), &"cast": cast_shade(),
 	}
 	textures[&"front_cast"] = textures[&"cast"]
+	textures[&"lane"] = load(DIR + "lane.png")
+	textures[&"lane_far"] = textures[&"lane"]
+	textures[&"flat"] = flat_shade()
 	_textures = textures
 
 
@@ -367,11 +417,16 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 	# (round 4: no more strip of earth under a ledge's cells: it stopped square before the ledge's
 	# rounded ends; the masses below and the ledge's own shade make its underside)
 	if open_s and not pole and not (solid(c - 1, r) and not solid(c - 1, r + 1)):
-		_hang_masses(c, r, b[&"foot"])
+		_hang_masses(c, r, b[&"foot"], b[&"flat"])
 	if not open_n and _wall_foot(c, r):  # (round 2) the ground's grass runs on across a wall's foot
-		b[&"caps"].items.append([Rect2(x, y - CAP_ABOVE, T, CAP_H),
-				Rect2(fposmod(x * PX, STRIP), 0, T * PX, CAP_H * PX), Color.WHITE])
-		b[&"front"].items.append(_front(c, x, y))
+		if _lane_run(c, r):
+			# (round 24: the painted ground runs on behind it and across its foot: the plain showed beside its rock, which
+			# is narrower than its cells)
+			_lane(c, r, false, false, true, b)
+		else:
+			b[&"caps"].items.append([Rect2(x, y - CAP_ABOVE, T, CAP_H),
+					Rect2(fposmod(x * PX, STRIP), 0, T * PX, CAP_H * PX), Color.WHITE])
+			b[&"front"].items.append(_front(c, x, y))
 	if not open_n or _kind(c, r) != Level.Kind.TOP:
 		return
 	# (2026-11-13: a top running into a stack's side (a ledge against a river pinnacle) gets its rounded end there as at
@@ -380,6 +435,13 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 		open_w = true
 	if not open_e and not pole and _stack_col(c + 1):
 		open_e = true
+	var painted := not pole and _lane_run(c, r)
+	if painted:  # (round 24) the painted ground: no turf here
+		_lane(c, r, open_w, open_e, true, b)
+		b = b.duplicate()
+		for name: StringName in [&"caps", &"ends", &"roots", &"tufts", &"front"]:
+			b[name] = _no_turf
+		_no_turf.items.clear()
 	# the grass cap: a strip that runs on in level x; a cell with an open side gets a rounded end
 	# instead, which wraps the corner and fades into the next cell's strip
 	if not open_w and not open_e:
@@ -420,9 +482,24 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 	# a wall rising from this top: shade at its foot (the disc's centre on the wall's face); (2026-11-13: only where the
 	# top runs on under it: a stair's next step, up in the air beside this one, left a dark smudge in the sky)
 	var disc := Rect2(0, 0, 64, 64)
-	if solid(c + 1, r - 1) and solid(c + 1, r):  # the wall's lit face, on this cell's right: a short occlusion
+	if painted:
+		# (round 24) on the painted ground a wall's shadow is a flat shape lying back and to the right, as the fighters'
+		# (HeroView.lay_cast): the wedge its shaded edge casts across the far grass (the soft discs and the long soft
+		# band were smudges on the flat painting)
+		if solid(c - 1, r - 1) and solid(c - 1, r):
+			var tall := 0
+			while tall < 6 and solid(c - 1, r - 1 - tall):
+				tall += 1
+			var run := 0
+			while run < 3 and lane_top(c + run, r):
+				run += 1
+			var lay := HeroView.CAST_LAY
+			var up := minf(minf(tall * T * lay.y, LANE_FAR), (run * T + WEDGE_IN) * lay.y / lay.x)
+			b[&"flat"].items.append([Rect2(x - WEDGE_IN, y - up, up * lay.x / lay.y, up), WEDGE,
+					Color(HeroView.CAST_SHADE, HeroView.CAST_ALPHA)])
+	elif solid(c + 1, r - 1) and solid(c + 1, r):  # the wall's lit face, on this cell's right: a short occlusion
 		b[&"foot"].items.append([Rect2(x + T - 34.0, y - 26.0, 52.0, 52.0), disc, FOOT_SHADE])
-	if solid(c - 1, r - 1) and solid(c - 1, r):  # its shaded face, on the left: the shadow falls this way
+	if not painted and solid(c - 1, r - 1) and solid(c - 1, r):  # its shaded face, on the left: the shadow falls this way
 		b[&"foot"].items.append([Rect2(x - 46.0, y - 30.0, 132.0, 60.0), disc, FOOT_SHADE])
 		# round 2: the wall's long shadow along the ground away from the low sun, as long as the
 		# wall is tall (CAST_K), on this run of grass only (not over a pool)
@@ -455,6 +532,26 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 				Rect2(v * TUFT.x * PX, 0, TUFT.x * PX, TUFT.y * PX), TUFT_TONE))
 
 
+## The painted ground over cell c of row r (lane.png; LANE_ABOVE): its near half, from the walking line down, and
+## (`far`) its far half behind the line, in the layer under the props and the home. A cell with an open side is drawn
+## LANE_END units past it, and lane.gdshader cuts the running strip to an end there (the colours' alpha: how far along
+## the piece, 0 on its outer end). In the home's light at each of its ends (_home_light_at).
+func _lane(c: int, r: int, open_w: bool, open_e: bool, far: bool, b: Dictionary) -> void:
+	var x0 := c * T - (LANE_END if open_w else 0.0)
+	var x1 := (c + 1) * T + (LANE_END if open_e else 0.0)
+	var y := r * T
+	var base := _grass_base(c)
+	var left := Color(base * _home_light_at(x0), 0.0 if open_w else 1.0)
+	var right := Color(base * _home_light_at(x1), 0.0 if open_e else 1.0)
+	var size: Vector2 = _textures[&"lane"].get_size()
+	var src_x := fposmod(x0 * LANE_PX + _hash(floori(c / 24.0), 79, 27) * T * LANE_PX, size.x)
+	var w := (x1 - x0) * LANE_PX
+	var below := LANE_BELOW if solid(c, r + 1) else LANE_LEDGE
+	b[&"lane"].items.append([Rect2(x0, y, x1 - x0, below), Rect2(src_x, LANE_ABOVE * LANE_PX, w, size.y - LANE_ABOVE * LANE_PX), left, right])
+	if far:
+		b[&"lane_far"].items.append([Rect2(x0, y - LANE_ABOVE, x1 - x0, LANE_ABOVE), Rect2(src_x, 0.0, w, LANE_ABOVE * LANE_PX), left, right])
+
+
 ## Round 2: under a floating ledge (from its left end, cell c of row r), the rock it carries (round 20: painted
 ## by underside.gdshader):
 ## biggest under its middle, smaller to its ends, so it reads as a floating island; never down into what lies
@@ -462,7 +559,7 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 ## grid of same-size hexagons"): fewer, wider masses that overlap into one body, their straight tops joining
 ## the ledge under its grass mat; a second, smaller rank behind them in the shade (no row of teeth); the
 ## ledge's soft shadow on the ground under it.
-func _hang_masses(c: int, r: int, batch_shadow: Batch) -> void:
+func _hang_masses(c: int, r: int, batch_shadow: Batch, flat: Batch) -> void:
 	var n := 0
 	while n < 120 and solid(c + n, r) and not solid(c + n, r + 1):
 		n += 1
@@ -491,8 +588,12 @@ func _hang_masses(c: int, r: int, batch_shadow: Batch) -> void:
 		var drop := free * T
 		var sx := c * T + length * 0.5 + drop * 0.35
 		var sw := length * 0.95 + 40.0
-		batch_shadow.items.append([Rect2(sx - sw / 2, ground_r * T - 16.0, sw, 34.0), Rect2(0, 0, 64, 64),
-				Color(0.12, 0.06, 0.16, clampf(0.62 - drop / 900.0, 0.24, 0.56))])
+		if lane_top(c + n / 2, ground_r):  # (round 24) on the painted ground: a flat shape lying along the track
+			flat.items.append([Rect2(sx - sw / 2, ground_r * T - 17.0, sw, 28.0), POOL,
+					Color(HeroView.CAST_SHADE, HeroView.CAST_ALPHA * clampf(1.0 - drop / 500.0, 0.4, 0.8))])
+		else:
+			batch_shadow.items.append([Rect2(sx - sw / 2, ground_r * T - 16.0, sw, 34.0), Rect2(0, 0, 64, 64),
+					Color(0.12, 0.06, 0.16, clampf(0.62 - drop / 900.0, 0.24, 0.56))])
 	# round 20 (the judges, j16: "cracked flat slabs with crude outlines, a broken biscuit"): one underside
 	# painted for the whole ledge (underside.gdshader): its front face under the grass mat, big planes, a dark
 	# core, drips and roots; from end to end of the ledge (its ends taper into the soil's rounded ends)
@@ -793,6 +894,31 @@ func _stack_col(c: int) -> bool:
 	return c >= _first_col - 1 and c <= _end_col and _poles[c - _first_col + 1] >= 0
 
 
+## Whether the painted ground lies along the top at (c, r) (_cell(): every top but a stack's and a short run's): what
+## stands there stands back on its far grass, off the track (PropView).
+func lane_top(c: int, r: int) -> bool:
+	return solid(c, r) and not solid(c, r - 1) and not _in_pole(c, r) and _lane_run(c, r) and not _bough_cell(c, r)
+
+
+## Whether the ground through (c, r) is long enough along its row for the painted ground: LANE_FLOAT cells or more,
+## or LANE_RUN and earth under every one of them (a shorter ledge in the air keeps its turf mat).
+func _lane_run(c: int, r: int) -> bool:
+	var a := c
+	while a > c - LANE_FLOAT and solid(a - 1, r):
+		a -= 1
+	var e := c + 1
+	while e < a + LANE_FLOAT and solid(e, r):
+		e += 1
+	if e - a >= LANE_FLOAT:
+		return true
+	if e - a < LANE_RUN:
+		return false
+	for k in range(a, e):
+		if not solid(k, r + 1):
+			return false
+	return true
+
+
 func _in_pole(c: int, r: int) -> bool:
 	if c < _first_col - 1 or c > _end_col:
 		return false
@@ -834,6 +960,18 @@ static func cast_shade() -> ImageTexture:
 			var across := pow(1.0 - x / 63.0, 1.3) * smoothstep(0.0, 10.0, float(x))  # (round 4: no hard edge at the wall)
 			var band := 1.0 - pow(absf(y - 15.5) / 16.0, 2.0)
 			img.set_pixel(x, y, Color(1, 1, 1, clampf(across * band * 1.15, 0.0, 1.0)))
+	return ImageTexture.create_from_image(img)
+
+
+## Round 24: the hard-edged shapes of shade that lie on the painted ground, two cells of 128 px: WEDGE, a wall's
+## (opaque over the diagonal from its bottom left corner to its top right one), and POOL, a floating ledge's (a disc).
+static func flat_shade() -> ImageTexture:
+	var img := Image.create_empty(256, 128, false, Image.FORMAT_RGBA8)
+	for x in 128:
+		for y in 128:
+			var at := Vector2(x + 0.5, y + 0.5) / 128.0
+			img.set_pixel(x, y, Color(1, 1, 1, clampf((1.0 - at.x - at.y) * 90.0 + 0.5, 0.0, 1.0)))
+			img.set_pixel(128 + x, y, Color(1, 1, 1, clampf((0.96 - at.distance_to(Vector2(0.5, 0.5)) * 2.0) * 45.0, 0.0, 1.0)))
 	return ImageTexture.create_from_image(img)
 
 

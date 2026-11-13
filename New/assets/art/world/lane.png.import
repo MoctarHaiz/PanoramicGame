@@ -2,9 +2,9 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b4ky1klillr55"
-path.s3tc="res://.godot/imported/near_grass.png-a51d493e1e78e47d12f6975c833ea335.s3tc.ctex"
-path.etc2="res://.godot/imported/near_grass.png-a51d493e1e78e47d12f6975c833ea335.etc2.ctex"
+uid="uid://j1hq47fkh1hd"
+path.s3tc="res://.godot/imported/lane.png-be188b45b4050c3eb2d9e2ac9c81e612.s3tc.ctex"
+path.etc2="res://.godot/imported/lane.png-be188b45b4050c3eb2d9e2ac9c81e612.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
@@ -12,8 +12,8 @@ metadata={
 
 [deps]
 
-source_file="res://assets/art/world/near_grass.png"
-dest_files=["res://.godot/imported/near_grass.png-a51d493e1e78e47d12f6975c833ea335.s3tc.ctex", "res://.godot/imported/near_grass.png-a51d493e1e78e47d12f6975c833ea335.etc2.ctex"]
+source_file="res://assets/art/world/lane.png"
+dest_files=["res://.godot/imported/lane.png-be188b45b4050c3eb2d9e2ac9c81e612.s3tc.ctex", "res://.godot/imported/lane.png-be188b45b4050c3eb2d9e2ac9c81e612.etc2.ctex"]
 
 [params]
 
@@ -25,7 +25,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=true
+mipmaps/generate=false
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

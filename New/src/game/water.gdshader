@@ -20,15 +20,13 @@ uniform vec4 foam : source_color = vec4(0.97, 0.99, 1.0, 1.0);
 uniform sampler2D soil_tex : source_color, repeat_enable, filter_linear_mipmap;  // the banks' earth
 // round 9: the savanna behind the pool mirrored in it ("a flat cyan rectangle with no reflection",
 // every round): the tall golden grass over the mid hills over the sky, read from SavannaView's own
-// strips where they stand behind (no copy of the screen: it cost 15 MB on an iPhone 15)
-uniform sampler2D grass_tex : source_color, repeat_enable, filter_linear_mipmap;  // near_grass.png
+// strips where they stand behind (no copy of the screen: it cost 15 MB on an iPhone 15). Round 24: the tall grass
+// behind the path is gone, and its mirror with it (near_grass.png is gone: GameArt.preload_art kept its 1.6 MB in memory): the plain over the sky.
 uniform sampler2D hills_tex : source_color, repeat_enable, filter_linear_mipmap;  // far_hills.png, the plain
 uniform sampler2D sky_tex : source_color, filter_linear;  // sky.png
 uniform float scroll = 0.0;  // the level's scroll (WorldView sets it each frame)
-uniform vec4 grass_strip = vec4(0.42, 646.0, 0.5, 100.0);  // SavannaView.STRIPS: scroll factor, bottom y, units a px, height
-uniform vec4 hills_strip = vec4(0.15, 648.0, 1.0, 240.0);
-uniform vec3 grass_tint : source_color = vec3(0.86, 0.84, 0.68);  // their tints there (round 23: SavannaView's new ones)
-uniform vec3 hills_tint : source_color = vec3(0.76, 0.72, 0.56);
+uniform vec4 hills_strip = vec4(0.15, 648.0, 1.0, 240.0);  // SavannaView.STRIPS: scroll factor, bottom y, units a px, height
+uniform vec3 hills_tint : source_color = vec3(0.76, 0.72, 0.56);  // its tint there (round 23: SavannaView's new one)
 
 const vec3 INK = vec3(0.17, 0.085, 0.06);
 
@@ -90,9 +88,6 @@ void fragment() {
 		vec2 hq = vec2((mx - scroll * (1.0 - hills_strip.x)) / hills_strip.z, (my - hills_strip.y + hills_strip.w) / hills_strip.w);
 		vec4 hills = texture(hills_tex, vec2(hq.x / float(textureSize(hills_tex, 0).x), clamp(hq.y, 0.0, 1.0)));
 		mirrored = mix(mirrored, hills.rgb * hills_tint, hills.a * step(0.0, hq.y));
-		vec2 gq = vec2((mx - scroll * (1.0 - grass_strip.x)) / grass_strip.z, (my - grass_strip.y + grass_strip.w) / grass_strip.w);
-		vec4 grass = texture(grass_tex, vec2(gq.x / float(textureSize(grass_tex, 0).x), clamp(gq.y, 0.0, 1.0)));
-		mirrored = mix(mirrored, grass.rgb * grass_tint, grass.a * step(0.0, gq.y));
 		float refl = mix(0.9, 0.4, smoothstep(2.0, 40.0, d)) * smoothstep(1.0, 3.5, d);
 		float luma = dot(mirrored, vec3(0.3, 0.55, 0.15));
 		vec3 tinted = mix(c * (0.45 + 1.1 * luma), mirrored * vec3(0.8, 0.95, 1.0), 0.34);

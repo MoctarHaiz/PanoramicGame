@@ -82,6 +82,7 @@ static var _confetti_tex: Texture2D
 static var _bubble_tex: Texture2D
 static var _glow_tex: Texture2D
 static var _puff_tex: Texture2D
+static var _dust_tex: Array[Texture2D] = [null, null]
 static var _vignette_tex: Texture2D
 static var _edge_tex: Texture2D
 static var _additive: CanvasItemMaterial
@@ -801,43 +802,70 @@ static func splash(parent: Node, at: Vector2, size := 1.0) -> void:
 	dust(parent, at, int(8 * size), 260.0 * size, 0.0, 1.1 * size)  # foam spreading on the surface
 
 
-## Savanna dust kicked up at the feet: soft pale puffs that swell and fade, spreading along the
-## ground (`spread` px/s), rising a little, and carried by the ground (`drift` px/s, the scroll).
+## Savanna dust kicked up at the feet: puffs that swell, spreading along the ground (`spread` px/s), rising a little,
+## and carried by the ground (`drift` px/s, the scroll).
+## Blind round 23 (of the fight: "airbrushed white dust puffs at the hero's planted foot and under the enemy ... blurry blobs in a world drawn in hard ink"): drawn
+## as the fighters are: flat balls of the track's dust in two tones (DUST_TONES: lit from the upper left, shaded
+## down-right), one ink line round the whole cloud (its ink is laid first, each ball a little bigger, then the balls
+## over it: two emitters on one seed), solid, shrinking away at the end, never fading through.
+const DUST_TONES: Array[Color] = [Color(0.64, 0.54, 0.47), Color(0.46, 0.37, 0.4)]  # (round 24's check: "near-white blobs": a step over the track's own value, no more)
+const DUST_INK := Color(0.2, 0.13, 0.19)
+
 static func dust(parent: Node, at: Vector2, amount: int, spread: float, drift: float, size := 1.0) -> void:
-	var p := CPUParticles2D.new()
-	p.position = at
-	p.one_shot = true
-	p.explosiveness = 0.95
-	p.amount = amount
-	p.lifetime = 0.5
-	p.texture = puff_texture()
-	p.local_coords = true
-	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
-	p.emission_rect_extents = Vector2(14, 3)
-	p.direction = Vector2(-0.25, -1)
-	p.spread = 80.0
-	p.initial_velocity_min = spread * 0.35
-	p.initial_velocity_max = spread
-	p.gravity = Vector2(0, -60)
-	p.damping_min = spread * 1.2
-	p.damping_max = spread * 2.0
-	p.scale_amount_min = 0.3 * size
-	p.scale_amount_max = 0.6 * size
-	var grow := Curve.new()
-	grow.add_point(Vector2(0, 0.5))
-	grow.add_point(Vector2(0.4, 1.0))
-	grow.add_point(Vector2(1, 1.3))
-	p.scale_amount_curve = grow
-	var fade := Gradient.new()
-	fade.offsets = PackedFloat32Array([0.0, 0.25, 1.0])
-	fade.colors = PackedColorArray([Color(0.96, 0.88, 0.74, 0.0), Color(0.96, 0.88, 0.74, 0.55), Color(0.92, 0.82, 0.66, 0)])
-	p.color_ramp = fade
-	parent.add_child(p)
-	p.emitting = true
-	# carried along with the ground as it scrolls
-	if drift != 0.0:
-		p.create_tween().tween_property(p, "position:x", at.x + drift * p.lifetime * 1.2, p.lifetime * 1.2)
-	p.finished.connect(p.queue_free)
+	var cloud := randi()
+	for body in 2:
+		var p := CPUParticles2D.new()
+		p.position = at
+		p.one_shot = true
+		p.explosiveness = 0.95
+		p.amount = amount
+		p.lifetime = 0.5
+		p.use_fixed_seed = true
+		p.seed = cloud
+		p.texture = dust_texture(body == 1)
+		p.local_coords = true
+		p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+		p.emission_rect_extents = Vector2(14, 3)
+		p.direction = Vector2(-0.25, -1)
+		p.spread = 80.0
+		p.initial_velocity_min = spread * 0.35
+		p.initial_velocity_max = spread
+		p.gravity = Vector2(0, -60)
+		p.damping_min = spread * 1.2
+		p.damping_max = spread * 2.0
+		p.scale_amount_min = 0.2 * size
+		p.scale_amount_max = 0.42 * size
+		var grow := Curve.new()
+		grow.add_point(Vector2(0, 0.5))
+		grow.add_point(Vector2(0.35, 1.0))
+		grow.add_point(Vector2(0.7, 0.9))
+		grow.add_point(Vector2(1, 0.0))
+		p.scale_amount_curve = grow
+		parent.add_child(p)
+		p.emitting = true
+		# carried along with the ground as it scrolls
+		if drift != 0.0:
+			p.create_tween().tween_property(p, "position:x", at.x + drift * p.lifetime * 1.2, p.lifetime * 1.2)
+		p.finished.connect(p.queue_free)
+
+
+## A ball of the dust (dust()): its ink, a full disc, or its body: a smaller disc in the dust's two tones, lit from
+## the upper left, the shade a crescent down-right, hard-edged.
+static func dust_texture(body: bool) -> Texture2D:
+	if not _dust_tex[int(body)]:
+		var img := Image.create_empty(64, 64, false, Image.FORMAT_RGBA8)
+		for y in 64:
+			for x in 64:
+				var u := Vector2(x + 0.5, y + 0.5) / 32.0 - Vector2.ONE
+				var r := u.length()
+				if not body:
+					img.set_pixel(x, y, Color(DUST_INK, clampf((0.97 - r) * 24.0, 0.0, 1.0)))
+					continue
+				var shade := clampf(((u - Vector2(-0.22, -0.3)).length() - 0.74) * 20.0, 0.0, 1.0)
+				img.set_pixel(x, y, Color(DUST_TONES[0].lerp(DUST_TONES[1], shade), clampf((0.8 - r) * 24.0, 0.0, 1.0)))
+		img.generate_mipmaps()
+		_dust_tex[int(body)] = ImageTexture.create_from_image(img)
+	return _dust_tex[int(body)]
 
 
 ## The hero falling into the bushes: leaves torn off and fluttering down.

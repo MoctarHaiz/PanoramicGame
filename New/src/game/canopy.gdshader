@@ -28,7 +28,10 @@ void fragment() {
 	COLOR.a *= 1.0 - smoothstep(end - 0.03, end, UV.y);
 	// (round 23's check, under the vine: "the bar and counter still sit on busy leaves": the leaves along the top of the
 	// screen fall into the boughs' deep shade, a quiet dark ceiling behind the HUD; the lit leaves start under it)
-	float ceiling = 1.0 - smoothstep(0.04, 0.23, SCREEN_UV.y);
-	vec3 deep = mix(vec3(dot(COLOR.rgb, vec3(0.3, 0.59, 0.11))), COLOR.rgb, 0.5) * vec3(0.4, 0.45, 0.62);
-	COLOR.rgb = mix(COLOR.rgb, deep, ceiling * 0.82);
+	// (blind round 23, again: "The HUD sits on the busy leaf canopy": the ceiling is full down past the HUD's foot and flat:
+	// its leaves' values drawn together into one dark, their forms faint in it; it was 0.04 to 0.23, 0.82 of it)
+	float ceiling = 1.0 - smoothstep(0.12, 0.27, SCREEN_UV.y);
+	vec3 deep = mix(vec3(dot(COLOR.rgb, vec3(0.3, 0.59, 0.11))), COLOR.rgb, 0.4) * vec3(0.4, 0.45, 0.62);
+	deep = mix(deep, vec3(0.085, 0.1, 0.17), 0.34);
+	COLOR.rgb = mix(COLOR.rgb, deep, ceiling * 0.9);
 }

@@ -205,7 +205,7 @@ func _capture(device: String, shot: String) -> void:
 			await _wait(0.12)
 			game.world.throw()
 			await _wait_for(func() -> bool: return b.health <= 0, 2.0)
-			await _wait(0.12)
+			await _wait(0.09)  # (round 24: just out of its freeze, the ring still on what it struck: RingView.BACK_HOLD; it was 0.12)
 		"home":  # in the doorway, the HUD gone (not caught in the middle of its fade)
 			await _start_game(shot)
 			await get_tree().process_frame  # (the autopilot starts the run)

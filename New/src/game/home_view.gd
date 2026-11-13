@@ -30,7 +30,7 @@ const FIRE_X := 644.0  ## play x of the campfire on the last screen
 ## light: the grass and the earth are in a deeper night away from the fire (the turf's straw at DUSK was still the
 ## brightest thing far right of the hut) and warmer in its pool (ground_colour: the turf, the props, the earth)
 const GROUND_DUSK := Color(0.4, 0.4, 0.7)
-const GROUND_FIRE := Color(1.12, 0.79, 0.5)  ## (blind round 21: "a neon yellow-green turf line under the fire": the fire's orange on the turf, less of its green)
+const GROUND_FIRE := Color(1.02, 0.7, 0.43)  ## (blind round 21: "a neon yellow-green turf line under the fire": the fire's orange on the turf, less of its green; round 24's check, of the painted ground under it: "neon next to the dark night": it was (1.12, 0.79, 0.5))
 ## (blind round 17: "the bottom 12% is a dead black strip": the earth under the path, dark by day already, keeps more
 ## of itself in the dusk than the turf does: its roots and stones still read)
 const SOIL_DUSK := Color(0.66, 0.6, 0.9)
@@ -73,7 +73,7 @@ const FOREGROUND := [[2, 1166.0, 0.74], [0, 1030.0, 0.5], [1, 404.0, 0.62]]
 const FOREGROUND_PIECE := Vector2(260, 230)  ## units of one piece (SavannaView.FRONT_PROP), in 3 columns
 const FOREGROUND_DROP := 42.0  ## their feet under the ground's top
 const FOREGROUND_NIGHT := Color(0.25, 0.25, 0.46)  ## (round 23's check: "a big flat brown mass with no night lighting": near silhouettes in the night's blue)
-const DOOR_LAMP := Color(1.0, 0.82, 0.86, 0.5)  ## the lamp's light inside the hut, added over its doorway
+const DOOR_LAMP := Color(1.0, 0.84, 0.56, 0.22)  ## the lamp's light inside the hut, added over its doorway (round 24: straw on its drawn inside; it was a pale rose (1.0, 0.82, 0.86, 0.5), "a glowing portal")
 ## Blind round 21 (of its fire, the home's own flames at a quarter: "a miniature copy of the same flame on one vertical,
 ## reading as a scaled duplicate sprite"; "only tiny warm points far off"): their fire burns low behind their palisade:
 ## a warm glow and a hot point (Ember), its light on their huts' sides.
@@ -123,9 +123,11 @@ func build() -> void:
 	tree.material = air
 	var granary := _put(back, "home_granary", LEFT + 330.0, 0.95, Color(0.9, 0.88, 0.9))
 	granary.material = form(1.0)
-	var small := _put(back, "home_hut_small", LEFT + 1078.0, 0.8, Color(0.88, 0.86, 0.92))
+	# (blind round 23: "The right hut is washed in a pale pink-violet veil that makes it look semi-transparent and unfinished beside the main hut": away from the fire, both are in the
+	# night's shade, a value under the main hut's lit thatch; they were (0.88, 0.86, 0.92) and (0.86, 0.84, 0.9))
+	var small := _put(back, "home_hut_small", LEFT + 1078.0, 0.8, Color(0.66, 0.6, 0.76))
 	small.material = form(1.0)
-	var low := _put(back, "home_hut_low", LEFT + 1400.0, 0.8, Color(0.86, 0.84, 0.9), true)
+	var low := _put(back, "home_hut_low", LEFT + 1400.0, 0.8, Color(0.64, 0.58, 0.74), true)
 	low.material = form(1.0)
 	_fence(back, LEFT + 120.0, LEFT + 680.0)
 	_fence(back, LEFT + 960.0, LEFT + 1900.0)

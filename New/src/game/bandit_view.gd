@@ -108,6 +108,7 @@ var _sprite: Sprite2D
 var _material: ShaderMaterial
 var _front: Node2D  # what is drawn over the sprite (the stars in front of its head)
 var _ground_shadow: Node2D
+var _cast: Sprite2D  # (round 24) its shadow cast on the ground, as his is (HeroView.lay_cast)
 var _run_frames := 10
 ## The sheet is drawn at its own scale (bandit.json: px a unit, the hero's atlas' density); the drawing is
 ## about 120 units from its crest to its boots, four fifths of Panoramic's height. Its hit box
@@ -215,6 +216,8 @@ func _init(w: World, b: World.Bandit) -> void:
 	_material.set_shader_parameter(&"sil_in_px", HeroView.SIL_IN * texel / float(KIND_SCALE[kind]))
 	_material.set_shader_parameter(&"sil_out_px", HeroView.SIL_OUT * texel / float(KIND_SCALE[kind]))
 	_sprite.material = _material
+	_cast = HeroView.cast_sprite()
+	add_child(_cast)
 	add_child(_sprite)
 	_front = Node2D.new()
 	_front.draw.connect(_draw_stars.bind(true))
@@ -405,6 +408,7 @@ func _process(delta: float) -> void:
 	queue_redraw()
 	_front.queue_redraw()
 	_ground_shadow.queue_redraw()
+	_lay_cast(lift, 1.0)
 
 
 ## The frame of the punch (0: drawn back, 1: thrown) over gameplay's strike() (its last
@@ -422,6 +426,22 @@ func _draw() -> void:
 	if _ko:
 		return
 	_draw_stars(false)
+
+
+## (round 24) Its shadow cast on the ground under it, of its own shape (HeroView.lay_cast): its picture as drawn,
+## `lift` units over its feet's line; in a leap, on the first top under it.
+func _lay_cast(lift: float, seen: float) -> void:
+	var feet := position.y - GameArt.FEET_SINK
+	var col := floori(bandit.x / Level.TILE)
+	_cast.visible = false
+	for r in range(maxi(floori((feet - 8.0) / Level.TILE), 0), Level.ROWS):
+		if world.level.kind_at(col, r) == Level.Kind.TOP:
+			var drop := maxf(r * Level.TILE - feet, 0.0)
+			_cast.visible = true
+			HeroView.lay_cast(_cast, _sprite, transform * _sprite.transform, position.y + drop, lift + drop,
+					HeroView.cast_room(world.level, bandit.x, r), seen * clampf(1.0 - drop / 420.0, 0.35, 1.0))
+			_cast.transform = transform.affine_inverse() * _cast.transform
+			return
 
 
 ## A soft shadow on the ground under him (only while he stands on it; vaulting over Panoramic, smaller and
@@ -445,7 +465,7 @@ func _draw_shadow() -> void:
 		k = 1.0 - clampf(_ko_rise / 120.0, 0.0, 1.0) * 0.5
 		seen = 1.0 - _ko_out
 	HeroView.contact_shadow(_ground_shadow, Vector2(_jolt * 0.5 + SHADOW_SHIFT, -1.0), SHADOW_WIDTH * (1.15 if bandit.strong else 1.0), k,
-			seen, HeroView.SHADOW_LONG)
+			seen * HeroView.CAST_PLAY, HeroView.SHADOW_LONG)  # (round 24: its cast shadow is its shadow now)
 
 
 ## Dazed stars on a ring above its hair: those behind it drawn under the sprite, the rest over it.
@@ -550,6 +570,7 @@ func _disappear(delta: float) -> void:
 	_ko_out = out
 	_ground_shadow.queue_redraw()
 	_sprite.scale = Vector2(size * stretch * side, size * (2.0 - stretch))
+	_lay_cast(rise, 1.0 - out)
 	if out > 0.0 and not _poofed:
 		_poofed = true
 		var at := position + _sprite.position + middle.rotated(turn)

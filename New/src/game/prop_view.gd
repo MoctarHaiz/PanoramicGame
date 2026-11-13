@@ -39,6 +39,10 @@ const DRESSING := [
 const ACACIAS: Array[StringName] = [&"tree_acacia_1", &"tree_acacia_2", &"tree_acacia_3", &"tree_acacia_4",
 		&"tree_acacia_5", &"tree_acacia_6"]
 const SINK := 5.0  ## dressing stands this far into the grass band
+## (round 24) On the painted ground (TerrainView.lane_top) a prop stands this far up the picture from the walking line:
+## at the ground's far edge (29.5 units up), its foot behind the edge's fringe (WorldView draws the ground's far half
+## over the props), where the runners' feet never are (on the walking line it stood on the worn track).
+const LANE_BACK := 25.0
 const HOME_COL := 765  ## the homestead has its own composition from here
 const CHUNK := 16  ## columns per chunk (as TerrainView)
 const REFLECT := Color(0.42, 0.58, 0.68, 0.42)  ## a reed's reflection in the pool (round 3)
@@ -53,6 +57,7 @@ var _level: Level
 var _solid: Callable
 var _dressing_total := 0.0
 var _ink: ShaderMaterial  # round 21: the props' material (it clears the band round his hands)
+var lane := Callable()  # TerrainView.lane_top, once the ground is built (WorldView)
 
 
 class Chunk extends Node2D:
@@ -109,6 +114,7 @@ func _scan(c0: int, c1: int) -> void:
 			if DECOR.has(id):
 				var d: Array = DECOR[id]
 				var foot: Vector2 = (Vector2(c, r) + d[1]) * Level.TILE
+				foot.y -= _back(floori(foot.x / Level.TILE - 0.01), r + 1, 0.0)
 				var pic: StringName = d[0]
 				var height: float = d[2]
 				var tint := Color.WHITE
@@ -131,7 +137,7 @@ func _scan(c0: int, c1: int) -> void:
 				if pick <= 0.0:
 					var x := (c + 0.5) * Level.TILE + float(_hash(c, r + 5, 17)) - 8.0
 					var shade := 0.82 + float(_hash(c, r + 9, 10)) * 0.01
-					_add(d[0], Vector2(x, r * Level.TILE + SINK), d[2], _hash(c, r + 7, 2) == 0,
+					_add(d[0], Vector2(x, r * Level.TILE - _back(c, r, -SINK)), d[2], _hash(c, r + 7, 2) == 0,
 							Color(shade, shade * 0.97, shade * 0.98))
 					break
 
@@ -175,6 +181,12 @@ func _far_shore(level: Level, first_col: int, end_col: int) -> void:
 			var x := (c + 0.5) * Level.TILE + float(_hash(c, 47 + i, 29)) - 14.0
 			var v := 0.86 + 0.05 * _hash(c, 49 + i, 3)
 			_add(pic, Vector2(x, r * Level.TILE + 6.0), height, _hash(c, 51 + i, 2) == 0, Color(v, v * 0.98, v * 0.95))
+
+
+## How far up from the walking line a prop on the top at (c, r) stands: LANE_BACK on the painted ground, `other` on
+## the turf of a stack or a lone cell.
+func _back(c: int, r: int, other: float) -> float:
+	return LANE_BACK if lane.is_valid() and lane.call(c, r) else other
 
 
 ## A grass top in the middle of a run of at least 6, not under Red Bobs, about one in eight.

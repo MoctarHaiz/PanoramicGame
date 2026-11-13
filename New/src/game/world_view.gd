@@ -12,8 +12,9 @@ signal bandit_landed(strong: bool, hard: float)
 const HANG_DRAW_DROP := 58.0  ## the rules hang him half above the screen: draw him below its top
 const BANDIT_RIGHT := 46.0  ## round 10: units a bandit's picture reaches right of its feet (QA: 960-1069 at x 1024)
 ## Round 9: the pictures the pools mirror (their savanna strips and the sky)
-const WATER_MIRRORS := {"grass_tex": "near_grass", "hills_tex": "far_hills", "sky_tex": "sky"}
+const WATER_MIRRORS := {"hills_tex": "far_hills", "sky_tex": "sky"}
 const EXTRA_COLUMNS := 70  ## ground drawn past the end of the map for wide screens
+const LANE_DRY := 19.0  ## units under a bank's top the painted ground's near grass covers: no water drawn over them
 
 var world: World
 ## Play units visible left of the play window (under a notch) and the total visible width.
@@ -57,6 +58,7 @@ var _hero: HeroView
 ## Effects layer: the Fx kit is sized for a 1280-tall design, so it draws at half scale here.
 var fx: Node2D
 var _dust_clock := 0.0
+var _banks: Array = []  # [material, column, row] of each bank standing in a pool, until the ground is built (_dry_banks)
 var _ground_task := -1  # round 10: the worker thread working out the ground's data (-1: none)
 var _water: Array[ShaderMaterial] = []  # the pools' (round 9: the scroll for their reflection)
 var _was_climbing := false
@@ -162,6 +164,12 @@ func _add_ground() -> void:
 	_ground = TerrainView.new()
 	_ground.name = &"Ground"
 	_level_root.add_child(_ground)
+	# (round 24) the painted ground's far half: over the props (they stand behind its far edge, their feet in its fringe),
+	# under the home (it stands on it)
+	_level_root.add_child(_ground.back)
+	_level_root.move_child(_ground.back, _props.get_index() + 1)
+	_level_root.move_child(_home.back, _ground.back.get_index())
+	_props.lane = _ground.lane_top
 	if is_inside_tree():
 		# (round 10, QA: the open frame took ~80 ms: the ground's data is worked out on a worker
 		# thread meanwhile, only its layers are made the next frame)
@@ -175,6 +183,17 @@ func _build_ground() -> void:
 	_join_ground()
 	if not _ground.is_built():
 		_ground.build(world.level, -12, Level.COLS + EXTRA_COLUMNS)
+	_dry_banks()
+
+
+## (round 24) The painted ground's near grass hangs over a bank's top: no water is drawn over it there (the foam
+## lapped across it). Asked of the ground once it is built (its data is worked out on a worker thread: _add_ground).
+func _dry_banks() -> void:
+	if not _ground.is_built():
+		return
+	for b in _banks:
+		b[0].set_shader_parameter("dry", LANE_DRY if _ground.lane_top(b[1], b[2]) else 0.0)
+	_banks.clear()
 
 
 func _join_ground() -> void:
@@ -237,9 +256,8 @@ func _add_water() -> void:
 			m.set_shader_parameter("x_offset", rect.position.x)
 			m.set_shader_parameter("soil_tex", load("res://assets/art/world/soil.png"))
 			m.set_shader_parameter("level_top", rect.position.y)  # (round 9) the savanna mirrored in it
-			for name: String in ["grass_tex", "hills_tex", "sky_tex"]:
+			for name: String in WATER_MIRRORS:
 				m.set_shader_parameter(name, load(SavannaView.DIR + WATER_MIRRORS[name] + ".png"))
-			m.set_shader_parameter("grass_strip", _strip(&"near_grass"))
 			m.set_shader_parameter("hills_strip", _strip(&"far_hills"))
 			_water.append(m)
 			rect.material = m
@@ -286,9 +304,11 @@ func _add_water_front() -> void:
 		m.set_shader_parameter("x_offset", rect.position.x)
 		m.set_shader_parameter("fade_left", 0.0 if water_w else 14.0)
 		m.set_shader_parameter("fade_right", 0.0 if water_e else 14.0)
+		_banks.append([m, c, r])
 		rect.material = m
 		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_level_root.add_child(rect)
+	_dry_banks()
 
 
 ## A splash when Panoramic or a bandit drops through the surface of a pool.
@@ -385,8 +405,9 @@ func refresh(delta := 0.0) -> void:
 	_ground.front.position.x = -scroll
 	_ground.ensure(scroll - view_left - 96.0, scroll - view_left + view_width + 96.0)
 	_ground.build_ahead(scroll - view_left + view_width)
-	_props.ensure(scroll - view_left - 96.0, scroll - view_left + view_width + 96.0)
-	_props.build_ahead(scroll - view_left + view_width)
+	if _ground.is_built():  # (round 24: a prop asks the ground where its painted top lies: PropView.lane)
+		_props.ensure(scroll - view_left - 96.0, scroll - view_left + view_width + 96.0)
+		_props.build_ahead(scroll - view_left + view_width)
 	_home.front.position.x = -scroll
 	_home.near.position.x = -scroll
 	# (round 3) the jamb and the wall right of the doorway go over him from his walk in

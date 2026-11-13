@@ -9,6 +9,7 @@ uniform vec2 rect_size = vec2(36.0, 100.0);
 uniform float x_offset = 0.0;  // level x of the rect
 uniform float fade_left = 0.0;
 uniform float fade_right = 0.0;
+uniform float dry = 0.0;  // units under its top with no water over them (the painted ground's near grass lies there)
 uniform vec4 shallow : source_color = vec4(0.1, 0.36, 0.4, 1.0);  // round 2: murky, not glass
 uniform vec4 deep : source_color = vec4(0.02, 0.1, 0.24, 1.0);
 
@@ -52,5 +53,5 @@ void fragment() {
 		c = mix(c, vec3(0.12, 0.07, 0.08), (1.0 - smoothstep(0.0, 1.6, abs(into - wedge))) * smoothstep(1.0, 4.0, d));
 		a = max(a, in_wedge * smoothstep(0.0, 2.0, d));
 	}
-	COLOR = vec4(c, a * side);
+	COLOR = vec4(c, a * side * smoothstep(dry - 1.5, dry + 1.5, p.y));
 }

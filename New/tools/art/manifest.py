@@ -79,7 +79,6 @@ FAMILIES = [
     ("world/sky", "the level's sky panorama, repeats in x", SUNBURST, False, "top-left, repeats in x", ["palette", "light-direction"]),
     ("world/far_", "far backdrop layer (the escarpment, the landforms and their .json, the plain)", SUNBURST, True, "bottom, repeats in x", ["palette", "light-direction"]),
     ("world/river", "the painted river under the vine: its far bank and its water, repeats in x", SUNBURST, True, "top, repeats in x", ["palette", "light-direction"]),
-    ("world/near_grass", "the tall grass behind the path, repeats in x", SUNBURST, True, "bottom, repeats in x", ["palette", "light-direction"]),
     ("world/fg_props", "six plants and rocks near the camera (3 x 2 cells)", SUNBURST, True, "bottom-centre of each cell", ["palette", "light-direction"]),
     ("world/sunset_", "menu dusk backdrop layer", authored("tools/art/savanna.py"), True, "bottom-left, repeats in x", ["palette"]),
     ("world/vine_leaves", "the vine's leaf clusters and tendrils, each a whole picture hung from its own point (VineView)",

@@ -10,7 +10,6 @@ the frame, then each layer of it alone on a transparent background, with the fra
     far_mesa_pieces.png  twelve landforms, each alone (+ .json: where, what kind)
     far_hills.png        the plain behind the path, one ground from the path to its horizon (a strip)
     river.png            the river under the vine, from its far bank down (a strip)
-    near_grass.png       the tall grass behind the path (a strip)
     tree_*.png           ten trees (+ tree_info.json: the foot of each trunk)
     fg_props.png         six plants and rocks near the camera
     home_fire.png        the cooking fire's hearth at home; home_flames.png its flames, four frames (HomeView.Fire)
@@ -19,9 +18,11 @@ the frame, then each layer of it alone on a transparent background, with the fra
     sky_clouds.png       the sky's cumulus alone, off the finished sky.png (clouds): drawn again higher up
     spires.png           three rock pinnacles, each in a cell (spires: TerrainView's stacks in the river)
     earth.png            the cut bank of the main ground under the turf (terrain.gdshader), repeating
+    lane.png             the ground they run on, seen a little from above: its far fringe, its top, its near edge and the
+                         top of its cut bank (lane: TerrainView._lane), repeating
     canopy.png           the boughs the liana hangs from, along the top of the level (canopy: CanopyView)
 
-    python3 tools/art/kie/world.py [sky wall mesas plain river grass trees front fire earth | sign door clouds impact spires canopy]
+    python3 tools/art/kie/world.py [sky wall mesas plain river grass trees front fire earth | sign door clouds impact spires canopy lane]
     (none: the first ten)
 
 A strip repeats: its right end is laid over its left end along the path where the two differ least (the plain, the
@@ -52,8 +53,6 @@ FLAME_FOOT = 52  # px over the cell's bottom the flames stand: behind the logs, 
 PLAIN_ENDS = 70  # px cut off each end of a wide painting (plain, river: the painter smears its two ends into level streaks)
 PLAIN_ROWS = 545  # px of the plain kept under its horizon (SavannaView: the rest is under the screen)
 PLAIN_JOIN = 600  # px of each end its join may wander in (a drawn bush or rock is one end's or the other's, whole)
-PLAIN_SLIPS = [((975, 1095), (3250, 3500), 235), ((905, 960), (3350, 3460), 100)]  # (rows, columns, columns to its left the grass is taken from)
-PLAIN_QUIET = [((120, 350), (2340, 3100), 0.62)]  # (rows, columns of far_hills.png, how far to the ground round it): the kraal
 PLAIN_BREAK = (23, (20.0, 58.0), 0.46, 118)  # (seed, px a cloud shadow is across (down, along), the share of the shafts they take, the first row they may: under the far band)
 PLAIN_INK = ((0.13, 0.17, 0.25), 0.75)  # the plain's ink line: this deep blue-green and no darker, by this much (the fighters' line alone is black)
 RIVER_ROWS = 760  # px of the river kept under its far waterline
@@ -182,27 +181,23 @@ def plain() -> None:
     # repainted at dusk, every drawn thing where it was: the near plain in blue-green and slate shade with lavender
     # lights, its rocks mauve, its trail lilac; the far band alone in the last gold, the acacias' long slanted shadows
     # breaking the shade's edge)
-    a = load("plain4")[:, PLAIN_ENDS:-PLAIN_ENDS]
-    # (two of the painter's slips near its right end, a rock and a red smudge half painted over the grass: the open
-    # grass beside each laid over it)
-    for rows, cols, dx in PLAIN_SLIPS:
-        mask = np.zeros(a.shape[:2], np.float32)
-        mask[rows[0]:rows[1], cols[0] - PLAIN_ENDS:cols[1] - PLAIN_ENDS] = 1.0
-        mask = ndi.gaussian_filter(mask, 9.0)[..., None]
-        a = a * (1 - mask) + np.roll(a, dx, axis=1) * mask
+    # (blind round 23, of the fight: "a herd on the left drawn as pale pink unfilled outlines (reads as an unfinished
+    # sketch) and a pen of scratchy pale lines on the right exactly behind the enemy's flung arm", "the sunlit yellow
+    # band above their heads is the brightest, most saturated shape": "calm the plain behind the fighters to a dark,
+    # low-detail mass (move the herd and pen out of the band behind their bodies), take the far band down a step":
+    # plain5, plain4 repainted without its kraal and its herd, the shade's lavender swells fewer and broader, the far
+    # band a deep amber, its tongues of light fewer and shorter. Round 23 had drawn the kraal quieter (PLAIN_QUIET:
+    # paler, and worse) and laid grass over two slips of plain4's painter (PLAIN_SLIPS): neither is in plain5)
+    # (round 24's checks, of plain5 behind the fight and the throw: "a large flat, empty area (about 30% of the frame)
+    # with only a trail and a few firefly dots", "a flat teal-green bowl ... empty and soft"; the throw lost to round
+    # 23's: plain6, plain4 repainted without its kraal and its herd but with all the shade's drawn grass, its lit crests
+    # and its hollows; a termite mound and a bush where the kraal stood; the far band the deep amber, about half of
+    # its tongues of light, the nearest ground a value down)
+    a = load("plain6")[:, PLAIN_ENDS:-PLAIN_ENDS]
     first = top_edge(a, 0.004)  # (the acacias' crowns)
     line = top_edge(a, 0.97)  # the horizon
     # (low down the join keeps to the right: the right end's bushes whole, the left end's aloe, which they would cut, out)
     out = seam(a[first - 8:line + PLAIN_ROWS], PLAIN_JOIN, feather=2.5, reach=3, lean=(line - first + 8 + 320, PLAIN_JOIN - 34), match=300)
-    # (blind round 22, of the throw: the bandit "the least readable figure", the kraal's fence and cattle right behind him:
-    # the kraal's lines and its pink go part of the way to the ground round it, drawn as it was, quieter)
-    for rows, cols, k in PLAIN_QUIET:
-        mask = np.zeros(out.shape[:2], np.float32)
-        mask[rows[0]:rows[1], cols[0]:cols[1]] = 1.0
-        mask = ndi.gaussian_filter(mask, 30.0, mode=("nearest", "wrap"))[..., None] * k
-        low = ndi.gaussian_filter(out[..., :3], (22.0, 22.0, 0.0), mode=("nearest", "wrap", "nearest"))
-        ground = out[rows[1] + 20:rows[1] + 60, cols[0]:cols[1], :3].mean(axis=(0, 1))
-        out[..., :3] = out[..., :3] * (1 - mask) + (0.5 * low + 0.5 * ground) * mask
     # (round 23's check, of the throw: "evenly spaced parallel yellow bands … look ruled", "vary their widths, angles and
     # spacing … break them with tree shadows": cloud shadows lie across the sun's shafts on the shaded ground, hard-edged
     # cel shapes in the ground's own shade beside them (PLAIN_BREAK); the far band keeps all its gold)
@@ -239,15 +234,6 @@ def river() -> None:
     out = seam(a[first - 8:water + RIVER_ROWS], RIVER_JOIN, feather=2.5, reach=3)
     save(out, OUT / "river.png")
     print("  water from row %d of it" % (water - first + 8))
-
-
-def grass() -> None:
-    a = load("grass")
-    first = top_edge(a, 0.004)
-    line = top_edge(a, 0.97)
-    out = seam(a[first - 8:line + 130], 256)  # (solid from y 584: 130 px reach under the screen's bottom edge)
-    save(out, OUT / "near_grass.png")
-    print("  solid from row %d of it" % (line - first + 8))
 
 
 def pieces(name: str, cols: int, rows: int) -> list:
@@ -394,6 +380,13 @@ def sign() -> None:
 
 
 DOOR_LAMP = 0.62  # of the doorway's height: how far down the lamp's light inside reaches (to his shoulders)
+DOOR_LAMP_AT = (0.78, 0.2)  # of the doorway's width and height: where the lamp hangs (right of his head, clear of his raised fist)
+# The planes of its light on the back wall: [reach (of the doorway's height from the lamp), colour], the last the rest.
+DOOR_TONES = [(0.33, (0.97, 0.87, 0.62)), (0.64, (0.74, 0.61, 0.48)), (0.93, (0.5, 0.39, 0.38)), (9.0, (0.34, 0.25, 0.32))]  # (straw, then dusty browns: lighter and yellower than his skin behind his head, darker and greyer than it lower down)
+DOOR_JAMB = (13.0, 0.56)  # px of the wall's thickness seen inside the doorway's edge, and its tone (of the light behind it: it is in shade)
+DOOR_FLOOR = (0.8, 7.0)  # of the doorway's height: where the back wall meets the floor, and the px that line bows down at its middle (a round hut)
+DOOR_POTS = [(0.4, 0.94, 0.09, 0.075), (0.6, 0.89, 0.052, 0.045)]  # clay pots on the floor: [of the doorway's width, its foot (of its height), its half width (of the width), its half height (of the height)]
+DOOR_LINE = (0.2, 0.1, 0.16)  # its ink line
 
 
 def door() -> None:
@@ -406,19 +399,75 @@ def door() -> None:
     info = json.loads((OUT / "home.json").read_text())["home_hut"]
     img = np.asarray(Image.open(path).convert("RGBA")).astype(np.float32) / 255.0
     h, w = img.shape[:2]
-    grey = img[..., :3].mean(axis=2)
-    gy, gx = np.gradient(ndi.gaussian_filter(grey, 1.0))
-    smooth = (np.hypot(gx, gy) < 0.012) & (img[..., 3] > 0.9)
-    lab, _ = ndi.label(smooth)
-    cx = int(info["door_x"] * 2)
-    cy = h - int(info["base"] * 2) - int(info["door_h"])  # the doorway's middle (px)
-    inside = ndi.binary_fill_holes(ndi.binary_dilation(lab == lab[cy, cx], iterations=3))
+    kept = GEN / "door_mask.png"  # (the doorway's shape, kept: once its inside is drawn it is no smooth region)
+    if kept.exists():
+        inside = np.asarray(Image.open(kept).convert("L")) > 127
+    else:
+        grey = img[..., :3].mean(axis=2)
+        gy, gx = np.gradient(ndi.gaussian_filter(grey, 1.0))
+        smooth = (np.hypot(gx, gy) < 0.012) & (img[..., 3] > 0.9)
+        lab, _ = ndi.label(smooth)
+        cx = int(info["door_x"] * 2)
+        cy = h - int(info["base"] * 2) - int(info["door_h"])  # the doorway's middle (px)
+        inside = ndi.binary_fill_holes(ndi.binary_dilation(lab == lab[cy, cx], iterations=3))
+        Image.fromarray((inside * 255).astype(np.uint8), "L").save(kept)
     soft = ndi.gaussian_filter(inside.astype(np.float32), 1.2)[..., None]
     ys = np.nonzero(inside.any(axis=1))[0]
+    xs = np.nonzero(inside.any(axis=0))[0]
     t = np.clip((np.arange(h) - ys.min()) / max(ys.max() - ys.min(), 1), 0, 1)[:, None, None]
     # (blind round 22, again: "his black hair sits on the dark doorway": a lamp's light high inside, a dusty rose-lilac
     # behind his head, falling fast to the dusk's deep violet behind his chest and legs; it was (0.42, 0.33, 0.56) by 1.5)
-    tone = np.array([0.92, 0.72, 0.8]) * (1 - t) ** 2.0 + np.array([0.26, 0.18, 0.33]) * (1 - (1 - t) ** 2.0)
+    # (blind round 23: "a flat lilac-pink blob with a soft gradient: a foggy portal, not lamplight ... it has no interior shapes": the hut's inside is drawn, in the
+    # fighters' line: its back wall in flat planes of a hanging lamp's light (DOOR_TONES: amber round the lamp, behind his
+    # head, down to the dusk's violet-brown behind his chest and legs), the wall's laths bowed across it, three roof
+    # poles, the lamp on its cord)
+    dh, dw = ys.max() - ys.min(), xs.max() - xs.min()
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    lamp_at = (xs.min() + DOOR_LAMP_AT[0] * dw, ys.min() + DOOR_LAMP_AT[1] * dh)
+    ang = np.arctan2(yy - lamp_at[1], xx - lamp_at[0])
+    r = np.hypot(xx - lamp_at[0], (yy - lamp_at[1]) * 0.82) / dh + 0.005 * np.sin(ang * 9.0) + 0.003 * np.sin(ang * 17.0 + 1.0)
+    tone = np.empty((h, w, 3), np.float32)
+    tone[:] = DOOR_TONES[-1][1]
+    for reach, colour in reversed(DOOR_TONES[:-1]):
+        k = np.clip((reach - r) * dh / 1.5, 0.0, 1.0)[..., None]
+        tone = tone * (1 - k) + np.array(colour, np.float32) * k
+    # (round 24's check, of that drawing: "a flat dark brown-maroon slab ... the lamp-lit interior is missing": its laths
+    # and poles read as a door of planks, shut. Now a room seen into: the lamp's light broad on the back wall, the
+    # wall's thickness in shade inside the doorway's edge (DOOR_JAMB), a floor the back wall meets on a bowed line
+    # (DOOR_FLOOR), the lamp's light pooled on it, two clay pots standing on it (DOOR_POTS))
+    u = (xx - (xs.min() + dw / 2.0)) / (dw / 2.0)
+    line = np.array(DOOR_LINE, np.float32)
+    join = ys.min() + DOOR_FLOOR[0] * dh + DOOR_FLOOR[1] * (1.0 - u * u)
+    floor = np.clip(yy - join, 0.0, 1.0)[..., None]
+    pool = np.clip((1.0 - np.hypot((xx - lamp_at[0] + 0.2 * dw) / (0.36 * dw), (yy - join - 0.1 * dh) / (0.07 * dh))) * 9.0, 0.0, 1.0)[..., None]
+    mat = np.array([0.42, 0.31, 0.33], np.float32) * (1 - pool) + np.array([0.68, 0.55, 0.43], np.float32) * pool
+    tone = tone * (1 - floor) + mat * floor
+    tone = tone * (1 - np.clip(1.5 - np.abs(yy - join), 0.0, 1.0)[..., None]) + line * np.clip(1.5 - np.abs(yy - join), 0.0, 1.0)[..., None]
+    for at, foot, wide, tall in DOOR_POTS:
+        cx, cy = xs.min() + at * dw, ys.min() + (foot - tall) * dh
+        body = np.hypot((xx - cx) / (wide * dw), (yy - cy) / (tall * dh))
+        neck = np.maximum(np.abs(xx - cx) / (wide * dw * 0.5), np.abs(yy - (cy - tall * dh * 1.08)) / (tall * dh * 0.3))
+        d = np.minimum(body, neck)  # under 1: the pot
+        cast = np.clip((1.0 - np.hypot((xx - cx + wide * dw * 0.5) / (wide * dw * 1.3), (yy - cy - tall * dh) / (tall * dh * 0.22))) * 7.0, 0.0, 1.0)[..., None]
+        tone = tone * (1 - cast * 0.38)
+        clay = np.where(((yy - cy) / (tall * dh) - (xx - cx) / (wide * dw) * 0.5 < -0.28)[..., None], np.array([0.84, 0.52, 0.33], np.float32), np.array([0.47, 0.25, 0.24], np.float32))
+        band = (np.abs((yy - cy) / (tall * dh) + 0.34) < 0.09)[..., None]  # a painted band round its shoulder
+        clay = np.where(band, clay * np.array([0.62, 0.5, 0.6], np.float32), clay)
+        k = np.clip((1.0 - d) * wide * dw / 1.2, 0.0, 1.0)[..., None]
+        edge = np.clip((1.0 - np.abs(1.0 - d) * wide * dw / 2.6), 0.0, 1.0)[..., None]
+        tone = tone * (1 - k) + clay * k
+        tone = tone * (1 - edge) + line * edge
+    depth = ndi.distance_transform_edt(inside).astype(np.float32)
+    jamb = np.clip(DOOR_JAMB[0] - depth + 0.5, 0.0, 1.0)[..., None]
+    tone = tone * (1.0 - jamb * (1.0 - DOOR_JAMB[1]))
+    edge = np.clip(1.4 - np.abs(depth - DOOR_JAMB[0]), 0.0, 1.0)[..., None]
+    tone = tone * (1 - edge) + line * edge
+    cord = np.clip(1.2 - np.abs(xx - lamp_at[0]), 0.0, 1.0) * (yy < lamp_at[1] - 4.0)
+    tone = tone * (1.0 - cord[..., None] * 0.6)
+    bowl = np.clip((1.0 - np.hypot((xx - lamp_at[0]) / 15.0, (yy - lamp_at[1] - 7.0) / 8.0)) * 6.0, 0.0, 1.0)[..., None]
+    tone = tone * (1 - bowl) + np.array([0.6, 0.42, 0.33], np.float32) * bowl  # (round 24's check: "a dark brown blob (an oval or pot) beside his head": a clay bowl in the lamp's own light)
+    flame = np.clip((1.0 - np.hypot((xx - lamp_at[0]) / 7.0, (yy - lamp_at[1] + 9.0) / 12.0)) * 5.0, 0.0, 1.0)[..., None]
+    tone = tone * (1 - flame) + np.array([1.0, 0.95, 0.72], np.float32) * flame
     img[..., :3] = img[..., :3] * (1 - soft) + tone * soft
     Image.fromarray((np.clip(img, 0, 1) * 255 + 0.5).astype(np.uint8), "RGBA").save(path)
     print("home_hut.png: doorway %d px repainted, rows %d to %d" % (int(inside.sum()), ys.min(), ys.max()))
@@ -607,6 +656,31 @@ def canopy() -> None:
             int(np.flatnonzero((al > 0.5).mean(axis=1) > 0.97).max()), int(np.flatnonzero((al > 0.5).mean(axis=1) > 0.3).max())))
 
 
+LANE_ROWS = (566, 684, 752)  # px of the painting: its far edge, the line they walk on (the worn track's near side), its near edge
+LANE_ABOVE = 160  # px of the game's picture over the walking line (40 units at 4 px a unit, the painting's own size)
+LANE_BANK = (56, 36)  # px of its cut bank kept under the near edge, and the px it fades out over (the ground's own earth under it)
+LANE_JOIN = 256  # px of each end its join may wander in
+LANE_CELLS = 27  # cells of 128 px it is long, joined
+
+
+def lane() -> None:
+    """The ground they run on (lane.png: TerrainView._lane), from lane: a level ribbon of trodden grass with a worn
+    track along it, seen from the side and a little from above, painted in the plain's ink and cel planes (blind round
+    23: "both figures float on a thin tile ... give them a real lit ground of about 15% of the frame"). Cut from the
+    tips of its far tussocks to the top of its cut bank, which fades into the ground's own earth (terrain.gdshader);
+    repeating; its length brought to a whole number of cells (a hair: 3444 px to 3456)."""
+    a = load("lane")[:, PLAIN_ENDS:-PLAIN_ENDS]
+    far, walk, near = LANE_ROWS
+    top = walk - LANE_ABOVE
+    a = seam(a[top:near + sum(LANE_BANK)], LANE_JOIN, feather=2.0, reach=2)
+    a = resize(a, (LANE_CELLS * 128, a.shape[0]))
+    v = np.arange(a.shape[0], dtype=np.float32)[:, None, None]
+    a *= 1.0 - np.clip((v - (near - top + LANE_BANK[0])) / LANE_BANK[1], 0.0, 1.0)
+    save(a, OUT / "lane.png")
+    print("lane.png: far edge at %.4f of its height, walking line at %.4f, near edge at %.4f" % (
+            (far - top) / a.shape[0], (walk - top) / a.shape[0], (near - top) / a.shape[0]))
+
+
 CROC_W = 640  # px wide in the game (its picture: 2048)
 
 
@@ -622,6 +696,6 @@ def croc() -> None:
 
 
 if __name__ == "__main__":
-    todo = sys.argv[1:] or ["sky", "wall", "mesas", "plain", "river", "grass", "trees", "front", "fire", "earth"]
+    todo = sys.argv[1:] or ["sky", "wall", "mesas", "plain", "river", "trees", "front", "fire", "earth"]
     for name in todo:
         globals()[name]()
