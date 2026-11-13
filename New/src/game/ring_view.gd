@@ -24,18 +24,26 @@ const TRAIL := 9  ## positions kept for its streak on its way back
 ## and leaves the ring crisp at its head"): a dry brush's smear, narrower than the ring: six thin strands over a faint
 ## wash (WAKE_STRANDS), each starting at its own place along the way and all closing on one another toward his hand,
 ## where they are gone to nothing; half see-through at the ring.
+## Blind round 16 (of that smear: "a thin pale-yellow hair that vanishes on the pale grass"; "chakram about 1.5 times
+## larger with a bold tapered wake that has real value contrast against the grass"): between the two: a tapered
+## wedge a little narrower than the ring, a point at his hand; a deep red under-stroke (WAKE_INK) gives it its value
+## against the pale grass, its dry strands over it hot orange outside and cream at its heart. The ring itself grows as
+## it leaves his hand (FLIGHT_GROW: toward the eye, into its lane) and is back to his hand's size when he catches it.
+const FLIGHT_GROW := 1.4
 const WAKE_LEN := 250.0
 const WAKE_SHORT := 130.0
 const WAKE_HOLD := 0.34  ## seconds of flight it keeps its full length
 const WAKE_STEPS := 16
 const WAKE_TUCK := 14.5  ## units short of the ring's middle it ends: under its rim (its hole stays open)
-const WAKE_HALF := RADIUS * 0.52  ## half its width at the ring: inside the ring's own width
-const WAKE_BODY := Color("ffbf47")
-const WAKE_TONES: Array[Color] = [Color("ee8a3c"), Color("ffc457"), Color("fff3d8")]  # its strands: amber outside, cream at its heart
+const WAKE_HALF := RADIUS * 0.86  ## half its width at the ring (grown: FLIGHT_GROW): inside the ring's own width
+const WAKE_TAPER := 0.9  ## how its width closes toward his hand (1: a straight wedge)
+const WAKE_INK := Color("7a2418")  ## its under-stroke: the value that carries it over pale grass
+const WAKE_BODY := Color("ff9a36")
+const WAKE_TONES: Array[Color] = [Color("e9582a"), Color("ffb23e"), Color("fff0cf")]  # its strands: hot orange outside, cream at its heart
 ## Its strands, as a dry brush leaves them: where each lies across it at the ring (-1 to 1), its half width (a share
 ## of WAKE_HALF), how far along the wake it starts (0 at his hand), how solid it is, its tone (WAKE_TONES).
-const WAKE_STRANDS := [[-0.84, 0.13, 0.46, 0.5, 0], [-0.5, 0.2, 0.22, 0.6, 1], [-0.14, 0.24, 0.06, 0.7, 2],
-		[0.22, 0.22, 0.14, 0.66, 2], [0.56, 0.18, 0.32, 0.56, 1], [0.86, 0.12, 0.54, 0.44, 0]]
+const WAKE_STRANDS := [[-0.8, 0.16, 0.4, 0.8, 0], [-0.46, 0.22, 0.2, 0.86, 1], [-0.12, 0.26, 0.05, 0.95, 2],
+		[0.24, 0.24, 0.12, 0.92, 2], [0.56, 0.2, 0.28, 0.84, 1], [0.82, 0.15, 0.46, 0.74, 0]]
 const WIND_UP := 0.04  ## seconds hidden while his hand swings back (HeroView.THROW_TIME)
 const HOT := Color("e6f6ff")
 ## It leaves from his hand (the rules start it at his middle, ahead of him): drawn from this offset
@@ -99,7 +107,8 @@ func _process(delta: float) -> void:
 		var to: Vector2 = _catch.call()
 		var top := (_back_from + to) * 0.5 + Vector2(0.0, -BACK_UP)
 		position = _back_from.lerp(top, e).lerp(top.lerp(to, e), e)
-		scale = Vector2.ONE * (1.0 + 0.35 * sin(e * PI))
+		# (bigger at the top of its way back, down to his hand's size as he takes it)
+		scale = Vector2.ONE * lerpf(1.0, 1.0 / FLIGHT_GROW, e) * (1.0 + 0.2 * sin(e * PI))
 		if t >= 1.0:
 			caught.emit(position)
 			queue_free()
@@ -146,6 +155,12 @@ func _turn() -> float:
 	return WOBBLE_WIDE[_frame()]
 
 
+## How big it is drawn (1: as in his hand): growing as it leaves his hand.
+func _grow() -> float:
+	var t := clampf((_clock - WIND_UP) / maxf(hand_time, 0.01), 0.0, 1.0)
+	return lerpf(1.0, FLIGHT_GROW, t * (2.0 - t))
+
+
 ## Where it is drawn from its place in the rules: still on its way out of his hand.
 func _hand() -> Vector2:
 	var t := clampf((_clock - WIND_UP) / hand_time, 0.0, 1.0)
@@ -156,13 +171,14 @@ func _draw() -> void:
 	if _clock < WIND_UP:
 		return
 	var hand := _hand()
+	var r := DRAW_RADIUS * _grow()
 	draw_set_transform(hand, _clock * SPIN)
 	var f := _frame()
 	var px := TEXTURE.get_height()
-	draw_texture_rect_region(TEXTURE, Rect2(-DRAW_RADIUS, -DRAW_RADIUS, DRAW_RADIUS * 2, DRAW_RADIUS * 2), Rect2(f * px, 0, px, px))
+	draw_texture_rect_region(TEXTURE, Rect2(-r, -r, r * 2, r * 2), Rect2(f * px, 0, px, px))
 	var spin := _clock * 18.0
 	draw_set_transform(hand, 0.0, Vector2(_turn(), 1.0))
-	draw_arc(Vector2.ZERO, DRAW_RADIUS * 0.67, spin, spin + 0.7, 12, Color(HOT, 0.55), 1.6, true)  # a glint running round the steel
+	draw_arc(Vector2.ZERO, r * 0.67, spin, spin + 0.7, 12, Color(HOT, 0.55), 1.6, true)  # a glint running round the steel
 	draw_set_transform(Vector2.ZERO)
 
 
@@ -176,7 +192,7 @@ func _wake_path() -> PackedVector2Array:
 		for i in range(_trail.size() - 1, -1, -1):
 			path.append(_trail[i])
 		return path
-	head.x -= WAKE_TUCK * _turn()  # (it ends under the ring's rim, the hole open on what is behind it)
+	head.x -= WAKE_TUCK * _turn() * _grow()  # (it ends under the ring's rim, the hole open on what is behind it)
 	var gap: Vector2 = head - hand.call()
 	if gap.x < 26.0:
 		return path
@@ -206,7 +222,7 @@ func _band(on: Node2D, path: PackedVector2Array, half: float, from: float, colou
 		var across := way.orthogonal().normalized() if way.length_squared() > 0.01 else Vector2.UP
 		# (its strands close on one another toward his hand: `shift` is where this one lies at the ring)
 		var p := on.to_local(get_parent().to_global(path[i])) + across * shift * pow(u, 0.8)
-		var w := half * pow(v, 0.62) * (0.5 if i == n - 1 and _back < 0.0 else 1.0)
+		var w := half * pow(v, WAKE_TAPER) * (0.5 if i == n - 1 and _back < 0.0 else 1.0)
 		left.append(p + across * w)
 		right.append(p - across * w)
 		# gone to nothing at his hand, full only near the ring
@@ -228,10 +244,12 @@ func _draw_wake() -> void:
 	if path.size() < 3:
 		return
 	var fade := 1.0 if _back < 0.0 else 0.85
-	_band(_wake, path, WAKE_HALF, 0.0, Color(WAKE_BODY, 0.2 * fade))  # a thin wash under its strands
+	var half := WAKE_HALF * _grow()
+	_band(_wake, path, half, 0.0, Color(WAKE_INK, 0.5 * fade))  # its under-stroke: a deep red, its value on pale grass
+	_band(_wake, path, half * 0.8, 0.04, Color(WAKE_BODY, 0.42 * fade))  # a wash under its strands
 	for strand: Array in WAKE_STRANDS:
-		_band(_wake, path, WAKE_HALF * float(strand[1]), strand[2], Color(WAKE_TONES[int(strand[4])], float(strand[3]) * fade),
-				WAKE_HALF * float(strand[0]))
+		_band(_wake, path, half * float(strand[1]), strand[2], Color(WAKE_TONES[int(strand[4])], float(strand[3]) * fade),
+				half * float(strand[0]))
 
 
 func _draw_glow() -> void:
@@ -240,7 +258,7 @@ func _draw_glow() -> void:
 	# its wake's heart, hot
 	var path := _wake_path()
 	if path.size() > 2:
-		_band(_glow, path, WAKE_HALF * 0.5, 0.3, Color(1.0, 0.8, 0.5, 0.22))
+		_band(_glow, path, WAKE_HALF * _grow() * 0.4, 0.3, Color(1.0, 0.8, 0.5, 0.2))
 	# (round 4: no pale halo round it, no launch disc: it read as a pool float; a steel ring)
 	# sparks shed into the air
 	for s in _sparks:

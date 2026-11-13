@@ -138,7 +138,10 @@ def plain() -> None:
 
 
 def rise() -> None:
-    a = load("rise")
+    # (blind round 16: "collapse the band directly behind the lane (trees, mound, boulders, baobab between knee and
+    # head height) into two or three quiet, paler, low-contrast shapes": rise2, a quiet rise of sun-bleached grass under
+    # long cloud shadows, three small shrubs; `rise`, the one before it, carried boulders, termite mounds and aloes)
+    a = load("rise2")
     first = top_edge(a, 0.004)
     line = top_edge(a, 0.97)
     out = seam(a[first - 8:line + 232], 256)  # (solid from y 532: 232 px reach the screen's bottom edge)

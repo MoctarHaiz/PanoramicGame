@@ -94,8 +94,10 @@ const HOME_FAR := 0.9
 ## (blind round 15: "his loincloth stays day-white, his armour clean blue") his whites and his metal take the light's
 ## own hue: the fire's orange on its side, the dusk's violet on the other (actor.gdshader bounce_take)
 const HOME_TAKE := 1.0
-const HOME_COOL := Color(0.6, 0.58, 0.9)
-const HOME_DUSK := Color(0.86, 0.82, 0.9)
+const HOME_COOL := Color(0.5, 0.47, 0.86)
+const HOME_DUSK := Color(0.84, 0.8, 0.9)
+const HOME_FIRE := Color(1.42, 1.0, 0.62)  ## the fire's side of him (actor.gdshader bounce_colour)
+const HOME_BOUNCE := 0.82  ## how much of it all (blind round 16: 0.6 was "too weak to see at phone size")
 const CONTACT_HOME := 0.5
 ## (round 21) at home, where the dark front grass clears to show the ground line, his feet stand this share of
 ## GameArt.FEET_SINK higher (in play the grass hides the sink; at home his back boot's toe showed under the ground)
@@ -268,6 +270,7 @@ func _init() -> void:
 	_material.set_shader_parameter(&"light_gain", LIGHT_GAIN)
 	_material.set_shader_parameter(&"bounce_cool", HOME_COOL)
 	_material.set_shader_parameter(&"bounce_dusk", HOME_DUSK)
+	_material.set_shader_parameter(&"bounce_colour", HOME_FIRE)
 	_sprite.material = _material
 	add_child(_sprite)
 
@@ -639,7 +642,7 @@ func show_state(w: World, p: Vector2, delta: float) -> void:
 	_material.set_shader_parameter(&"outline_px", VINE_INK_PX * _vine_ink)
 	# (hero pass 3) at home the campfire, on his left, warms that side of him
 	var home_k := clampf(_end_time / 0.5, 0.0, 1.0) if phase == &"home" else 0.0
-	_material.set_shader_parameter(&"bounce", 0.6 * home_k)
+	_material.set_shader_parameter(&"bounce", HOME_BOUNCE * home_k)
 	_material.set_shader_parameter(&"bounce_far", HOME_FAR * home_k)
 	_material.set_shader_parameter(&"bounce_take", HOME_TAKE * home_k)
 	_material.set_shader_parameter(&"form_amount", lerpf(FORM, FORM_HOME, home_k))

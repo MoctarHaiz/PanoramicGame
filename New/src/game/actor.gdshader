@@ -193,8 +193,10 @@ void fragment() {
 		// (round 15, "drenched in uniform orange that flattens all his anatomy: fire key on one side, cooler shadow on
 		// the other") the fire on its side only, the far side in a cool shade
 		float x = dot(local_pos * bounce_scale, normalize(bounce_dir));
-		float side = smoothstep(-0.15, 0.85, x);
-		float far = bounce_far < 0.0 ? smoothstep(0.1, -0.7, x) : smoothstep(0.3, -0.6, x);
+		// (blind round 16: "any fire or dusk grading on him is too weak to see at phone size: light him from the fire
+		// decisively": the turn from the fire's side to the far side is short, about his middle: two clear halves)
+		float side = smoothstep(-0.1, 0.5, x);
+		float far = bounce_far < 0.0 ? smoothstep(0.1, -0.7, x) : smoothstep(0.12, -0.4, x);
 		// (blind round 15: "his loincloth stays day-white, his armour clean blue") what has little colour of its own
 		// shows the light's: his whites (pale, unsaturated) and his metal (blue) take the fire's orange on its side
 		// and the dusk's violet on the other, by value and hue only (`bounce_take`; no rim, no glow)

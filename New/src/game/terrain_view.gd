@@ -93,11 +93,21 @@ var _white: Texture2D  # round 20: the undersides' and columns' rectangles (thei
 class Batch extends Node2D:
 	## Static rectangles of one texture, drawn once (Godot keeps the commands until a redraw).
 	var texture: Texture2D
-	var items := []  # [dest Rect2, src Rect2, Color]
+	var items := []  # [dest Rect2, src Rect2, Color], or with a fourth: the colour at its right end (_lit())
 
 	func _draw() -> void:
+		var size := texture.get_size()
 		for it: Array in items:
-			draw_texture_rect_region(texture, it[0], it[1], it[2])
+			if it.size() < 4:
+				draw_texture_rect_region(texture, it[0], it[1], it[2])
+				continue
+			var d: Rect2 = it[0]
+			var s: Rect2 = it[1]
+			draw_primitive(
+					PackedVector2Array([d.position, Vector2(d.end.x, d.position.y), d.end, Vector2(d.position.x, d.end.y)]),
+					PackedColorArray([it[2], it[3], it[3], it[2]]),
+					PackedVector2Array([s.position / size, Vector2(s.end.x, s.position.y) / size, s.end / size,
+							Vector2(s.position.x, s.end.y) / size]), texture)
 
 
 func _init() -> void:
@@ -185,7 +195,7 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 	soil.set_shader_parameter(&"first_col", first_col)
 	soil.set_shader_parameter(&"home_from", HomeView.LEFT - 6.0 * T)  # (as _home_light() on the turf over it)
 	soil.set_shader_parameter(&"home_fire", HomeView.LEFT + HomeView.FIRE_X)
-	soil.set_shader_parameter(&"home_reach", HomeView.FIRE_REACH)
+	soil.set_shader_parameter(&"home_reach", HomeView.GROUND_REACH)
 	soil.set_shader_parameter(&"home_dusk", HomeView.GROUND_DUSK)
 	soil.set_shader_parameter(&"home_warm", HomeView.GROUND_FIRE)
 	if ResourceLoader.exists(DIR + "earth.png"):  # the painted bank of the main ground
@@ -317,23 +327,23 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 	if not open_n and _wall_foot(c, r):  # (round 2) the ground's grass runs on across a wall's foot
 		b[&"caps"].items.append([Rect2(x, y - CAP_ABOVE, T, CAP_H),
 				Rect2(fposmod(x * PX, STRIP), 0, T * PX, CAP_H * PX), Color.WHITE])
-		b[&"front"].items.append([Rect2(x, y - FRONT_BASE + 4.0, T, FRONT_H),
-				Rect2(fposmod(x * PX, 1024.0), 0, T * PX, FRONT_H * PX), _home_dry(c)])
+		b[&"front"].items.append(_lit(Rect2(x, y - FRONT_BASE + 4.0, T, FRONT_H),
+				Rect2(fposmod(x * PX, 1024.0), 0, T * PX, FRONT_H * PX), _dry(c)))
 	if not open_n or _kind(c, r) != Level.Kind.TOP:
 		return
 	# the grass cap: a strip that runs on in level x; a cell with an open side gets a rounded end
 	# instead, which wraps the corner and fades into the next cell's strip
 	if not open_w and not open_e:
-		b[&"caps"].items.append([Rect2(x, y - CAP_ABOVE, T, CAP_H),
-				Rect2(_strip_x(c, x), 0, T * PX, CAP_H * PX), _grass_tone(c)])
+		b[&"caps"].items.append(_lit(Rect2(x, y - CAP_ABOVE, T, CAP_H),
+				Rect2(_strip_x(c, x), 0, T * PX, CAP_H * PX), _grass_base(c)))
 	elif not (open_w and open_e) and not _in_pole(c, r):
 		# round 20: the turf runs on under a rounded end, short of its corner (the end's curl hides where it
 		# stops): the strip's fringe stopped square at the end cell, the rock under the end bare and dark
 		var inset := 10.0
 		var x0 := x + (inset if open_w else 0.0)
 		var w := T - inset
-		b[&"caps"].items.append([Rect2(x0, y - CAP_ABOVE, w, CAP_H),
-				Rect2(_strip_x(c, x0), 0, w * PX, CAP_H * PX), _grass_tone(c)])
+		b[&"caps"].items.append(_lit(Rect2(x0, y - CAP_ABOVE, w, CAP_H),
+				Rect2(_strip_x(c, x0), 0, w * PX, CAP_H * PX), _grass_base(c)))
 	var pole_top := pole and open_w and open_e  # round 19: a pillar's cap: a slim mat, no hat
 	if pole_top:  # round 20: a slim turf across the column's top and a clump of grass on it (the rounded
 		# ends read as a lime box on the river's columns)
@@ -383,8 +393,8 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 			b[&"cast"].items.append([Rect2(x - 4.0, y - 20.0, length, 46.0), Rect2(0, 0, 64, 32), CAST_SHADE])
 			b[&"front_cast"].items.append([Rect2(x - 4.0, y - 8.0, length * 0.8, 18.0), Rect2(0, 0, 64, 32),
 					Color(CAST_SHADE, CAST_SHADE.a * 0.45)])  # (trimmed: only the blades' lower half)
-	b[&"front"].items.append([Rect2(x, y - FRONT_BASE + 4.0, T, FRONT_H),
-			Rect2(fposmod(x * PX, 1024.0), 0, T * PX, FRONT_H * PX), _home_dry(c)])
+	b[&"front"].items.append(_lit(Rect2(x, y - FRONT_BASE + 4.0, T, FRONT_H),
+			Rect2(fposmod(x * PX, 1024.0), 0, T * PX, FRONT_H * PX), _dry(c)))
 	# some tops get a clump of grass or flowers (never on the edge cells); round 20 (the judges, j16: "the ground
 	# a straight band"): more of them, each its own size, in runs that come and go, so the grass line along the
 	# top rises and falls (drawn only: the ground he runs on is where it was)
@@ -587,10 +597,15 @@ func _strip_x(c: int, x: float) -> float:
 
 ## Round 6: the grass a little lighter or darker, warmer or greener, drifting slowly along the ground.
 static func _grass_tone(c: int) -> Color:
+	return _grass_base(c) * _home_light(c)
+
+
+## The same without the home's light (_lit() lays it on, an end at a time).
+static func _grass_base(c: int) -> Color:
 	var i := floori(c / 7.0)
 	var t := smoothstep(0.0, 1.0, c / 7.0 - i)
 	var v := lerpf(_hash(i, 5, 100), _hash(i + 1, 5, 100), t) / 100.0
-	return Color(0.94 + v * 0.12, 0.97 + v * 0.06, 0.92 + v * 0.06) * _home_dry(c)
+	return Color(0.94 + v * 0.12, 0.97 + v * 0.06, 0.92 + v * 0.06) * _dry(c)
 
 
 ## Round 22 (the judges, j18: "home: a bright green lawn strip clashing with the dry savanna"): over the last stretch to
@@ -599,13 +614,25 @@ static func _grass_tone(c: int) -> Color:
 ## fire"): and at home the ground is in the home's one light, as its huts are (HomeView.fire_colour): warm round the
 ## fire, in the dusk's shade away from it (_home_light: the turf and its blades; the earth under it: terrain.gdshader;
 ## blind round 15: HomeView.ground_colour, a deeper night and a rounder pool than the huts': "a strip, not a pool").
-static func _home_dry(c: int) -> Color:
-	return Color.WHITE.lerp(Color(1.0, 0.84, 0.6), smoothstep(PropView.HOME_COL - 40.0, PropView.HOME_COL - 4.0, float(c))) * _home_light(c)
+static func _dry(c: int) -> Color:
+	return Color.WHITE.lerp(Color(1.0, 0.84, 0.6), smoothstep(PropView.HOME_COL - 40.0, PropView.HOME_COL - 4.0, float(c)))
 
 
 static func _home_light(c: int) -> Color:
-	var near := smoothstep(HomeView.LEFT / T - 22.0, HomeView.LEFT / T - 6.0, float(c))
-	return Color.WHITE.lerp(HomeView.ground_colour((c + 0.5) * T), near) if near > 0.0 else Color.WHITE
+	return _home_light_at((c + 0.5) * T)
+
+
+static func _home_light_at(x: float) -> Color:
+	var near := smoothstep(HomeView.LEFT - 22.0 * T, HomeView.LEFT - 6.0 * T, x)
+	return Color.WHITE.lerp(HomeView.ground_colour(x), near) if near > 0.0 else Color.WHITE
+
+
+## A strip of turf or blades in the home's light: the light at each of its ends (blind round 17: one colour a
+## cell stepped at the cells' joins once the fire's pool was tight: GROUND_REACH), one colour away from home.
+static func _lit(dest: Rect2, src: Rect2, base: Color) -> Array:
+	if dest.end.x <= HomeView.LEFT - 22.0 * T:
+		return [dest, src, base]
+	return [dest, src, base * _home_light_at(dest.position.x), base * _home_light_at(dest.end.x)]
 
 
 func _in_pole(c: int, r: int) -> bool:

@@ -125,8 +125,9 @@ static func advance_knocks(delta: float) -> void:
 
 
 ## The "+1" of a knock-out, in the HUD's ink (blind round 12: "it floats like a UI badge": it was filled white to
-## gold in a cream rim, over a burst of light rays): the count's own cream figures, leaning, in a thick dark ink line
-## on a hard ink drop: it reads on the sky and on brown earth. It pops in (0 to 1.5 to 1), rises 26 units easing out,
+## gold in a cream rim, over a burst of light rays): the count's own figures, leaning, in a thick dark ink line
+## on a hard ink drop: it reads on the sky and on brown earth; in the kit's gold (blind round 16: cream, "white on
+## pale" over a far mesa). It pops in (0 to 1.5 to 1), rises 14 units easing out,
 ## holds and shrinks away (PLUS_POP .. PLUS_OUT: 0.87 s). (Drawn at PLUS_SIZE with BADGE_OUTLINES[1] like the
 ## streak's "×N": one set of glyphs for both.)
 static func plus_one(parent: Node, at: Vector2) -> void:
@@ -139,7 +140,7 @@ static func plus_one(parent: Node, at: Vector2) -> void:
 	node.draw.connect(func() -> void:
 		node.draw_string_outline(font, base + Vector2(5, 9), "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, BADGE_OUTLINES[1], Color("140607"))
 		node.draw_string_outline(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, BADGE_OUTLINES[1], Color("140607"))
-		node.draw_string(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, Color("fff3d6")))
+		node.draw_string(font, base, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, PLUS_SIZE, Color("ffd23e")))
 	parent.add_child(node)
 	var big := PLUS_SCALE
 	node.scale = Vector2.ZERO
@@ -154,7 +155,7 @@ static func plus_one(parent: Node, at: Vector2) -> void:
 	var turn := node.create_tween()  # its own clock: the wobble never stretches the number's life
 	turn.tween_property(node, "rotation", 0.06, PLUS_POP)
 	turn.tween_property(node, "rotation", 0.0, 0.3).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
-	node.create_tween().tween_property(node, "position:y", at.y - 26.0, 0.5) \
+	node.create_tween().tween_property(node, "position:y", at.y - 14.0, 0.5) \
 			.set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
 
 

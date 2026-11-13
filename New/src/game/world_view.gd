@@ -21,6 +21,13 @@ var view_left := 0.0
 var view_width := World.VIEW_W
 ## Play y at the top of the screen: below 0 when the camera draws back (GameScreen), sky above.
 var view_top := 0.0
+## Play y at the bottom of the screen: the level's bottom (World.VIEW_H), or less where the camera has risen (a high
+## ledge, hanging from the vine).
+var view_bottom := World.VIEW_H
+## Round 17 (blind rounds 12 to 16, the vine: "a wide empty blue band between vine and horizon"): the share of the
+## camera's rise the backdrop follows. Far things barely move as the eye rises: the horizon, the landforms and the
+## plain stay in the picture behind him up there, the play's own plane (the stacks, the vine) sliding over them.
+const BACKDROP_FOLLOW := 0.5
 ## Round 10 (QA ENV-1): while the start card holds the world (GameScreen), a waiting bandit whose
 ## picture is not wholly inside the screen's safe area is not drawn (the level's first one stood
 ## cut by the right edge, in the phone's rounded corner); it fades in once the run starts.
@@ -38,6 +45,9 @@ var _splash_feet := {}  # -1 (Panoramic) or a bandit id -> feet y in the last fr
 var _home: HomeView  # the homestead on the last screen (its front is drawn above the actors)
 var _actors: Node2D
 var _bobs := {}  # Vector2i -> BobView
+const EDGE_REACH := 24.0  ## a Red Bob's reach under its middle (its float, its glow)
+const EDGE_CLEAR := 12.0  ## it is drawn whole with its foot this far clear of the frame's bottom edge
+var _edged: Array[Vector2i] = []  # the Bobs the frame's bottom edge would cut (_keep_bobs_whole())
 var _bandits := {}  # bandit id -> BanditView
 var _rings := {}  # ring id -> RingView
 var _ring_of := {}  # ring id -> [its World.Ring, the tick it was last flying at] (_place_rings)
@@ -326,10 +336,34 @@ func _place_grade() -> void:
 		_grade.position = at
 		_grade.size = size
 		m.set_shader_parameter(&"aspect", size.x / size.y)
-	m.set_shader_parameter(&"sun", (_background.sun_position() - _grade.position) / size)  # the light comes from it
+	m.set_shader_parameter(&"sun", (_background.sun_position() + _background.position - _grade.position) / size)  # the light comes from it
 
 
 ## Places everything for the current frame (after the world has advanced).
+## Blind round 17 (on the vine the camera closes in on him, over the pool): a Red Bob the frame's bottom edge would
+## cut is not drawn, and comes in whole as the camera draws back (BobView.edge): a small phone showed the top halves
+## of the row under the vine.
+func _keep_bobs_whole(scroll: float) -> void:
+	for cell in _edged:
+		var was: BobView = _bobs.get(cell)
+		if was:
+			was.edge = 1.0
+	_edged.clear()
+	if view_bottom >= World.VIEW_H - 1.0:
+		return
+	var c0 := floori((scroll - view_left) / Level.TILE) - 1
+	var c1 := floori((scroll - view_left + view_width) / Level.TILE) + 1
+	for r in range(floori((view_bottom - EDGE_REACH - EDGE_CLEAR) / Level.TILE), floori((view_bottom + EDGE_REACH) / Level.TILE) + 1):
+		var clear := clampf((view_bottom - ((r + 0.5) * Level.TILE + EDGE_REACH)) / EDGE_CLEAR, 0.0, 1.0)
+		if clear >= 1.0:
+			continue
+		for c in range(c0, c1 + 1):
+			var bob: BobView = _bobs.get(Vector2i(c, r))
+			if bob:
+				bob.edge = clear
+				_edged.append(Vector2i(c, r))
+
+
 func refresh(delta := 0.0) -> void:
 	var scroll := world.draw_scroll()
 	for layer: Node in [_background, _vine, _canopy]:
@@ -337,9 +371,12 @@ func refresh(delta := 0.0) -> void:
 		layer.view_left = view_left
 		layer.view_width = view_width
 	_canopy.dusk = _background.dusk
-	_background.view_top = view_top
+	var lift := maxf(World.VIEW_H - view_bottom, 0.0) * BACKDROP_FOLLOW
+	_background.position.y = -lift
+	_background.view_top = view_top + lift
 	_background.hero_x = world.draw_hero().x
 	_level_root.position.x = -scroll
+	_keep_bobs_whole(scroll)
 	_ground.front.position.x = -scroll
 	_ground.ensure(scroll - view_left - 96.0, scroll - view_left + view_width + 96.0)
 	_ground.build_ahead(scroll - view_left + view_width)
@@ -425,6 +462,13 @@ func _ring_back(at: Vector2) -> void:
 	s.position = at
 	s.rebound(_catch_point)
 	s.caught.connect(func(p: Vector2) -> void: Fx.glint(fx, _fx(p), 44.0, 0.16))
+
+
+## Round 17 (blind round 16: "stage the throw as an event ... a dust kick under the hero"): thrown on the run, his
+## planted foot kicks up the plain's dust behind him.
+func throw_kick() -> void:
+	if world.on_ground and not world.hanging:
+		_dust(9, Vector2(20, 130), -12.0)
 
 
 ## Where his throwing hand is now (the actors' units): the ring's wake starts there (RingView.hand).

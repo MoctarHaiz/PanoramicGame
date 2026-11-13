@@ -106,8 +106,8 @@ const DUSK_STRIPS := {&"far_wall": Color(0.6, 0.6, 0.9), &"far_hills": Color(0.5
 ## middle-ground rise (they move between the plain's speed and the rise's), big ones behind the tall grass, their trunks
 ## passing behind him and their crowns over the landforms. (The plain has its own far groves painted in.)
 const TREE_ROWS := [
-	[0.14, 330.0, 96.0, 540.0, 0.3, 0.0, 0.42, TREE_AIR],
-	[0.31, 760.0, 232.0, 594.0, 0.2, 0.0, 0.8, TREE_AIR],  # (few: "the baobab behind the action out-contrasts him")
+	[0.14, 330.0, 96.0, 540.0, 0.46, 0.0, 0.5, TREE_AIR],
+	[0.31, 760.0, 232.0, 594.0, 0.34, 0.0, 0.86, TREE_AIR],  # (few: "the baobab behind the action out-contrasts him")
 ]
 ## The big near row: only trees with a tall trunk, their crowns over his head: behind his body there is a trunk at
 ## most (a wide low crown behind him hid him and the bandits).
@@ -116,7 +116,7 @@ const TREE_TINT := [Color(0.95, 0.9, 0.98), Color(0.98, 0.92, 0.96)]
 const TREE_INK := [0.0, 0.0]  ## (painted inked)
 const TREE_INK_AMOUNT := [0.0, 0.0]
 const TREE_INK_COLOUR := [Color(0.3, 0.26, 0.33), Color(0.17, 0.085, 0.06)]
-const TREE_FLATTEN := [0.56, 0.44]
+const TREE_FLATTEN := [0.66, 0.56]
 const TREE_AMBIENT := [0.0, 0.0]
 ## Blind round 11 ("the mid-ground is as sharp and saturated as the fighters: push it back"): the world behind the
 ## play out of focus, more with each layer back (haze.gdshader's soft: mipmap levels down), as a lens set on the
@@ -136,10 +136,10 @@ const TREE_AMBIENT := [0.0, 0.0]
 const SOFT_MESAS := 2.2
 const SOFT_PLAIN := 1.9
 const SOFT_TREES := [1.8, 1.4]
-const SOFT_MID := 1.4
+const SOFT_MID := 0.5  ## (round 17: the rise is painted quiet and soft)
 const SOFT_LANE := 0.8
 const LIFT_TREES := [0.3, 0.3]
-const LIFT_MID := 0.3
+const LIFT_MID := 0.0
 const LIFT_LANE := 0.2
 ## Round 22 (the judges, j18: "the hero's lane has no value separation: a mid-orange hero on mid-gold grass"): the tall
 ## grass behind his legs and the savanna behind his body a value darker and greener (an olive band), so his warm skin,
@@ -166,15 +166,20 @@ const LANE_TINT := Color(0.96, 0.98, 0.92)
 const PLAIN_FLATTEN := 0.44
 const PLAIN_HAZE := 0.24
 const PLAIN_FAR := 0.34
-const MID_FLATTEN := 0.46
-const MID_HAZE := 0.1
+const MID_FLATTEN := 0.12  ## (round 17: the quiet rise needs no flattening: it has no small darks to quieten)
+const MID_HAZE := 0.0
 const LANE_FLATTEN := 0.3
 const LANE_HAZE := 0.04
 const MIST := Color(0.96, 0.74, 0.64)  ## the low dust behind the path (_draw_lane_mist)
 const MIST_DUSK := Color(0.3, 0.375, 0.86)  ## ... at dusk
-const MIST_FULL := 0.2  ## how much of it at its thickest
+const MIST_FULL := 0.07  ## how much of it at its thickest, at dusk (round 17: it was 0.2, see DUSK_CLEAR)
+const MIST_DAY := 0.05  ## ... and by day (blind round 16: "a milky pale veil over the grass band flattens the mid-ground": the rise behind the path is quiet in its paint now, rise2)
 const MIST_FROM := 446.0  ## play y where it starts (the far plain's foot)
 const MIST_AT := 528.0  ## ... and where it is at its thickest (the rise's top, his head)
+## Round 17 (blind round 16, of home: "the plain behind is a faded milky lilac that looks like a transparency overlay,
+## the giraffes ghosted"): at dusk the air thins: the plain, its trees and its animals lose this share of their haze,
+## their flattening and their lift, so they are shapes in the night under the dusk's colour, not ghosts in a veil.
+const DUSK_CLEAR := 0.75
 const TREE_AIR := Color(0.9, 0.72, 0.74)  ## what the trees behind the path are drawn toward: the horizon's violet-peach (blind round 15)
 const LANE_AIR := Color(0.96, 0.82, 0.66)  ## what the lane's layers are drawn toward: the golden hour's dust (blind round 13: it was a pale neutral air, "a milky white overlay")
 const PLAIN_AIR := Color(0.96, 0.72, 0.64)  ## the far plain's: the horizon's rose glow lying on it (blind round 13)
@@ -215,6 +220,7 @@ var _mesa_kind: Array[int] = []  # round 21: its kind (MESA_KINDS)
 var _mesa_slots := []  # per row: [[piece, x, scale, mirrored, height factor, sink], ...] (units of that row)
 var _mesa_span: Array[float] = []  # per row: units before its order repeats
 var _mesa_mats: Array[ShaderMaterial] = []  # round 21: per row (the clouds' shadows slide over them)
+var _tree_mats: Array[ShaderMaterial] = []  # round 17: the two tree rows' (their haze thins at dusk)
 var _far_mat: ShaderMaterial  # round 23: the far plain's and the mid hills' (the dusk's colour over their haze)
 var _mid_mat: ShaderMaterial
 var _wall_mat: ShaderMaterial
@@ -255,10 +261,11 @@ func _ready() -> void:
 		_mesa_mats.append(hz)
 	_far_mat = _haze([0, 0, 0, 0, PLAIN_HAZE, 0.0, 0, PLAIN_AIR], Color.WHITE, 0.0, 0.0, true, {flatten = PLAIN_FLATTEN, soft = SOFT_PLAIN, far = PLAIN_FAR})
 	_painter(_draw_strip.bind(&"far_hills"), true).material = _far_mat
-	_painter(_draw_trees.bind(0)).material = _tree_haze(0)
+	_tree_mats = [_tree_haze(0), _tree_haze(1)]
+	_painter(_draw_trees.bind(0)).material = _tree_mats[0]
 	_mid_mat = _haze([0, 0, 0, 0, MID_HAZE, 0.0, 0, LANE_AIR], MID_TINT, 0.0, 0.0, true, {flatten = MID_FLATTEN, soft = SOFT_MID, lift = LIFT_MID})
 	_painter(_draw_strip.bind(&"mid_hills"), true).material = _mid_mat
-	_painter(_draw_trees.bind(1)).material = _tree_haze(1)
+	_painter(_draw_trees.bind(1)).material = _tree_mats[1]
 	_painter(_draw_lane_mist)
 	_painter(_draw_strip.bind(&"near_grass"), true).material = _haze([0, 0, 0, 0, LANE_HAZE, 0.0, 0, LANE_AIR], LANE_TINT, 0.0, 0.0, true, {flatten = LANE_FLATTEN, soft = SOFT_LANE, lift = LIFT_LANE})
 	var mul := CanvasItemMaterial.new()
@@ -327,6 +334,13 @@ func _process(delta: float) -> void:
 	_wall_mat.set_shader_parameter(&"air_tint", _dusk(DUSK_STRIPS[&"far_wall"]))
 	_far_mat.set_shader_parameter(&"air_tint", _dusk(DUSK_STRIPS[&"far_hills"]))
 	_mid_mat.set_shader_parameter(&"air_tint", _dusk(DUSK_STRIPS[&"mid_hills"]))
+	var clear := 1.0 - DUSK_CLEAR * dusk
+	_far_mat.set_shader_parameter(&"amount", PLAIN_HAZE * clear)
+	_far_mat.set_shader_parameter(&"flatten", PLAIN_FLATTEN * clear)
+	for row in _tree_mats.size():
+		_tree_mats[row].set_shader_parameter(&"amount", float(TREE_ROWS[row][4]) * clear)
+		_tree_mats[row].set_shader_parameter(&"flatten", TREE_FLATTEN[row] * clear)
+		_tree_mats[row].set_shader_parameter(&"lift", LIFT_TREES[row] * clear)
 	for p in _painters:
 		p.queue_redraw()
 
@@ -559,7 +573,7 @@ func _draw_lane_mist(ci: CanvasItem) -> void:
 	var x1 := _x1()
 	var air := MIST * _dusk(MIST_DUSK)
 	var clear := Color(air, 0.0)
-	var full := Color(air, MIST_FULL)
+	var full := Color(air, lerpf(MIST_DAY, MIST_FULL, dusk))
 	ci.draw_polygon(PackedVector2Array([Vector2(x0, MIST_FROM), Vector2(x1, MIST_FROM), Vector2(x1, MIST_AT), Vector2(x0, MIST_AT)]),
 			PackedColorArray([clear, clear, full, full]))
 	ci.draw_rect(Rect2(x0, MIST_AT, x1 - x0, World.VIEW_H + 12.0 - MIST_AT), full)

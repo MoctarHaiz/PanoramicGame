@@ -81,6 +81,7 @@ var _glint_at := 0.0
 var _glint_k := 0.0
 var _scale := 1.0
 var _unit := 1.0  # the scale that draws it SIZE wide
+var edge := 1.0  ## 0..1: how clear it is of the frame's bottom edge (WorldView: never drawn cut by it)
 var _tilt := 0.0  # its own lean (radians): no two alike
 var _face := Face.SMILE  # its own face (round 7: a row was "identical tomatoes"): happy, laughing, winking
 var _behind := 0.0  # round 20: how far it is hidden behind a bandit (round 23: eased quickly to 0 or 1)
@@ -236,8 +237,8 @@ func _process(delta: float) -> void:
 	# round 23: behind a bandit's head or body it is hidden (the bandit reads whole over it), clear of it drawn in full;
 	# the switch eased quickly, so no frame holds a see-through Bob
 	_behind = move_toward(_behind, _behind_bandit(), delta * HIDE_RATE)
-	modulate.a = 1.0 - _behind
-	visible = _behind < 0.999
+	modulate.a = (1.0 - _behind) * edge
+	visible = _behind < 0.999 and edge > 0.001
 	# blink every few seconds; once in a while a wink
 	var face := _face
 	if _clock >= _blink_at:

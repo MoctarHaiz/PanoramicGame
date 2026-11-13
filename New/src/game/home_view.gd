@@ -27,7 +27,15 @@ const FIRE_X := 644.0  ## play x of the campfire on the last screen
 ## light: the grass and the earth are in a deeper night away from the fire (the turf's straw at DUSK was still the
 ## brightest thing far right of the hut) and warmer in its pool (ground_colour: the turf, the props, the earth)
 const GROUND_DUSK := Color(0.4, 0.4, 0.7)
-const GROUND_FIRE := Color(1.2, 0.94, 0.7)
+const GROUND_FIRE := Color(1.14, 0.9, 0.64)
+## (blind round 16: "a yellow-green lit strip runs ruler-straight along the grass across the full width: a band of
+## light, not a pool": seen side-on, a pool reads only if all of its falloff is in the picture: the fire's light on
+## the ground dies within this many units of it, well inside the pushed-in shot's 780)
+const GROUND_REACH := 170.0
+const TREE_X := 404.0  ## the great acacia behind the palisade: its foot (from LEFT), at the pushed-in shot's left edge
+const TREE_K := 1.25  ## its size: its crown leaves the picture by the top left corner
+const TREE_FOOT := 230.5  ## its trunk's foot in its picture (px: tree_info.json's anchor_x)
+const TREE_DUSK := Color(0.66, 0.62, 0.8)
 
 var back: Node2D
 var yard: Node2D  ## over the ground's grass, under the actors (WorldView adds it after the ground)
@@ -56,9 +64,15 @@ func build() -> void:
 	var door_x: float = hut_left + float(hut_info["door_x"]) * HUT_K  # the doorway's middle (level x)
 	var hut_size := Vector2(float(hut_info["size"][0]), float(hut_info["size"][1])) * HUT_K
 	# the back of the homestead: huts and a granary behind the palisade
+	# (blind round 16: "bottom-heavy, cropped composition: the right hut sliced by the frame, the upper-left 40% empty
+	# violet sky": a great acacia behind the palisade, its crown the picture's upper left corner, in the dusk's
+	# shade; the small hut a little further back and whole in the pushed-in shot)
+	var tree := _put(back, "tree_acacia_2", LEFT + TREE_X, TREE_K, TREE_DUSK)
+	tree.offset.x = -TREE_FOOT
+	tree.material = form(0.0, 0.0)
 	var granary := _put(back, "home_granary", LEFT + 330.0, 0.95, Color(0.9, 0.88, 0.9))
 	granary.material = form(1.0)
-	var small := _put(back, "home_hut_small", LEFT + 1120.0, 0.9, Color(0.92, 0.9, 0.93))
+	var small := _put(back, "home_hut_small", LEFT + 1078.0, 0.8, Color(0.88, 0.86, 0.92))
 	small.material = form(1.0)
 	var low := _put(back, "home_hut_low", LEFT + 1400.0, 0.8, Color(0.86, 0.84, 0.9), true)
 	low.material = form(1.0)
@@ -119,7 +133,7 @@ func build() -> void:
 	front.add_child(wall)
 	# One light (blind round 12: "no single light: a campfire burns a metre from him and nothing receives it"): every
 	# prop is in the dusk's cool shade away from the fire and in its warm light near it (form.gdshader)
-	for prop: Sprite2D in [granary, small, low, sign, pot, hut, wall]:
+	for prop: Sprite2D in [tree, granary, small, low, sign, pot, hut, wall]:
 		_fire_lit(prop)
 	# round 19 (the judges: "the campfire flat triangles casting no glow"): its light reaches the hut's
 	# side, the sign's post and the fence (added over them), and pools warm on the grass round it
@@ -136,7 +150,7 @@ func build() -> void:
 	# (blind round 15: "a strip, not a light pool": one wide soft pool lying on the yard, brightest under the fire
 	# and falling off on every side; the band of light that ran along the grass from the fire to the doorway is gone)
 	_fire_pool.position = _fire.position + Vector2(24, 8)
-	_fire_pool.scale = Vector2(2.3, 0.36)
+	_fire_pool.scale = Vector2(1.5, 0.34)
 	_fire_pool.material = spill_add
 	yard.add_child(_fire_pool)
 	# round 21 (the judges, j17: "the fire's glow doesn't reach him"): it warms the thatch by the doorway at his
@@ -227,7 +241,7 @@ static func fire_colour(x: float) -> Color:
 ## The same on the ground (the turf, its blades and flowers, the props standing on it): a pool round the fire, the
 ## night away from it.
 static func ground_colour(x: float) -> Color:
-	var d := (x - (LEFT + FIRE_X)) / FIRE_REACH
+	var d := (x - (LEFT + FIRE_X)) / GROUND_REACH
 	return GROUND_DUSK.lerp(GROUND_FIRE, exp(-d * d * 2.2))
 
 
@@ -326,6 +340,9 @@ class Fire extends Node2D:
 	const FRAMES := 4
 	const FPS := 9.0
 	var _painted: Sprite2D  # the painted fire (home_fire.png: stones, logs and four flames), when it is there
+	var _inner: Sprite2D  # its inner tongue: the same flames, smaller, two frames on
+	const INNER_K := 0.6
+	const INNER_ROOT := 0.66  ## where the flames leave the logs, down the picture: the inner tongue grows from there
 	var _bloom: Sprite2D  # over it: its light a little past the flame's edge
 	var _heart: Sprite2D  # and its soft white-hot heart
 
@@ -361,6 +378,19 @@ class Fire extends Node2D:
 			_painted.scale = Vector2(k, k)
 			_painted.position = Vector2(-size.x * k / 2.0, 5.0 - size.y * k)
 			add_child(_painted)
+			# (blind round 16: "a flat cartoon flame, a simpler language than the richly painted thatch": a second,
+			# smaller tongue inside it, another of its frames in the fire's hot yellow: flame_inner.gdshader)
+			_inner = Sprite2D.new()
+			_inner.texture = _painted.texture
+			_inner.hframes = FRAMES
+			_inner.centered = false
+			_inner.scale = Vector2(k, k) * INNER_K
+			_inner.position = Vector2(-size.x * k * INNER_K / 2.0,
+					5.0 - size.y * k * (1.0 - INNER_ROOT) - size.y * k * INNER_K * INNER_ROOT)
+			var inner_mat := ShaderMaterial.new()
+			inner_mat.shader = preload("res://src/game/flame_inner.gdshader")
+			_inner.material = inner_mat
+			add_child(_inner)
 			# (blind round 15: "a hard-edged cartoon flame with a weak glow": a soft white-hot heart over the painted
 			# flame and a bloom a little wider than it: the flame's ink softens into its own light)
 			_bloom = Sprite2D.new()
@@ -406,8 +436,9 @@ class Fire extends Node2D:
 			m.set_shader_parameter(&"flare", flare)
 		if _painted:
 			_painted.frame = int(_clock * FPS) % FRAMES
-			_bloom.modulate = Color(1.0, 0.56, 0.24, 0.3 + flicker * 0.5 + 0.1 * flare)
-			_heart.modulate = Color(1.0, 0.9, 0.62, 0.5 + flicker * 0.8 + 0.1 * flare)
+			_inner.frame = (_painted.frame + 2) % FRAMES
+			_bloom.modulate = Color(1.0, 0.56, 0.24, 0.2 + flicker * 0.4 + 0.1 * flare)
+			_heart.modulate = Color(1.0, 0.9, 0.62, 0.34 + flicker * 0.6 + 0.1 * flare)
 			return
 		queue_redraw()
 

@@ -179,7 +179,11 @@ func _capture(device: String, shot: String) -> void:
 		"hang":  # on the vine between two stacks (not over one's top: "does he hang or stand?")
 			await _start_game(shot)
 			await _wait(0.8)
-			await _wait_for(func() -> bool: return Nav.current.world.hanging and _open_under(Nav.current.world), 3.0)
+			# (round 17: the camera has closed in on him: GameScreen._place_camera)
+			await _wait_for(func() -> bool:
+				var g: Node = Nav.current
+				var close: float = g.base_zoom((g._clip.size.x - Device.insets().x) / g._k)
+				return g.world.hanging and _open_under(g.world) and g._zoom > close * 0.97, 8.0)
 			await _wait(0.12)
 		"game":  # the blow: a ring knocks a bandit out, the frame after its freeze
 			await _start_game("game")
@@ -204,10 +208,16 @@ func _capture(device: String, shot: String) -> void:
 			await _wait(0.3)
 			var game: Node = Nav.current
 			await _clear_stage(game)
-			_bandit_ahead(game.world, 520.0)
+			# (blind round 16: "stage the throw as an event: bandit closer and lunging") a jumper, in its leap at him over
+			# the ring
+			_bandit_ahead(game.world, 440.0)
+			var jumper: World.Bandit = game.world.bandits[-1]
+			jumper.jumper = true
+			jumper.dodges = 1
 			await _wait(0.12)
+			game.view._bandits[jumper.id]._spot = 0.0  # (its "!" is for the moment it wakes: long past, for one this near)
 			game.world.throw()
-			await _wait(0.25)
+			await _wait_for(func() -> bool: return jumper.leaping and jumper.vy > -World.BANDIT_JUMP * 0.45, 1.0)
 		"hurt":  # a bandit runs into him: the instant after the blow
 			await _start_game("game")
 			await _wait(0.3)

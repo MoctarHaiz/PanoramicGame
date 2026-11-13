@@ -1435,7 +1435,8 @@ func vine_catchable() -> bool:
 ## where it matters:
 ## - across, from just behind him to the play window's right edge: bandits wake there, so the
 ##   time they are seen before they reach him is never shorter than in 2017;
-## - down, the grass or water he stands on or could drop to in the next SEE_AHEAD_DOWN units;
+## - down, the grass or water he stands on or could drop to in the next SEE_AHEAD_DOWN units (hanging
+##   from the vine, the grass only: _ground_ahead());
 ## - up, what a jump from here reaches (Red Bobs, ledges), or the vine when it matters
 ##   (vine_catchable()).
 ## The run over: caught, him where he lies; into a pit, him and the water; home, him and the door.
@@ -1486,7 +1487,9 @@ func _reachable_top() -> float:
 
 
 ## The lowest grass top or pool surface he could come down to within SEE_AHEAD_DOWN units ahead (play
-## y), at least his feet.
+## y), at least his feet. Hanging from the vine, grass only (blind rounds 12, 13, 15 and 16: "the hero
+## is a tiny figure" up there, the camera drawn back to a pool he has no reason to drop into): the
+## camera may close in on him over the water, and draws back for any grass he could come down to.
 func _ground_ahead() -> float:
 	var feet := y + HERO_SIZE.y / 2
 	var lowest := feet
@@ -1495,7 +1498,7 @@ func _ground_ahead() -> float:
 	for c in range(maxi(c0, 0), mini(c1, Level.COLS - 1) + 1):
 		for r in range(clampi(floori((feet - 1.0) / TILE), 0, Level.ROWS - 1), Level.ROWS):
 			var k := level.kind_at(c, r)
-			if k == Level.Kind.TOP or k == Level.Kind.WATER:
+			if k == Level.Kind.TOP or (k == Level.Kind.WATER and not hanging):
 				lowest = maxf(lowest, r * TILE)
 				break
 	return minf(lowest, VIEW_H - 24.0)

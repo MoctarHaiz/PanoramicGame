@@ -40,6 +40,11 @@ void fragment() {
 	// each its own stone: a little redder, paler or rosier than the next
 	float st = hash(seed * 13.3);
 	c *= st < 0.33 ? vec3(1.04, 0.95, 0.9) : (st < 0.66 ? vec3(0.97, 0.96, 1.0) : vec3(1.02, 0.93, 0.95));
+	// one palette with the landforms behind it (blind round 16: "hard-faceted, saturated, chunky orange pinnacles"
+	// against "soft pale pastel mesas"): its orange a step toward their rose sandstone, its darkest lines lifted
+	// into the dusk's violet air
+	c = mix(c, lum * vec3(1.14, 0.9, 0.86), 0.36);
+	c = mix(c, vec3(0.5, 0.38, 0.56), (1.0 - smoothstep(0.0, 0.42, lum)) * 0.34);
 	// moss: creeping down from under the grass mat in a few tongues (the painted rock shows through it)
 	float tongue = 13.0 + 16.0 * pow(noise(at.x * 0.13 + seed * 7.0), 2.0) + 30.0 * pow(noise(at.x * 0.21 + seed), 5.0);
 	float moss = 1.0 - smoothstep(tongue - 1.5, tongue + 1.5, y);

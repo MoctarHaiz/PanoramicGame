@@ -46,6 +46,7 @@ const HIGH_FULL := 270.0  ## ... and where it has fully risen
 const HIGH_FEET := 0.74  ## risen, his feet this share of the screen down
 const HIGH_RATE := 2.5  ## how fast it rises and comes back down (1/s)
 const HIGH_DROP := 14.0  ## ... and how fast it comes down when what must be seen no longer fits
+const HIGH_AHEAD := 4.0  ## ... or, gently, when only what comes further ahead (HIGH_LOOKAHEAD) no longer fits (round 17: the far bank nearing as he hangs)
 const HIGH_LOOKAHEAD := 330.0  ## units further than the rules look for a drop ahead (~1.4 s of run)
 const HOME_PUSH := 1.78  ## at home the camera pushes in to the doorway, to this zoom (1: 640 units tall; round 6: closer; round 19: 1.6 -> 1.78, "the hero small at home")
 const DEATH_PUSH := 1.2  ## caught: the camera closes in on him while he falls (World.DYING_TIME)
@@ -251,13 +252,18 @@ func _place_camera(delta: float) -> void:
 	if _zoom <= 0.0 or (world.on_ground and not world.hanging) or feet > _support:
 		_support = feet  # what he stands on (in the air, only a fall moves it)
 	var vine_framed := world.state == World.State.RUNNING and (world.hanging or world.rising_to_vine())
-	var high := 0.0 if vine_framed else smoothstep(HIGH_FROM, HIGH_FULL, _support)
+	# (round 17) hanging, the camera closes in under the vine (where no grass he could come down to is far below: over
+	# the river); rising to it, it still shows the whole drop
+	var hung := world.state == World.State.RUNNING and world.hanging
+	var high := (1.0 if hung else 0.0) if vine_framed else smoothstep(HIGH_FROM, HIGH_FULL, _support)
 	var base := base_zoom((_clip.size.x - inset) / _k)
 	# only where all the player must see (gameplay: World.camera_must_see()) fits under the HUD up close
 	var need := world.camera_must_see()
 	# (looking further ahead than the rules: the camera is down again before a drop ahead must show)
 	var low := maxf(need.end.y, _lowest_ahead(world, World.SEE_AHEAD_DOWN + HIGH_LOOKAHEAD) + 24.0)
-	var fits := low - need.position.y + hud_band() / (_k * base) <= _clip.size.y / (_k * base) - 4.0
+	var room := _clip.size.y / (_k * base) - 4.0 - hud_band() / (_k * base)
+	var fits := low - need.position.y <= room
+	var fits_now := need.size.y <= room
 	if not fits:
 		high = 0.0
 	var goal := lerpf(minf(base, follow_zoom(world, p)), base, _high)
@@ -265,7 +271,7 @@ func _place_camera(delta: float) -> void:
 		_zoom = goal
 		_high = high
 		_zoom_placed_ready = _ready_to_start  # (round 19) framed on the start card: pushed in on him
-	_high = lerpf(_high, high, 1.0 - exp(-delta * (HIGH_RATE if fits else HIGH_DROP)))
+	_high = lerpf(_high, high, 1.0 - exp(-delta * (HIGH_RATE if fits else (HIGH_AHEAD if fits_now else HIGH_DROP))))
 	_zoom = lerpf(_zoom, goal, 1.0 - exp(-delta * (ZOOM_OUT_RATE if goal < _zoom else ZOOM_IN_RATE)))
 	var home := world.state == World.State.WON
 	var caught := world.state == World.State.DEAD and world.death_reason == &"bandit"
@@ -278,8 +284,8 @@ func _place_camera(delta: float) -> void:
 		var bottom_top := World.VIEW_H - _clip.size.y / zoom_k  # (the play y at the top, ground on the bottom)
 		var vine_top := VINE_TOP - (hud_band() + VINE_GAP) / zoom_k
 		var top := clampf(_support - HIGH_FEET * _clip.size.y / zoom_k, vine_top, bottom_top)
-		if world.state == World.State.RUNNING and _vine_in_reach(world):
-			top = vine_top  # where a jump reaches the vine: it shows under the HUD
+		if hung or (world.state == World.State.RUNNING and _vine_in_reach(world)):
+			top = vine_top  # where a jump reaches the vine, and hanging from it: it shows under the HUD
 		# and what must be seen stays in view, the whole time (under the HUD band, above the bottom)
 		top = clampf(top, need.end.y - _clip.size.y / zoom_k, need.position.y - hud_band() / zoom_k)
 		at.y = -lerpf(bottom_top, top, _high) * zoom_k
@@ -321,6 +327,7 @@ func _place_camera(delta: float) -> void:
 	view.view_left = at.x / zoom_k
 	view.view_width = get_viewport_rect().size.x / zoom_k
 	view.view_top = -at.y / zoom_k
+	view.view_bottom = (_clip.size.y - at.y) / zoom_k
 	# (round 10, QA ENV-1) the start card's frame: no bandit cut by the right edge of the safe area
 	view.start_hold = _ready_to_start
 	view.safe_right = (_clip.size.x - Device.insets().z - _stage.position.x) / _stage.scale.x
@@ -440,7 +447,7 @@ static func _lowest_ahead(w: World, reach: float) -> float:
 	for c in range(maxi(c0, 0), mini(c1, Level.COLS - 1) + 1):
 		for r in range(clampi(floori((feet - 1.0) / Level.TILE), 0, Level.ROWS - 1), Level.ROWS):
 			var k := w.level.kind_at(c, r)
-			if k == Level.Kind.TOP or k == Level.Kind.WATER:
+			if k == Level.Kind.TOP or (k == Level.Kind.WATER and not w.hanging):
 				lowest = maxf(lowest, r * Level.TILE)
 				break
 	return minf(lowest, World.VIEW_H - 24.0)
@@ -624,6 +631,7 @@ func _impact(kind: StringName, kick := Vector2.ZERO) -> void:
 func _on_thrown(_r: World.Ring) -> void:
 	Audio.play_sfx(&"throw")
 	_jolt(0.0, Vector2(-1.5, 0.0))
+	view.throw_kick()
 
 
 ## A Red Bob: its chime climbs the A major scale (a take per step: sfx_bob_1..8) while they come
@@ -674,8 +682,9 @@ func _on_bandit_hit(b: World.Bandit, knocked_out: bool) -> void:
 		_impact(&"medium", Vector2(7.0, -2.0))
 		# (over its head, clear of its face and of the blow: the judges, "the +1 sits on the enemy's face"; blind round 11:
 		# "+1 is stamped over the enemy's head": higher, and on his side of it: it is thrown back the other way;
-		# blind round 14: "+1 floats high": just over its head, no higher)
-		Fx.plus_one(view.fx, Vector2(b.x - world.scroll - 64.0, b.y - (146.0 if b.strong else 116.0)) * 2.0)
+		# blind round 14: "+1 floats high": just over its head, no higher; blind round 16: "floating far above over a
+		# pale pink mesa (white on pale), attached to nothing": at the blow, over the ring that struck, in gold)
+		Fx.plus_one(view.fx, Vector2(b.x - world.scroll - 70.0, b.y - (114.0 if b.strong else 84.0)) * 2.0)
 	else:
 		Haptics.select()
 		_impact(&"small", Vector2(3.0, 0.0))

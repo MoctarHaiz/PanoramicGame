@@ -2638,7 +2638,7 @@
    "path": "assets/art/world/mid_hills.png",
    "status": "approved",
    "technical": {
-    "dimensions": "3584x404",
+    "dimensions": "3584x267",
     "alpha": true,
     "anchor": "bottom, repeats in x",
     "frames": null,
