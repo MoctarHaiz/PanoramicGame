@@ -184,7 +184,10 @@ func _capture(device: String, shot: String) -> void:
 				var g: Node = Nav.current
 				var close: float = g.base_zoom((g._clip.size.x - Device.insets().x) / g._k)
 				return g.world.hanging and _open_under(g.world) and g._zoom > close * 0.97, 8.0)
-			await _wait(0.12)
+			# (blind round 17: "a passive frontal dangle": at the front end of his swing, his legs thrown forward)
+			await _wait_for(func() -> bool:
+				var g: Node = Nav.current
+				return g.world.hanging and _open_under(g.world) and g.view._hero._swing < HeroView.SWING_WIND - 0.88 * HeroView.SWING_AMP, 6.0)
 		"game":  # the blow: a ring knocks a bandit out, the frame after its freeze
 			await _start_game("game")
 			await _wait(0.3)

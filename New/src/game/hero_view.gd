@@ -95,7 +95,7 @@ const HOME_FAR := 0.9
 ## own hue: the fire's orange on its side, the dusk's violet on the other (actor.gdshader bounce_take)
 const HOME_TAKE := 1.0
 const HOME_COOL := Color(0.5, 0.47, 0.86)
-const HOME_DUSK := Color(0.84, 0.8, 0.9)
+const HOME_DUSK := Color(0.74, 0.69, 0.87)  ## (blind round 17: "keeps near-daylight local colours": it was 0.84, 0.8, 0.9)
 const HOME_FIRE := Color(1.42, 1.0, 0.62)  ## the fire's side of him (actor.gdshader bounce_colour)
 const HOME_BOUNCE := 0.82  ## how much of it all (blind round 16: 0.6 was "too weak to see at phone size")
 const CONTACT_HOME := 0.5
@@ -154,7 +154,7 @@ const BEND_BLEND := 48.0  ## atlas px round his hips over which the bend blends
 ## towards SWING_AMP once the catch's momentum is spent), his legs trailing the swing (bent back about his hips against
 ## its speed, actor.gdshader's bend) and leading it at its ends, a little tuck there; his hands stay on the grip
 const SWING_K := 16.0  ## the pendulum's stiffness (/s^2: a swing of ~1.6 s)
-const SWING_AMP := 0.17  ## radians the swing settles to
+const SWING_AMP := 0.27  ## radians the swing settles to (blind round 17: "a passive frontal dangle": it was 0.17)
 const SWING_PUMP := 1.6  ## how fast it settles there (/s)
 const SWING_CATCH := -1.5  ## rad/s the catch starts it with (-: legs forward, the jump's momentum)
 const SWING_WIND := 0.05  ## radians the wind of the run pushes the swing's middle back

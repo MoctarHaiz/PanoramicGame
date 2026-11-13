@@ -26,6 +26,14 @@ const DIR := "res://assets/art/world/"
 ## screen): the painted light of every layer, and the light grade's (WorldView). The redesign: no sun glow, no god
 ## rays (the judges: "a pale wash across the sky"): the sky is painted lit.
 const SUN_AT := Vector2(0.02, -70.0)
+const MOON_AT := Vector2(972.0, 338.0)  ## the dusk's moon, in the play window (see _draw_moon)
+const MOON_R := 11.0
+const MOON_THIN := 0.55  ## its inner edge: this share of the radius toward the lit side (1: no moon, 0: a half moon)
+const MOON_TURN := 2.5  ## the lit limb faces this way (radians: down and to the left, where the sun set)
+const MOON_LIGHT := Color(1.0, 0.95, 0.82)
+const MOON_HALO := Color(0.86, 0.84, 1.0)
+const MOON_STARS := [Vector3(-64.0, -22.0, 1.0), Vector3(58.0, -30.0, 1.2), Vector3(96.0, 14.0, 0.9), Vector3(-118.0, 8.0, 0.8),
+		Vector3(-30.0, 24.0, 0.7)]
 ## World redraw: the painted sky (sky.png): top y and height it is drawn at (units), how much it
 ## moves with the run, and its drift with the wind (units a second).
 const SKY_RECT := Vector2(-150.0, 660.0)
@@ -38,12 +46,12 @@ const SKY_DRIFT := 2.5
 ## (the redesign: far_wall the escarpment, its top edge near y 372; far_hills the plain, its horizon at HORIZON;
 ## mid_hills the rise, solid from y 532 (its mounds and boulders under his chest, not behind his head); near_grass solid from y 584, under the low ground's top, its tips over it)
 const STRIPS := {
-	&"far_wall": [0.008, 524.0, 1.0],
-	&"far_hills": [0.07, 540.0, 0.5],
+	&"far_wall": [0.008, 508.0, 1.0],
+	&"far_hills": [0.07, 524.0, 0.5],
 	&"mid_hills": [0.2, 648.0, 0.5],
-	&"near_grass": [0.42, 649.0, 0.5],
+	&"near_grass": [0.42, 655.0, 0.5],
 }
-const HORIZON := 432.0  ## play y of the plain's far edge: the landforms stand behind it
+const HORIZON := 416.0  ## play y of the plain's far edge: the landforms stand behind it
 ## Round 20 (the judges, j16: "the same mesa shape x4, no atmospheric layering"): the escarpments placed one
 ## landform at a time (far_mesa_pieces.png, tools/art/world_mesas.py). Round 21 (the judges, j17: "still the same
 ## flat-topped striped block, stamped, evenly spaced"): twelve landforms (the strip's five and seven painted ones: a
@@ -72,13 +80,13 @@ const HORIZON := 432.0  ## play y of the plain's far edge: the landforms stand b
 ## more the farther it is; the characters and the pickups are the only full-contrast layer)
 const AIR := Color(0.76, 0.66, 0.84)  ## the far air, a pale blue-violet: what distance draws the landforms toward
 const MESA_ROWS := [
-	{scroll = 0.014, bottom = 438.0, scale = Vector2(0.2, 0.28), haze = 0.7, foot = 0.14, haze_colour = AIR,
+	{scroll = 0.014, bottom = 422.0, scale = Vector2(0.2, 0.28), haze = 0.7, foot = 0.14, haze_colour = AIR,
 		tint = Color(1, 1, 1), mirror = 0.0, gap = Vector2(30.0, 190.0), kinds = [3.0, 1.5, 1.2, 1.0], cloud = 0.0, ink = 0.0, planes = 0.0,
 		flatten = 0.58, ink_amount = 0.0, ink_colour = Color(0.5, 0.53, 0.68)},
-	{scroll = 0.024, bottom = 444.0, scale = Vector2(0.3, 0.4), haze = 0.58, foot = 0.14, haze_colour = AIR,
+	{scroll = 0.024, bottom = 428.0, scale = Vector2(0.3, 0.4), haze = 0.58, foot = 0.14, haze_colour = AIR,
 		tint = Color(1, 1, 1), mirror = 0.0, gap = Vector2(60.0, 300.0), kinds = [2.0, 2.0, 1.0, 1.4], cloud = 0.5, ink = 0.0, planes = 0.0,
 		flatten = 0.48, ink_amount = 0.0, ink_colour = Color(0.42, 0.36, 0.55)},
-	{scroll = 0.04, bottom = 452.0, scale = Vector2(0.44, 0.6), haze = 0.44, foot = 0.12, haze_colour = AIR,
+	{scroll = 0.04, bottom = 436.0, scale = Vector2(0.44, 0.6), haze = 0.44, foot = 0.12, haze_colour = AIR,
 		tint = Color(1, 1, 1), mirror = 0.0, gap = Vector2(160.0, 560.0), kinds = [2.0, 1.6, 1.6, 1.4], cloud = 1.0, ink = 0.0, planes = 0.0,
 		flatten = 0.38, ink_amount = 0.0, ink_colour = Color(0.3, 0.19, 0.29)},
 ]
@@ -106,8 +114,8 @@ const DUSK_STRIPS := {&"far_wall": Color(0.6, 0.6, 0.9), &"far_hills": Color(0.5
 ## middle-ground rise (they move between the plain's speed and the rise's), big ones behind the tall grass, their trunks
 ## passing behind him and their crowns over the landforms. (The plain has its own far groves painted in.)
 const TREE_ROWS := [
-	[0.14, 330.0, 96.0, 540.0, 0.46, 0.0, 0.5, TREE_AIR],
-	[0.31, 760.0, 232.0, 594.0, 0.34, 0.0, 0.86, TREE_AIR],  # (few: "the baobab behind the action out-contrasts him")
+	[0.12, 330.0, 84.0, 468.0, 0.3, 0.0, 0.5, TREE_AIR],
+	[0.17, 520.0, 150.0, 480.0, 0.2, 0.0, 0.5, TREE_AIR],
 ]
 ## The big near row: only trees with a tall trunk, their crowns over his head: behind his body there is a trunk at
 ## most (a wide low crown behind him hid him and the bandits).
@@ -116,7 +124,7 @@ const TREE_TINT := [Color(0.95, 0.9, 0.98), Color(0.98, 0.92, 0.96)]
 const TREE_INK := [0.0, 0.0]  ## (painted inked)
 const TREE_INK_AMOUNT := [0.0, 0.0]
 const TREE_INK_COLOUR := [Color(0.3, 0.26, 0.33), Color(0.17, 0.085, 0.06)]
-const TREE_FLATTEN := [0.66, 0.56]
+const TREE_FLATTEN := [0.4, 0.3]
 const TREE_AMBIENT := [0.0, 0.0]
 ## Blind round 11 ("the mid-ground is as sharp and saturated as the fighters: push it back"): the world behind the
 ## play out of focus, more with each layer back (haze.gdshader's soft: mipmap levels down), as a lens set on the
@@ -135,12 +143,12 @@ const TREE_AMBIENT := [0.0, 0.0]
 ## (TREE_AIR, TREE_TINT); the lift and the dust veil over them (MIST_FULL) are a third of what they were.
 const SOFT_MESAS := 2.2
 const SOFT_PLAIN := 1.9
-const SOFT_TREES := [1.8, 1.4]
-const SOFT_MID := 0.5  ## (round 17: the rise is painted quiet and soft)
+const SOFT_TREES := [1.6, 1.2]
+const SOFT_MID := 1.1  ## (round 18: the painted hillside a little out of focus: its crest's brush ticks melt into a line)
 const SOFT_LANE := 0.8
-const LIFT_TREES := [0.3, 0.3]
+const LIFT_TREES := [0.15, 0.1]
 const LIFT_MID := 0.0
-const LIFT_LANE := 0.2
+const LIFT_LANE := 0.0
 ## Round 22 (the judges, j18: "the hero's lane has no value separation: a mid-orange hero on mid-gold grass"): the tall
 ## grass behind his legs and the savanna behind his body a value darker and greener (an olive band), so his warm skin,
 ## white loincloth and red scarf read against it (the warm add of round 3's lane light is gone).
@@ -149,8 +157,8 @@ const LIFT_LANE := 0.2
 ## against it, not against a dark olive band.
 ## The redesign: the plain as painted; the rise and the tall grass behind his body a little paler and cooler than
 ## painted (a straw gold), so his darker, redder skin and his ink stand off them.
-const MID_TINT := Color(0.97, 0.98, 0.94)
-const LANE_TINT := Color(0.96, 0.98, 0.92)
+const MID_TINT := Color(1.0, 1.0, 1.0)
+const LANE_TINT := Color(0.52, 0.44, 0.64)
 ## and each a little flatter than painted (less contrast, less colour: the shader's `flatten`), the plain most: the
 ## characters in front are the picture's strongest darks and colours
 ## (blind rounds 5 to 7, three judges: two asked for the band behind the characters lighter and quieter, one for it
@@ -163,19 +171,34 @@ const LANE_TINT := Color(0.96, 0.98, 0.92)
 ## (blind round 14, the plain seen from the vine: "a pale soft wash while the pinnacles are crisp: graded atmospheric
 ## planes"): its near side keeps its colour and its darks (PLAIN_HAZE, PLAIN_FLATTEN lower), its far side goes into
 ## the horizon's air (PLAIN_FAR more haze at its top)
-const PLAIN_FLATTEN := 0.44
-const PLAIN_HAZE := 0.24
-const PLAIN_FAR := 0.34
-const MID_FLATTEN := 0.12  ## (round 17: the quiet rise needs no flattening: it has no small darks to quieten)
-const MID_HAZE := 0.0
-const LANE_FLATTEN := 0.3
-const LANE_HAZE := 0.04
+const PLAIN_FLATTEN := 0.22
+const PLAIN_HAZE := 0.14
+const PLAIN_FAR := 0.3
+const MID_FLATTEN := 0.0  ## (round 17: the quiet rise needs no flattening: it has no small darks to quieten)
+const MID_HAZE := 0.38
+const LANE_FLATTEN := 0.2
+const LANE_HAZE := 0.45
+## Blind round 18 ("two lights in one picture: a saturated violet dusk sky with sunset-lit peach clouds above, and a
+## bleached, shadowless, midday-pale plain below"; the fighters "stickers on a pastel backdrop"; "the big baobab trunk
+## and canopy directly behind the bandit's head and raised arm, the pond behind the hero's throwing arm and the ring":
+## "put the plain under the same low sun as the sky and clear the band directly behind them"): the picture is staged in
+## bands of light and shade, as the low sun lays them. The rise behind the path stands as tall as the fighters (its
+## crest just over their heads) and lies in the dusk's shade, the sky's violet in it (RISE_SHADE): one quiet plane,
+## cooler and a value under his sunlit skin, over his darks, with the last light along its crest (RISE_CREST); the
+## tall grass before it in the same shade; beyond the crest the far plain glows in the last sun, its painted gold and
+## long violet shadows back (PLAIN_HAZE, PLAIN_FLATTEN), and every tree stands behind the crest, its crown over the
+## fighters' heads, in that light (TREE_ROWS). The path and the fighters are in the sun in front.
+const RISE_SHADE := Color(0.62, 0.5, 0.72)  ## the air over the painted hillside (rise3 is painted a value deeper than his darks need)
+const GRASS_SHADE := Color(0.34, 0.27, 0.44)  ## ... and what the tall grass before it is drawn toward: nearer, deeper
+const RISE_FOOT := 0.0
+const RISE_CREST := 0.3  ## less of that air along its crest: the last sun on it stays gold
+const RISE_CREST_TO := 0.2
 const MIST := Color(0.96, 0.74, 0.64)  ## the low dust behind the path (_draw_lane_mist)
 const MIST_DUSK := Color(0.3, 0.375, 0.86)  ## ... at dusk
 const MIST_FULL := 0.07  ## how much of it at its thickest, at dusk (round 17: it was 0.2, see DUSK_CLEAR)
 const MIST_DAY := 0.05  ## ... and by day (blind round 16: "a milky pale veil over the grass band flattens the mid-ground": the rise behind the path is quiet in its paint now, rise2)
-const MIST_FROM := 446.0  ## play y where it starts (the far plain's foot)
-const MIST_AT := 528.0  ## ... and where it is at its thickest (the rise's top, his head)
+const MIST_FROM := 430.0  ## play y where it starts (the far plain's foot)
+const MIST_AT := 470.0  ## ... and where it is at its thickest (the rise's top, his head)
 ## Round 17 (blind round 16, of home: "the plain behind is a faded milky lilac that looks like a transparency overlay,
 ## the giraffes ghosted"): at dusk the air thins: the plain, its trees and its animals lose this share of their haze,
 ## their flattening and their lift, so they are shapes in the night under the dusk's colour, not ghosts in a veil.
@@ -189,8 +212,8 @@ const PLAIN_AIR := Color(0.96, 0.72, 0.64)  ## the far plain's: the horizon's ro
 ## multiplied by a cool violet shade (soft-edged at its far side), a middle value under his whites and over his darks;
 ## the sky, the landforms and the far plain stay in the sun, and so do the path and the characters in front.
 const LANE_SHADE := Color(0.95, 0.95, 0.99)  ## (round 7's (0.66, 0.66, 0.88) made the band his skin's value: nearly off)
-const LANE_SHADE_FROM := 462.0  ## play y where the shade starts (the far plain: in the sun above it)
-const LANE_SHADE_FULL := 508.0  ## and where it is full
+const LANE_SHADE_FROM := 446.0  ## play y where the shade starts (the far plain: in the sun above it)
+const LANE_SHADE_FULL := 470.0  ## and where it is full
 const CLOUD_SHADOW_GAP := 700.0  ## round 10: units of the plain between two clouds' shadows
 const FRONT_PROP_SCROLL := 1.45  ## round 9: the big things in front, nearer still (round 20: 1.6 -> 1.45: longer in the corner)
 const FRONT_PROP := Vector2(260, 230)  ## one piece of fg_props.png (units, 2 px a unit), in 3 columns
@@ -223,6 +246,7 @@ var _mesa_mats: Array[ShaderMaterial] = []  # round 21: per row (the clouds' sha
 var _tree_mats: Array[ShaderMaterial] = []  # round 17: the two tree rows' (their haze thins at dusk)
 var _far_mat: ShaderMaterial  # round 23: the far plain's and the mid hills' (the dusk's colour over their haze)
 var _mid_mat: ShaderMaterial
+var _lane_mat: ShaderMaterial  # round 18: the tall grass behind the path (in the rise's shade)
 var _wall_mat: ShaderMaterial
 var _mesa_pitch := 0.0  # px between two rows of landforms in far_mesa_pieces.png
 
@@ -263,11 +287,13 @@ func _ready() -> void:
 	_painter(_draw_strip.bind(&"far_hills"), true).material = _far_mat
 	_tree_mats = [_tree_haze(0), _tree_haze(1)]
 	_painter(_draw_trees.bind(0)).material = _tree_mats[0]
-	_mid_mat = _haze([0, 0, 0, 0, MID_HAZE, 0.0, 0, LANE_AIR], MID_TINT, 0.0, 0.0, true, {flatten = MID_FLATTEN, soft = SOFT_MID, lift = LIFT_MID})
-	_painter(_draw_strip.bind(&"mid_hills"), true).material = _mid_mat
 	_painter(_draw_trees.bind(1)).material = _tree_mats[1]
+	_mid_mat = _haze([0, 0, 0, 0, MID_HAZE, RISE_FOOT, 0, RISE_SHADE], MID_TINT, 0.0, 0.0, true, {flatten = MID_FLATTEN, soft = SOFT_MID, lift = LIFT_MID,
+			crest = RISE_CREST, crest_to = RISE_CREST_TO})
+	_painter(_draw_strip.bind(&"mid_hills"), true).material = _mid_mat
 	_painter(_draw_lane_mist)
-	_painter(_draw_strip.bind(&"near_grass"), true).material = _haze([0, 0, 0, 0, LANE_HAZE, 0.0, 0, LANE_AIR], LANE_TINT, 0.0, 0.0, true, {flatten = LANE_FLATTEN, soft = SOFT_LANE, lift = LIFT_LANE})
+	_lane_mat = _haze([0, 0, 0, 0, LANE_HAZE, 0.0, 0, GRASS_SHADE], LANE_TINT, 0.0, 0.0, true, {flatten = LANE_FLATTEN, soft = SOFT_LANE, lift = LIFT_LANE})
+	_painter(_draw_strip.bind(&"near_grass"), true).material = _lane_mat
 	var mul := CanvasItemMaterial.new()
 	mul.blend_mode = CanvasItemMaterial.BLEND_MODE_MUL
 	_painter(_draw_lane_shade).material = mul
@@ -334,6 +360,7 @@ func _process(delta: float) -> void:
 	_wall_mat.set_shader_parameter(&"air_tint", _dusk(DUSK_STRIPS[&"far_wall"]))
 	_far_mat.set_shader_parameter(&"air_tint", _dusk(DUSK_STRIPS[&"far_hills"]))
 	_mid_mat.set_shader_parameter(&"air_tint", _dusk(DUSK_STRIPS[&"mid_hills"]))
+	_lane_mat.set_shader_parameter(&"air_tint", _dusk(DUSK_STRIPS[&"near_grass"]))
 	var clear := 1.0 - DUSK_CLEAR * dusk
 	_far_mat.set_shader_parameter(&"amount", PLAIN_HAZE * clear)
 	_far_mat.set_shader_parameter(&"flatten", PLAIN_FLATTEN * clear)
@@ -392,6 +419,40 @@ func _draw_sky(ci: CanvasItem) -> void:
 	if bottom < World.VIEW_H + 4.0:
 		ci.draw_texture_rect_region(sky, Rect2(x0, bottom - 1.0, w, World.VIEW_H + 5.0 - bottom),
 				Rect2(src.position.x, sky.get_height() - 1, src.size.x, 1), low)
+	_draw_moon(ci)
+
+
+## Blind round 17 (at home, "the upper right is empty violet sky"): the new moon rises as the dusk falls, a thin
+## crescent turned to where the sun went down, in the clear band between the clouds and the mesas, a few first stars
+## round it. It stands still in the screen (it is far away): over the small hut in the home's pushed-in shot.
+func _draw_moon(ci: CanvasItem) -> void:
+	var a := smoothstep(0.45, 1.0, dusk)
+	if a <= 0.0:
+		return
+	var at := MOON_AT
+	var halo := MOON_R * 4.6  # its halo, soft
+	ci.draw_texture_rect(Fx.puff_texture(), Rect2(at - Vector2(halo, halo), Vector2(halo, halo) * 2.0), false, Color(MOON_HALO, 0.3 * a))
+	var limb := PackedVector2Array()
+	var steps := 20
+	for i in steps + 1:  # the lit limb: half a circle
+		var t := MOON_TURN - PI / 2.0 + PI * i / steps
+		limb.append(at + Vector2(cos(t), sin(t)) * MOON_R)
+	for i in range(1, steps):  # and back along the shadow's edge, between its two horns
+		var t := MOON_TURN + PI / 2.0 - PI * i / steps
+		limb.append(at + _moon_inner(t) * MOON_R)
+	ci.draw_colored_polygon(limb, Color(MOON_LIGHT, a))
+	for i in MOON_STARS.size():
+		var s: Vector3 = MOON_STARS[i]
+		var twinkle := 0.75 + 0.25 * sin(_clock * (1.3 + i * 0.37) + i * 2.1)
+		ci.draw_circle(at + Vector2(s.x, s.y), s.z, Color(MOON_LIGHT, a * twinkle * 0.85))
+
+
+## A point of the crescent's inner edge: the limb's half circle flattened toward the lit side (MOON_THIN).
+static func _moon_inner(t: float) -> Vector2:
+	var along := Vector2(cos(MOON_TURN), sin(MOON_TURN))  # toward the lit side
+	var p := Vector2(cos(t), sin(t))
+	var u := p.dot(along)
+	return p + along * (u * (MOON_THIN - 1.0))
 
 
 ## Blind round 12 ("the camera draws back to the vine over an empty sky band"): a second row of cumulus high in the

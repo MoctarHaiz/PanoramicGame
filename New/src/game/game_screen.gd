@@ -54,6 +54,11 @@ const START_PUSH := 1.3  ## (round 19) on the start card the camera opens pushed
 const START_HOLD := 1.6  ## ... holds it this many seconds,
 const START_REVEAL := 1.0  ## ... then draws back to the run's framing over this many (the first touch: at once)
 const HOME_CX := 800.0  ## play x drawn to the middle of the screen at home (the hut, him at its door)
+## (blind round 18, on a 4:3 iPad the push cut the HOME sign in two at the left edge: the home's shot holds the sign,
+## the fire, him and the whole hut on every screen: it pushes in less on a narrow one (_home_push), and its middle
+## moves left until the sign is whole (_home_cx))
+const HOME_LEFT := 466.0  ## play x of the shot's left edge at the earliest: the sign's tip
+const HOME_SPAN := 562.0  ## units across the shot at least: from the sign's tip to past the hut's far side
 const SHAKE := 22.0  ## design units of the strongest shake
 const RESUME_COUNT := 3  ## after Resume: 3, 2, 1 before the world moves again
 const RESUME_STEP := 0.5  ## seconds per number
@@ -243,6 +248,16 @@ func _process(delta: float) -> void:
 ## the bottom of the play window's left edge: the ground stays put), pushed in at home or on him
 ## when caught, and shaken (with just enough zoom that the shake never bares an edge). Each is a
 ## zoom about its own point.
+## The zoom of the home's shot on this screen (HOME_PUSH, less where that would show under HOME_SPAN units across).
+func _home_push() -> float:
+	return minf(HOME_PUSH, _clip.size.x / _k / HOME_SPAN)
+
+
+## The play x drawn to the middle of the screen at home: HOME_CX, further left where the sign would be cut (HOME_LEFT).
+func _home_cx() -> float:
+	return minf(HOME_CX, HOME_LEFT + _clip.size.x / (_k * _home_push()) / 2.0)
+
+
 func _place_camera(delta: float) -> void:
 	var p := world.draw_hero()
 	var inset := Device.insets().x
@@ -275,7 +290,7 @@ func _place_camera(delta: float) -> void:
 	_zoom = lerpf(_zoom, goal, 1.0 - exp(-delta * (ZOOM_OUT_RATE if goal < _zoom else ZOOM_IN_RATE)))
 	var home := world.state == World.State.WON
 	var caught := world.state == World.State.DEAD and world.death_reason == &"bandit"
-	var push := maxf(HOME_PUSH / _zoom, 1.0) if home else (DEATH_PUSH if caught else 1.0)
+	var push := maxf(_home_push() / _zoom, 1.0) if home else (DEATH_PUSH if caught else 1.0)
 	_push = lerpf(_push, push, 1.0 - exp(-delta * (2.6 if home else (1.6 if caught else 10.0))))
 	var shake := _trauma * _trauma * SHAKE * Prefs.shake()  # New: the player can turn it off
 	var zoom_k := _k * _zoom
@@ -291,8 +306,8 @@ func _place_camera(delta: float) -> void:
 		at.y = -lerpf(bottom_top, top, _high) * zoom_k
 	if _push > 1.0001 and home:  # New: the push draws the hut and him to the middle of the screen as it goes
 		# in (about the doorway, a 4:3 iPad lost the hut's right half past its edge)
-		var u := clampf((_push - 1.0) / maxf(HOME_PUSH / _zoom - 1.0, 0.01), 0.0, 1.0)
-		var c := at + Vector2(HOME_CX, World.VIEW_H - 100.0) * zoom_k
+		var u := clampf((_push - 1.0) / maxf(_home_push() / _zoom - 1.0, 0.01), 0.0, 1.0)
+		var c := at + Vector2(_home_cx(), World.VIEW_H - 100.0) * zoom_k
 		var target := Vector2(lerpf(c.x, _clip.size.x / 2.0, u), c.y)
 		zoom_k *= _push
 		at = at * _push + target - c * _push

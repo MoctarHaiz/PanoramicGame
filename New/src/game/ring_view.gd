@@ -26,18 +26,20 @@ const TRAIL := 9  ## positions kept for its streak on its way back
 ## where they are gone to nothing; half see-through at the ring.
 ## Blind round 16 (of that smear: "a thin pale-yellow hair that vanishes on the pale grass"; "chakram about 1.5 times
 ## larger with a bold tapered wake that has real value contrast against the grass"): between the two: a tapered
-## wedge a little narrower than the ring, a point at his hand; a deep red under-stroke (WAKE_INK) gives it its value
+## wedge a little narrower than the ring, a point at his hand; a deep red under-stroke gave it its value
 ## against the pale grass, its dry strands over it hot orange outside and cream at its heart. The ring itself grows as
 ## it leaves his hand (FLIGHT_GROW: toward the eye, into its lane) and is back to his hand's size when he catches it.
+## Blind round 17 ("a thick, flat orange wedge with a hard red underside"): the red under-stroke is gone (the hillside
+## behind the path is in the dusk's shade now: the smear has its value against it by itself) and every band is soft
+## across (_band): a smear of light, hot at its heart.
 const FLIGHT_GROW := 1.4
 const WAKE_LEN := 250.0
 const WAKE_SHORT := 130.0
 const WAKE_HOLD := 0.34  ## seconds of flight it keeps its full length
 const WAKE_STEPS := 16
 const WAKE_TUCK := 14.5  ## units short of the ring's middle it ends: under its rim (its hole stays open)
-const WAKE_HALF := RADIUS * 0.86  ## half its width at the ring (grown: FLIGHT_GROW): inside the ring's own width
+const WAKE_HALF := RADIUS * 0.8  ## half its width at the ring (grown: FLIGHT_GROW): inside the ring's own width
 const WAKE_TAPER := 0.9  ## how its width closes toward his hand (1: a straight wedge)
-const WAKE_INK := Color("7a2418")  ## its under-stroke: the value that carries it over pale grass
 const WAKE_BODY := Color("ff9a36")
 const WAKE_TONES: Array[Color] = [Color("e9582a"), Color("ffb23e"), Color("fff0cf")]  # its strands: hot orange outside, cream at its heart
 ## Its strands, as a dry brush leaves them: where each lies across it at the ring (-1 to 1), its half width (a share
@@ -214,6 +216,7 @@ func _band(on: Node2D, path: PackedVector2Array, half: float, from: float, colou
 	var n := path.size()
 	var left := PackedVector2Array()
 	var right := PackedVector2Array()
+	var mid := PackedVector2Array()
 	var cols := PackedColorArray()
 	for i in n:
 		var u := float(i) / (n - 1)
@@ -225,6 +228,7 @@ func _band(on: Node2D, path: PackedVector2Array, half: float, from: float, colou
 		var w := half * pow(v, WAKE_TAPER) * (0.5 if i == n - 1 and _back < 0.0 else 1.0)
 		left.append(p + across * w)
 		right.append(p - across * w)
+		mid.append(p)
 		# gone to nothing at his hand, full only near the ring
 		cols.append(Color(colour, colour.a * smoothstep(0.0, 0.3, v) * pow(u, 1.15)))
 	var uv := PackedVector2Array([Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO])
@@ -233,8 +237,14 @@ func _band(on: Node2D, path: PackedVector2Array, half: float, from: float, colou
 			continue
 		# (a primitive, not a polygon: nothing to triangulate, so a piece of no length, held on what it struck, or
 		# one twisted at the turn of its arc draws as nothing instead of failing)
-		on.draw_primitive(PackedVector2Array([left[i], left[i + 1], right[i + 1], right[i]]),
-				PackedColorArray([cols[i], cols[i + 1], cols[i + 1], cols[i]]), uv)
+		# (blind round 17: "a thick, flat orange wedge with a hard red underside": each band is soft across, full along
+		# its middle and gone at its two edges, as a brush's smear is)
+		var clear_a := Color(cols[i], 0.0)
+		var clear_b := Color(cols[i + 1], 0.0)
+		on.draw_primitive(PackedVector2Array([left[i], left[i + 1], mid[i + 1], mid[i]]),
+				PackedColorArray([clear_a, clear_b, cols[i + 1], cols[i]]), uv)
+		on.draw_primitive(PackedVector2Array([mid[i], mid[i + 1], right[i + 1], right[i]]),
+				PackedColorArray([cols[i], cols[i + 1], clear_b, clear_a]), uv)
 
 
 func _draw_wake() -> void:
@@ -245,8 +255,7 @@ func _draw_wake() -> void:
 		return
 	var fade := 1.0 if _back < 0.0 else 0.85
 	var half := WAKE_HALF * _grow()
-	_band(_wake, path, half, 0.0, Color(WAKE_INK, 0.5 * fade))  # its under-stroke: a deep red, its value on pale grass
-	_band(_wake, path, half * 0.8, 0.04, Color(WAKE_BODY, 0.42 * fade))  # a wash under its strands
+	_band(_wake, path, half * 1.1, 0.04, Color(WAKE_BODY, 0.36 * fade))  # a soft wash under its strands
 	for strand: Array in WAKE_STRANDS:
 		_band(_wake, path, half * float(strand[1]), strand[2], Color(WAKE_TONES[int(strand[4])], float(strand[3]) * fade),
 				half * float(strand[0]))

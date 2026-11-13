@@ -230,7 +230,7 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 	soil.set_shader_parameter(&"home_from", HomeView.LEFT - 6.0 * T)  # (as _home_light() on the turf over it)
 	soil.set_shader_parameter(&"home_fire", HomeView.LEFT + HomeView.FIRE_X)
 	soil.set_shader_parameter(&"home_reach", HomeView.GROUND_REACH)
-	soil.set_shader_parameter(&"home_dusk", HomeView.GROUND_DUSK)
+	soil.set_shader_parameter(&"home_dusk", HomeView.SOIL_DUSK)
 	soil.set_shader_parameter(&"home_warm", HomeView.GROUND_FIRE)
 	if ResourceLoader.exists(DIR + "earth.png"):  # the painted bank of the main ground
 		var earth: Texture2D = load(DIR + "earth.png")

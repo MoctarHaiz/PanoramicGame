@@ -19,23 +19,31 @@ const DOOR_RIGHT := 840.0  ## play x of the doorway's right edge: he stops in it
 ## over him are unchanged): its doorway a little taller than him, the whole dome in the pushed-in shot with sky over
 ## it, so he leads the picture.
 const HUT_K := 0.8
-const FIRE_REACH := 330.0  ## how far the campfire's light carries on the props round it (units)
-const DUSK := Color(0.6, 0.58, 0.82)  ## the shade away from it (form.gdshader's dusk)
-const FIRE_TINT := Color(1.16, 0.98, 0.8)  ## its light (form.gdshader's fire_tint)
+## (blind round 17: "the hut's whole left side glows warm, while the sign, fence and ground right beside the fire
+## barely change": the light dies sooner and is warmer, the shade away from it deeper: the sign's board goes from
+## the dusk at its tip to orange at the fire's side, the hut from orange by the fire to the night at its far side)
+const FIRE_REACH := 220.0  ## how far the campfire's light carries on the props round it (units)
+const DUSK := Color(0.54, 0.53, 0.82)  ## the shade away from it (form.gdshader's dusk)
+const FIRE_TINT := Color(1.3, 1.0, 0.7)  ## its light (form.gdshader's fire_tint)
 const FIRE_X := 644.0  ## play x of the campfire on the last screen
 ## Blind round 15 ("the bright yellow line along the grass base reads as a strip, not a light pool"): the ground's own
 ## light: the grass and the earth are in a deeper night away from the fire (the turf's straw at DUSK was still the
 ## brightest thing far right of the hut) and warmer in its pool (ground_colour: the turf, the props, the earth)
 const GROUND_DUSK := Color(0.4, 0.4, 0.7)
 const GROUND_FIRE := Color(1.14, 0.9, 0.64)
+## (blind round 17: "the bottom 12% is a dead black strip": the earth under the path, dark by day already, keeps more
+## of itself in the dusk than the turf does: its roots and stones still read)
+const SOIL_DUSK := Color(0.66, 0.6, 0.9)
 ## (blind round 16: "a yellow-green lit strip runs ruler-straight along the grass across the full width: a band of
 ## light, not a pool": seen side-on, a pool reads only if all of its falloff is in the picture: the fire's light on
 ## the ground dies within this many units of it, well inside the pushed-in shot's 780)
 const GROUND_REACH := 170.0
-const TREE_X := 404.0  ## the great acacia behind the palisade: its foot (from LEFT), at the pushed-in shot's left edge
+## (blind round 17: "a heavy dark trunk runs down the whole left edge": its foot is out of the pushed-in shot, its
+## trunk comes in from the left edge and its crown hangs over the corner, in the dusk's air, not near black)
+const TREE_X := 366.0  ## the great acacia behind the palisade: its foot (from LEFT), left of the pushed-in shot
 const TREE_K := 1.25  ## its size: its crown leaves the picture by the top left corner
 const TREE_FOOT := 230.5  ## its trunk's foot in its picture (px: tree_info.json's anchor_x)
-const TREE_DUSK := Color(0.66, 0.62, 0.8)
+const TREE_DUSK := Color(0.92, 0.86, 1.04)
 
 var back: Node2D
 var yard: Node2D  ## over the ground's grass, under the actors (WorldView adds it after the ground)
@@ -82,7 +90,8 @@ func build() -> void:
 	# (blind round 7: "the HOME signpost as large as the hero, the first thing the eye lands on": 1.35 -> 1.05)
 	# (blind round 12: "chunky casual-game letters, a cheaper drawing language than the painted hut": a weathered plank
 	# arrow lashed to a post, HOME cut and burnt in the logo's angular capitals; its picture is 3 px a unit)
-	var sign := _put(back, "home_sign", LEFT + 524.0, 0.67, Color.WHITE)
+	# (blind round 17: "the carved HOME sign is literal": the old game's own HOME signpost stays, a step smaller: 0.67)
+	var sign := _put(back, "home_sign", LEFT + 524.0, 0.6, Color.WHITE)
 	sign.material = form(0.0, 0.0)
 	var pot := _put(back, "home_pot", door_x - 58.0, 1.0, Color.WHITE)
 	pot.material = form(0.0, 0.0)
@@ -251,6 +260,8 @@ func _fire_lit(prop: Sprite2D) -> void:
 	var hearth := _fire.position + Vector2(0.0, -40.0)
 	m.set_shader_parameter(&"fire_at", (hearth - prop.position) / prop.scale)
 	m.set_shader_parameter(&"fire_reach", FIRE_REACH / prop.scale.x)
+	m.set_shader_parameter(&"dusk", DUSK)
+	m.set_shader_parameter(&"fire_tint", FIRE_TINT)
 
 
 ## A picture standing on the ground, its foot centred at x.
@@ -339,10 +350,8 @@ class Fire extends Node2D:
 
 	const FRAMES := 4
 	const FPS := 9.0
-	var _painted: Sprite2D  # the painted fire (home_fire.png: stones, logs and four flames), when it is there
-	var _inner: Sprite2D  # its inner tongue: the same flames, smaller, two frames on
-	const INNER_K := 0.6
-	const INNER_ROOT := 0.66  ## where the flames leave the logs, down the picture: the inner tongue grows from there
+	var _painted: Sprite2D  # the painted hearth (home_fire.png: the stones, the logs and their embers), when it is there
+	var _flame: Sprite2D  # its flames behind the logs (home_flames.png, four frames: tools/art/kie/world.py fire)
 	var _bloom: Sprite2D  # over it: its light a little past the flame's edge
 	var _heart: Sprite2D  # and its soft white-hot heart
 
@@ -371,26 +380,22 @@ class Fire extends Node2D:
 		if ResourceLoader.exists(DIR + "home_fire.png"):
 			_painted = Sprite2D.new()
 			_painted.texture = load(DIR + "home_fire.png")
-			_painted.hframes = FRAMES
 			_painted.centered = false
-			var size := _painted.texture.get_size() / Vector2(FRAMES, 1)
+			var size := _painted.texture.get_size()
 			var k := 56.0 / size.x  # units wide at the fire's own scale (HomeView doubles it)
 			_painted.scale = Vector2(k, k)
 			_painted.position = Vector2(-size.x * k / 2.0, 5.0 - size.y * k)
+			# (blind round 17: "a flat cartoon flame (three hard tones, yellow tongue)", of the hearth's own flame with a
+			# smaller yellow tongue laid in it: the flames are painted alone now, soft, a white-hot heart, embers, and
+			# stand behind the logs: a frame as wide as the hearth, its foot on the embers)
+			_flame = Sprite2D.new()
+			_flame.texture = load(DIR + "home_flames.png")
+			_flame.hframes = FRAMES
+			_flame.centered = false
+			_flame.scale = Vector2(k, k)
+			_flame.position = Vector2(-size.x * k / 2.0, 5.0 - _flame.texture.get_height() * k)
+			add_child(_flame)
 			add_child(_painted)
-			# (blind round 16: "a flat cartoon flame, a simpler language than the richly painted thatch": a second,
-			# smaller tongue inside it, another of its frames in the fire's hot yellow: flame_inner.gdshader)
-			_inner = Sprite2D.new()
-			_inner.texture = _painted.texture
-			_inner.hframes = FRAMES
-			_inner.centered = false
-			_inner.scale = Vector2(k, k) * INNER_K
-			_inner.position = Vector2(-size.x * k * INNER_K / 2.0,
-					5.0 - size.y * k * (1.0 - INNER_ROOT) - size.y * k * INNER_K * INNER_ROOT)
-			var inner_mat := ShaderMaterial.new()
-			inner_mat.shader = preload("res://src/game/flame_inner.gdshader")
-			_inner.material = inner_mat
-			add_child(_inner)
 			# (blind round 15: "a hard-edged cartoon flame with a weak glow": a soft white-hot heart over the painted
 			# flame and a bloom a little wider than it: the flame's ink softens into its own light)
 			_bloom = Sprite2D.new()
@@ -435,10 +440,9 @@ class Fire extends Node2D:
 		for m in _flames:
 			m.set_shader_parameter(&"flare", flare)
 		if _painted:
-			_painted.frame = int(_clock * FPS) % FRAMES
-			_inner.frame = (_painted.frame + 2) % FRAMES
+			_flame.frame = int(_clock * FPS) % FRAMES
 			_bloom.modulate = Color(1.0, 0.56, 0.24, 0.2 + flicker * 0.4 + 0.1 * flare)
-			_heart.modulate = Color(1.0, 0.9, 0.62, 0.34 + flicker * 0.6 + 0.1 * flare)
+			_heart.modulate = Color(1.0, 0.9, 0.62, 0.16 + flicker * 0.4 + 0.1 * flare)  # (the painted flames have their own white heart)
 			return
 		queue_redraw()
 

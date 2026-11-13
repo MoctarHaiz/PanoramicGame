@@ -46,6 +46,10 @@ uniform float lift : hint_range(0.0, 1.0) = 0.0;
 // (blind round 14, of the plain: "a pale soft wash: graded atmospheric planes") `far`: more haze toward the picture's
 // top (a plain seen from above its near edge: its far side at the horizon deep in the air, its near side clear)
 uniform float far : hint_range(0.0, 1.0) = 0.0;
+// blind round 18: this much less air along a strip's top, down to `crest_to` of its height: the crest of a rise in
+// shade still catches the low sun
+uniform float crest = 0.0;
+uniform float crest_to = 0.2;
 
 varying vec4 drawn;  // round 20: the colour each sprite is drawn with (COLOR in fragment() has the texture in it)
 varying vec2 at;  // round 21: where it is drawn (the layer's units)
@@ -79,7 +83,8 @@ void fragment() {
 	if (cell_px > 0.0) {
 		v = clamp(mod(py, cell_px) / (cell_px - 6.0), 0.0, 1.0);
 	}
-	float k = clamp(amount + foot * smoothstep(0.6, 1.0, v) + far * (1.0 - smoothstep(0.0, 0.75, v)), 0.0, 1.0);
+	float k = clamp(amount + foot * smoothstep(0.6, 1.0, v) + far * (1.0 - smoothstep(0.0, 0.75, v))
+			- crest * (1.0 - smoothstep(0.0, crest_to, v)), 0.0, 1.0);
 	// (round 20: and each sprite's own colour, as drawn: the trees' shades, the landforms' rows; it was dropped)
 	vec3 c = t.rgb * tint.rgb * drawn.rgb;
 	if (ink_units > 0.0 && t.a > 0.01) {

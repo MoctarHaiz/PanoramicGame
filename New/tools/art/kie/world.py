@@ -13,7 +13,7 @@ the frame, then each layer of it alone on a transparent background, with the fra
     near_grass.png       the tall grass behind the path (a strip)
     tree_*.png           ten trees (+ tree_info.json: the foot of each trunk)
     fg_props.png         six plants and rocks near the camera
-    home_fire.png        the cooking fire at home, four frames (HomeView.Fire)
+    home_fire.png        the cooking fire's hearth at home; home_flames.png its flames, four frames (HomeView.Fire)
     home_sign.png        the HOME signpost (sign); home_hut.png's doorway repainted dark, in place (door)
     fx_impact.png        a blow's burst, three frames (impact: Fx.hit_spark)
     sky_clouds.png       the sky's cumulus alone, off the finished sky.png (clouds): drawn again higher up
@@ -45,6 +45,11 @@ TREES = ["tree_acacia_1", "tree_acacia_2", "tree_acacia_3", "tree_acacia_4", "tr
 ## .TREE_TALL: 232 units), two are level props too (PropView: 140 to 150 units), the others are small and far
 TREE_SCALE = {"tree_acacia_2": 0.9, "tree_acacia_5": 0.9, "tree_baobab_2": 0.9, "tree_baobab_4": 0.9,
               "tree_acacia_1": 0.6, "tree_acacia_3": 0.6}
+HEARTH_TIP, HEARTH_SLOPE, HEARTH_STONES = 0.672, 0.55, 0.8  # the hearth's logs: their tips, their lean, the stones' tops (fire)
+FLAME_K = 0.46  # the flames, of fire3's px: about 215 px across on the 308 px hearth
+FLAME_CELL = (308, 440)  # px, a frame of home_flames.png: the hearth's width
+FLAME_FOOT = 52  # px over the cell's bottom the flames stand: behind the logs, on the embers
+RISE_SWELL = 0.35  # how much of the painted crest's long swell is kept (rise)
 FRONT_CELL = (440, 390)  # px: SavannaView.FRONT_PROP at 1.7 px a unit (dark shapes passing fast: no finer)
 
 
@@ -141,12 +146,23 @@ def rise() -> None:
     # (blind round 16: "collapse the band directly behind the lane (trees, mound, boulders, baobab between knee and
     # head height) into two or three quiet, paler, low-contrast shapes": rise2, a quiet rise of sun-bleached grass under
     # long cloud shadows, three small shrubs; `rise`, the one before it, carried boulders, termite mounds and aloes)
-    a = load("rise2")
+    # (blind round 17: "two lights in one picture: a violet dusk sky … and a bleached, shadowless, midday-pale plain":
+    # rise3, the hillside behind the fighters in the dusk's violet shade, wind-swept grass, the last sun along its
+    # crest. It stands as tall as they do, SavannaView: its crest just over their heads, so the painted crest's long
+    # swell is levelled to RISE_SWELL of itself: at its low points his head stood out over it)
+    a = load("rise3")
+    solid = a[..., 3] > 0.5
+    crest = np.where(solid.any(axis=0), solid.argmax(axis=0), a.shape[0]).astype(np.float32)
+    swell = ndi.gaussian_filter1d(crest, 90.0, mode="wrap")  # (its long swell: the shrubs on it stay as they are)
+    lift = (swell - swell.min()) * (1.0 - RISE_SWELL)
+    rows = np.arange(a.shape[0], dtype=np.float32)[:, None] + lift[None, :]  # (each column moved up by its lift)
+    cols = np.broadcast_to(np.arange(a.shape[1], dtype=np.float32)[None, :], rows.shape)
+    a = np.dstack([ndi.map_coordinates(a[..., q], [rows, cols], order=1, mode="nearest") for q in range(4)])
     first = top_edge(a, 0.004)
     line = top_edge(a, 0.97)
-    out = seam(a[first - 8:line + 232], 256)  # (solid from y 532: 232 px reach the screen's bottom edge)
+    out = seam(a[first - 8:line + 380], 256)  # (solid from y 462 at 2 px a unit: 380 px reach under the screen's bottom edge)
     save(out, OUT / "mid_hills.png")
-    print("  solid from row %d of it" % (line - first + 8))
+    print("  solid from row %d of it, %d rows" % (line - first + 8, out.shape[0]))
 
 
 def grass() -> None:
@@ -245,18 +261,49 @@ def earth() -> None:
 
 
 def fire() -> None:
-    """The cooking fire at home: four frames in a row, the stones and logs in the same place in each."""
-    ps = pieces("fire2", 4, 1)  # (blind round 12: "a thick-outlined emoji flame": fire.png; fire2 is painted as the hut is)
-    k = 300.0 / max(p.shape[1] for p in ps)
-    ps = [resize(p, (round(p.shape[1] * k), round(p.shape[0] * k))) for p in ps]
-    cw, ch = max(p.shape[1] for p in ps) + 8, max(p.shape[0] for p in ps) + 4
-    sheet = np.zeros((ch, cw * 4, 4), np.float32)
-    for i, p in enumerate(ps):
-        foot = np.nonzero(p[-max(p.shape[0] // 4, 1):, :, 3].max(axis=0) > 0.5)[0]  # the ring of stones: its middle
-        x = i * cw + cw // 2 - int(foot.min() + foot.max()) // 2
-        x = min(max(x, i * cw), (i + 1) * cw - p.shape[1])
-        sheet[ch - p.shape[0]:, x:x + p.shape[1]] = p
-    save(sheet, OUT / "home_fire.png")
+    """The cooking fire at home: the hearth (home_fire.png: the ring of stones, the logs and their embers) and its flames
+    (home_flames.png: four frames, drawn behind the logs, HomeView.Fire).
+    The hearth is fire2's (blind round 12: "a thick-outlined emoji flame": fire.png; fire2 is painted as the hut is), its
+    own flame cut off along the tops of its logs. The flames are fire3's (blind round 17: "a flat cartoon flame (three
+    hard tones, yellow tongue)": painted alone on black, soft, a white-hot heart, embers): black keyed out by their
+    light, so their dark red edges are see-through over the dusk instead of a brown rim."""
+    p = pieces("fire2", 4, 1)[0]
+    k = 300.0 / p.shape[1]
+    p = resize(p, (round(p.shape[1] * k), round(p.shape[0] * k)))
+    cw, ch = p.shape[1] + 8, p.shape[0] + 4
+    hearth = np.zeros((ch, cw, 4), np.float32)
+    foot = np.nonzero(p[-max(p.shape[0] // 4, 1):, :, 3].max(axis=0) > 0.5)[0]  # the ring of stones: its middle
+    x = min(max(cw // 2 - int(foot.min() + foot.max()) // 2, 0), cw - p.shape[1])
+    hearth[ch - p.shape[0]:, x:x + p.shape[1]] = p
+    # the tops of the two leaning logs: a tent from their tips (HEARTH_TIP of the picture's height up) down to the
+    # stones; all above it was the old flame
+    xs = np.abs(np.arange(cw, dtype=np.float32) - cw / 2.0)
+    line = np.minimum(ch * HEARTH_TIP + np.maximum(xs - 5.0, 0.0) * HEARTH_SLOPE, ch * HEARTH_STONES)
+    ys = np.arange(ch, dtype=np.float32)[:, None]
+    hearth *= np.clip((ys - (line[None, :] - 6.0)) / 8.0, 0.0, 1.0)[..., None]
+    save(hearth, OUT / "home_fire.png")
+    a = np.asarray(Image.open(GEN / "fire3.png").convert("RGB")).astype(np.float32) / 255.0
+    w = a.shape[1] // 4
+    fh = round(a.shape[0] * FLAME_K)
+    sheet = np.zeros((FLAME_CELL[1], FLAME_CELL[0] * 4, 4), np.float32)
+    for i in range(4):
+        c = a[:, i * w:(i + 1) * w]
+        light = c.max(axis=-1)
+        al = np.clip((light - 0.1) / 0.65, 0.0, 1.0)
+        al = al * al * (3 - 2 * al)
+        rgb = np.clip(c / np.maximum(al[..., None], 0.08), 0.0, 1.0)
+        f = resize(np.dstack([rgb * al[..., None], al]), (round(w * FLAME_K), fh))
+        body = np.nonzero(f[..., 3] > 0.6)
+        base = int(body[0].max())  # the flame's foot, set FLAME_FOOT px over the cell's bottom (behind the logs)
+        low = body[1][body[0] > base - 0.12 * fh]
+        mid = int((low.min() + low.max()) // 2)
+        x0, y0 = i * FLAME_CELL[0] + FLAME_CELL[0] // 2 - mid, FLAME_CELL[1] - FLAME_FOOT - base
+        for yy in range(f.shape[0]):
+            ty = y0 + yy
+            if 0 <= ty < FLAME_CELL[1]:
+                sx0, sx1 = max(i * FLAME_CELL[0] - x0, 0), min((i + 1) * FLAME_CELL[0] - x0, f.shape[1])
+                sheet[ty, x0 + sx0:x0 + sx1] = f[yy, sx0:sx1]
+    save(sheet, OUT / "home_flames.png")
 
 
 def sign() -> None:
