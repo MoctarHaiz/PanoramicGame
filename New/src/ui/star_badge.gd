@@ -3,13 +3,16 @@ extends Control
 ## A star of the results and the best run, flat and inked (the user, 2026-11-13, of three panel styles shown: "C", no
 ## box, ink brush): a fat five-point star in one flat gold with an ink line round it and one cel step (its lower right
 ## in a deeper gold, its upper left edge lit by a thin pale line): no gloss, no glow, no sparkle. A star not yet
-## earned is its outline alone: a thin gold line on the ink.
-## (Before: a glossy bevelled star in a warm glow, sparkles twinkling round it; unlit, a dark socket in a gold edge.)
+## earned is a dark socket of the same shape: the dark plates' face in an ink line, a thin gold line inside it
+## (blind round 11: "the unlit star is a hairline": it was a thin outline alone).
+## (Before: a glossy bevelled star in a warm glow, sparkles twinkling round it.)
 
 const INK := Color("140607")
 const GOLD := Color("ffc928")
 const GOLD_DEEP := Color("f0940e")
 const GOLD_PALE := Color("fff0a0")
+const SOCKET := Color("35251c")  ## a star not yet earned: the dark plates' face
+const SOCKET_DEEP := Color("261a14")
 
 var lit := true:
 	set(value):
@@ -39,11 +42,19 @@ func _draw() -> void:
 	var o := maxf(side * 0.05, 2.0)  # the ink line
 	var c := size / 2 + Vector2(0, side * 0.04)
 	var r := side * 0.5 - o
-	if not lit:  # not yet earned: its outline, a thin gold line
-		var hollow := points(c, r - o * 0.5, 0.5)
-		draw_colored_polygon(hollow, Color(0.0, 0.0, 0.0, 0.25))
-		hollow.append(hollow[0])
-		draw_polyline(hollow, Color(GOLD, 0.9), maxf(o * 0.6, 2.0), true)
+	if not lit:  # not yet earned: a dark socket in a gold line (a plate that waits, as the kit's dark plates do)
+		var rim := points(c, r + o * 0.6, 0.53)
+		draw_colored_polygon(rim, INK)
+		var socket := points(c, r - o * 0.4, 0.5)
+		draw_colored_polygon(socket, SOCKET)
+		var under := PackedVector2Array([Vector2(-4.0, c.y + r * 0.1), Vector2(size.x + 4.0, c.y + r * 0.1),
+				Vector2(size.x + 4.0, size.y + 4.0), Vector2(-4.0, size.y + 4.0)])
+		for part in Geometry2D.intersect_polygons(socket, under):
+			if not Geometry2D.triangulate_polygon(part).is_empty():
+				draw_colored_polygon(part, SOCKET_DEEP)
+		var line := points(c, r - o * 1.2, 0.5)
+		line.append(line[0])
+		draw_polyline(line, Color(GOLD, 0.85), maxf(o * 0.55, 2.0), true)
 		return
 	var outer := points(c, r + o * 0.6, 0.53)
 	draw_colored_polygon(outer, INK)

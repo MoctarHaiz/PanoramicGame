@@ -2,8 +2,9 @@ class_name ToggleSwitch
 extends Control
 ## An on/off switch on the inked panels (the user, 2026-11-13: "C", no box, ink brush): a small leaning plate that says
 ## its state in words (UI r22, the judges of j18: "low-contrast off toggles": the state reads in words, not only in
-## colour): on, the red plate of the main button with "ON" in white; off, the quiet plate (dark ink in a thin gold
-## line) with "OFF" in cream. A tap flips it: the plate pops, the red floods in or drains.
+## colour): on, the gold plate (Ui.on_style: gold is what is on, red is kept for the way on) with "ON" in ink; off,
+## the quiet plate (a dark face in a thin gold line) with "OFF" in cream. A tap flips it: the plate pops, the gold
+## floods in or drains.
 ## (Before: a candy track with a sliding knob.)
 
 signal toggled(on: bool)
@@ -64,20 +65,18 @@ func _draw() -> void:
 	var s := r.size.y * SLANT
 	var plate := PackedVector2Array([r.position + Vector2(s, 0.0), r.position + Vector2(r.size.x, 0.0),
 			r.position + Vector2(r.size.x - s, r.size.y), r.position + Vector2(0.0, r.size.y)])
-	var red := Ui.SCARF_RED
 	_poly(plate, INK)
 	var face := _inset(plate, 3.0)
-	_poly(face, Color("1c1310").lerp(red, k))
-	if k > 0.5:  # the red plate's cel band along its foot
-		var y := r.position.y + r.size.y * 0.62
-		var band := PackedVector2Array([Vector2(r.position.x - 4.0, y), Vector2(r.end.x + 4.0, y),
-				Vector2(r.end.x + 4.0, r.end.y + 4.0), Vector2(r.position.x - 4.0, r.end.y + 4.0)])
-		for part in Geometry2D.intersect_polygons(face, band):
-			_poly(part, Color("b0180f"))
-	var line := _inset(plate, 3.5 if k < 0.5 else 7.0)
+	_poly(face, Color("35251c").lerp(Ui.ON_GOLD, k))
+	var y := r.position.y + r.size.y * 0.62  # one cel band along its foot
+	var band := PackedVector2Array([Vector2(r.position.x - 4.0, y), Vector2(r.end.x + 4.0, y),
+			Vector2(r.end.x + 4.0, r.end.y + 4.0), Vector2(r.position.x - 4.0, r.end.y + 4.0)])
+	for part in Geometry2D.intersect_polygons(face, band):
+		_poly(part, Color("261a14").lerp(Ui.ON_GOLD_DEEP, k))
+	var line := _inset(plate, 3.5 if k < 0.5 else 6.0)
 	if not line.is_empty():
 		line.append(line[0])
-		draw_polyline(line, Color(Ui.INK_GOLD.lerp(Ui.BONE, 0.35), 0.95) if k < 0.5 else Color(1.0, 0.96, 0.9, 0.85), 2.0, true)
+		draw_polyline(line, Color(Ui.INK_GOLD.lerp(Ui.BONE, 0.3), 0.7) if k < 0.5 else Color(1.0, 0.97, 0.8, 0.9), 2.0, true)
 	var word := _words[1 if k > 0.5 else 0]
 	var font: Font = Ui.font_slant
 	var px := roundi(size.y * 0.5)
@@ -85,10 +84,8 @@ func _draw() -> void:
 	if ww > r.size.x - s * 2.0 - 12.0:  # a long word (another language's): smaller
 		px = roundi(px * (r.size.x - s * 2.0 - 12.0) / ww)
 		ww = font.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
-	var at := Vector2(c.x - ww * 0.5, c.y + px * 0.36)
-	if k > 0.5:
-		draw_string_outline(font, at, word, HORIZONTAL_ALIGNMENT_LEFT, -1, px, 5, INK)
-	draw_string(font, at, word, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color.WHITE if k > 0.5 else Ui.BONE)
+	var at := Vector2(c.x - ww * 0.5, c.y + px * Ui.DISPLAY_CAP * 0.5)
+	draw_string(font, at, word, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Ui.ON_INK if k > 0.5 else Color(Ui.BONE, 0.8))
 
 
 func _inset(points: PackedVector2Array, by: float) -> PackedVector2Array:

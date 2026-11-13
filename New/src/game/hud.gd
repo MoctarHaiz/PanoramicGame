@@ -1,21 +1,21 @@
 class_name Hud
 extends Control
-## The game's heads-up display, inside the safe area, over a soft shade along the top that sets it
-## apart from the vine. Every piece sits on the same plate of his world (UI r21, the judges of j17:
-## r20's cream-and-gold pills "a generic casual kit, no world material"): carved wood, lit along its
-## top bevel, a faint grain, an ink line, a soft shadow: a clean bevelled edge (UI r22, the judges of j18:
-## the bead strips under the pills "noise at phone size"); one family:
-## - lives on the left: three glossy hearts; a lost one flashes, cracks in two and its halves fall
-##   while the plate flashes red, leaving its socket hollow and cracked (not a flat tan heart); the last
-##   one beats when it is all that is left;
-## - the way home in the middle: a thick dark groove cut into the wood, faint chevrons along it, a lit gold start
-##   ahead of his face from the first step (UI r23: near 0 % it "read as broken"; r21: "a thin dashed line with tiny
-##   diamonds, unreadable on a phone"), filling with glowing gold as the level scrolls, Panoramic's face
-##   big in its gold ring over the plate's edges running along it to the house on a gold disc (no studs
-##   along it: UI r22, the judges of j18: "three grey dots read as a loading spinner");
-## - the Red Bobs on the right (counted the moment one is taken, the counter punching and flashing), the
-##   count in cream; and the pause button, a round button of the same wood in a gold ring.
-## The plates stay solid (a HUD held half see-through, or gone for seconds, reads as broken).
+## The game's heads-up display, inside the safe area, over a soft shade along the top that sets it apart from the
+## vine. Inked, as the menu and the panels (the user, 2026-11-13: "the A, inked gold, but with the RED play in the C,
+## bold action", then for the panels "C", no box, ink brush; and: "from now, choose the best option"): flat shapes in a
+## thick ink line with a hard ink drop under them, no plate behind them, nothing glossy (it was navy glass pills in a
+## gold rim with glossy hearts: the last of the older kit, beside a flat red PLAY). One family:
+## - lives on the left: three flat red hearts, a darker band across their foot (a cel shade), a white tick of light;
+##   a lost one flashes, cracks in two and its halves fall, leaving its place a dark heart in a thin gold line; the
+##   last one beats when it is all that is left;
+## - the way home in the middle: a leaning bar (the red plates' lean), dark in an ink line and a thin cream one,
+##   filling with flat gold as the level scrolls (a lit gold start ahead of his face from the first step: UI r23,
+##   near 0 % an empty bar "read as broken"), Panoramic's face in a flat gold ring riding its tip, a cream house past
+##   its end;
+## - the Red Bobs on the right (counted the moment one is taken, the counter punching and flashing): the Red Bob and
+##   the count in leaning cream numbers, inked; and the pause button, a dark leaning plate in a thin gold line (the
+##   panels' quiet plate).
+## Every piece stays solid (a HUD held half see-through, or gone for seconds, reads as broken).
 
 signal pause_pressed
 
@@ -23,15 +23,10 @@ const ROW_HEIGHT := 60.0
 const BOB_ICON := 46.0  ## size of the Red Bob on the counter
 const GEM_ICON := "res://assets/art/bob/icon.png"  ## art's ruby icon for the counter, when it is there
 const TRACK_W := 300.0
-const HEART := 39.0
-## (the user, 2026-11-08: "I don't like the woody effect: sleeker, more modern") dark navy glass, a thin gold rim
-const PLATE_TOP := Color(0.2, 0.25, 0.36, 0.9)  ## lit at its top
-const PLATE_BOTTOM := Color(0.07, 0.09, 0.15, 0.92)
-const PLATE_EDGE := Color(0.03, 0.04, 0.08, 0.9)  ## its thickness under it
-const PLATE_LINE := Color("0a0e18")  ## the kit's ink: text outlines
-const PLATE_RIM := Color("e9bf5a")  ## its thin gold rim
-const GROOVE_TOP := Color("05070d")  ## the way home's groove, sunk into the glass
-const GROOVE_BOTTOM := Color("1a2236")
+const HEART := 40.0
+const INK := Color("140607")  ## the kit's ink: every outline (SlantStyle.ink)
+const DARK := Color("1c1310")  ## an empty place: the bar not yet run, a lost heart (the quiet plate's face)
+const DROP := Vector2(1.5, 3.0)  ## the hard ink drop under every piece
 
 var world: World
 var _hearts: Array[Control] = []
@@ -45,14 +40,8 @@ var _shown_lives := -1
 var _in_flight := 0  # Red Bobs on their way to the counter (counted when they land)
 var _fx: Node2D  # effects (the Fx kit is sized for a 1280-tall design: drawn at half size)
 var _clock := 0.0
-var _lives_glass: Control
-var _track_glass: Control
+var _lives_box: Control
 var _hero_rect := Rect2()  # where Panoramic is on screen (game_screen sets it every frame)
-
-
-## The HUD's plate: carved wood (see _Plate).
-static func plate(radius: float, pressed := false) -> GlossStyle:
-	return _Plate.new(radius, pressed)
 
 
 func setup(w: World) -> void:
@@ -85,40 +74,40 @@ func setup(w: World) -> void:
 
 	# lives
 	var hearts := HBoxContainer.new()
-	hearts.add_theme_constant_override(&"separation", 4)
+	hearts.add_theme_constant_override(&"separation", 0)
 	hearts.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hearts.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	for i in World.LIVES:
-		var slot := Control.new()  # an empty socket under each heart
-		slot.custom_minimum_size = Vector2(HEART, HEART) + Vector2(6, 8)
+		var slot := Control.new()  # its empty place under each heart
+		slot.custom_minimum_size = _Heart.room(HEART)
 		slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		slot.add_child(_Heart.new(HEART, false))  # the empty socket under it
+		slot.add_child(_Heart.new(HEART, false))
 		var h := _Heart.new(HEART, true)
 		h.pivot_offset = h.size / 2
 		slot.add_child(h)
 		hearts.add_child(slot)
 		_hearts.append(h)
-	_lives_glass = _glass(hearts, 14.0)
-	_lives_glass.name = "HudLives"
-	row.add_child(_lives_glass)
+	_lives_box = hearts
+	_lives_box.name = "HudLives"
+	row.add_child(_lives_box)
 
 	var middle := CenterContainer.new()
 	middle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	middle.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(middle)
 	_track = _Track.new()
-	_track_glass = _glass(_track, 10.0)
-	_track_glass.name = "HudTrack"
-	middle.add_child(_track_glass)
+	_track.name = "HudTrack"
+	middle.add_child(_track)
 
 	_count_box = _counter()
 	_count_box.name = "HudCount"
 	_count_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(_count_box)
 	var gap := Control.new()  # the counter never crowds the pause button
-	gap.custom_minimum_size = Vector2(26, 0)
+	gap.custom_minimum_size = Vector2(14, 0)
 	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(gap)
-	_pause = _pause_button(ROW_HEIGHT + 4.0)
+	_pause = _pause_button(ROW_HEIGHT)
 	_pause.name = "HudPause"
 	_pause.pressed.connect(pause_pressed.emit)
 	row.add_child(_pause)
@@ -128,75 +117,42 @@ func setup(w: World) -> void:
 	refresh()
 
 
-## A plate around a row of things.
-func _glass(content: Control, side_margin: float) -> PanelContainer:
-	var s := plate(ROW_HEIGHT / 2.0)
-	s.content_margin_left = side_margin
-	s.content_margin_right = side_margin
-	s.content_margin_top = 4.0
-	s.content_margin_bottom = 4.0
-	var p := PanelContainer.new()
-	p.add_theme_stylebox_override(&"panel", s)
-	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	p.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	p.add_child(content)
-	return p
-
-
-## The Red Bob counter: the count on a plate, the Bob overlapping its left end.
+## The Red Bob counter: the Red Bob, then the count in leaning cream numbers, inked, with a hard ink drop (no plate).
 func _counter() -> Control:
 	_bob_icon = TextureRect.new()
-	# art's ruby icon when there is one, else the Red Bob's own picture (the faceted ruby)
+	# art's ruby icon when there is one, else the Red Bob's own picture
 	_bob_icon.texture = load(GEM_ICON) if ResourceLoader.exists(GEM_ICON) else BobView.texture()
 	_bob_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_bob_icon.custom_minimum_size = Vector2(BOB_ICON, BOB_ICON) * 1.2
 	_bob_icon.size = _bob_icon.custom_minimum_size
+	_bob_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_bob_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_number = Ui.display_text("000", 38, Color("fff6e0"), PLATE_LINE, Color("ffd88a"))  # cream on the wood
-	_number.outline_width = 5.0
-	_number.depth = 2.0
+	_number = Ui.display_text("000", 42, Ui.BONE, INK)
+	_number.font = Ui.font_slant
+	_number.outline_width = 4.0
+	_number.depth = DROP.y
+	_number.depth_colour = INK
 	_number.shadow = Color(0, 0, 0, 0)
 	_number.align = HORIZONTAL_ALIGNMENT_LEFT
 	_number.refresh()
-	var s := plate(ROW_HEIGHT / 2.0)
-	s.content_margin_left = _bob_icon.size.x * 0.62
-	s.content_margin_right = 16.0
-	s.content_margin_bottom = 0.0
-	var pill := PanelContainer.new()
-	pill.add_theme_stylebox_override(&"panel", s)
-	pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var holder := CenterContainer.new()
+	var holder := Control.new()  # as wide as three digits (the pause button never moves), the count against the Bob
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	holder.custom_minimum_size = Vector2(_number.get_combined_minimum_size().x + 6.0, ROW_HEIGHT - 8.0)
+	var need := _number.get_combined_minimum_size()
+	holder.custom_minimum_size = Vector2(need.x + 4.0, ROW_HEIGHT - 8.0)
+	_number.position = Vector2(0.0, (holder.custom_minimum_size.y - need.y) / 2.0)
+	_number.size = need
 	holder.add_child(_number)
-	pill.add_child(holder)
-	var box := Control.new()
+	var box := HBoxContainer.new()
+	box.add_theme_constant_override(&"separation", 6)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.add_child(pill)
-	var back := Panel.new()  # a gold disc in an ink ring behind the gem: it holds its shape over the sky
-	var bs := StyleBoxFlat.new()
-	bs.bg_color = Color("f0a32a")
-	bs.border_color = PLATE_LINE
-	bs.set_border_width_all(3)
-	bs.set_corner_radius_all(int(_bob_icon.size.x / 2 + 3))
-	bs.anti_aliasing = true
-	back.add_theme_stylebox_override(&"panel", bs)
-	back.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	back.size = _bob_icon.size * 0.86 + Vector2(6, 6)
-	box.add_child(back)
 	box.add_child(_bob_icon)
-	pill.position = Vector2(_bob_icon.size.x * 0.4, 0)
-	pill.size = Vector2(pill.get_combined_minimum_size().x, ROW_HEIGHT)
-	_bob_icon.position = Vector2(0, (ROW_HEIGHT - 5.0 - _bob_icon.size.y) / 2)
-	back.position = _bob_icon.position + _bob_icon.size / 2 - back.size / 2
-	box.custom_minimum_size = Vector2(pill.position.x + pill.size.x, ROW_HEIGHT)
+	box.add_child(holder)
 	return box
 
 
-## The pause button: a round button of the plates' wood in a gold ring, a cream pause sign, sinking when
-## pressed.
+## The pause button: the panels' quiet plate (dark, leaning, a thin gold line), a cream pause sign.
 func _pause_button(side: float) -> JuicyButton:
-	var b := Ui.frame_button("pause-fill", side)
+	var b := Ui.plate_button("pause-fill", Vector2(side * 1.22, side))
 	b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	return b
 
@@ -247,11 +203,11 @@ func refresh() -> void:
 
 
 ## A heart lost: it swells in a flash of white light, cracks in two, and the halves fall away
-## spinning while the plate flashes red; its socket stays, dark (added light, so it shows on phones).
+## spinning while a red light flashes over the lives; its place stays, a dark heart in a gold line.
 func _lose_heart(h: Control) -> void:
 	var slot := h.get_parent() as Control
 	_glow_at(h.get_global_rect(), Color(1, 0.95, 0.85, 0.95), 1.6)
-	_glow_at(_lives_glass.get_global_rect(), Color(1, 0.15, 0.1, 0.7), 1.0)
+	_glow_at(_lives_box.get_global_rect(), Color(1, 0.15, 0.1, 0.7), 1.0)
 	var t := h.create_tween()
 	t.tween_property(h, "scale", Vector2.ONE * 1.4, 0.08).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	t.tween_callback(func() -> void:
@@ -329,18 +285,20 @@ func blocks(pos: Vector2) -> bool:
 	return _pause.global_hit_rect().has_point(pos)
 
 
-## The way home: a dark trail cut into the plate (_Groove, drawn once) with faint chevrons along it pointing to
-## the house (a track to fill, not an empty slot), a thick bright gold fill with a lit top edge, Panoramic's face
-## big in a gold ring riding just behind its tip (over the plate's edges, as the icons of top games' counters),
-## and the house on a glowing gold disc at the end. The fill always leads his face by a lit segment with a spark
-## of light at its tip (UI r23, the judges of j19: near 0 % "an empty dark groove with the portrait at its start
-## reads as broken"): the run has started from the first step.
+## The way home: a leaning bar (the red plates' lean), dark in an ink line and a thin cream one on a hard ink drop
+## (_Rail, drawn once), a flat gold fill with one cel step along its foot, Panoramic's face in a flat gold ring
+## riding just behind its tip, and a cream house past its end. The fill always leads his face by a lit stretch (UI
+## r23, the judges of j19: near 0 % "an empty dark groove with the portrait at its start reads as broken"): the run
+## has started from the first step.
 class _Track extends Control:
 	const HEAD := preload("res://assets/art/ui/head.png")
-	const GROOVE := 30.0  ## the groove's height: thick, it reads on a phone
-	const X0 := 36.0  ## where the trail starts (room for his face at the start)
-	const FACE := 62.0  ## his portrait's side (bigger than the plate: over its edges)
-	const LEAD := 64.0  ## how far the gold's tip runs ahead of his face's middle (past his ring: the lit start)
+	const BAR := 24.0  ## the bar's height
+	const SLANT := 0.3  ## its ends lean this far right, a share of its height (SlantStyle.slant)
+	const X0 := 34.0  ## where the bar starts (room for his face at the start)
+	const FACE := 60.0  ## his portrait's side (taller than the bar: over its edges)
+	const LEAD := 62.0  ## how far the gold's tip runs ahead of his face's middle (past his ring: the lit start)
+	const GOLD := Color("ffc928")
+	const GOLD_SHADE := Color("f0940e")
 	var progress := 0.0:
 		set(value):
 			if not is_equal_approx(value, progress):
@@ -353,7 +311,9 @@ class _Track extends Control:
 	func _init() -> void:
 		custom_minimum_size = Vector2(Hud.TRACK_W + 50, Hud.ROW_HEIGHT - 8.0)
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_house = Ui.bold_icon("house-fill", 27, Ui.WHITE, Hud.PLATE_LINE)
+		_house = Ui.bold_icon("house-fill", 32, Ui.BONE, Hud.INK)
+		_house.outline_width = 3.5
+		_house.depth = Hud.DROP.y
 		add_child(_house)
 		_face = TextureRect.new()
 		_face.texture = HEAD
@@ -364,146 +324,111 @@ class _Track extends Control:
 		lift.shader = preload("res://src/ui/lift.gdshader")
 		_face.material = lift
 		add_child(_face)
-		var groove := Hud._Groove.new()  # still: drawn once, behind the fill (not every frame)
-		groove.show_behind_parent = true
-		groove.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		add_child(groove)
+		var rail := Hud._Rail.new()  # still: drawn once, behind the fill (not every frame)
+		rail.show_behind_parent = true
+		rail.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		add_child(rail)
+
+	## The bar's face in a control `height` tall.
+	static func bar(height: float) -> Rect2:
+		return Rect2(X0, height / 2 - BAR / 2, Hud.TRACK_W - 34.0, BAR)
+
+	## The leaning piece of `r` from `x0` to `x1` along its foot, grown by `g` all round.
+	static func piece(r: Rect2, x0: float, x1: float, g := 0.0) -> PackedVector2Array:
+		var lean := (r.size.y + g * 2.0) * SLANT
+		var foot := x0 - g - g * SLANT  # (grown along its lean: its ends stay parallel)
+		var end := x1 + g - g * SLANT
+		return PackedVector2Array([Vector2(foot + lean, r.position.y - g), Vector2(end + lean, r.position.y - g),
+				Vector2(end, r.end.y + g), Vector2(foot, r.end.y + g)])
 
 	func _process(delta: float) -> void:
 		_clock += delta
 		queue_redraw()
 
-	func _draw() -> void:  # every shape in one triangle array: one draw call (a call each added up)
+	func _draw() -> void:  # the fill and his ring in one triangle array: one draw call
 		var ci := get_canvas_item()
 		var y := size.y / 2
-		var x0 := X0
-		var w := Hud.TRACK_W - 34.0
-		var tip := x0 + 2.0 + LEAD + clampf(progress, 0.0, 1.0) * (w - 4.0 - LEAD)  # the gold's tip, never at the start
+		var r := bar(size.y)
+		var run := r.size.x - BAR * SLANT  # along its foot
+		var tip := r.position.x + LEAD + clampf(progress, 0.0, 1.0) * (run - LEAD)  # the gold's tip, never at the start
 		GlossStyle.begin_batch()
-		# the way done: a glowing gold fill in the groove's own shape, a rounded end, a lit top inside
-		var groove := Rect2(x0, y - GROOVE / 2, w, GROOVE).grow(-2.0)
-		GlossStyle.fill_rounded(ci, Rect2(groove.position, Vector2(tip - groove.position.x + 2.0, groove.size.y)).grow(3.0),
-				groove.size.y / 2 + 3.0, Color(1, 0.78, 0.25, 0.35), Color(1, 0.6, 0.15, 0.35))  # its glow over the groove's rim
-		GlossStyle.fill_bar(ci, groove, groove.size.y / 2, tip, Color("ffd84a"), Color("ec7c0a"), 0.8)
-		var spark := 0.5 + 0.5 * sin(_clock * 5.0)  # a spark of light at its tip: the run going on
-		GlossStyle.fill_disc(ci, Vector2(tip - 6.0, y), GROOVE * (0.5 + 0.06 * spark), Color(1, 0.9, 0.5, 0.2 + 0.1 * spark), Vector2(1.5, 0.62))
-		GlossStyle.fill_disc(ci, Vector2(tip - 5.0, y - 1.0), GROOVE * 0.16, Color(1, 1, 0.9, 0.6), Vector2(1.8, 0.75))
-		# the house at the end, on a glowing gold disc
-		var hc := Vector2(x0 + w + 12, y)
-		var pulse := 0.5 + 0.5 * sin(_clock * 3.0)
-		GlossStyle.fill_disc(ci, hc, 33.0 + pulse * 3.0, Color(1, 0.85, 0.4, 0.18 + 0.1 * pulse))
-		GlossStyle.fill_disc(ci, hc, 27.0, Hud.PLATE_LINE)
-		GlossStyle.fill_disc(ci, hc, 24.5, Color("e08a10"))
-		GlossStyle.fill_disc(ci, hc + Vector2(0, -2), 22.0, Color("ffc93c"))
-		GlossStyle.fill_disc(ci, hc + Vector2(-7, -10), 5.5, Color(1, 1, 0.9, 0.5))
-		_house.position = hc - _house.size / 2 + Vector2(0, 1)
-		# the face in its gold ring just behind the tip, bobbing a little as it runs
-		var hx := tip - LEAD + 2.0
+		var done := piece(r, r.position.x, tip)
+		GlossStyle._batch.add_fan(done, PackedColorArray([GOLD, GOLD, GOLD, GOLD]))
+		var step := r.position.y + BAR * 0.6  # one cel step along its foot
+		var k := (r.end.y - step) / BAR
+		GlossStyle._batch.add_fan(PackedVector2Array([Vector2(r.position.x + BAR * SLANT * k, step), Vector2(tip + BAR * SLANT * k, step),
+				Vector2(tip, r.end.y), Vector2(r.position.x, r.end.y)]), PackedColorArray([GOLD_SHADE, GOLD_SHADE, GOLD_SHADE, GOLD_SHADE]))
+		# his face in a flat gold ring just behind the tip, bobbing a little as it runs
 		var bob := absf(sin(_clock * 8.0)) * 2.0
-		var c := Vector2(hx, y - bob)
-		var ring := FACE / 2 + 5.0
-		GlossStyle.fill_disc(ci, c + Vector2(0, 4), ring, Color(0, 0, 0, 0.32))
-		GlossStyle.fill_disc(ci, c, ring, Hud.PLATE_LINE)
-		GlossStyle.fill_disc(ci, c, ring - 2.5, Color("e08a10"))
-		GlossStyle.fill_disc(ci, c + Vector2(0, -1), ring - 4.0, Color("ffd34a"))
+		var c := Vector2(tip - LEAD + 2.0, y - bob)
+		var ring := FACE / 2 + 4.0
+		GlossStyle.fill_disc(ci, c + Hud.DROP, ring + 3.0, Hud.INK)
+		GlossStyle.fill_disc(ci, c, ring + 3.0, Hud.INK)
+		GlossStyle.fill_disc(ci, c, ring, GOLD)
 		GlossStyle.end_batch(ci)
+		draw_line(done[1], done[2], Hud.INK, 2.0, true)  # the tip's edge, inked
 		_face.position = c - _face.size / 2
+		_house.position = Vector2(r.end.x + 6.0, y - _house.size.y / 2 + 1.0)
 
 
 
-## The way home's groove (the _Track's, behind its fill): cut deep into the wood (dark, a shade under its
-## upper edge, the wood's lit lip under it), faint chevrons along it pointing to the house (UI r23: a track to
-## fill; the gold covers them as it comes). Drawn once.
-class _Groove extends Control:
+## The way home's bar, still (the _Track's, behind its fill): a hard ink drop, an ink line, a thin cream line, the
+## dark not yet run. Drawn once.
+class _Rail extends Control:
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	func _draw() -> void:
-		var ci := get_canvas_item()
-		var w := Hud.TRACK_W - 34.0
-		var g := Rect2(_Track.X0, size.y / 2 - _Track.GROOVE / 2, w, _Track.GROOVE)
-		var r := _Track.GROOVE / 2
-		GlossStyle.begin_batch()  # the groove in one draw call
-		GlossStyle.fill_rounded(ci, Rect2(g.position + Vector2(0, 2.5), g.size).grow(2.0), r + 2.0,
-				Color(1, 0.85, 0.5, 0.22), Color(1, 0.85, 0.5, 0.22))  # a lit lip under it
-		GlossStyle.fill_rounded(ci, g.grow(2.0), r + 2.0, Hud.PLATE_LINE, Hud.PLATE_LINE)
-		GlossStyle.fill_rounded(ci, g, r, Hud.GROOVE_TOP, Hud.GROOVE_BOTTOM)  # sunk: darkest under its upper edge
-		GlossStyle.fill_clipped(ci, g, r, Rect2(g.position.x, g.end.y - 6.0, w, 6.0),
-				Color(1, 0.75, 0.45, 0.0), Color(1, 0.75, 0.45, 0.16))  # a little light caught at its foot
-		var y := g.get_center().y
-		var x := g.position.x + _Track.LEAD + 18.0
-		while x < g.end.x - r - 4.0:  # the chevrons: two thin arms each, pointing on
-			var col := Color(1, 0.86, 0.6, 0.26)
-			var cols := PackedColorArray([col, col, col, col])
-			var arm := 2.6
-			GlossStyle._batch.add_fan(PackedVector2Array([Vector2(x - 4.0, y - 7.0), Vector2(x - 4.0 + arm, y - 7.0),
-					Vector2(x + 3.0 + arm, y), Vector2(x + 3.0, y)]), cols)
-			GlossStyle._batch.add_fan(PackedVector2Array([Vector2(x + 3.0, y), Vector2(x + 3.0 + arm, y),
-					Vector2(x - 4.0 + arm, y + 7.0), Vector2(x - 4.0, y + 7.0)]), cols)
-			x += 22.0
-		GlossStyle.end_batch(ci)
+		var r := _Track.bar(size.y)
+		var end := r.end.x - _Track.BAR * _Track.SLANT
+		for layer: Array in [[5.0, Hud.INK, Hud.DROP], [5.0, Hud.INK, Vector2.ZERO], [2.0, Color(Ui.BONE, 0.95), Vector2.ZERO],
+				[0.0, Hud.DARK, Vector2.ZERO]]:
+			var pts := _Track.piece(r, r.position.x, end, layer[0])
+			for i in pts.size():
+				pts[i] += layer[2] as Vector2
+			draw_colored_polygon(pts, layer[1])
+			pts.append(pts[0])
+			draw_polyline(pts, layer[1], 1.0, true)  # (polygons are not antialiased)
 
 
-## A heart: full, it is glossy red in an ink outline with a white shine on its left lobe; lost, its socket
-## left hollow in the wood and cracked: a dark hollow with an ink rim, a lit lip below, a jagged crack of
-## light down its middle (the two read apart without colour).
+## A heart: full, flat red with a darker band across its foot (a cel shade) and a white tick of light, in a thick ink
+## line on a hard ink drop; lost, its place: a dark heart in a thin gold line (as an empty star: the two read apart
+## without colour).
 class _Heart extends Control:
 	const TEX := preload("res://assets/icons/heart-fill.svg")
+	const LINE := 3.5  ## the ink line's width
+	const SHADE_FROM := 0.6  ## the darker band starts this far down the heart
 	var full := true
+
+	## The room a heart `side` wide takes with its line and its drop.
+	static func room(side: float) -> Vector2:
+		return Vector2(side, side) + Vector2(LINE * 2.0 + Hud.DROP.x, LINE * 2.0 + Hud.DROP.y) - Vector2(8.0, 6.0)
 
 	func _init(side: float, is_full: bool) -> void:
 		full = is_full
-		custom_minimum_size = Vector2(side, side) + Vector2(6, 8)
+		custom_minimum_size = room(side)
 		size = custom_minimum_size
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	func _draw() -> void:
-		var side := minf(size.x - 6.0, size.y - 8.0)
-		var r := Rect2(Vector2(3, 2), Vector2(side, side))
-		if not full:  # the socket: the lit lip under it, its ink rim, a dark hollow, shade under its top, the crack
-			draw_texture_rect(TEX, Rect2(r.position + Vector2(0, 2.0), r.size), false, Color(1, 0.82, 0.6, 0.45))
-			draw_texture_rect(TEX, r, false, Hud.PLATE_LINE)
-			draw_texture_rect(TEX, r.grow(-3.0), false, Color("4a2210"))
-			draw_texture_rect(TEX, Rect2(r.position + Vector2(3.0, 5.0), r.size - Vector2(6.0, 7.0)), false, Color("2a1006"))
-			var crack := PackedVector2Array()  # from the notch between its lobes down towards its tip, jagged
-			for q: Vector2 in [Vector2(0.5, 0.26), Vector2(0.43, 0.42), Vector2(0.56, 0.54), Vector2(0.45, 0.68),
-					Vector2(0.52, 0.8)]:
-				crack.append(r.position + r.size * q)
-			draw_polyline(crack, Color(Hud.PLATE_LINE, 0.9), 4.0, true)
-			draw_polyline(crack, Color(0.85, 0.55, 0.32, 0.85), 1.8, true)
+		var side := size.x - LINE * 2.0 - Hud.DROP.x + 8.0
+		# (the glyph leaves a margin in its square: drawn a little larger than its room, centred)
+		var r := Rect2(Vector2((size.x - Hud.DROP.x - side) / 2.0, (size.y - Hud.DROP.y - side) / 2.0), Vector2(side, side))
+		for drop: Vector2 in [Hud.DROP, Vector2.ZERO]:  # the hard drop, then the ink line
+			for i in 16:
+				draw_texture_rect(TEX, Rect2(r.position + drop + Vector2.from_angle(TAU * i / 16) * LINE, r.size), false, Hud.INK)
+		if not full:
+			for i in 12:  # a thin gold line inside the ink
+				draw_texture_rect(TEX, Rect2(r.position + Vector2.from_angle(TAU * i / 12) * 1.2, r.size), false, Color(Ui.INK_GOLD, 0.9))
+			draw_texture_rect(TEX, r.grow(-0.8), false, Hud.DARK)
 			return
-		for i in 12:  # the ink outline and its depth below
-			var d := Vector2.from_angle(TAU * i / 12) * 3.0
-			draw_texture_rect(TEX, Rect2(r.position + d + Vector2(0, 2.5), r.size), false, Hud.PLATE_LINE.darkened(0.2))
-			draw_texture_rect(TEX, Rect2(r.position + d, r.size), false, Hud.PLATE_LINE)
-		draw_texture_rect(TEX, r, false, Color("c8140c"))
-		draw_texture_rect(TEX, Rect2(r.position + Vector2(r.size.x * 0.06, 0), r.size * Vector2(0.88, 0.86)), false, Color("ff3a26"))
-		GlossStyle.fill_disc(get_canvas_item(), r.position + r.size * Vector2(0.3, 0.3), side * 0.13, Color(1, 1, 1, 0.85),
-				Vector2(1.0, 0.6), -0.6)  # the shine (no transform: it batches)
-
-
-
-## The HUD's plate: carved wood (lit along its top bevel, darker at its foot, a faint grain along it) on
-## its own thickness, in an ink line, a soft shadow on the sky: a clean bevelled edge (UI r22, the judges of
-## j18: r21's row of beads along its foot "noise at phone size").
-class _Plate extends GlossStyle:
-	func _init(r: float, is_pressed := false) -> void:
-		super(Hud.PLATE_TOP, Hud.PLATE_BOTTOM, Hud.PLATE_EDGE, r, 3.0, is_pressed)
-		set_outline(Hud.PLATE_RIM, 2.0)
-		rim = 0.35
-		gloss = 0.0
-		lip = 0.25
-		shadow.shadow_color = Color(0.12, 0.03, 0.0, 0.4)  # it stands off the vine and the sky behind it
-		shadow.shadow_size = 10
-		shadow.shadow_offset = Vector2(0, 5)
-
-	func _draw(ci: RID, rect: Rect2) -> void:
-		super(ci, rect)
-		var face := face_rect(rect)
-		var fr := face_radius(rect)
-		if face.size.x < fr * 2.0 + 12.0:
-			return
-		GlossStyle.begin_batch()  # (2026-11-08) glass: a soft sheen across its upper half, no wood grain
-		GlossStyle.fill_clipped(ci, face, fr, Rect2(face.position.x, face.position.y, face.size.x, face.size.y * 0.45),
-				Color(1, 1, 1, 0.14), Color(1, 1, 1, 0.0))
-		GlossStyle.end_batch(ci)
+		draw_texture_rect(TEX, r, false, Color("b0180f"))
+		var tex := TEX.get_size()
+		draw_texture_rect_region(TEX, Rect2(r.position, Vector2(r.size.x, r.size.y * SHADE_FROM)),
+				Rect2(Vector2.ZERO, Vector2(tex.x, tex.y * SHADE_FROM)), Ui.SCARF_RED)
+		# the tick of light on its left lobe, leaning as everything here does
+		var at := r.position + r.size * Vector2(0.27, 0.3)
+		var w := side * 0.15
+		var h := side * 0.075
+		draw_colored_polygon(PackedVector2Array([at + Vector2(h * 0.6, 0.0), at + Vector2(w + h * 0.6, 0.0), at + Vector2(w, h),
+				at + Vector2(0.0, h)]), Color(1, 1, 1, 0.92))

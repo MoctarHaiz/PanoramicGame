@@ -1,7 +1,7 @@
 class_name DisplayText
 extends Control
-## Display text as on the titles and buttons of top mobile games: Fredoka Bold with a gradient
-## fill and a light top edge, a thick dark outline, an extruded depth under it and a soft drop
+## Display text as on the titles and buttons of top mobile games: the display face (Ui.DISPLAY), always in
+## capitals, with a gradient fill and a light top edge, a thick dark outline, an extruded depth under it and a soft drop
 ## shadow, optionally along an arch. Drawn glyph by glyph (display_text.gdshader gives the fill
 ## its gradient in each letter's own frame), so letters can also pop in one by one (reveal()).
 ##
@@ -9,12 +9,12 @@ extends Control
 
 const SHADER := preload("res://src/ui/display_text.gdshader")
 const MARKER := Color(1, 0, 1)  ## the fill is drawn in this colour; the shader paints the gradient
-const CAP := 0.72  ## Fredoka's capital height, as a share of the font size
+const CAP := 0.859  ## the display face's capital height, as a share of the font size (Ui.DISPLAY_CAP)
 const POP_TIME := 0.5  ## seconds for one letter to pop in
 
 var text := "":
 	set(value):
-		text = value
+		text = value.to_upper()  # the display face is set in capitals
 		refresh()
 var font_size := 96:
 	set(value):

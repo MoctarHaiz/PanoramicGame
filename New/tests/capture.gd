@@ -161,9 +161,21 @@ func _capture(device: String, shot: String) -> void:
 			Save.tutorial_seen = false
 			Nav.go(&"game", {})
 			await _wait(1.0)
-		"game", "climb", "hang":
+		"climb", "hang":
 			await _start_game(shot)
 			await _wait(1.0)
+		"game":  # the blow: a ring knocks a bandit out, the frame after its freeze
+			await _start_game("game")
+			await _wait(0.3)
+			var game: Node = Nav.current
+			await _clear_stage(game)
+			_bandit_ahead(game.world, 300.0)
+			var b: World.Bandit = game.world.bandits[-1]
+			b.health = 1
+			await _wait(0.12)
+			game.world.throw()
+			await _wait_for(func() -> bool: return b.health <= 0, 2.0)
+			await _wait(0.12)
 		"home":  # in the doorway, the HUD gone (not caught in the middle of its fade)
 			await _start_game(shot)
 			await get_tree().process_frame  # (the autopilot starts the run)
@@ -174,10 +186,11 @@ func _capture(device: String, shot: String) -> void:
 			await _start_game("game")
 			await _wait(0.3)
 			var game: Node = Nav.current
-			game.autopilot = null
-			_bandit_ahead(game.world, 330.0)
+			await _clear_stage(game)
+			_bandit_ahead(game.world, 400.0)
+			await _wait(0.12)
 			game.world.throw()
-			await _wait(0.3)
+			await _wait(0.2)
 		"hurt":  # a bandit runs into him: the instant after the blow
 			await _start_game("game")
 			await _wait(0.3)
@@ -264,6 +277,16 @@ func _start_game(moment: String) -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	Nav.current.autopilot = Bot.new(7)
+
+
+## The play to itself for a staged moment: the autopilot off, the bandits near him gone, and the time for a
+## knocked-out one to finish its flight and for the rings in the air to land.
+func _clear_stage(game: Node) -> void:
+	game.autopilot = null
+	for b: World.Bandit in game.world.bandits:
+		if absf(b.x - game.world.scroll - game.world.x) < 1500.0:
+			b.gone = true
+	await _wait(0.7)
 
 
 ## Brings the last bandit (far away) `ahead` units in front of Panoramic, on his ground (closer if a

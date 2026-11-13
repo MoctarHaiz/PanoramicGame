@@ -616,32 +616,63 @@ static func impact(parent: Node, at: Vector2, push: float) -> void:
 			Vector2(push, -1.3).normalized(), 55.0, 0.9, Vector2(0.5, 0.75))
 
 
-## A ring strikes a bandit: the small impact in the ring's blue, shards thrown the way it flew.
+## A ring strikes a bandit: the small impact in the ring's blue, shards thrown the way it flew, a small inked spark.
 static func ring_hit(parent: Node, at: Vector2) -> void:
 	impact_burst(parent, at, Vector2.RIGHT, &"small", RING_LIGHT[2])
+	hit_spark(parent, at, Vector2.RIGHT, 64.0)
 
 
-## A bandit knocked out: the medium impact in the ring's blue (shards flung up and away), stars
-## flying off and a puff of dust where he stood.
+## A bandit knocked out: one big inked spark where the ring struck, pointing the way it flew (hit_spark), light and
+## shards flung up and away behind it, a few stars flying off and a puff of dust where he stood.
 static func knock_out(parent: Node, at: Vector2, feet: Vector2) -> void:
-	# (no ring of light here, as the other impacts have: over the thrown bandit it read as "a pale ring round a smear";
-	# a burst of rays behind it and the shards flung the way it goes)
+	# (blind round 6: "the hit is a small white scribble: make the blow the brightest, biggest event on screen";
+	# round 11: "there is no burst at the contact point": one spark in solid colours, not light alone)
+	rays(parent, at, Color(1.0, 0.95, 0.8, 0.9), 10, 190.0, 0.24)
 	shards(parent, at, Vector2(1, -0.4).normalized(), IMPACTS[&"medium"].shards, 1.0, RING_LIGHT[2])
-	# (blind round 6: "the hit is a small white scribble: make the blow the brightest, biggest event on screen")
-	rays(parent, at, Color(1.0, 0.95, 0.8, 1.0), 12, 210.0, 0.28)
-	rays(parent, at, Color(RING_LIGHT[2], 0.9), 8, 130.0, 0.22)
-	lines(parent, at, Color(1.0, 0.98, 0.9, 0.95), 14, 60.0, 190.0, 0.22)
-	glow(parent, at, Color(1, 1, 1, 0.95), 0.25, 0.9, FLASH_TIME * 2.5)
+	glow(parent, at, Color(1, 1, 1, 0.9), 0.25, 0.8, FLASH_TIME * 2.5)
+	hit_spark(parent, at, Vector2(1.0, -0.2).normalized(), 112.0)
 	var stars := Confetti.make(parent, at)
 	stars.gravity = 1400.0
 	stars.drag = 1.4
 	stars.flutter = 0.0
-	stars.spray(8, [Confetti.Shape.STAR], [Color("ffd36b"), Color("ffe9a8"), Color("ffffff")], Vector2(320, 720),
+	stars.spray(6, [Confetti.Shape.STAR], [Color("ffd36b"), Color("ffe9a8"), Color("ffffff")], Vector2(320, 720),
 			Vector2(0.6, -1).normalized(), 70.0, 1.0, Vector2(0.55, 0.85))
-	stars.sparkle(6, RING_SPARKS, Vector2(160, 420), 1.0, Vector2(0.3, 0.55))
-	# (the redesign: the chakram's own colours in the burst: its beadwork's red and white with its steel blue)
-	shards(parent, at, Vector2(1, -0.5).normalized(), 5, 0.9, Color("ff5a3a"))
 	dust(parent, feet, 10, 260.0, 0.0, 1.3)
+
+
+## A blow's spark, inked (blind round 11: "there is no burst at the contact point": the light of a blow is added
+## light, and on the pale savanna added light hardly shows): a jagged star in solid colours, as a blow is drawn in a
+## comic: a dark ink edge, the chakram's blue inside it, a white-hot heart; its points longest along `along` (the way
+## the blow went), one of them far ahead. It bursts open in three frames, holds, then closes to nothing, turning a
+## little: a fifth of a second. `radius`: its long points (effects units).
+static func hit_spark(parent: Node, at: Vector2, along: Vector2, radius: float, rim := Color("3d9bff")) -> void:
+	var node := Node2D.new()
+	node.position = at
+	node.rotation = along.angle() + randf_range(-0.12, 0.12)
+	parent.add_child(node)
+	var points := 9
+	var reach: Array[float] = []
+	for i in points:  # long along the blow, short across it; the one that points ahead the longest
+		var a := i * TAU / points
+		reach.append(1.45 if i == 0 else randf_range(0.74, 1.0) * lerpf(0.58, 1.0, absf(cos(a))))
+	var ink := Color("140607")
+	node.draw.connect(func() -> void:
+		for layer in 3:
+			var k: float = [1.0, 1.0, 0.56][layer]
+			var grow: float = [7.0, 0.0, 0.0][layer]
+			var pts := PackedVector2Array()
+			for i in points * 2:
+				var r := radius * k * (reach[i / 2] if i % 2 == 0 else 0.34) + grow
+				pts.append(Vector2.from_angle(i * TAU / (points * 2)) * r)
+			node.draw_colored_polygon(pts, [ink, rim, Color.WHITE][layer]))
+	node.scale = Vector2.ONE * 0.3
+	var t := node.create_tween()
+	t.tween_property(node, "scale", Vector2.ONE * 1.14, 0.05).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	t.tween_property(node, "scale", Vector2.ONE, 0.04)
+	t.tween_interval(0.04)
+	t.tween_property(node, "scale", Vector2(0.0, 0.0), 0.09).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	t.parallel().tween_property(node, "rotation", node.rotation + 0.35, 0.09)
+	t.tween_callback(node.queue_free)
 
 
 ## A metal glint: a four-point star of thin light that flicks open and shrinks away in `time`.

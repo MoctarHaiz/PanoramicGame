@@ -143,10 +143,10 @@ static func moves_list() -> Array:
 
 
 ## Music or sounds on and off, read at a glance on the plate itself (UI r23, the judges of j19: r22's lamps "tiny dark
-## pills" under two tiles of three, "the row uneven": show it on the button): on, a cream glyph (notes, a speaker with
-## its waves) in the plate's bright gold line; off, the glyph dimmed and struck through (a speaker with a cross, or the
-## notes struck by a red bar), the plate's line dim. Its name under it, as every plate's. A tap flips it, the plate
-## popping.
+## pills" under two tiles of three, "the row uneven": show it on the button): on, the gold plate (Ui.on_style), its
+## glyph (notes, a speaker with its waves) in ink (blind round 11: "no visible on state": it was a cream glyph in a
+## brighter line); off, the dark plate, its line dim, the glyph dimmed and struck through (a speaker with a cross, or
+## the notes struck by a red bar). Its name under it, as every plate's. A tap flips it, the plate popping.
 class SoundSwitch extends VBoxContainer:
 	var _option: StringName
 	var _icon_name := ""
@@ -184,10 +184,14 @@ class SoundSwitch extends VBoxContainer:
 			Audio.apply_settings()
 			_fill(true))
 		_holder.add_child(b)
-		if not on:
+		var glyph := b.content.get_child(0) as Control
+		if on:  # the gold plate, its glyph in ink
+			for state: StringName in [&"normal", &"hover", &"pressed"]:
+				b.add_theme_stylebox_override(state, Ui.on_style(_plate.y))
+			glyph.self_modulate = Ui.ON_INK
+		else:
 			for state: StringName in [&"normal", &"hover", &"pressed"]:
 				(b.get_theme_stylebox(state) as SlantStyle).line.a = 0.4
-			var glyph := b.content.get_child(0) as Control
 			glyph.self_modulate = Color(Ui.BONE, 0.42)  # the glyph dimmed (its red bar not)
 			if _off_icon.is_empty():  # no off icon: struck through, a dark-edged red bar
 				var slash := _Slash.new()

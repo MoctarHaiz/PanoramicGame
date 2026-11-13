@@ -1,7 +1,7 @@
 extends Screen
 ## Settings, on the ink (the user, 2026-11-13, of three panel styles shown: "C", no box, ink brush), over his savanna
 ## (the key art, lightly blurred): a band of brushed ink, its title in gold brush lettering over a red stroke across
-## its top edge, the back and info buttons two ink discs in a gold ring at its top corners. Inside, laid out as a phone
+## its top edge, the back and info buttons two quiet leaning plates at its top corners. Inside, laid out as a phone
 ## game's settings (UI r23, the judges of j19: r22's "three dense columns and nine rows in one wide, short panel: a
 ## desktop preferences dialog"): two clear columns of three big rows each, a thin gold line standing between them,
 ## Sound and feel (music and sounds volumes, vibration) and Game (language, screen shake, reduced motion), each row a
@@ -12,7 +12,9 @@ extends Screen
 ## its place from the info button.
 
 const ROW_H := 86.0  ## height of a row (the whole row takes the touch)
-const BUTTON := 72.0  ## the back and info discs at the band's top corners
+## the back and info plates at the band's top corners: the kit's quiet leaning plate (blind round 11: "round back
+## and info buttons beside slanted plates": they were ink discs in a gold ring)
+const PLATE := Vector2(88.0, 72.0)
 const COLUMN_W := 470.0  ## each of the two columns (each as wide as its longest row needs, at least this)
 const COLUMN_GAP := 40.0  ## from a column to the line between the two
 const LABEL := 38  ## a row's name (phone size)
@@ -88,10 +90,10 @@ func _build() -> void:
 	var banner := Ui.ink_title(tr("SETTINGS"), 124.0, 620.0)
 	page.add_child(card)
 	page.add_child(banner)
-	var back_button := Ui.disc_button("arrow-left-bold", BUTTON)  # at the band's corner
+	var back_button := Ui.plate_button("arrow-left-bold", PLATE)  # at the band's corner
 	back_button.pressed.connect(back)
 	page.add_child(back_button)
-	var info := Ui.disc_button("info-bold", BUTTON)  # the credits: the back button's twin, a plain "i" as its arrow
+	var info := Ui.plate_button("info-bold", PLATE)  # the credits: the back button's twin, a plain "i" as its arrow
 	info.pressed.connect(_show_credits)
 	page.add_child(info)
 	var place := func() -> void:
@@ -112,7 +114,7 @@ func _build() -> void:
 		banner.position = Vector2(left_x + w / 2 - banner.size.x * k / 2, card.position.y - top * k)
 		# the discs half over the band's top edge, at its corners (the panel's scale: their touch stays 86+)
 		for b: JuicyButton in [back_button, info]:
-			b.custom_minimum_size = Vector2(BUTTON, BUTTON) * k
+			b.custom_minimum_size = PLATE * k
 			b.size = b.custom_minimum_size
 		back_button.position = card.position + Vector2(4.0, -24.0) * k - back_button.size / 2
 		info.position = card.position + Vector2(card.size.x - 4.0, -24.0) * k - info.size / 2
@@ -309,7 +311,7 @@ func _show_credits() -> void:
 	_credits.add_child(card)
 	var banner := Ui.ink_title(tr("ABOUT"), 96.0, 520.0)
 	_credits.add_child(banner)
-	var close := Ui.disc_button("x-bold", 64.0)
+	var close := Ui.plate_button("x-bold", Vector2(78.0, 64.0))
 	close.pressed.connect(_close_credits)
 	_credits.add_child(close)
 	for l: Label in [text, credits]:  # (a wrapped text is as tall as its width makes it: known before it is measured)

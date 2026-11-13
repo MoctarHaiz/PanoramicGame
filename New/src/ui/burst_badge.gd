@@ -24,16 +24,26 @@ func _init(text: String, burst := 62.0, quiet := false) -> void:
 	var words := text.to_upper().replace("\u00a0", " ").split(" ", false, 1)
 	if words.size() == 2 and words[1].length() <= 1:  # ("RECORD !": its mark stays with its word)
 		words = PackedStringArray([text.to_upper()])
-	var room := radius * 1.78  # (they may cross its inner ring, to its edge)
+	# One size for its lines: the biggest at which the widest fits the disc where its line lies (the disc is
+	# narrower above and below its middle: French's "NOUVEAU / RECORD !" spilled out of it at the size "NEW / BEST!"
+	# fits; they may cross its inner ring, to its edge).
+	const FULL := 42.0
 	var lines: Array[DisplayText] = []
+	var widest := 1.0
 	for w: String in words:
-		var fit := 42.0
-		var t := _line(w, fit)
-		fit = minf(fit, fit * room / maxf(t.text_width(), 1.0))  # the widest line fits the ring
+		var t := _line(w, FULL)
+		widest = maxf(widest, t.text_width())
+		lines.append(t)
+	var fit := FULL
+	var r := radius - 3.0
+	for _pass in 3:
+		var far := fit * 0.92 * lines.size() * 0.5 * 0.8  # how far from its middle the outer line's letters reach
+		var room := 2.0 * sqrt(maxf(r * r - far * far, 1.0)) * 0.95
+		fit = minf(fit, FULL * room / widest)
+	for t in lines:
 		t.font_size = int(fit)
 		t.outline_width = maxf(roundf(fit * 0.07), 1.5)
 		t.refresh()
-		lines.append(t)
 	var line_h := 0.0
 	for t in lines:
 		line_h = maxf(line_h, t.font_size * 0.92)

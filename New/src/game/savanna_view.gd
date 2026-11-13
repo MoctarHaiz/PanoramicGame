@@ -113,6 +113,15 @@ const TREE_INK_AMOUNT := [0.0, 0.0]
 const TREE_INK_COLOUR := [Color(0.3, 0.26, 0.33), Color(0.17, 0.085, 0.06)]
 const TREE_FLATTEN := [0.56, 0.44]
 const TREE_AMBIENT := [0.0, 0.0]
+## Blind round 11 ("the mid-ground is as sharp and saturated as the fighters: push it back"): the world behind the
+## play out of focus, more with each layer back (haze.gdshader's soft: mipmap levels down), as a lens set on the
+## runners draws it: the landforms and the far plain soft, the rise and the big trees less, the tall grass right behind
+## his legs hardly. The ground he runs on, its props and the plants in front stay sharp.
+const SOFT_MESAS := 1.3
+const SOFT_PLAIN := 1.7
+const SOFT_TREES := [1.6, 1.1]
+const SOFT_MID := 1.4
+const SOFT_LANE := 0.6
 ## Round 22 (the judges, j18: "the hero's lane has no value separation: a mid-orange hero on mid-gold grass"): the tall
 ## grass behind his legs and the savanna behind his body a value darker and greener (an olive band), so his warm skin,
 ## white loincloth and red scarf read against it (the warm add of round 3's lane light is gone).
@@ -208,18 +217,18 @@ func _ready() -> void:
 	for row in MESA_ROWS.size():  # three rows of landforms, the farther ones deeper in the air
 		var m: Dictionary = MESA_ROWS[row]
 		var hz := _haze([0, 0, 0, 0, m.haze, m.foot, 0, m.haze_colour], m.tint, m.ink, m.planes, false,
-				{flatten = m.flatten, ink_amount = m.ink_amount, ink_colour = m.ink_colour, solid = true})
+				{flatten = m.flatten, ink_amount = m.ink_amount, ink_colour = m.ink_colour, solid = true, soft = SOFT_MESAS})
 		hz.set_shader_parameter(&"cloud", m.cloud)
 		hz.set_shader_parameter(&"cell_px", _mesa_pitch)
 		_painter(_draw_mesas.bind(row)).material = hz
 		_mesa_mats.append(hz)
-	_far_mat = _haze([0, 0, 0, 0, PLAIN_HAZE, 0.0, 0, LANE_AIR], Color.WHITE, 0.0, 0.0, true, {flatten = PLAIN_FLATTEN})
+	_far_mat = _haze([0, 0, 0, 0, PLAIN_HAZE, 0.0, 0, LANE_AIR], Color.WHITE, 0.0, 0.0, true, {flatten = PLAIN_FLATTEN, soft = SOFT_PLAIN})
 	_painter(_draw_strip.bind(&"far_hills"), true).material = _far_mat
 	_painter(_draw_trees.bind(0)).material = _tree_haze(0)
-	_mid_mat = _haze([0, 0, 0, 0, MID_HAZE, 0.0, 0, LANE_AIR], MID_TINT, 0.0, 0.0, true, {flatten = MID_FLATTEN})
+	_mid_mat = _haze([0, 0, 0, 0, MID_HAZE, 0.0, 0, LANE_AIR], MID_TINT, 0.0, 0.0, true, {flatten = MID_FLATTEN, soft = SOFT_MID})
 	_painter(_draw_strip.bind(&"mid_hills"), true).material = _mid_mat
 	_painter(_draw_trees.bind(1)).material = _tree_haze(1)
-	_painter(_draw_strip.bind(&"near_grass"), true).material = _haze([0, 0, 0, 0, LANE_HAZE, 0.0, 0, LANE_AIR], LANE_TINT, 0.0, 0.0, true, {flatten = LANE_FLATTEN})
+	_painter(_draw_strip.bind(&"near_grass"), true).material = _haze([0, 0, 0, 0, LANE_HAZE, 0.0, 0, LANE_AIR], LANE_TINT, 0.0, 0.0, true, {flatten = LANE_FLATTEN, soft = SOFT_LANE})
 	var mul := CanvasItemMaterial.new()
 	mul.blend_mode = CanvasItemMaterial.BLEND_MODE_MUL
 	_painter(_draw_lane_shade).material = mul
@@ -272,7 +281,7 @@ func _haze(row: Array, tint := Color.WHITE, ink := 0.0, planes := 0.0, strip := 
 ## Round 23: a tree row's material: its haze, its ink fainter and toward the air or its shade further back, the sky's light.
 func _tree_haze(row: int) -> ShaderMaterial:
 	return _haze(TREE_ROWS[row], TREE_TINT[row], TREE_INK[row], 0.0, false, {ink_amount = TREE_INK_AMOUNT[row],
-			ink_colour = TREE_INK_COLOUR[row], flatten = TREE_FLATTEN[row], ambient_k = TREE_AMBIENT[row]})
+			ink_colour = TREE_INK_COLOUR[row], flatten = TREE_FLATTEN[row], ambient_k = TREE_AMBIENT[row], soft = SOFT_TREES[row]})
 
 
 func _process(delta: float) -> void:

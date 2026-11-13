@@ -40,6 +40,7 @@ var _bobs := {}  # Vector2i -> BobView
 var _bandits := {}  # bandit id -> BanditView
 var _rings := {}  # ring id -> RingView
 var _ring_of := {}  # ring id -> [its World.Ring, the tick it was last flying at] (_place_rings)
+var _struck := -1  # the id of the ring that just struck a bandit (_ring_contact), or -1
 var _hero: HeroView
 ## Effects layer: the Fx kit is sized for a 1280-tall design, so it draws at half scale here.
 var fx: Node2D
@@ -384,10 +385,32 @@ func _on_bandit_hit(b: World.Bandit, knocked_out: bool) -> void:
 	if knocked_out:
 		_hero.cheer()
 	var at := _ring_contact(b)
+	_ring_back(at)
 	if knocked_out:
 		Fx.knock_out(fx, _fx(at), _fx(Vector2(b.x - world.scroll, b.y + World.BANDIT_SIZE.y / 2 + GameArt.FEET_SINK)))
 	else:
 		Fx.ring_hit(fx, _fx(at))
+
+
+## The chakram comes back (RingView.rebound): the ring that just struck a bandit at `at` flies back to his hand; a
+## glint as he takes it.
+func _ring_back(at: Vector2) -> void:
+	var s: RingView = _rings.get(_struck)
+	if not s:
+		return
+	_rings.erase(_struck)
+	_ring_of.erase(_struck)
+	s.position = at
+	s.rebound(_catch_point)
+	s.caught.connect(func(p: Vector2) -> void: Fx.glint(fx, _fx(p), 44.0, 0.16))
+
+
+## Where his hand takes the chakram back (the actors' units): his thrown fist's height on the run, his chest else.
+func _catch_point() -> Vector2:
+	var p := world.draw_hero()
+	if world.on_ground and not world.hanging:
+		return p + Vector2(HeroView.THROW_FIST.x * 0.5, World.HERO_SIZE.y / 2 + HeroView.THROW_FIST.y)
+	return p + Vector2(16.0, -10.0)
 
 
 ## (collision pass) Where the ring that just hit bandit `b` met its drawn body: at the ring, on the front of its
@@ -395,10 +418,12 @@ func _on_bandit_hit(b: World.Bandit, knocked_out: bool) -> void:
 func _ring_contact(b: World.Bandit) -> Vector2:
 	var body := world.bandit_hit_rect(b)
 	var at := Vector2(body.position.x + 8.0, body.get_center().y - 12.0)
+	_struck = -1
 	for id: int in _ring_of:
 		var r: World.Ring = _ring_of[id][0]
 		var box := World.ring_box(r.x, r.y)
 		if not world.rings.has(r) and box.intersects(body):
+			_struck = id
 			at = Vector2(maxf(box.get_center().x, body.position.x + 4.0), clampf(box.get_center().y, body.position.y + 8.0, body.end.y - 8.0))
 	return at
 

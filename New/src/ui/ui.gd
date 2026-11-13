@@ -78,48 +78,55 @@ const FRAMES := {
 	Tone.TEAL: BRASS,
 }
 
-var font_title: FontVariation  ## Fredoka Bold: titles, buttons, numbers
-var font_display: FontVariation  ## Fredoka at its heaviest: display text (DisplayText)
-var font_strong: FontVariation  ## Fredoka SemiBold
-var font_slant: FontVariation  ## Fredoka at its heaviest, leaning as the red plates do (the words on the ink)
+var font_title: FontVariation  ## the display face: titles, labels, buttons, numbers (see DISPLAY)
+var font_display: FontVariation  ## the same (DisplayText's)
+var font_strong: FontVariation  ## the same (a label's when none is given)
+var font_slant: FontVariation  ## the same (the words on the ink)
 var font_body: FontVariation  ## Quicksand SemiBold: sentences
 var font_body_bold: FontVariation  ## Quicksand Bold
 var theme: Theme
 
 var _icons := {}
-## Fredoka as static weights with their overlaps removed (made from the variable font with fontTools'
-## instancer), imported as multichannel signed distance fields: one glyph cache per weight for every
-## size and outline (a raster font makes a new glyph page, 1 to 2 MB, for each size and each outline
-## size it is drawn at: 8 MB more for each new DisplayText size). The variable font's overlapping
-## contours would show seams in a distance field, hence the static weights.
-const FREDOKA := {580: "res://assets/fonts/Fredoka-580.ttf", 680: "res://assets/fonts/Fredoka-680.ttf",
-		700: "res://assets/fonts/Fredoka-700.ttf"}
+## The display face: Anton, heavy condensed capitals, leaning as the red plates do: the lettering painted on the main
+## buttons (PLAY, RESUME) for every label, number and word that is not a brush title (blind round 11, the judge of the
+## panels: "remove the rounded bubbly font everywhere ... set everything that is not a brush title in the heavy slanted
+## capitals of RESUME / PLAY AGAIN"; until then Fredoka, rounded: "says kids' casual game"). Always in capitals
+## (label() and DisplayText see to it). Imported as a multichannel signed distance field: one glyph cache for every
+## size and outline (a raster font makes a new glyph page, 1 to 2 MB, for each size and each outline size it is drawn
+## at).
+const DISPLAY := "res://assets/fonts/Anton.ttf"
+const DISPLAY_LEAN := 0.2  ## its lean: this far right at its top, a share of its height
+## Anton's capitals are 0.859 of its size (Fredoka's were 0.7) and a quarter narrower: a size asked of label() or
+## display_text() is drawn at this share of it, so every size in the kit still says how tall its capitals stand (a
+## little taller than before: a condensed letter reads smaller).
+const DISPLAY_SCALE := 0.88
+const DISPLAY_CAP := 0.859  ## its capital height, as a share of the font size
 
 
 func _ready() -> void:
 	var quicksand: FontFile = load("res://assets/fonts/Quicksand.ttf")
-	font_title = title_font(680)
-	font_display = title_font(700)
-	font_strong = title_font(580)
-	font_slant = title_font(700)
-	font_slant.variation_transform = Transform2D(Vector2(1.0, 0.2), Vector2(0.0, 1.0), Vector2.ZERO)
+	font_title = title_font()
+	font_display = font_title
+	font_strong = font_title
+	font_slant = font_title
 	font_body = _weight(quicksand, 600)
 	font_body_bold = _weight(quicksand, 700)
 	theme = _build_theme()
 	get_tree().root.theme = theme
 
 
-## Fredoka at the nearest of its static weights (580, 680, 700), with optional extra space between
-## letters.
-func title_font(weight := 650, letter_spacing := 0) -> FontVariation:
-	var nearest := 580
-	for w: int in FREDOKA:
-		if absi(w - weight) < absi(nearest - weight):
-			nearest = w
+## The display face (DISPLAY), with optional extra space between letters. (`_weight`: it has one.)
+func title_font(_weight := 700, letter_spacing := 0) -> FontVariation:
 	var v := FontVariation.new()
-	v.base_font = load(FREDOKA[nearest])
-	v.spacing_glyph = letter_spacing
+	v.base_font = load(DISPLAY)
+	v.variation_transform = Transform2D(Vector2(1.0, DISPLAY_LEAN), Vector2(0.0, 1.0), Vector2.ZERO)
+	v.spacing_glyph = letter_spacing + 1
 	return v
+
+
+## True for the display face (any FontVariation of it).
+func is_display(font: Font) -> bool:
+	return font is FontVariation and (font as FontVariation).base_font == font_title.base_font
 
 
 func _weight(font: FontFile, weight: int) -> FontVariation:
@@ -271,8 +278,10 @@ func label(text: String, size: int, color := INK, font: Font = null,
 	l.text = text
 	l.horizontal_alignment = align
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	l.add_theme_font_override(&"font", font if font else font_strong)
-	l.add_theme_font_size_override(&"font_size", size)
+	var face: Font = font if font else font_strong
+	l.add_theme_font_override(&"font", face)
+	l.uppercase = is_display(face)  # the display face is set in capitals
+	l.add_theme_font_size_override(&"font_size", roundi(size * DISPLAY_SCALE) if l.uppercase else size)
 	l.add_theme_color_override(&"font_color", color)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return l
@@ -295,11 +304,11 @@ func icon(name: String, size: float, color := WHITE) -> TextureRect:
 	return r
 
 
-## Display text (titles, buttons, numbers): Fredoka at its boldest, a fill (a gradient when
+## Display text (titles, buttons, numbers): the display face in capitals, a fill (a gradient when
 ## `fill_bottom` is given), a thick `outline`, an extruded depth and a soft shadow (DisplayText).
 func display_text(text: String, size: int, fill := WHITE, outline := NIGHT,
 		fill_bottom := Color(0, 0, 0, 0)) -> DisplayText:
-	var t := DisplayText.new(text, size)
+	var t := DisplayText.new(text, roundi(size * DISPLAY_SCALE))
 	t.tracking = roundf(size * 0.03)  # the thick outlines of neighbouring letters don't fuse
 	t.fill_top = fill
 	t.fill_bottom = fill_bottom if fill_bottom.a > 0 else fill
@@ -501,18 +510,41 @@ func ink_title(text: String, height := 112.0, max_width := 600.0) -> Control:
 
 
 ## The quiet plate's style (plate_button; the pause's tiles; the settings' switch when off): the red plate's shape with
-## no shadow and no cel band, dark ink, a thin gold line just inside its edge. `lit`: held down (a warm face).
+## no shadow: a dark warm face a step lighter than the ink it lies on, its foot a step darker (one cel band), an ink
+## line, a gold line just inside its edge. `lit`: held down (a warmer face).
+## (Blind round 11, the panels: "thin-line plates read as wireframes, or disabled": they had the band's own black
+## for a face and a hairline; a face and a foot of their own now.)
 func plate_style(lit := false, height := 90.0) -> SlantStyle:
 	var st := SlantStyle.new()
 	st.depth = 0.0
 	st.slant = 0.22
 	st.ink = Color(0.04, 0.02, 0.02, 0.92)
 	st.ink_width = maxf(roundf(height * 0.03), 2.0)
-	st.face = Color("4a3220") if lit else Color("1c1310")
-	st.shade = st.face
-	st.line = Color(INK_GOLD.lerp(BONE, 0.35), 0.95)
+	st.face = Color("5a3d28") if lit else Color("35251c")
+	st.shade = Color("4a3220") if lit else Color("261a14")
+	st.shade_from = 0.62
+	st.line = Color(INK_GOLD.lerp(BONE, 0.3), 1.0)
 	st.line_inset = 0.5
-	st.line_width = maxf(height * 0.026, 2.0)
+	st.line_width = maxf(height * 0.032, 2.5)
+	return st
+
+
+## The plate of what is on (the pause's music and sounds, the settings' switches): the quiet plate filled with gold,
+## its foot a deeper gold (one cel band), an ink line: its glyph or word goes on it in ink (ON_INK).
+## The kit's rule (blind round 11: "no visible on state"): red is the way on (PLAY, RESUME, PLAY AGAIN); gold is what
+## is on; dark is what waits.
+const ON_GOLD := Color("ffc928")
+const ON_GOLD_DEEP := Color("f0940e")
+const ON_INK := Color("1c1310")
+
+
+func on_style(height := 90.0) -> SlantStyle:
+	var st := plate_style(false, height)
+	st.face = ON_GOLD
+	st.shade = ON_GOLD_DEEP
+	st.line = Color(1.0, 0.97, 0.8, 0.9)
+	st.line_inset = maxf(height * 0.05, 3.0)
+	st.line_width = 2.0
 	return st
 
 
@@ -539,27 +571,6 @@ func plate_button(icon_name: String, plate: Vector2, text := "", font_size := 32
 	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	b.add_child(row)
 	b.content = row
-	return b
-
-
-## A round button on the painting beside an inked panel (the settings' back and info, the credits' cross): a flat disc
-## of the panel's ink in a thin gold ring, a cream glyph.
-func disc_button(icon_name: String, side: float) -> JuicyButton:
-	var b := JuicyButton.new()
-	b.custom_minimum_size = Vector2(side, side)
-	for state in [&"normal", &"hover", &"pressed"]:
-		var s := StyleBoxFlat.new()
-		s.bg_color = Color("4a3220") if state == &"pressed" else INK_BLACK
-		s.border_color = INK_GOLD
-		s.set_border_width_all(3)
-		s.set_corner_radius_all(int(side))
-		s.corner_detail = 16
-		s.anti_aliasing = true
-		b.add_theme_stylebox_override(state, s)
-	var i := icon(icon_name, side * 0.5, BONE)
-	i.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	b.add_child(i)
-	b.content = i
 	return b
 
 
@@ -648,25 +659,6 @@ func round_button(icon_name: String, diameter := 112, face := WHITE, edge := EDG
 	return _icon_button(icon_name, face_colours(face, edge), Vector2(diameter, diameter), diameter / 2.0, icon_color)
 
 
-## (the user, 2026-11-08: "no woody effect: sleeker, modern") the round buttons (the gear, back, info, pause): dark navy
-## glass in a thin bright gold ring, a cream glyph (the HUD's material).
-const GLASS := {"top": Color("34425f"), "bottom": Color("141b2d"), "edge": Color("0a0e18"), "outline": Color("0a0e18"),
-		"frame": [Color("fff0a8"), Color("e0a030"), Color("8a5a14"), Color("0a0e18")]}
-
-
-## (Before 2026-11-08: a button in the panels' own wood: a cream parchment face in a wooden frame ring, a brown icon (the
-## settings' back button, the menu's gear: they match the panels around them, not the candy tiles).
-func wood_button(icon_name: String, button_size := Vector2(84, 84), radius := 42.0) -> JuicyButton:
-	return _icon_button(icon_name, GLASS, button_size, radius, CREAM)
-
-
-## A round button set in a panel's frame (the settings' back and info, centred on its top corners): the
-## frame's own carved wood for its face, the frame's gold trim for its ring, a cream glyph in a dark
-## outline (UI r21, the judges of j17: r20's cream buttons in a wood ring read "bolted on").
-func frame_button(icon_name: String, side: float) -> JuicyButton:
-	return _icon_button(icon_name, GLASS, Vector2(side, side), side / 2.0, CREAM)
-
-
 func _icon_button(icon_name: String, c: Dictionary, button_size: Vector2, radius: float,
 		icon_color: Color) -> JuicyButton:
 	var b := JuicyButton.new()
@@ -737,20 +729,6 @@ func plaque_style(radius := 30.0, pressed := false) -> GlossStyle:
 	s.shadow.shadow_size = 18
 	s.shadow.shadow_offset = Vector2(0, 12)
 	return s
-
-
-## A square button in the cream plaque's style (the menu's gear beside the Best plaque: the same
-## frame, face and height), its icon in the panels' brown.
-func plaque_button(icon_name: String, side: float) -> JuicyButton:
-	var b := JuicyButton.new()
-	b.custom_minimum_size = Vector2(side, side)
-	for state in [&"normal", &"hover"]:
-		b.add_theme_stylebox_override(state, plaque_style(26.0))
-	b.add_theme_stylebox_override(&"pressed", plaque_style(26.0, true))
-	var i := bold_icon(icon_name, side * 0.5, Color("d0641c"), Color("4a1e04"))
-	b.add_child(_face_holder(i, plaque_style(26.0)))
-	b.content = i
-	return b
 
 
 ## A small candy pill with outlined text (and an icon): "NEW BEST!", "2×", tags.

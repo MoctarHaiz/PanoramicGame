@@ -146,17 +146,33 @@ func _exit_tree() -> void:
 		Device.changed.disconnect(_layout)
 
 
-## The settings: a round button of the panels' carved wood in their gold ring, a cream gear (the HUD's pause
-## button's twin), anchored in a corner of the screen.
+## The settings: the HUD's pause plate's twin (a dark leaning plate in a thin gold line, a flat cream gear), anchored
+## in a corner of the screen. (Blind round 11: "round gold-bezel gear" beside the flat red PLAY: "mixed kits"; it was
+## a round button of carved wood in a gold ring.)
 func _gear_button() -> JuicyButton:
-	return Ui.frame_button("gear-chunky", GEAR)
+	return Ui.plate_button("gear-chunky", Vector2(roundf(GEAR * 1.22), GEAR))
 
 
-## The best run on a slim plate of dark glass with a gold line, exactly as wide as PLAY: the Red Bob, "BEST" over
-## the count, and at its right end the three stars (the ones still to win dark gold-edged sockets). Compact.
-func _best_strip() -> Card:
-	var strip := Card.new(Vector4(16, 8, 20, 8), true)
-	strip.radius = 24.0
+## The best run on PLAY's dark twin, exactly as wide: a flat plate of dark ink leaning as PLAY does, an ink line, a
+## thin gold one inside it, a small hard shadow; on it the Red Bob, "BEST" in gold and the count in cream in the
+## kit's leaning capitals, and at its right end the three stars, flat gold in ink (the ones still to win a thin gold
+## outline). (Blind round 11: "glossy BEST pill with a gold bezel, puffy stars" beside the flat PLAY: "mixed kits";
+## it was a rounded plate of dark glass.)
+func _best_strip() -> Control:
+	var strip := PanelContainer.new()
+	var st := SlantStyle.new()
+	st.face = Color("1c1310")
+	st.shade = st.face
+	st.ink_width = 5.0
+	st.line = Color(Ui.INK_GOLD, 0.9)
+	st.line_inset = 5.0
+	st.line_width = 2.0
+	st.depth = 7.0
+	st.content_margin_left = 40.0
+	st.content_margin_right = 34.0
+	st.content_margin_top = 9.0
+	st.content_margin_bottom = 9.0 + st.depth
+	strip.add_theme_stylebox_override(&"panel", st)
 	strip.custom_minimum_size.x = PLAY_W
 	strip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var row := HBoxContainer.new()
@@ -169,21 +185,17 @@ func _best_strip() -> Card:
 	bob.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	bob.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(bob)
-	# one type style on the dark glass: "Best" in gold, the count bigger in cream
-	var words := VBoxContainer.new()
-	words.add_theme_constant_override(&"separation", -10)  # the two lines close, not touching
-	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	words.alignment = BoxContainer.ALIGNMENT_CENTER
-	words.add_child(Ui.label(tr("BEST").to_upper(), 22, Color("ffc85a"), Ui.title_font(580, 2), HORIZONTAL_ALIGNMENT_LEFT))
-	words.add_child(Ui.label(str(Save.best_bobs), 42, Color("fff4dc"), Ui.font_display, HORIZONTAL_ALIGNMENT_LEFT))
-	row.add_child(words)
+	row.add_child(Ui.label(str(Save.best_bobs), 46, Ui.BONE))
+	var best := Ui.label(tr("BEST"), 26, Ui.INK_GOLD)
+	best.size_flags_vertical = Control.SIZE_SHRINK_END
+	row.add_child(best)
 	var gap := Control.new()  # the stars at the strip's right end
 	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(gap)
-	var stars := StarRow.new(Save.best_stars, 46)
+	var stars := StarRow.new(Save.best_stars, 44)
 	stars.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	stars.add_theme_constant_override(&"separation", 6)
+	stars.add_theme_constant_override(&"separation", 4)
 	row.add_child(stars)
 	strip.add_child(row)
 	return strip
@@ -369,7 +381,7 @@ func _layout() -> void:
 	# "the gear collides with the chakram's top blade"): in the sky over the title, clear of all of his art; the
 	# logo's lettering keeps under it (only its spears rise beside it)
 	_gear.size = _gear.custom_minimum_size
-	_gear.position = Vector2(v.x - insets.z - 22.0 - GEAR, insets.y + 16.0)
+	_gear.position = Vector2(v.x - insets.z - 22.0 - _gear.size.x, insets.y + 16.0)
 	var gear_foot := _gear.position.y + GEAR + 26.0
 	# the logo takes the height left
 	var top := insets.y + 18.0
@@ -386,13 +398,13 @@ func _layout() -> void:
 		logo_w = logo_h * _logo_tex.get_width() / _logo_tex.get_height()
 		# (the inked title's spears reach its full width: on a phone its right spear's tip ran under the gear; the
 		# title is no wider than keeps that tip clear of it)
-		var w_max := minf(w * 1.02, maxf(2.0 * (_gear.position.x - 10.0 - centre_x), w * 0.7))
+		var w_max := minf(w * 1.02, maxf(2.0 * (_gear.position.x - 30.0 - centre_x), w * 0.7))
 		if logo_w > w_max:
 			logo_w = w_max
 			logo_h = logo_w * _logo_tex.get_height() / _logo_tex.get_width()
 		var h := logo_h + ribbon_size.y * 0.45 + rest
 		y = top + (bottom - top - h) / 2.0
-		if centre_x + logo_w * 0.5 < _gear.position.x - 8.0:
+		if centre_x + logo_w * 0.5 < _gear.position.x - 28.0:
 			break
 		var clear := gear_foot - (y + logo_h * LETTERS_U)
 		if clear <= 0.0:

@@ -30,10 +30,9 @@ const KO_UP := 92.0  ## units its arc rises: over the heads of those behind it
 const KO_TURN := 0.6  ## radians it leans back in the flight
 ## (blind round 6: "bleached pale with a glow: a transparency glitch, not a hit": it keeps its full colours to the end)
 const KO_AWAY := 0.1  ## how much smaller it is at the flight's end (thrown away from the play)
-## (blind round 10: a dark-clothed bandit thrown back read as "a dark smudge: the hero seems to punch a shadow": the
-## line round a knocked-out bandit turns to a warm white for its flight, so its recoil pose reads on any ground)
-const KO_LINE := Color(1.0, 0.95, 0.82)
-const KO_LINE_WIDTH := 1.7  ## times its usual width
+## (blind round 11: the warm white line round it for its flight, round 10's, "reads as a selection highlight": it is
+## white for the blow's freeze, the blow's flash, then in its own colours and its own ink line: the blow's inked spark
+## and the lighter ground behind the play make it read)
 const KO_POOF := 0.12  ## seconds, the flight's last: it shrinks into its puff
 ## its puff's sparks: the chakram's steel blue, its beadwork's red and white
 const KO_SPARKS: Array[Color] = [Color("ffffff"), Color("6cc4ff"), Color("e82808"), Color("ffd36b")]
@@ -140,7 +139,6 @@ var _ko := false
 var _ko_time := 0.0
 var _pushed := 0.0  # 0..1 of KO_BACK done
 var _poofed := false
-var _lit := false  # its line is the knock-out's white
 var _vault := -1.0  # 0..1 through the vault over him (-1: not vaulting)
 var _lift := 0.0  # units it is drawn above the ground (the vault)
 ## (2026-11-10, the user: "their animation are not quite good, and the interaction of the enemies in the world should
@@ -284,6 +282,7 @@ func touched_down(hard: float) -> void:
 ## A ring hit it (knocked_out: the second one).
 func hit(knocked_out: bool) -> void:
 	_flash = 1.0
+	_spot = 0.0  # (one sign at a time: no "!" over a blow)
 	_jolt = 9.0
 	_squash = Vector2(1.18, 0.86)
 	if knocked_out:
@@ -496,7 +495,8 @@ func _show(index: int) -> void:
 func _disappear(delta: float) -> void:
 	_ko_time += delta
 	_flash = maxf(_flash - delta / FLASH_TIME, 0.0)
-	_material.set_shader_parameter(&"amount", _flash * 0.85)
+	# white for most of the freeze (the blow's flash), then its own colours
+	_material.set_shader_parameter(&"amount", 0.9 if _ko_time < KO_HOLD * 0.7 else _flash * 0.85)
 	var side := signf(_facing)
 	if _ko_time < KO_HOLD:
 		_sprite.scale = Vector2(_scale * 1.14 * side, _scale * 0.88)
@@ -506,10 +506,6 @@ func _disappear(delta: float) -> void:
 	if t >= 1.0:
 		queue_free()
 		return
-	if not _lit:
-		_lit = true
-		_material.set_shader_parameter(&"sil_colour", KO_LINE)
-		_material.set_shader_parameter(&"sil_out_px", float(_material.get_shader_parameter(&"sil_out_px")) * KO_LINE_WIDTH)
 	# thrown back fast, slowing; up and down its arc
 	var k := 1.0 - pow(1.0 - t, 2.2)
 	position.x += KO_BACK * (k - _pushed)

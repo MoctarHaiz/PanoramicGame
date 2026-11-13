@@ -673,8 +673,9 @@ func _on_bandit_hit(b: World.Bandit, knocked_out: bool) -> void:
 	if knocked_out:
 		Haptics.knock()
 		_impact(&"medium", Vector2(7.0, -2.0))
-		# (over its head, clear of its face and of the blow: the judges, "the +1 sits on the enemy's face")
-		Fx.plus_one(view.fx, Vector2(b.x - world.scroll - 6.0, b.y - (128.0 if b.strong else 98.0)) * 2.0)
+		# (over its head, clear of its face and of the blow: the judges, "the +1 sits on the enemy's face"; blind round 11:
+		# "+1 is stamped over the enemy's head": higher, and on his side of it: it is thrown back the other way)
+		Fx.plus_one(view.fx, Vector2(b.x - world.scroll - 64.0, b.y - (168.0 if b.strong else 136.0)) * 2.0)
 	else:
 		Haptics.select()
 		_impact(&"small", Vector2(3.0, 0.0))

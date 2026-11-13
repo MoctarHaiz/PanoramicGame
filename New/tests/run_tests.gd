@@ -1053,7 +1053,7 @@ func _test_hud_band() -> void:
 		var game: Node = Nav.current
 		await _frames(3)
 		var bottom := 0.0
-		for name: StringName in [&"_lives_glass", &"_track_glass", &"_count_box", &"_pause"]:
+		for name: StringName in [&"_lives_box", &"_track", &"_count_box", &"_pause"]:
 			var plate: Control = game.hud.get(name)
 			if plate and plate.is_visible_in_tree():
 				bottom = maxf(bottom, plate.get_global_rect().end.y)

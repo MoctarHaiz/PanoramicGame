@@ -31,6 +31,16 @@ const WOBBLE_WIDE := {0: 1.0, 1: 0.86, 2: 0.62, 6: 0.62, 7: 0.86}  ## how wide e
 const WOBBLE_FPS := 14.0
 const SPIN := 15.0  ## radians a second it turns in its own plane
 
+## The way back (blind round 11: "the hero's fist stops about 40 px short": with no ring in sight after the blow, his
+## throw read as a punch that missed): the chakram that struck a bandit comes back to his hand, as a thrown chakram
+## does: it stays on what it struck for the blow's freeze, then flies back over their heads in an arc, bigger at its
+## top (nearer the eye), its streak behind it. Drawn only: the rules took the ring out when it struck.
+const BACK_HOLD := 0.07  ## seconds on what it struck
+const BACK_TIME := 0.34  ## seconds back to his hand
+const BACK_UP := 120.0  ## units its way back rises over the straight line
+
+signal caught(at: Vector2)  ## back in his hand (it is gone)
+
 var from_hand := FROM_HAND
 var hand_time := HAND_TIME
 
@@ -38,6 +48,9 @@ var _clock := 0.0
 var _glow: Node2D
 var _trail: Array[Vector2] = []  # recent positions, in the parent's units
 var _sparks: Array[Vector4] = []  # x, y (parent units), age, life
+var _back := -1.0  # seconds since it struck a bandit (-1: flying out)
+var _back_from := Vector2.ZERO
+var _catch: Callable  # where his hand is now (the parent's units)
 
 
 func _init() -> void:
@@ -52,6 +65,18 @@ func _init() -> void:
 
 func _process(delta: float) -> void:
 	_clock += delta
+	if _back >= 0.0:
+		_back += delta
+		var t := clampf((_back - BACK_HOLD) / BACK_TIME, 0.0, 1.0)
+		var e := t * t * (3.0 - 2.0 * t)
+		var to: Vector2 = _catch.call()
+		var top := (_back_from + to) * 0.5 + Vector2(0.0, -BACK_UP)
+		position = _back_from.lerp(top, e).lerp(top.lerp(to, e), e)
+		scale = Vector2.ONE * (1.0 + 0.35 * sin(e * PI))
+		if t >= 1.0:
+			caught.emit(position)
+			queue_free()
+			return
 	var at := position + _hand()
 	_trail.push_front(at)
 	if _trail.size() > TRAIL:
@@ -73,6 +98,14 @@ func _process(delta: float) -> void:
 ## (a ring stopped in its first tenth of a second was drawn up to 30 units short of what it hit).
 func met() -> void:
 	_clock = maxf(_clock, WIND_UP + hand_time)
+
+
+## It struck a bandit at its place now: it comes back to his hand (`catch`: where that is, asked every frame).
+func rebound(catch: Callable) -> void:
+	met()
+	_back = 0.0
+	_back_from = position
+	_catch = catch
 
 
 ## The drawing of ring_spin.png shown now.
@@ -117,13 +150,19 @@ func _draw_glow() -> void:
 		for i in _trail.size():
 			var p := _glow.to_local(get_parent().to_global(_trail[i]))
 			var w := RADIUS * 0.75 * (1.0 - float(i) / _trail.size())
-			left.append(p + Vector2(0, -w))
-			right.append(p + Vector2(0, w))
+			# across its way (level on its way out; along its arc on its way back)
+			var way := _trail[maxi(i - 1, 0)] - _trail[mini(i + 1, _trail.size() - 1)]
+			var across := way.orthogonal().normalized() if _back >= 0.0 and way.length_squared() > 0.01 else Vector2.UP
+			left.append(p + across * w)
+			right.append(p - across * w)
 		for i in _trail.size() - 1:
 			var a := 0.35 * (1.0 - float(i) / _trail.size())
 			var b := 0.35 * (1.0 - float(i + 1) / _trail.size())
-			_glow.draw_polygon(PackedVector2Array([left[i], left[i + 1], right[i + 1], right[i]]),
-					PackedColorArray([Color(0.3, 0.6, 1.0, a), Color(0.3, 0.6, 1.0, b), Color(0.3, 0.6, 1.0, b), Color(0.3, 0.6, 1.0, a)]))
+			# (a primitive, not a polygon: nothing to triangulate, so a piece of no length, held on what it struck, or
+			# one twisted at the turn of its arc draws as nothing instead of failing)
+			_glow.draw_primitive(PackedVector2Array([left[i], left[i + 1], right[i + 1], right[i]]),
+					PackedColorArray([Color(0.3, 0.6, 1.0, a), Color(0.3, 0.6, 1.0, b), Color(0.3, 0.6, 1.0, b), Color(0.3, 0.6, 1.0, a)]),
+					PackedVector2Array([Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO]))
 	# the halo
 	_glow.draw_set_transform(Vector2.ZERO, 0.0, Vector2(k, 1.0))
 	# (round 4: no pale halo round it, no launch disc: it read as a pool float; a steel ring)

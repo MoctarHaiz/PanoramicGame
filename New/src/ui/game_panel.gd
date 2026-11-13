@@ -102,7 +102,7 @@ func _build(title: String, body: Control, character: Control, tint: Color, glow:
 	add_child(_pop)
 	card = Card.ink(Vector4(44, 62, 44, 26))  # (its top: under the title's lower half)
 	card.add_child(body)
-	banner = Ui.ink_title(title, 112.0, 600.0)
+	banner = Ui.ink_title(title, 112.0, 760.0)  # (a long title, "Home sweet home!", stands as tall as a short one)
 	_top = banner.size.y * 0.5
 	_min_w = maxf(banner.size.x * 0.84, 520.0)
 	art = character

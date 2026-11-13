@@ -2,13 +2,13 @@
 
 importer="font_data_dynamic"
 type="FontFile"
-uid="uid://ipceja238xt6"
-path="res://.godot/imported/Fredoka-680.ttf-eeb286cd7d31e74c424e8bed40d0ce99.fontdata"
+uid="uid://dnw106oyepsd4"
+path="res://.godot/imported/Anton.ttf-6b0d473d000c4844050a5ce7ca926a9b.fontdata"
 
 [deps]
 
-source_file="res://assets/fonts/Fredoka-680.ttf"
-dest_files=["res://.godot/imported/Fredoka-680.ttf-eeb286cd7d31e74c424e8bed40d0ce99.fontdata"]
+source_file="res://assets/fonts/Anton.ttf"
+dest_files=["res://.godot/imported/Anton.ttf-6b0d473d000c4844050a5ce7ca926a9b.fontdata"]
 
 [params]
 

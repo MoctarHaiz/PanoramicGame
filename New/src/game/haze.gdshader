@@ -35,6 +35,10 @@ uniform float flatten : hint_range(0.0, 1.0) = 0.0;
 uniform vec4 ambient : source_color = vec4(1.0);
 uniform float ambient_k = 0.0;
 uniform vec4 air_tint : source_color = vec4(1.0);
+// Blind round 11 ("the mid-ground is as sharp and saturated as the fighters"): `soft`: the layer out of focus, as a
+// lens set on the play draws what is behind it: read from a smaller copy of its picture (this many mipmap levels
+// down; 0: sharp). The play's own layer and what is in front of it stay sharp.
+uniform float soft = 0.0;
 
 varying vec4 drawn;  // round 20: the colour each sprite is drawn with (COLOR in fragment() has the texture in it)
 varying vec2 at;  // round 21: where it is drawn (the layer's units)
@@ -61,7 +65,7 @@ float lit_plane(vec3 c) {
 }
 
 void fragment() {
-	vec4 t = texture(TEXTURE, UV);
+	vec4 t = soft > 0.0 ? textureLod(TEXTURE, UV, soft) : texture(TEXTURE, UV);
 	// (round 22: in an atlas of cells, how far down its own cell: the foot's haze was read from the atlas's UV)
 	float v = UV.y;
 	float py = UV.y / TEXTURE_PIXEL_SIZE.y;

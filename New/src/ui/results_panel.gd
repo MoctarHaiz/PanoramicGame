@@ -345,13 +345,8 @@ static func _reveal(game: Control, panel: GamePanel, world: World, stars: Array[
 			back.scale = Vector2.ONE * 0.5
 			panel.add_child(back)
 			panel.move_child(back, panel.card.get_parent().get_index())
-			var group := panel.card.get_parent()
-			var over := Node2D.new()  # over the card, under him and the title's ribbon
-			over.scale = Vector2.ONE * 0.5
-			group.add_child(over)
-			group.move_child(over, panel.card.get_index() + 1)
 			var star := stars[1].get_global_rect().get_center()
-			_party(back, back.get_global_transform().affine_inverse() * star, over, over.get_global_transform().affine_inverse() * star))
+			_party(back, back.get_global_transform().affine_inverse() * star))
 	_count_up(tree, bobs, world.bobs, total, t, panel)
 	t += COUNT_TIME + 0.1
 	if bar:
@@ -365,10 +360,11 @@ static func _reveal(game: Control, panel: GamePanel, world: World, stars: Array[
 ## make "one dense, lit, tumbling burst"): one burst from behind the card's stars, a flash of warm light at its
 ## heart, its paper thrown high and wide over the scene and floating down for seconds, every piece turning and
 ## flipping, shaded by how it faces the light and glinting when it faces it (Confetti), in three depths: far,
-## small, slow and hazy with the warm air, behind everything (`back`, at `back_at`); the bulk crisp and two-tone
-## with gold streamers and sparks, and a few big soft pieces near the eye, over the card but under him and the
-## title's ribbon (`over`, at `over_at`), so his face and the title stay clean.
-static func _party(back: Node2D, back_at: Vector2, over: Node2D, over_at: Vector2) -> void:
+## small, slow and hazy with the warm air; the bulk crisp and two-tone with gold streamers and sparks; and a few
+## big soft pieces near the eye. All of it behind the ink band and him (`back`, at `back_at`): no paper crosses
+## the title, the stars or the count (blind round 11: "confetti lands on the title and the score": the bulk was
+## over the band).
+static func _party(back: Node2D, back_at: Vector2) -> void:
 	Fx.glow(back, back_at, Color(1, 0.88, 0.6, 0.95), 0.4, 2.6, 0.5)
 	var far := Confetti.make(back, back_at)
 	far.depth = 0.9
@@ -377,14 +373,14 @@ static func _party(back: Node2D, back_at: Vector2, over: Node2D, over_at: Vector
 	far.drag = 1.7
 	far.flutter = 380.0
 	far.spray(100, Fx.WIN_SHAPES, Fx.PAPER_COLOURS, Vector2(800, 1800), Vector2.UP, 88.0, 1.2, Vector2(4.0, 5.2), 40.0)
-	var mid := Confetti.make(over, over_at)
+	var mid := Confetti.make(back, back_at)
 	mid.gravity = 320.0
 	mid.drag = 1.6
 	mid.flutter = 420.0
 	mid.spray(120, Fx.WIN_SHAPES, Fx.PAPER_COLOURS, Vector2(700, 1800), Vector2.UP, 86.0, 2.0, Vector2(4.0, 5.0), 36.0)
 	mid.spray(14, Fx.STREAMERS, Fx.STREAMER_COLOURS, Vector2(700, 1600), Vector2.UP, 70.0, 1.6, Vector2(3.6, 4.6), 28.0)
 	mid.sparkle(36, Fx.GOLD, Vector2(500, 1500), 1.1, Vector2(1.6, 2.6))
-	var near := Confetti.make(over, over_at)  # out of focus, closest to the eye
+	var near := Confetti.make(back, back_at)  # out of focus, closest to the eye
 	near.gravity = 260.0
 	near.drag = 1.3
 	near.flutter = 180.0
