@@ -12,7 +12,7 @@ signal bandit_landed(strong: bool, hard: float)
 const HANG_DRAW_DROP := 58.0  ## the rules hang him half above the screen: draw him below its top
 const BANDIT_RIGHT := 46.0  ## round 10: units a bandit's picture reaches right of its feet (QA: 960-1069 at x 1024)
 ## Round 9: the pictures the pools mirror (their savanna strips and the sky)
-const WATER_MIRRORS := {"grass_tex": "near_grass", "hills_tex": "mid_hills", "sky_tex": "sky"}
+const WATER_MIRRORS := {"grass_tex": "near_grass", "hills_tex": "far_hills", "sky_tex": "sky"}
 const EXTRA_COLUMNS := 70  ## ground drawn past the end of the map for wide screens
 
 var world: World
@@ -27,7 +27,8 @@ var view_bottom := World.VIEW_H
 ## Round 17 (blind rounds 12 to 16, the vine: "a wide empty blue band between vine and horizon"): the share of the
 ## camera's rise the backdrop follows. Far things barely move as the eye rises: the horizon, the landforms and the
 ## plain stay in the picture behind him up there, the play's own plane (the stacks, the vine) sliding over them.
-const BACKDROP_FOLLOW := 0.68
+## (blind round 20: 0.85: the plain keeps its place under him and the painted river comes up under it: SavannaView.RIVER_UP)
+const BACKDROP_FOLLOW := 0.85
 ## Round 10 (QA ENV-1): while the start card holds the world (GameScreen), a waiting bandit whose
 ## picture is not wholly inside the screen's safe area is not drawn (the level's first one stood
 ## cut by the right edge, in the phone's rounded corner); it fades in once the run starts.
@@ -238,7 +239,7 @@ func _add_water() -> void:
 			for name: String in ["grass_tex", "hills_tex", "sky_tex"]:
 				m.set_shader_parameter(name, load(SavannaView.DIR + WATER_MIRRORS[name] + ".png"))
 			m.set_shader_parameter("grass_strip", _strip(&"near_grass"))
-			m.set_shader_parameter("hills_strip", _strip(&"mid_hills"))
+			m.set_shader_parameter("hills_strip", _strip(&"far_hills"))
 			_water.append(m)
 			rect.material = m
 			rect.mouse_filter = Control.MOUSE_FILTER_IGNORE

@@ -40,7 +40,7 @@ const WAKE_SHORT := 130.0
 const WAKE_HOLD := 0.34  ## seconds of flight it keeps its full length
 const WAKE_STEPS := 16
 const WAKE_TUCK := 14.5  ## units short of the ring's middle it ends: under its rim (its hole stays open)
-const WAKE_HALF := RADIUS * 0.8  ## half its width at the ring (grown: FLIGHT_GROW): inside the ring's own width
+const WAKE_HALF := RADIUS * 0.56  ## half its width at the ring (grown: FLIGHT_GROW): inside the ring's own height, lying flat (FLAT)
 const WAKE_TAPER := 0.9  ## how its width closes toward his hand (1: a straight wedge)
 const WAKE_BODY := Color("ff9a36")
 const WAKE_TONES: Array[Color] = [Color("e9582a"), Color("ffb23e"), Color("fff0cf")]  # its strands: hot orange outside, cream at its heart
@@ -59,10 +59,16 @@ const HAND_TIME := 4.0 / 60.0
 ## (WorldView sets `from_hand` from HeroView.THROW_FIST) and comes down to its lane over HAND_ARC seconds; it shows
 ## its face all the way (ring_spin.png's drawings near face-on, WOBBLE; the edge-on ones are not shown) and spins.
 const HAND_ARC := 0.14
-const WOBBLE: Array[int] = [0, 1, 2, 1, 0, 7, 6, 7]
-const WOBBLE_WIDE := {0: 1.0, 1: 0.86, 2: 0.62, 6: 0.62, 7: 0.86}  ## how wide each of those drawings shows its face
-const WOBBLE_FPS := 14.0
 const SPIN := 15.0  ## radians a second it turns in its own plane
+## Blind round 19 (of the ring in flight: "a perfect face-on circle at the end of the wake, like a UI icon rather than
+## a spinning blade"): it flies as a thrown disc does, seen from a little over its edge: its face (ring_spin.png's
+## first drawing, the one in his hand) flattened to FLAT of its height (rocking between the two), tipped TIP radians
+## into its way, turning in its own plane, its blades smeared behind their turn (SMEAR: fainter copies, each a step of
+## the turn back). It leaves his hand face-on and lies down into its flight as it grows.
+const FLAT := Vector2(0.5, 0.64)
+const FLAT_ROCK := 9.0  ## radians a second it rocks between them
+const TIP := -0.2
+const SMEAR := [[0.34, 0.2], [0.17, 0.42]]  ## [radians back, opacity], the faintest first
 
 ## The way back (blind round 11: "the hero's fist stops about 40 px short": with no ring in sight after the blow, his
 ## throw read as a punch that missed): the chakram that struck a bandit comes back to his hand, as a thrown chakram
@@ -149,14 +155,10 @@ func rebound(catch: Callable) -> void:
 	_catch = catch
 
 
-## The drawing of ring_spin.png shown now.
-func _frame() -> int:
-	return WOBBLE[int(_clock * WOBBLE_FPS) % WOBBLE.size()]
-
-
-## How wide the ring shows as it turns (1: face-on).
-func _turn() -> float:
-	return WOBBLE_WIDE[_frame()]
+## How much of its height shows (1: face-on, in his hand; FLAT in flight).
+func _flat() -> float:
+	var out := clampf((_clock - WIND_UP) / maxf(hand_time, 0.01), 0.0, 1.0)
+	return lerpf(1.0, lerpf(FLAT.x, FLAT.y, 0.5 + 0.5 * sin(_clock * FLAT_ROCK)), out * (2.0 - out))
 
 
 ## How big it is drawn (1: as in his hand): growing as it leaves his hand.
@@ -176,12 +178,17 @@ func _draw() -> void:
 		return
 	var hand := _hand()
 	var r := DRAW_RADIUS * _grow()
-	draw_set_transform(hand, _clock * SPIN)
-	var f := _frame()
+	var flat := _flat()
+	var plane := Transform2D(TIP * (1.0 - flat) / (1.0 - FLAT.x), Vector2(1.0, flat), 0.0, hand)  # (tipped as it lies down)
 	var px := TEXTURE.get_height()
-	draw_texture_rect_region(TEXTURE, Rect2(-r, -r, r * 2, r * 2), Rect2(f * px, 0, px, px))
+	var face := Rect2(0, 0, px, px)
+	for smear: Array in SMEAR:
+		draw_set_transform_matrix(plane * Transform2D(_clock * SPIN - float(smear[0]), Vector2.ZERO))
+		draw_texture_rect_region(TEXTURE, Rect2(-r, -r, r * 2, r * 2), face, Color(1, 1, 1, float(smear[1]) * (1.0 - flat) / (1.0 - FLAT.x)))
+	draw_set_transform_matrix(plane * Transform2D(_clock * SPIN, Vector2.ZERO))
+	draw_texture_rect_region(TEXTURE, Rect2(-r, -r, r * 2, r * 2), face)
 	var spin := _clock * 18.0
-	draw_set_transform(hand, 0.0, Vector2(_turn(), 1.0))
+	draw_set_transform_matrix(plane)
 	draw_arc(Vector2.ZERO, r * 0.67, spin, spin + 0.7, 12, Color(HOT, 0.55), 1.6, true)  # a glint running round the steel
 	draw_set_transform(Vector2.ZERO)
 
@@ -196,7 +203,7 @@ func _wake_path() -> PackedVector2Array:
 		for i in range(_trail.size() - 1, -1, -1):
 			path.append(_trail[i])
 		return path
-	head.x -= WAKE_TUCK * _turn() * _grow()  # (it ends under the ring's rim, the hole open on what is behind it)
+	head.x -= WAKE_TUCK * _grow()  # (it ends under the ring's rim, the hole open on what is behind it)
 	var gap: Vector2 = head - hand.call()
 	if gap.x < 26.0:
 		return path

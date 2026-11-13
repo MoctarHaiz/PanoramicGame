@@ -118,7 +118,8 @@ const LIGHT_GAIN := 1.18  ## his lit colours x this in play (actor.gdshader ligh
 ## (round 19) the characters' one line and light system (character.gdshaderinc, shared with BanditView)
 const LINE := Color(0.17, 0.085, 0.06)  ## his ink: a dark warm brown, not black
 const LINE_INSIDE := 0.55  ## the brown lines inside him (the muscles' grooves, folds) softened towards the colours round them
-const SHADE := 0.22  ## his shade tinted towards the dusk's cool ambient (round 23: 0.14 -> 0.22, "lit his own neutral way")
+const SHADE := 0.34  ## his shade tinted towards the dusk's cool ambient (round 23: 0.14 -> 0.22, "lit his own neutral way"; blind round 19:
+## "the fighters do not share the scene's dusk": 0.34, by value and hue only)
 ## (round 20, the judges: "a sticker: lit flat from the front while the scenes are back- and side-lit") the form: the
 ## half of him away from the sun (upper left) in a soft cool shade, deepest along the edges turning away from it
 ## (character.gdshaderinc char_form()); no rim, no glow on the lit side (the user)
@@ -142,7 +143,7 @@ const SIL_IN := 1.4
 const SIL_OUT := 2.1
 const SKIN_LIFT := 0.2  ## his skin's middle values lighter (character.gdshaderinc char_skin)
 const FORM_SPLIT := Vector2(-0.12, 0.42)  ## (round 23) a cleaner split between his lit and shade halves (was -0.35 .. 0.75)
-const SHADE_COLOUR := Color(0.8, 0.77, 0.98)  ## (round 23) his shadow tones a little towards the dusk's ambient
+const SHADE_COLOUR := Color(0.74, 0.7, 1.0)  ## (round 23) his shadow tones a little towards the dusk's ambient
 const WALK_IN := 70.0  ## units he walks into the doorway at home
 const DIE_PUSH := 40.0  ## units the fatal blow knocks him back
 const DIE_MIN_X := 70.0  ## play x he is never drawn left of when caught (the death stays on screen)
@@ -247,6 +248,8 @@ func _init() -> void:
 	_cast.visible = false
 	_cast.scale = HOME_CAST_SCALE
 	_cast.position = HOME_CAST_SHIFT
+	_cast.material = ShaderMaterial.new()
+	_cast.material.shader = preload("res://src/game/cast.gdshader")
 	_sprite = Sprite2D.new()
 	_sprite.centered = false
 	_sprite.region_enabled = true

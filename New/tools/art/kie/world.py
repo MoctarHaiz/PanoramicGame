@@ -8,8 +8,8 @@ the frame, then each layer of it alone on a transparent background, with the fra
     sky.png              the sky's panorama, repeating left to right
     far_wall.png         the far escarpment (a strip: its top part, the rest is behind the plain)
     far_mesa_pieces.png  twelve landforms, each alone (+ .json: where, what kind)
-    far_hills.png        the plain, from its horizon down (a strip)
-    mid_hills.png        the middle-ground rise (a strip)
+    far_hills.png        the plain behind the path, one ground from the path to its horizon (a strip)
+    river.png            the river under the vine, from its far bank down (a strip)
     near_grass.png       the tall grass behind the path (a strip)
     tree_*.png           ten trees (+ tree_info.json: the foot of each trunk)
     fg_props.png         six plants and rocks near the camera
@@ -21,7 +21,7 @@ the frame, then each layer of it alone on a transparent background, with the fra
     earth.png            the cut bank of the main ground under the turf (terrain.gdshader), repeating
     canopy.png           the boughs the liana hangs from, along the top of the level (canopy: CanopyView)
 
-    python3 tools/art/kie/world.py [sky wall mesas plain rise grass trees front fire earth | sign door clouds impact spires canopy]
+    python3 tools/art/kie/world.py [sky wall mesas plain river grass trees front fire earth | sign door clouds impact spires canopy]
     (none: the first ten)
 
 A strip repeats: its right end is laid over its left end along the path where the two differ least (the plain, the
@@ -49,7 +49,11 @@ HEARTH_TIP, HEARTH_SLOPE, HEARTH_STONES = 0.672, 0.55, 0.8  # the hearth's logs:
 FLAME_K = 0.46  # the flames, of fire3's px: about 215 px across on the 308 px hearth
 FLAME_CELL = (308, 440)  # px, a frame of home_flames.png: the hearth's width
 FLAME_FOOT = 52  # px over the cell's bottom the flames stand: behind the logs, on the embers
-RISE_SWELL = 0.35  # how much of the painted crest's long swell is kept (rise)
+PLAIN_ENDS = 96  # px cut off each end of a wide painting (plain, river)
+PLAIN_ROWS = 600  # px of the plain kept under its horizon (SavannaView: the rest is under the screen)
+RIVER_ROWS = 760  # px of the river kept under its far waterline
+RIVER_ENDS = 40  # px cut off each of its ends (its join keeps clear of the streaks along the bank's ends)
+RIVER_STEER = [(610, 36), (706, 216)]  # (river2's row, the join's column from there down)
 FRONT_CELL = (440, 390)  # px: SavannaView.FRONT_PROP at 1.7 px a unit (dark shapes passing fast: no finer)
 
 
@@ -80,9 +84,10 @@ def fade(a: np.ndarray, b: int) -> np.ndarray:
     return np.concatenate([zone, a[:, b:-b]], axis=1)
 
 
-def seam(a: np.ndarray, b: int, feather=5.0) -> np.ndarray:
+def seam(a: np.ndarray, b: int, feather=5.0, steer=()) -> np.ndarray:
     """Repeats left to right: the last `b` columns joined to the first `b` along the top-to-bottom path where the two
-    differ least (a blade of grass is one end's or the other's, never a ghost of both)."""
+    differ least (a blade of grass is one end's or the other's, never a ghost of both). `steer`: (row, column) pairs:
+    from that row down the path runs at that column (open water: round a sandbar's tip, not through it)."""
     end, start = a[:, -b:], a[:, :b]
     cost = ((end - start) ** 2).sum(axis=-1) + 1e-5
     lo, hi = int(b * 0.12), int(b * 0.88)
@@ -98,8 +103,13 @@ def seam(a: np.ndarray, b: int, feather=5.0) -> np.ndarray:
         x = path[y + 1]
         x0, x1 = max(x - 1, 0), min(x + 2, b)
         path[y] = x0 + int(np.argmin(acc[y, x0:x1]))
+    for row, column in steer:
+        path[row:] = column
     m = (np.arange(b)[None, :] > path[:, None]).astype(np.float32)  # 1: the start's side
-    m = ndi.gaussian_filter1d(m, feather, axis=1)[..., None]
+    m = ndi.gaussian_filter1d(m, feather, axis=1)
+    if steer:  # (where the path steps aside, no hard level edge)
+        m[steer[0][0] - 40:] = ndi.gaussian_filter1d(m, feather, axis=0)[steer[0][0] - 40:]
+    m = m[..., None]
     zone = end * (1 - m) + start * m
     return np.concatenate([zone, a[:, b:-b]], axis=1)
 
@@ -134,35 +144,32 @@ def wall() -> None:
 
 
 def plain() -> None:
-    a = load("plain")
-    first = top_edge(a, 0.004)  # (the smoke's top, the baobab's crown)
+    # (blind round 19: "four near-parallel horizontal ridges with identical ragged brown crests ... stacked wallpaper
+    # strips": "replace the stack of parallel ridges behind the lane with one receding ground plane built from
+    # overlapping diagonal forms": plain2, the whole grassland behind the path painted as one ground in perspective,
+    # from right behind the characters to the horizon: interlocking swells, a game trail winding away to one far
+    # point, the far band in the last sun with its groves, its herds and a village, the nearer plain in the evening's
+    # shade. `plain`, the one before it, was the far plain alone, seen behind three ridges)
+    a = load("plain2")[:, PLAIN_ENDS:-PLAIN_ENDS]  # (the painter smears a picture's two ends into level streaks)
+    first = top_edge(a, 0.004)  # (the acacias' crowns)
     line = top_edge(a, 0.97)  # the horizon
-    out = seam(a[first - 8:line + 216], 256)  # (its horizon at y 432: 216 px reach under the rise's top edge)
+    out = seam(a[first - 8:line + PLAIN_ROWS], 320, feather=36.0)  # (soft land: the swells' shade melts across)
     save(out, OUT / "far_hills.png")
     print("  horizon at row %d of it" % (line - first + 8))
 
 
-def rise() -> None:
-    # (blind round 16: "collapse the band directly behind the lane (trees, mound, boulders, baobab between knee and
-    # head height) into two or three quiet, paler, low-contrast shapes": rise2, a quiet rise of sun-bleached grass under
-    # long cloud shadows, three small shrubs; `rise`, the one before it, carried boulders, termite mounds and aloes)
-    # (blind round 17: "two lights in one picture: a violet dusk sky … and a bleached, shadowless, midday-pale plain":
-    # rise3, the hillside behind the fighters in the dusk's violet shade, wind-swept grass, the last sun along its
-    # crest. It stands as tall as they do, SavannaView: its crest just over their heads, so the painted crest's long
-    # swell is levelled to RISE_SWELL of itself: at its low points his head stood out over it)
-    a = load("rise3")
-    solid = a[..., 3] > 0.5
-    crest = np.where(solid.any(axis=0), solid.argmax(axis=0), a.shape[0]).astype(np.float32)
-    swell = ndi.gaussian_filter1d(crest, 90.0, mode="wrap")  # (its long swell: the shrubs on it stay as they are)
-    lift = (swell - swell.min()) * (1.0 - RISE_SWELL)
-    rows = np.arange(a.shape[0], dtype=np.float32)[:, None] + lift[None, :]  # (each column moved up by its lift)
-    cols = np.broadcast_to(np.arange(a.shape[1], dtype=np.float32)[None, :], rows.shape)
-    a = np.dstack([ndi.map_coordinates(a[..., q], [rows, cols], order=1, mode="nearest") for q in range(4)])
-    first = top_edge(a, 0.004)
-    line = top_edge(a, 0.97)
-    out = seam(a[first - 8:line + 380], 256)  # (solid from y 462 at 2 px a unit: 380 px reach under the screen's bottom edge)
-    save(out, OUT / "mid_hills.png")
-    print("  solid from row %d of it, %d rows" % (line - first + 8, out.shape[0]))
+def river() -> None:
+    # (blind round 19, under the vine: "the river is the cheapest element: reflections as regular white horizontal
+    # dashes and banded blocks, which read as a procedural shader rather than paint": river2, the river painted: its
+    # far bank of reeds, papyrus and sand, the dusk mirrored soft and broken, sandbars and lily pads lying across it)
+    a = load("river2")[:, RIVER_ENDS:-RIVER_ENDS]
+    first = top_edge(a, 0.004)  # (the papyrus heads)
+    water = top_edge(a, 0.995)  # the first row that is water from side to side
+    # (a sandbar's tip lies in each end: the join passes left of the left one's, then right of the right one's)
+    steer = [(row - first + 8, column) for row, column in RIVER_STEER]
+    out = seam(a[first - 8:water + RIVER_ROWS], 256, feather=16.0, steer=steer)
+    save(out, OUT / "river.png")
+    print("  water from row %d of it" % (water - first + 8))
 
 
 def grass() -> None:
@@ -320,8 +327,9 @@ def sign() -> None:
 def door() -> None:
     """The main hut's doorway (home_hut.png, in place): its inside, a glow from black down to bright orange, was his
     skin's hue and value behind his legs and chest (blind rounds 5, 6, 11 and 12: "his warm torso sits on a warm
-    orange doorway"); now the hut's dark inside in the dusk's violet-brown, a little lighter low down: over his black
-    hair's value, well under his skin's. Found as the smooth region round the doorway's middle (home.json)."""
+    orange doorway"); now the hut's inside in the dusk's violet, a middle value behind his head (blind round 19: "his
+    black hair and back shoulder sit on the dark doorway") and deeper low down: well over his black hair's value, well
+    under his skin's, and not his hue. Found as the smooth region round the doorway's middle (home.json)."""
     path = OUT / "home_hut.png"
     info = json.loads((OUT / "home.json").read_text())["home_hut"]
     img = np.asarray(Image.open(path).convert("RGBA")).astype(np.float32) / 255.0
@@ -336,7 +344,7 @@ def door() -> None:
     soft = ndi.gaussian_filter(inside.astype(np.float32), 1.2)[..., None]
     ys = np.nonzero(inside.any(axis=1))[0]
     t = np.clip((np.arange(h) - ys.min()) / max(ys.max() - ys.min(), 1), 0, 1)[:, None, None]
-    tone = np.array([0.20, 0.135, 0.25]) * (1 - t) + np.array([0.33, 0.21, 0.32]) * t
+    tone = np.array([0.42, 0.33, 0.56]) * (1 - t) ** 1.5 + np.array([0.26, 0.18, 0.33]) * (1 - (1 - t) ** 1.5)
     img[..., :3] = img[..., :3] * (1 - soft) + tone * soft
     Image.fromarray((np.clip(img, 0, 1) * 255 + 0.5).astype(np.uint8), "RGBA").save(path)
     print("home_hut.png: doorway %d px repainted, rows %d to %d" % (int(inside.sum()), ys.min(), ys.max()))
@@ -456,6 +464,6 @@ def canopy() -> None:
 
 
 if __name__ == "__main__":
-    todo = sys.argv[1:] or ["sky", "wall", "mesas", "plain", "rise", "grass", "trees", "front", "fire", "earth"]
+    todo = sys.argv[1:] or ["sky", "wall", "mesas", "plain", "river", "grass", "trees", "front", "fire", "earth"]
     for name in todo:
         globals()[name]()

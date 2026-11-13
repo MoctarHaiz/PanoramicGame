@@ -2,22 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bsrp24da33jpu"
-path.s3tc="res://.godot/imported/mid_hills.png-81e766f287133376b3701e7f00ddf495.s3tc.ctex"
-path.etc2="res://.godot/imported/mid_hills.png-81e766f287133376b3701e7f00ddf495.etc2.ctex"
+uid="uid://3qet2kbwasop"
+path="res://.godot/imported/river.png-af18b7985125c6a4b7473d06b08b63a3.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc", "etc2_astc"],
-"vram_texture": true
+"vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/art/world/mid_hills.png"
-dest_files=["res://.godot/imported/mid_hills.png-81e766f287133376b3701e7f00ddf495.s3tc.ctex", "res://.godot/imported/mid_hills.png-81e766f287133376b3701e7f00ddf495.etc2.ctex"]
+source_file="res://assets/art/world/river.png"
+dest_files=["res://.godot/imported/river.png-af18b7985125c6a4b7473d06b08b63a3.ctex"]
 
 [params]
 
-compress/mode=2
+compress/mode=0
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -25,7 +23,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=true
+mipmaps/generate=false
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

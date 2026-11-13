@@ -49,7 +49,7 @@ const STAR_RISE := 30.0  ## units the dazed stars circle above the middle of its
 ## hottest, clearest shape on screen ("the cyan-haired bandits are the most saturated shapes, they read as the stars").
 const SATURATION := 1.0  ## (round 23: the grade is the dark core's below)
 const VALUE := 1.0
-const SHADE := 0.2
+const SHADE := 0.32  ## (blind round 19: the fighters "do not share the scene's dusk": it was 0.2)
 ## (round 21, the judges: "the bandits read first: as big as him, higher, darker on the sky") their sizes are the user's;
 ## pushed back in value instead, towards the sky's haze (round 22, the judges: "now lighter, bigger and more detailed
 ## than the hero"): the other way now, every colour drawn this far into the scene's shade (bandit.gdshader haze: RECEDE,
@@ -81,6 +81,9 @@ const ACCENT := {
 }
 const SHADOW_WIDTH := 84.0  ## units across its shadow on the ground (Panoramic's: 100)
 const SHADOW_SHIFT := 20.0  ## its shadow falls right of it, away from the sun (upper left), as his does
+const LEAP_SHADOW := 1.0  ## how much of its shadow shows under its leap
+const LEAP_SHADOW_UP := 5.0  ## units over the walking line it lies at (on the blades in front: on the line alone it was a sliver)
+const LEAP_SHADOW_WIDE := 1.3
 
 const KINDS: Array[StringName] = [&"bandit", &"bandit_strong", &"bandit_a", &"bandit_strong_a"]
 ## Each kind's two looks (the user, 2026-11-12, having seen both: "use the 2 versions of the bandits"): the savanna
@@ -425,6 +428,16 @@ func _draw() -> void:
 ## lighter the higher he is): the hero's (HeroView.contact_shadow), so all of them stand on the same ground.
 func _draw_shadow() -> void:
 	if not _grounded:
+		# (blind round 19, of its leap over a ring: "he has no cast shadow": in the air its shadow lies on the grass
+		# under it, smaller and lighter the higher it is, as his does)
+		var feet := position.y - GameArt.FEET_SINK
+		var col := floori(bandit.x / Level.TILE)
+		for r in range(maxi(floori((feet - 8.0) / Level.TILE), 0), Level.ROWS):
+			if world.level.kind_at(col, r) == Level.Kind.TOP:
+				var drop := maxf(r * Level.TILE - feet, 0.0)
+				HeroView.contact_shadow(_ground_shadow, Vector2(SHADOW_SHIFT, drop - LEAP_SHADOW_UP), SHADOW_WIDTH * LEAP_SHADOW_WIDE * (1.15 if bandit.strong else 1.0),
+						clampf(1.0 - drop / 420.0, 0.0, 1.0), LEAP_SHADOW, HeroView.SHADOW_LONG)
+				break
 		return
 	var k := 1.0 - clampf(_lift / VAULT_HEIGHT, 0.0, 1.0) * 0.7
 	var seen := 1.0

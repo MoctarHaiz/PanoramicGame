@@ -22,7 +22,7 @@ uniform sampler2D soil_tex : source_color, repeat_enable, filter_linear_mipmap; 
 // every round): the tall golden grass over the mid hills over the sky, read from SavannaView's own
 // strips where they stand behind (no copy of the screen: it cost 15 MB on an iPhone 15)
 uniform sampler2D grass_tex : source_color, repeat_enable, filter_linear_mipmap;  // near_grass.png
-uniform sampler2D hills_tex : source_color, repeat_enable, filter_linear_mipmap;  // mid_hills.png
+uniform sampler2D hills_tex : source_color, repeat_enable, filter_linear_mipmap;  // far_hills.png, the plain
 uniform sampler2D sky_tex : source_color, filter_linear;  // sky.png
 uniform float scroll = 0.0;  // the level's scroll (WorldView sets it each frame)
 uniform vec4 grass_strip = vec4(0.42, 646.0, 0.5, 100.0);  // SavannaView.STRIPS: scroll factor, bottom y, units a px, height

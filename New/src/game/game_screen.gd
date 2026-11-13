@@ -58,6 +58,7 @@ const DEATH_PUSH := 1.2  ## caught: the camera closes in on him while he falls (
 ## framed first and the push is laid over it: for that beat the screen's far right shows a little later, where
 ## nothing can reach him yet. Not up on a ledge or on the vine (the camera frames those its own way).
 const FIGHT_PUSH := 1.2
+const HOME_ABOUT := 160.0  ## units over the level's bottom the home's push closes in about
 const FIGHT_REACH := 300.0  ## a bandit this near ahead of him (units), on his level
 const FIGHT_RING := 520.0  ## ... or this near while a ring is in the air
 const FIGHT_LEVEL := 150.0  ## "on his level": its centre this near his, up or down
@@ -325,7 +326,8 @@ func _place_camera(delta: float) -> void:
 	if _push > 1.0001 and home:  # New: the push draws the hut and him to the middle of the screen as it goes
 		# in (about the doorway, a 4:3 iPad lost the hut's right half past its edge)
 		var u := clampf((_push - 1.0) / maxf(_home_push() / _zoom - 1.0, 0.01), 0.0, 1.0)
-		var c := at + Vector2(_home_cx(), World.VIEW_H - 100.0) * zoom_k
+		# (blind round 19: "the bottom 8% is a dead dark soil strip": about a point higher up, less earth under the yard)
+		var c := at + Vector2(_home_cx(), World.VIEW_H - HOME_ABOUT) * zoom_k
 		var target := Vector2(lerpf(c.x, _clip.size.x / 2.0, u), c.y)
 		zoom_k *= _push
 		at = at * _push + target - c * _push
