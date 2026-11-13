@@ -138,6 +138,14 @@ func prepare(lvl: Level, first_col: int, end_col: int) -> void:
 		for r in range(0, Level.ROWS + 1):
 			var k := kinds[mini(r, Level.ROWS - 1) * Level.COLS + col]
 			_solid[(r + 1) * _cols + i] = 1 if k == Level.Kind.TOP or k == Level.Kind.SIDE else 0
+	# (2026-11-13: a single empty cell walled in on its four sides is drawn as rock: a hole in a ledge showed as a
+	# dark box with a strip of turf on its floor; drawing only, nothing can reach it)
+	for i in range(1, _cols - 1):
+		for r in range(1, Level.ROWS - 1):
+			var at := (r + 1) * _cols + i
+			if _solid[at] == 0 and _solid[at - _cols] == 1 and _solid[at + _cols] == 1 \
+					and _solid[at - 1] == 1 and _solid[at + 1] == 1:
+				_solid[at] = 1
 	_first_col = first_col
 	_end_col = end_col
 	_poles.resize(end_col - first_col + 2)
@@ -185,8 +193,10 @@ func build(lvl: Level, first_col: int, end_col: int) -> void:
 	# a clean light lip along the walking line, its underside in the cool shade (ink.gdshader's `turf`)
 	var turf := ink.duplicate() as ShaderMaterial
 	turf.set_shader_parameter(&"turf", 1.0)
-	for name: StringName in [&"caps", &"ends"]:
-		_layers[name].material = turf
+	_layers[&"caps"].material = turf
+	# (2026-11-13: the ends are bent from the turf with its light baked in (tools/art/grass_ends_cap.py): lit again by
+	# their rows here, their blades turned into a smooth lime band)
+	_layers[&"ends"].material = ink
 	_layers[&"front"] = front
 	_layers[&"front_cast"] = front.get_child(0)
 
@@ -336,7 +346,7 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 	if not open_w and not open_e:
 		b[&"caps"].items.append(_lit(Rect2(x, y - CAP_ABOVE, T, CAP_H),
 				Rect2(_strip_x(c, x), 0, T * PX, CAP_H * PX), _grass_base(c)))
-	elif not (open_w and open_e) and not _in_pole(c, r):
+	elif not (open_w and open_e):  # (2026-11-13: a stack two cells wide too: its top was the rock between two ends)
 		# round 20: the turf runs on under a rounded end, short of its corner (the end's curl hides where it
 		# stops): the strip's fringe stopped square at the end cell, the rock under the end bare and dark
 		var inset := 10.0
@@ -364,21 +374,15 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 	if not open_w and not open_e:
 		b[&"roots"].items.append([Rect2(x, y, T, ROOTS_H),
 				Rect2(_strip_x(c, x), 0, T * PX, ROOTS_H * PX), Color.WHITE])
-	# the tufted lip over each open side (round 19: none on a pillar's slim cap; round 22, the judges, j18: "a flat
-	# brown mushroom, its grass cap like a wig": on a pillar standing on the ground, a shorter lip, closer in)
-	var dk := 0.62 if (open_w or open_e) and _pillar_top(c, r) else 1.0
-	var drape := DRAPE * dk
-	if open_w and not pole_top:
-		b[&"drape"].items.append([Rect2(x - (drape.x - DRAPE_IN), y - DRAPE_TOP * dk, drape.x, drape.y),
-				Rect2(0, 0, DRAPE.x * PX, DRAPE.y * PX), Color.WHITE])
-	if open_e and not pole_top:
-		b[&"drape"].items.append([Rect2(x + T - DRAPE_IN, y - DRAPE_TOP * dk, drape.x, drape.y),
-				Rect2(DRAPE.x * PX, 0, DRAPE.x * PX, DRAPE.y * PX), Color.WHITE])
-	# a wall rising from this top: shade at its foot (the disc's centre on the wall's face)
+	# (2026-11-13, the owner: "many incoherent grass that are used": no tufted lip hangs over an open side any more:
+	# the rounded end, cut from the turf itself (tools/art/grass_ends_cap.py), wraps the corner; the painted lip was
+	# a third kind of grass with the strip and the old lime curls)
+	# a wall rising from this top: shade at its foot (the disc's centre on the wall's face); (2026-11-13: only where the
+	# top runs on under it: a stair's next step, up in the air beside this one, left a dark smudge in the sky)
 	var disc := Rect2(0, 0, 64, 64)
-	if solid(c + 1, r - 1):  # the wall's lit face, on this cell's right: a short occlusion
+	if solid(c + 1, r - 1) and solid(c + 1, r):  # the wall's lit face, on this cell's right: a short occlusion
 		b[&"foot"].items.append([Rect2(x + T - 34.0, y - 26.0, 52.0, 52.0), disc, FOOT_SHADE])
-	if solid(c - 1, r - 1):  # its shaded face, on the left: the shadow falls this way
+	if solid(c - 1, r - 1) and solid(c - 1, r):  # its shaded face, on the left: the shadow falls this way
 		b[&"foot"].items.append([Rect2(x - 46.0, y - 30.0, 132.0, 60.0), disc, FOOT_SHADE])
 		# round 2: the wall's long shadow along the ground away from the low sun, as long as the
 		# wall is tall (CAST_K), on this run of grass only (not over a pool)
@@ -419,7 +423,7 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 ## ledge's soft shadow on the ground under it.
 func _hang_masses(c: int, r: int, batch_shadow: Batch) -> void:
 	var n := 0
-	while n < 60 and solid(c + n, r) and not solid(c + n, r + 1):
+	while n < 120 and solid(c + n, r) and not solid(c + n, r + 1):
 		n += 1
 	var free := 0  # open cells under the ledge before anything (the pools' surface row included)
 	while r + 1 + free < Level.ROWS - 2 and not solid(c + n / 2, r + 1 + free):
@@ -428,8 +432,11 @@ func _hang_masses(c: int, r: int, batch_shadow: Batch) -> void:
 	var deepest := minf(MASS.y * clampf(0.5 + n / 12.0, 0.5, 1.15), free * T * 0.6)
 	if deepest < 16.0:
 		return
-	var x0 := c * T + MASS_INSET  # round 4: the masses stay under the ledge, clear of its rounded ends
-	var x1 := (c + n) * T - MASS_INSET  # (they ran ~2 cells past them, their flat tops showing)
+	# (2026-11-13, the owner: "the floating grass that looks weird": a ledge two or three cells long had no rock
+	# under it, a strip of turf in the air: it gets its small underside too, as the long ones)
+	var inset := minf(MASS_INSET, n * T * 0.2)
+	var x0 := c * T + inset  # round 4: the masses stay under the ledge, clear of its rounded ends
+	var x1 := (c + n) * T - inset  # (they ran ~2 cells past them, their flat tops showing)
 	if x1 - x0 < 24.0:
 		return
 	var top_row := r  # (a ledge two or more cells thick: its rock starts under its grass, not under its last row)
@@ -450,11 +457,24 @@ func _hang_masses(c: int, r: int, batch_shadow: Batch) -> void:
 	# core, drips and roots; from end to end of the ledge (its ends taper into the soil's rounded ends)
 	var rock := UnderRock.new()
 	rock.white = _white
-	var x_left := c * T + 2.0
-	var x_right := (c + n) * T - 2.0
+	# (2026-11-13, the owner on a ledge's end over a wall: "incoherent element": where the ledge runs on over a wall
+	# standing under it, its underside runs on over the wall's top too: the ledge's rock stopped square at the wall,
+	# the soil over the wall another texture and shade)
+	var a := c
+	while a > c - 8 and solid(a - 1, r) and solid(a - 1, r + 1):
+		a -= 1
+	var e := c + n
+	while e < c + n + 8 and solid(e, r) and solid(e, r + 1):
+		e += 1
+	if solid(a - 1, r):  # (only to the ledge's own end: not into a cliff it juts from)
+		a = c
+	if solid(e, r):
+		e = c + n
+	var x_left := a * T + 2.0
+	var x_right := e * T - 2.0
 	var lip := 40.0 + (r - top_row) * 12.0  # (its front face: what shows under the grass mat, more on a thick ledge)
 	var depth := lip + minf((deepest - (r - top_row) * T) * 0.9, length * 0.3)  # (a short ledge: a shallow body, no spike)
-	var room := 54.0  # (under its lowest corner: its drips and roots)
+	var room := minf(54.0, length * 0.45)  # (under its lowest corner: its drips and roots; fewer under a short ledge)
 	# (the user, 2026-11-08: "the hero passes through a floating wall"): where he can run under the ledge, its rock and
 	# drips end above his head as drawn (HERO_DRAWN units over the ground), so he passes under it, never through it
 	var clear := _run_under_limit(c, n, r)
@@ -474,6 +494,13 @@ func _hang_masses(c: int, r: int, batch_shadow: Batch) -> void:
 	m.set_shader_parameter(&"deepest", depth)
 	m.set_shader_parameter(&"lip", lip)
 	m.set_shader_parameter(&"seed", float(_hash(c, r, 997)) + 1.0)
+	var wall := (r + 1) * T - top  # (an end over a wall: square, down to the ledge's lowest row)
+	m.set_shader_parameter(&"wall_l", wall if a < c else -1.0)
+	m.set_shader_parameter(&"wall_r", wall if e > c + n else -1.0)
+	m.set_shader_parameter(&"wall_lw", (c - a) * T)
+	m.set_shader_parameter(&"wall_rw", (e - c - n) * T)
+	rock.rect.size.y = maxf(rock.rect.size.y, wall + 12.0)
+	m.set_shader_parameter(&"size", rock.rect.size)
 	rock.material = m
 	_layers[&"mass"].add_child(rock)
 
@@ -584,7 +611,12 @@ func _find_feet() -> void:
 				i += 1
 			var top_left := start > 0 and _solid[(r + 1) * _cols + start - 1] == 1 and _solid[r * _cols + start - 1] == 0
 			var top_right := i < _cols and _solid[(r + 1) * _cols + i] == 1 and _solid[r * _cols + i] == 0
-			if (top_left or top_right) and i - start <= 16 and not _in_pole(_c0 + start, r - 1):
+			# (2026-11-13, the owner: "a missing grass": the ground's grass stopped on both sides of a stack's foot;
+			# and a top next to the run counts only under open air two cells high: not the floor of a hole in
+			# the rock, which put a strip of turf and a lit band inside a wall)
+			top_left = top_left and _solid[(r - 1) * _cols + start - 1] == 0
+			top_right = top_right and i < _cols and _solid[(r - 1) * _cols + i] == 0
+			if (top_left or top_right) and i - start <= 16:
 				for k in range(start, i):
 					_feet[r * _cols + k] = 1
 
@@ -660,6 +692,10 @@ func _pole_column(c: int) -> int:
 	var end := top
 	while end < Level.ROWS and solid(c, end) and solid(c + w - 1, end) and not solid(c - 1, end) and not solid(c + w, end):
 		end += 1
+	# (2026-11-13, the owner: "the stairs that do not look coherent": a short block floating in the air was a column
+	# fading out to nothing under it; it is a floating ledge, drawn as the others: its soil and its underside)
+	if end < Level.ROWS and not solid(c, end) and not solid(c + w - 1, end):
+		return -1
 	return w * 10000 + top * 100 + end if end - top >= 2 else -1
 
 

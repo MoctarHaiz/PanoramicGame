@@ -234,8 +234,8 @@ void fragment() {
 	vec3 moss_c = mix(vec3(0.26, 0.36, 0.13), vec3(0.4, 0.52, 0.18), step(0.5, noise2(p * vec2(0.12, 0.16))));
 	c = mix(c, moss_c * mix(1.0, 0.55, s3), moss * 0.85);
 	// under the grass mat: its shade (dark earth and roots where the mat's blades part)
-	c = mix(c, vec3(0.2, 0.14, 0.1) * (0.8 + 0.4 * noise2(p * 0.3)), (1.0 - smoothstep(10.0, 16.0, y)) * 0.85
-			* (1.0 - smoothstep(16.0, 22.0, abs(p.x - cx))));
+	// (2026-11-13: across its whole top, soft at its sides: it stopped 16 units from its middle, a dark box under the mat)
+	c = mix(c, vec3(0.2, 0.14, 0.1) * (0.8 + 0.4 * noise2(p * 0.3)), (1.0 - smoothstep(8.0, 16.0, y)) * 0.6);
 	// the light falls off down it, cooler toward its foot; a dark foot
 	c *= mix(1.04, 0.68, smoothstep(0.0, 1.0, down));
 	c = mix(c, c * vec3(0.86, 0.84, 1.0), smoothstep(0.45, 1.0, down) * 0.5);
@@ -247,7 +247,8 @@ void fragment() {
 	c = mix(c, min(c * 1.35 + vec3(0.06, 0.03, 0.0), vec3(1.0)), (1.0 - smoothstep(2.4, 4.0, in_l)) * step(2.2, in_l) * (1.0 - cap) * 0.5);
 	float line = 1.0 - smoothstep(1.7, 2.5, edge);
 	line = max(line, (1.0 - smoothstep(0.0, 1.0 / max(hl + hr, 1.0), abs(ue - j3))) * 0.7 * smoothstep(cap_h + 4.0, cap_h + 10.0, y));
-	line = max(line, (smoothstep(cap_h - 2.0, cap_h - 0.8, y) - smoothstep(cap_h + 0.2, cap_h + 1.4, y)) * 0.85);
+	// (2026-11-13, the owner: "the pillar has some green element at the top that are not coherent with the grass":
+	// no ruled ink line across it under the cap rock any more: it showed through the turf as a hard dark bar)
 	c = mix(c, vec3(0.17, 0.085, 0.06), line * 0.92);
 	c = mix(c, rub_c, rub);
 	float a = max(body, rub);

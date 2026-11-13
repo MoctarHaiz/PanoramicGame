@@ -11,6 +11,13 @@ uniform vec2 size = vec2(400.0, 160.0);  // units: its width, and its height dow
 uniform float deepest = 120.0;  // units from its top to its lowest corner (without the drips)
 uniform float lip = 30.0;  // units from its top to the front face's lower edge
 uniform float seed = 1.0;
+// 2026-11-13 (the owner, on a ledge's end over a wall standing under it: "incoherent element"): units from its top to
+// the ledge's lowest row's bottom on a side where a wall stands under that end (< 0: an open end, cut back in a wedge):
+// that end goes square and at least that deep, so the ledge's rock covers its end, the wall under it
+uniform float wall_l = -1.0;
+uniform float wall_r = -1.0;
+uniform float wall_lw = 0.0;  // units: the width of that wall, from its end
+uniform float wall_rw = 0.0;
 
 float hash(float n) {
 	return fract(sin(n * 127.1) * 43758.5453);
@@ -60,6 +67,12 @@ void fragment() {
 			d *= 0.72 + 0.36 * hash(seed + float(k) * 13.7);
 			d = max(d, lip + 6.0);
 		}
+		if (k == 0 && wall_l > 0.0) {
+			d = max(d, wall_l + 8.0);
+		}
+		if (k == n && wall_r > 0.0) {
+			d = max(d, wall_r + 8.0);
+		}
 		xs[k] = u * w;
 		ds[k] = d;
 		if (xs[k] <= p.x && k < n) {
@@ -74,6 +87,9 @@ void fragment() {
 	float t = clamp((p.x - cx) / max(nx - cx, 1.0), 0.0, 1.0);
 	// (a little break in each straight cut; round 22, the judges: "vector clip art": chunky breaks along it too)
 	float edge_y = mix(cd, nd, t) + (noise(p.x * 0.12 + seed) - 0.5) * 3.0 + (noise(p.x * 0.045 + seed * 3.0) - 0.5) * 9.0 * smoothstep(0.0, 30.0, min(p.x, w - p.x));
+	// (over a wall under an end: all of the wall's width, not only its outer side)
+	edge_y = max(edge_y, wall_l > 0.0 ? (wall_l + 8.0) * (1.0 - smoothstep(wall_lw, wall_lw + 24.0, p.x)) : 0.0);
+	edge_y = max(edge_y, wall_r > 0.0 ? (wall_r + 8.0) * (1.0 - smoothstep(wall_rw, wall_rw + 24.0, w - p.x)) : 0.0);
 	float slope = (nd - cd) / max(nx - cx, 1.0);  // > 0: the plane faces down to the left, toward the sun
 	// the facet: from each corner a ridge runs up to the front face, leaning a little
 	// (the ridges lean in toward its deepest point as they rise: the planes gather like a cut stone's)
@@ -154,7 +170,7 @@ void fragment() {
 	root_back *= 1.0 - root;
 	float body = 1.0 - smoothstep(edge_y - 0.7, edge_y + 0.7, p.y);
 	// (its ends cut back like the ledge's rounded ends above it: a wedge, not a square end)
-	float end_d = min(p.x, w - p.x) - max(p.y - 6.0, 0.0) * 0.5;
+	float end_d = min(wall_l > 0.0 ? 999.0 : p.x, wall_r > 0.0 ? 999.0 : w - p.x) - max(p.y - 6.0, 0.0) * 0.5;
 	body *= smoothstep(-0.7, 0.7, end_d);
 	float shape = max(body, drip);
 	float alpha = max(max(shape, root), root_back);
