@@ -46,7 +46,10 @@ const FRONT_H := 24.0  ## front_grass.png: 24 units of blades (48 px)
 const FRONT_UP := 5.0
 const FRONT_DOWN := 9.0
 const FRONT_CLUMP := 46.0
-const FRONT_TONE := Color(0.86, 0.84, 0.7)  ## 2026-11-13 (the judge: "a neon lime turf edge"): the blades an olive-gold, a value lower
+## (blind round 21: "cream seed-head tufts and lime blades are the lightest, most repeated shapes in the frame and sit
+## exactly on the hero's boots and the ring": the clumps a value lower and fewer, the blades a step more)
+const TUFT_TONE := Color(0.76, 0.72, 0.66)
+const FRONT_TONE := Color(0.8, 0.79, 0.66)  ## 2026-11-13 (the judge: "a neon lime turf edge"): the blades an olive-gold, a value lower
 const FOOT_SHADE := Color(0.14, 0.06, 0.14, 0.78)  ## at the foot of a wall (round 23, the judges: "no contact shadow at its base": darker)
 const CAST_SHADE := Color(0.16, 0.1, 0.2, 0.68)  ## a wall's long shadow on the ground (soft-started: no seam)
 const CAST_K := 0.75  ## its length per unit of the wall's height (a low sun)
@@ -439,7 +442,7 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 	# a straight band"): more of them, each its own size, in runs that come and go, so the grass line along the
 	# top rises and falls (drawn only: the ground he runs on is where it was)
 	var run := smoothstep(0.35, 0.65, float(_hash(floori(c / 5.0), r + 41, 100)) / 100.0)
-	if not open_w and not open_e and _hash(c, r + 7, 100) < 22 + roundi(30.0 * run):
+	if not open_w and not open_e and _hash(c, r + 7, 100) < 16 + roundi(24.0 * run):
 		var v := _hash(c + 3, r, 8)
 		if v == 1 and _hash(c, r + 51, 4) != 0:  # (round 23: the daisies seldom: the brightest pixels by his boots)
 			v = 5
@@ -449,7 +452,7 @@ func _cell(c: int, r: int, b: Dictionary) -> void:
 		# (2026-11-13, the judge at home: "pale cream plumes at the hut's base … unlit cut-outs": they take the home's dusk
 		# and fire light as the turf does)
 		b[&"tufts"].items.append(_lit(Rect2(x + T / 2 - size.x / 2 + dx, y - size.y + 6.0 * k, size.x, size.y),
-				Rect2(v * TUFT.x * PX, 0, TUFT.x * PX, TUFT.y * PX), Color.WHITE))
+				Rect2(v * TUFT.x * PX, 0, TUFT.x * PX, TUFT.y * PX), TUFT_TONE))
 
 
 ## Round 2: under a floating ledge (from its left end, cell c of row r), the rock it carries (round 20: painted

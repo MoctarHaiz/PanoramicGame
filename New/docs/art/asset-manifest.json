@@ -1913,7 +1913,7 @@
    "path": "assets/art/world/far_hills.png",
    "status": "approved",
    "technical": {
-    "dimensions": "3328x722",
+    "dimensions": "3100x623",
     "alpha": true,
     "anchor": "bottom, repeats in x",
     "frames": null,
@@ -2078,7 +2078,7 @@
    "path": "assets/art/world/fx_impact.png",
    "status": "approved",
    "technical": {
-    "dimensions": "1362x418",
+    "dimensions": "1374x382",
     "alpha": true,
     "anchor": "the contact point (Fx.IMPACT_AT in each cell)",
     "frames": null,
@@ -3034,7 +3034,7 @@
    "path": "assets/art/world/river.png",
    "status": "approved",
    "technical": {
-    "dimensions": "3504x917",
+    "dimensions": "3060x943",
     "alpha": true,
     "anchor": "top, repeats in x",
     "frames": null,

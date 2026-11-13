@@ -43,9 +43,9 @@ const FIREWORK_HUES: Array[Color] = [Color("ffc93a"), Color("ff5a32"), Color("ff
 ## it (px: tools/art/kie/world.py impact prints them), how far past the contact the burst reaches for a blow of
 ## radius 1, and how long each frame shows (s).
 const IMPACT_TEX := preload("res://assets/art/world/fx_impact.png")
-const IMPACT_CELL := Vector2(454.0, 418.0)
-const IMPACT_AT := Vector2(88.0, 220.0)
-const IMPACT_REACH := 2.2
+const IMPACT_CELL := Vector2(458.0, 382.0)
+const IMPACT_AT := Vector2(30.0, 213.0)
+const IMPACT_REACH := 2.7
 const IMPACT_TIMES: Array[float] = [0.045, 0.11, 0.11]
 const PLUS_SIZE := 118  ## font size of the "+1" and the "×N" (design px): one size, scaled per use
 const PLUS_SCALE := 0.7  ## the "+1" under its glyphs' size: a small clean pop that reads at phone size (round 13: 0.85 -> 0.7)
@@ -472,17 +472,21 @@ static func knock_out(parent: Node, at: Vector2, feet: Vector2) -> void:
 
 ## A blow's burst, painted (blind round 12: "replace the sticker star with an impact painted in the characters'
 ## ink": it was a jagged star drawn here in three flat colours): three painted frames (fx_impact.png,
-## tools/art/kie/world.py impact: a white-hot heart in dark ink and a shock crescent in the chakram's blues, blown
-## open the way the blow went, then breaking up into splinters), laid with the point of contact at `at` and turned
-## along `along`; each blow mirrored or not about its line, so no two are alike: a quarter of a second.
+## tools/art/kie/world.py impact). Blind round 21 ("a flat white eight-point star with orange wedges, clip-art comic
+## style, and it hides the ring and the contact point": "a painted directional impact (slash arc, dust and debris in
+## the scene's palette)"): a white-hot crescent whose nose is the contact, open the way the blow went, sparks and
+## chips flying on and a puff of the path's dust under them, then breaking up. Laid with the point of contact at `at`
+## and turned along `along` (a blow to the left is mirrored, not turned over: its dust stays under it): a quarter of
+## a second.
 ## `radius`: the size of the blow (effects units: the burst reaches about twice as far past the contact).
 static func hit_spark(parent: Node, at: Vector2, along: Vector2, radius: float) -> void:
 	var node := Node2D.new()
 	node.position = at
-	node.rotation = along.angle() + randf_range(-0.1, 0.1)
+	var left := along.x < 0.0
+	node.rotation = (-along if left else along).angle() + randf_range(-0.1, 0.1)
 	parent.add_child(node)
 	var k := radius * IMPACT_REACH / (IMPACT_CELL.x - IMPACT_AT.x)
-	var base := Vector2(k, -k if randf() < 0.5 else k)
+	var base := Vector2(-k if left else k, k)
 	var frame := [0]
 	node.draw.connect(func() -> void:
 		node.draw_texture_rect_region(IMPACT_TEX, Rect2(-IMPACT_AT, IMPACT_CELL), Rect2(Vector2(IMPACT_CELL.x * frame[0], 0.0), IMPACT_CELL)))

@@ -55,10 +55,16 @@ const SKY_DRIFT := 2.5
 ## still in the last sun with its groves, herds and a village, all the nearer ground in the evening's shade. It runs
 ## from the horizon (PLAIN_HORIZON px under its picture's top) down behind the tall grass at the path's back; nothing
 ## stands between it and the path.
-const PLAIN_K := 0.42  ## units a px of it (1400 units before it repeats: wider than the camera ever sees)
-const PLAIN_HORIZON := 122.0  ## px from its picture's top to its horizon (its acacias stand over it)
-const PLAIN_ROWS := 722.0  ## px tall
-const PLAIN_SHIFT := 177.0  ## units along it the level starts at (the village behind the path's first fights, open plain behind a leaping bandit)
+## Blind round 21 (of the fighters on it: "hard black-inked flat cel sprites, while the plain behind them is a soft,
+## lineless, slightly smeared painting; the dark blurred bush blobs at mid-right look out of focus beside the crisp
+## sprites": "draw the ground directly behind the lane in the characters' own language (crisp contours, hard-edged
+## shadow shapes, no soft smudges)"; "large empty stretches of plain"): the same one ground drawn in the fighters' line
+## (plain3: inked bushes, rocks and acacias with cel shade planes, herds, a cattle kraal with its cooking smoke, all
+## shrinking to the far band), and no lens over it (SOFT_PLAIN 0).
+const PLAIN_K := 0.44  ## units a px of it (1360 units before it repeats: wider than the camera ever sees)
+const PLAIN_HORIZON := 78.0  ## px from its picture's top to its horizon (its acacias stand over it)
+const PLAIN_ROWS := 623.0  ## px tall
+const PLAIN_SHIFT := 1241.0  ## units along it the level starts at (open plain behind a leaping bandit, the kraal beside the hut at home)
 const STRIPS := {
 	&"far_wall": [0.008, 508.0, 1.0],
 	&"far_hills": [0.07, HORIZON + (PLAIN_ROWS - PLAIN_HORIZON) * PLAIN_K, PLAIN_K],
@@ -138,9 +144,9 @@ const DUSK_STRIPS := {&"far_wall": Color(0.6, 0.6, 0.9), &"far_hills": Color(0.5
 ## and the rise nearer the play clearer and darker than what is behind them, graded toward the horizon's violet-peach;
 ## the lift and the dust veil over them (MIST_FULL) are a third of what they were.
 const SOFT_MESAS := 2.2
-const SOFT_PLAIN := 0.8
+const SOFT_PLAIN := 0.0  ## (blind round 21: drawn in the fighters' line, it is in their focus)
 const SOFT_LANE := 0.8
-const SOFT_RIVER := 0.6
+const SOFT_RIVER := 0.0
 const LIFT_LANE := 0.0
 ## Round 22 (the judges, j18: "the hero's lane has no value separation: a mid-orange hero on mid-gold grass"): the tall
 ## grass behind his legs and the savanna behind his body a value darker and greener (an olive band), so his warm skin,
@@ -182,8 +188,11 @@ const LANE_HAZE := 0.45
 ## him the path sinks away and the river comes up under the plain (RIVER_UP units a unit of the camera's rise), until
 ## its far waterline stands at RIVER_AT: the pinnacles of the play stand before it. The bank is drawn as painted, the
 ## water under its waterline squashed (RIVER_SQUASH: a level surface seen from the side), so its sandbars show.
+## Blind round 21 ("a soft pink-lilac gradient with blurred reflections and no drawn form; the part nearest the camera
+## is the blurriest": "paint the river's near water with drawn structure"): river3, cel water: the bank and the towers
+## mirrored as crisp slivers, ripple rings round wet rocks, sandbars, lily pads, egrets on its far bank; no lens.
 const RIVER_K := 0.4  ## units a px of it
-const RIVER_WATER := 157.0  ## px from its picture's top to its far waterline
+const RIVER_WATER := 183.0  ## px from its picture's top to its far waterline
 const RIVER_SQUASH := 0.46
 const RIVER_AT := 500.0  ## play y of its far waterline, the camera risen (the backdrop's own y: see WorldView.BACKDROP_FOLLOW)
 const RIVER_LOW := 730.0  ## ... and from the ground: its bank's tallest papyrus under the screen
@@ -220,6 +229,17 @@ const FRONT_COLS := 3
 const FRONT_TINT := Color(0.74, 0.68, 0.72)
 const FRONT_PROP_GAP := 420.0  ## units of the foreground between two of them (some left open)
 const FRONT_ZONE := 95.0  ## round 20: they show only this far and more behind him (the corner behind his back)
+## Blind round 21 (under the vine: the pinnacle "standing on the soft water with no waterline or reflection and cut by
+## the bottom edge": "reeds or rocks overlapping the bottom edge"): the river's near bank: as the camera rises to the
+## vine, tall grass, broad leaves and a boulder of the big things in front come up along the bottom of the screen,
+## before the pinnacles' feet.
+const BANK_FROM := 110.0  ## the camera's rise (units) from which they come up,
+const BANK_FULL := 230.0  ## ... and at which they stand at their height
+const BANK_SHOW := 0.52  ## the share of a piece over the bottom of the screen
+const BANK_K := 0.72  ## their size (of FRONT_PROP)
+const BANK_GAP := 150.0
+const BANK_SCROLL := 1.2
+const BANK_PIECES: Array[int] = [0, 5, 0, 2, 0, 5]  ## (of fg_props.png: tall grass most, broad leaves, a boulder)
 const FRONT_DROP := 15.0  ## units its picture reaches below the bottom of the screen (round 20: 12 -> 4, fg_grass.png keeps every shape 2+ units under the ground line; round 22: 9, more of the bank shows; round 23: 15, more still)
 
 ## Play units visible left of the play window and the visible width (set by WorldView).
@@ -613,6 +633,21 @@ func _draw_front(ci: CanvasItem) -> void:
 		# (never mirrored: each is lit along its upper left edge, as everything is)
 		var piece := posmod(int(_hash(i * 3 + 9) * FRONT_PIECES), FRONT_PIECES)
 		ci.draw_texture_rect_region(props, rect, Rect2(Vector2(piece % FRONT_COLS, piece / FRONT_COLS) * cell, cell), Color(1, 1, 1, fade))
+	var up := smoothstep(BANK_FROM, BANK_FULL, rise)
+	if up < 0.01:
+		return
+	var screen_bottom := World.VIEW_H - rise  # play y at the bottom of the screen
+	var along := scroll * BANK_SCROLL
+	var b0 := floori((x0 + along) / BANK_GAP) - 1
+	for i in range(b0, b0 + int((x1 - x0) / BANK_GAP) + 3):
+		if _hash(i * 17 + 5) < 0.2:
+			continue
+		var size := FRONT_PROP * BANK_K * (0.8 + _hash(i * 7 + 11) * 0.45)
+		var cx := i * BANK_GAP + _hash(i * 5 + 2) * BANK_GAP * 0.6 - along
+		var show := BANK_SHOW * (0.7 + _hash(i * 3 + 4) * 0.5) * up
+		var piece: int = BANK_PIECES[posmod(int(_hash(i * 9 + 1) * BANK_PIECES.size()), BANK_PIECES.size())]
+		ci.draw_texture_rect_region(props, Rect2(cx - size.x / 2, screen_bottom + 4.0 - size.y * show, size.x, size.y),
+				Rect2(Vector2(piece % FRONT_COLS, piece / FRONT_COLS) * cell, cell))
 
 
 ## The cloud's shade across the middle ground (LANE_SHADE), multiplied over every layer behind the path.

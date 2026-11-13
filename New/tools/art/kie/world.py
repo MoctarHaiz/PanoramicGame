@@ -49,11 +49,12 @@ HEARTH_TIP, HEARTH_SLOPE, HEARTH_STONES = 0.672, 0.55, 0.8  # the hearth's logs:
 FLAME_K = 0.46  # the flames, of fire3's px: about 215 px across on the 308 px hearth
 FLAME_CELL = (308, 440)  # px, a frame of home_flames.png: the hearth's width
 FLAME_FOOT = 52  # px over the cell's bottom the flames stand: behind the logs, on the embers
-PLAIN_ENDS = 96  # px cut off each end of a wide painting (plain, river)
-PLAIN_ROWS = 600  # px of the plain kept under its horizon (SavannaView: the rest is under the screen)
+PLAIN_ENDS = 70  # px cut off each end of a wide painting (plain, river: the painter smears its two ends into level streaks)
+PLAIN_ROWS = 545  # px of the plain kept under its horizon (SavannaView: the rest is under the screen)
+PLAIN_JOIN = 600  # px of each end its join may wander in (a drawn bush or rock is one end's or the other's, whole)
+PLAIN_SLIPS = [((975, 1095), (3250, 3500), 235), ((905, 960), (3350, 3460), 100)]  # (rows, columns, columns to its left the grass is taken from)
 RIVER_ROWS = 760  # px of the river kept under its far waterline
-RIVER_ENDS = 40  # px cut off each of its ends (its join keeps clear of the streaks along the bank's ends)
-RIVER_STEER = [(610, 36), (706, 216)]  # (river2's row, the join's column from there down)
+RIVER_JOIN = 640
 FRONT_CELL = (440, 390)  # px: SavannaView.FRONT_PROP at 1.7 px a unit (dark shapes passing fast: no finer)
 
 
@@ -84,25 +85,32 @@ def fade(a: np.ndarray, b: int) -> np.ndarray:
     return np.concatenate([zone, a[:, b:-b]], axis=1)
 
 
-def seam(a: np.ndarray, b: int, feather=5.0, steer=()) -> np.ndarray:
+def seam(a: np.ndarray, b: int, feather=5.0, steer=(), reach=1, lean=None, match=0) -> np.ndarray:
     """Repeats left to right: the last `b` columns joined to the first `b` along the top-to-bottom path where the two
     differ least (a blade of grass is one end's or the other's, never a ghost of both). `steer`: (row, column) pairs:
-    from that row down the path runs at that column (open water: round a sandbar's tip, not through it)."""
+    from that row down the path runs at that column (open water: round a sandbar's tip, not through it). `reach`: the
+    columns the path may step aside in a row (drawn bushes and rocks stand in both ends: it winds between them).
+    `lean`: (row, column): from that row down the path is drawn toward that column (which end's things stand there).
+    `match`: the two ends' tones are brought to each other over this many px on each side of the path (the painter
+    left one end's grass lighter: a faint upright step where the picture repeats)."""
     end, start = a[:, -b:], a[:, :b]
-    cost = ((end - start) ** 2).sum(axis=-1) + 1e-5
-    lo, hi = int(b * 0.12), int(b * 0.88)
+    cost = ((end - start) ** 2).sum(axis=-1)
+    cost = ndi.maximum_filter(cost, size=(1, 9)) + 1e-5  # (clear of an object's outline, not along it)
+    if lean is not None:
+        cost[lean[0]:] += 0.004 * np.abs(np.arange(b) - lean[1])[None, :]
+    lo, hi = int(b * 0.04), int(b * 0.96)
     cost[:, :lo] += 10.0
     cost[:, hi:] += 10.0
     acc = cost.copy()
     for y in range(1, acc.shape[0]):
-        prev = acc[y - 1]
-        acc[y] += np.minimum(prev, np.minimum(np.roll(prev, 1), np.roll(prev, -1)))
+        acc[y] += ndi.minimum_filter1d(acc[y - 1], 2 * reach + 1, mode="nearest")
     path = np.zeros(acc.shape[0], np.int64)
     path[-1] = int(np.argmin(acc[-1]))
     for y in range(acc.shape[0] - 2, -1, -1):
         x = path[y + 1]
-        x0, x1 = max(x - 1, 0), min(x + 2, b)
+        x0, x1 = max(x - reach, 0), min(x + reach + 1, b)
         path[y] = x0 + int(np.argmin(acc[y, x0:x1]))
+    seam.path = path
     for row, column in steer:
         path[row:] = column
     m = (np.arange(b)[None, :] > path[:, None]).astype(np.float32)  # 1: the start's side
@@ -111,7 +119,17 @@ def seam(a: np.ndarray, b: int, feather=5.0, steer=()) -> np.ndarray:
         m[steer[0][0] - 40:] = ndi.gaussian_filter1d(m, feather, axis=0)[steer[0][0] - 40:]
     m = m[..., None]
     zone = end * (1 - m) + start * m
-    return np.concatenate([zone, a[:, b:-b]], axis=1)
+    out = np.concatenate([zone, a[:, b:-b]], axis=1)
+    if match:
+        near = np.clip(path[:, None] + np.arange(-30, 31)[None, :], 0, b - 1)
+        d = np.take_along_axis((end - start)[..., :3], near[..., None], axis=1).mean(axis=1)  # the step, row by row
+        d = np.clip(ndi.gaussian_filter1d(d, 20.0, axis=0), -0.12, 0.12)[:, None, :] * 0.5
+        out = np.roll(out, match, axis=1)  # (the path's left side is the picture's far end)
+        off = (np.arange(out.shape[1])[None, :] - (path[:, None] + match)) / float(match)
+        w = np.where(off >= 0, np.clip(1 - off, 0, 1) ** 2, -np.clip(1 + off, 0, 1) ** 2)[..., None]
+        out[..., :3] = np.clip(out[..., :3] + d * w * out[..., 3:4], 0.0, 1.0)
+        out = np.roll(out, -match, axis=1)
+    return out
 
 
 def top_edge(a: np.ndarray, share=0.5) -> int:
@@ -150,10 +168,23 @@ def plain() -> None:
     # from right behind the characters to the horizon: interlocking swells, a game trail winding away to one far
     # point, the far band in the last sun with its groves, its herds and a village, the nearer plain in the evening's
     # shade. `plain`, the one before it, was the far plain alone, seen behind three ridges)
-    a = load("plain2")[:, PLAIN_ENDS:-PLAIN_ENDS]  # (the painter smears a picture's two ends into level streaks)
+    # (blind round 20: "hard black-inked flat cel sprites, while the plain behind them is a soft, lineless, slightly
+    # smeared painting ... dark blurred bush blobs": "draw the ground directly behind the lane in the characters' own
+    # language (crisp contours, hard-edged shadow shapes, no soft smudges)": plain3, the same one ground drawn in the
+    # approved frame's ink and cel planes: bushes, rocks, termite mounds, small acacias, herds, a cattle kraal, its trail,
+    # all shrinking to the far sunlit band)
+    a = load("plain3")[:, PLAIN_ENDS:-PLAIN_ENDS]
+    # (two of the painter's slips near its right end, a rock and a red smudge half painted over the grass: the open
+    # grass beside each laid over it)
+    for rows, cols, dx in PLAIN_SLIPS:
+        mask = np.zeros(a.shape[:2], np.float32)
+        mask[rows[0]:rows[1], cols[0] - PLAIN_ENDS:cols[1] - PLAIN_ENDS] = 1.0
+        mask = ndi.gaussian_filter(mask, 9.0)[..., None]
+        a = a * (1 - mask) + np.roll(a, dx, axis=1) * mask
     first = top_edge(a, 0.004)  # (the acacias' crowns)
     line = top_edge(a, 0.97)  # the horizon
-    out = seam(a[first - 8:line + PLAIN_ROWS], 320, feather=36.0)  # (soft land: the swells' shade melts across)
+    # (low down the join keeps to the right: the right end's bushes whole, the left end's aloe, which they would cut, out)
+    out = seam(a[first - 8:line + PLAIN_ROWS], PLAIN_JOIN, feather=2.5, reach=3, lean=(line - first + 8 + 320, PLAIN_JOIN - 34), match=300)
     save(out, OUT / "far_hills.png")
     print("  horizon at row %d of it" % (line - first + 8))
 
@@ -162,12 +193,13 @@ def river() -> None:
     # (blind round 19, under the vine: "the river is the cheapest element: reflections as regular white horizontal
     # dashes and banded blocks, which read as a procedural shader rather than paint": river2, the river painted: its
     # far bank of reeds, papyrus and sand, the dusk mirrored soft and broken, sandbars and lily pads lying across it)
-    a = load("river2")[:, RIVER_ENDS:-RIVER_ENDS]
+    # (blind round 20: "a soft pink-lilac gradient with blurred reflections and no drawn form ... the part nearest the
+    # camera is the blurriest": river3, drawn as cel water: crisp mirrored shapes cut into slivers, ripple rings,
+    # sandbars, wet rocks, lily pads, egrets on its far bank)
+    a = load("river3")[:, PLAIN_ENDS:-PLAIN_ENDS]
     first = top_edge(a, 0.004)  # (the papyrus heads)
     water = top_edge(a, 0.995)  # the first row that is water from side to side
-    # (a sandbar's tip lies in each end: the join passes left of the left one's, then right of the right one's)
-    steer = [(row - first + 8, column) for row, column in RIVER_STEER]
-    out = seam(a[first - 8:water + RIVER_ROWS], 256, feather=16.0, steer=steer)
+    out = seam(a[first - 8:water + RIVER_ROWS], RIVER_JOIN, feather=2.5, reach=3)
     save(out, OUT / "river.png")
     print("  water from row %d of it" % (water - first + 8))
 
@@ -350,16 +382,18 @@ def door() -> None:
     print("home_hut.png: doorway %d px repainted, rows %d to %d" % (int(inside.sum()), ys.min(), ys.max()))
 
 
+IMPACT_NOSE = 44  # px from the crescent's nose to the point of contact
+
+
 def impact() -> None:
     """A blow's burst (fx_impact.png: Fx.hit_spark): three painted frames in a row (the contact, the burst, the
     break-up; the blow goes right), each in a cell of the same size with the point of contact, the middle of its
     white-hot heart, at the same place (printed: Fx.IMPACT_CELL, IMPACT_AT), at half the painting's size."""
-    a = load("impact")
-    # blind round 13 ("in cold flat blue/white ... give it a warm white/gold core from the scene's palette"): its blue
-    # turned to the sunset's gold and amber (red and blue exchanged where blue leads: pale blue to pale gold, deep blue
-    # to orange; its white heart, its ink and its gold tips as painted)
-    cold = a[..., 2] > a[..., 0]
-    a[..., 0], a[..., 2] = np.where(cold, a[..., 2], a[..., 0]), np.where(cold, a[..., 0], a[..., 2])
+    # blind round 21 ("a flat white eight-point star with orange wedges, clip-art comic style, and it hides the ring
+    # and the contact point": "a painted directional impact (slash arc, dust and debris in the scene's palette)"):
+    # impact2: a white-hot crescent whose nose is the contact, opening the blow's way, sparks and chips flying on,
+    # a puff of the path's dust in the dusk's cream and lilac. The contact: a little inside its nose.
+    a = load("impact2")
     w3 = a.shape[1] // 3
     frames = []
     for i in range(3):
@@ -368,7 +402,9 @@ def impact() -> None:
         rgb = f[..., :3] / np.maximum(al[..., None], 1e-4)
         lab, n = ndi.label((al > 0.9) & (rgb.min(axis=2) > 0.93))
         heart = 1 + int(np.argmax(ndi.sum(np.ones_like(al), lab, np.arange(1, n + 1))))
-        cy, cx = ndi.center_of_mass(lab == heart)
+        cy = ndi.center_of_mass(lab == heart)[0]
+        band = al[int(cy) - 12:int(cy) + 12].max(axis=0)
+        cx = int(np.nonzero(band > 0.5)[0].min()) + IMPACT_NOSE
         ys, xs = np.nonzero(al > 0.03)
         frames.append((f, int(round(cx)), int(round(cy)), xs.min(), xs.max() + 1, ys.min(), ys.max() + 1))
     left = max(cx - x0 for _, cx, cy, x0, x1, y0, y1 in frames) + 4

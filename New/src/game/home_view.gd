@@ -30,7 +30,7 @@ const FIRE_X := 644.0  ## play x of the campfire on the last screen
 ## light: the grass and the earth are in a deeper night away from the fire (the turf's straw at DUSK was still the
 ## brightest thing far right of the hut) and warmer in its pool (ground_colour: the turf, the props, the earth)
 const GROUND_DUSK := Color(0.4, 0.4, 0.7)
-const GROUND_FIRE := Color(1.14, 0.9, 0.64)
+const GROUND_FIRE := Color(1.12, 0.79, 0.5)  ## (blind round 21: "a neon yellow-green turf line under the fire": the fire's orange on the turf, less of its green)
 ## (blind round 17: "the bottom 12% is a dead black strip": the earth under the path, dark by day already, keeps more
 ## of itself in the dusk than the turf does: its roots and stones still read)
 const SOIL_DUSK := Color(0.66, 0.6, 0.9)
@@ -44,8 +44,17 @@ const TREE_X := 366.0  ## the great acacia behind the palisade: its foot (from L
 const TREE_K := 1.25  ## its size: its crown leaves the picture by the top left corner
 const TREE_FOOT := 230.5  ## its trunk's foot in its picture (px: tree_info.json's anchor_x)
 const TREE_AIR := Color(0.3, 0.28, 0.56)
-const TREE_AIR_K := 0.36
+const TREE_AIR_K := 0.2  ## (blind round 21: "washed to a flat grey-lilac and looks like a half-transparent layer": 0.36 -> 0.2, a solid tree in the dusk)
 const TREE_DUSK := Color(1.0, 0.96, 1.12)  ## (blind round 18: "a heavy dark trunk slices the left edge": deeper in the dusk's air, TREE_AIR)
+
+## Blind round 21 ("Dead middle ground: between the horizon village and the fence lies a wide dark band with nothing
+## drawn in it": "stage that empty dark band as a real middle distance (lit huts, a second fire, figures or cattle, a
+## receding fence line)"): a neighbour's homestead out on the plain behind the palisade: huts, a granary and a
+## stretch of palisade at NEIGHBOUR_K of the home's size, their own cooking fire among them, all in the dusk but for
+## what that fire lights.
+const NEIGHBOUR_K := 0.25
+const NEIGHBOUR_AT := Vector2(566.0, 134.0)  ## its fire: from LEFT, and how far over the home's ground it stands on the plain
+const NEIGHBOUR_DUSK := Color(0.8, 0.8, 0.96)  ## (a step into the dusk's air)
 
 var back: Node2D
 var yard: Node2D  ## over the ground's grass, under the actors (WorldView adds it after the ground)
@@ -77,6 +86,7 @@ func build() -> void:
 	# (blind round 16: "bottom-heavy, cropped composition: the right hut sliced by the frame, the upper-left 40% empty
 	# violet sky": a great acacia behind the palisade, its crown the picture's upper left corner, in the dusk's
 	# shade; the small hut a little further back and whole in the pushed-in shot)
+	back.add_child(_neighbour())
 	var tree := _put(back, "tree_acacia_2", LEFT + TREE_X, TREE_K, TREE_DUSK)
 	tree.offset.x = -TREE_FOOT
 	var air := ShaderMaterial.new()  # (it stands back in the dusk's air: its darks toward the night sky's violet)
@@ -261,10 +271,34 @@ static func ground_colour(x: float) -> Color:
 	return GROUND_DUSK.lerp(GROUND_FIRE, exp(-d * d * 2.2))
 
 
+## The neighbour's homestead (NEIGHBOUR_K): the home's own pictures, small, round a fire of their own.
+func _neighbour() -> Node2D:
+	var far := Node2D.new()
+	far.name = &"Neighbour"
+	far.scale = Vector2(NEIGHBOUR_K, NEIGHBOUR_K)
+	far.position = Vector2(LEFT + NEIGHBOUR_AT.x, GROUND - NEIGHBOUR_AT.y - GROUND * NEIGHBOUR_K)
+	var fire := Fire.new()
+	fire.position = Vector2(0.0, GROUND - 8.0)
+	fire.scale = Vector2(2.0, 2.0)
+	var props: Array[Sprite2D] = [
+		_put(far, "home_hut_small", -250.0, 0.8, NEIGHBOUR_DUSK),
+		_put(far, "home_granary", 240.0, 0.9, NEIGHBOUR_DUSK),
+		_put(far, "home_hut_small", 500.0, 0.72, NEIGHBOUR_DUSK, true),
+		_put(far, "home_hut_low", 790.0, 0.8, NEIGHBOUR_DUSK),
+	]
+	for prop in props:
+		prop.material = form(1.0)
+		_fire_lit(prop, fire.position)
+	_fence(far, -620.0, -60.0)
+	_fence(far, 110.0, 980.0)
+	far.add_child(fire)
+	return far
+
+
 ## The fire's light and the dusk's shade on a prop (form.gdshader): where the fire is in the prop's own pixels.
-func _fire_lit(prop: Sprite2D) -> void:
+func _fire_lit(prop: Sprite2D, fire_at := Vector2.INF) -> void:
 	var m := prop.material as ShaderMaterial
-	var hearth := _fire.position + Vector2(0.0, -40.0)
+	var hearth := (_fire.position if fire_at == Vector2.INF else fire_at) + Vector2(0.0, -40.0)
 	m.set_shader_parameter(&"fire_at", (hearth - prop.position) / prop.scale)
 	m.set_shader_parameter(&"fire_reach", FIRE_REACH / prop.scale.x)
 	m.set_shader_parameter(&"dusk", DUSK)

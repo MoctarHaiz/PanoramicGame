@@ -58,6 +58,14 @@ const DEATH_PUSH := 1.2  ## caught: the camera closes in on him while he falls (
 ## framed first and the push is laid over it: for that beat the screen's far right shows a little later, where
 ## nothing can reach him yet. Not up on a ledge or on the vine (the camera frames those its own way).
 const FIGHT_PUSH := 1.2
+## Blind round 20 (of the blow: "two figures of about 25% of the frame height ... make the hit an event: push the camera
+## in until the pair fills about 45% of the height"): a blow punches the camera in over the fight's push, at once, holds
+## a beat and eases back (not with reduced motion or the shake off: Prefs.shake)
+const HIT_PUNCH := 0.24  ## this much closer (the pair about 42% of the frame's height on a phone)
+const HIT_PUNCH_FEET := 6.0  ## units over the ground they stand on: the height it closes in about
+const HIT_PUNCH_IN := 0.05  ## seconds in,
+const HIT_PUNCH_HOLD := 0.2  ## ... held,
+const HIT_PUNCH_OUT := 0.45  ## ... and back
 const HOME_ABOUT := 160.0  ## units over the level's bottom the home's push closes in about
 const FIGHT_REACH := 300.0  ## a bandit this near ahead of him (units), on his level
 const FIGHT_RING := 520.0  ## ... or this near while a ring is in the air
@@ -122,6 +130,7 @@ var _start_push := 1.0  # the camera pushed in on him on the start card (START_P
 var _fight := 0.0  # 0..1: how far the camera has closed in on a fight (FIGHT_PUSH)
 var _fight_x := 0.0  # the play x it closes in about (between him and the bandit)
 var _fight_hold := 0.0  # seconds left of the push after a blow
+var _punch_time := -1.0  # seconds since the blow that punched the camera in (< 0: none)
 var _zoom_placed_ready := false  # the camera was first placed on the start card
 var _start_clock := 0.0  # seconds the start card has shown
 var _pit_scroll := -1.0  # the scroll the camera holds at while he drops into a pit (_gameplay_camera)
@@ -355,11 +364,16 @@ func _place_camera(delta: float) -> void:
 		at = mark + (at - mark) * _start_push
 		zoom_k *= _start_push
 	var fought := _fight_at(p, delta)
+	var punch := 1.0 + HIT_PUNCH * _punch(delta) * _fight
 	if _fight > 0.0005:
 		var f := 1.0 + (FIGHT_PUSH - 1.0) * _fight
 		var about := at + Vector2(fought, _support - FIGHT_CHEST) * zoom_k
 		at = about + (at - about) * f
 		zoom_k *= f
+		# the blow's punch-in closes in about the ground under them: their feet and the turf stay in the shot
+		about = at + Vector2(fought, _support - HIT_PUNCH_FEET) * zoom_k
+		at = about + (at - about) * punch
+		zoom_k *= punch
 	var z := 1.0 + 2.0 * shake / (World.VIEW_H * _k)
 	zoom_k *= z
 	at = at * z + _clip.size / 2.0 * (1.0 - z)
@@ -372,6 +386,18 @@ func _place_camera(delta: float) -> void:
 	# (round 10, QA ENV-1) the start card's frame: no bandit cut by the right edge of the safe area
 	view.start_hold = _ready_to_start
 	view.safe_right = (_clip.size.x - Device.insets().z - _stage.position.x) / _stage.scale.x
+
+
+## A blow's punch-in now (0..1: HIT_PUNCH_IN, HIT_PUNCH_HOLD, HIT_PUNCH_OUT), stepped by `delta`.
+func _punch(delta: float) -> float:
+	if _punch_time < 0.0:
+		return 0.0
+	_punch_time += delta
+	if _punch_time >= HIT_PUNCH_IN + HIT_PUNCH_HOLD + HIT_PUNCH_OUT:
+		_punch_time = -1.0
+		return 0.0
+	var back := smoothstep(0.0, 1.0, (_punch_time - HIT_PUNCH_IN - HIT_PUNCH_HOLD) / HIT_PUNCH_OUT)
+	return smoothstep(0.0, 1.0, _punch_time / HIT_PUNCH_IN) * (1.0 - back)
 
 
 ## The fight's framing (FIGHT_PUSH): eases _fight in or out and returns the play x the push closes in about.
@@ -744,6 +770,8 @@ func _on_bob_popped(at: Vector2) -> void:
 ## way the ring flew and springing back); a knock-out is the medium one (it tumbles away: BanditView).
 func _on_bandit_hit(b: World.Bandit, knocked_out: bool) -> void:
 	_fight_hold = FIGHT_HOLD
+	if Prefs.shake() > 0.0:
+		_punch_time = 0.0
 	Audio.play_sfx(&"knock_out" if knocked_out else &"ring_hit")
 	if knocked_out:
 		Haptics.knock()
